@@ -1,5 +1,6 @@
 -- SparkNode Database Initialization Script
 -- Multi-tenant Employee Rewards & Recognition Platform
+-- Version 2.0 - Full Multi-Tenant SaaS Architecture
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -8,14 +9,29 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- TENANT & IDENTITY TABLES
 -- =====================================================
 
--- Tenants (Companies)
+-- Tenants (Companies) - Enhanced for SaaS
 CREATE TABLE tenants (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
     domain VARCHAR(255) UNIQUE,
     logo_url VARCHAR(500),
-    status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'suspended')),
-    settings JSONB DEFAULT '{}',
+    favicon_url VARCHAR(500),
+    primary_color VARCHAR(20) DEFAULT '#3B82F6',
+    status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'suspended', 'trial')),
+    
+    -- Subscription & Billing
+    subscription_tier VARCHAR(50) DEFAULT 'starter' CHECK (subscription_tier IN ('free', 'starter', 'professional', 'enterprise')),
+    subscription_status VARCHAR(50) DEFAULT 'active' CHECK (subscription_status IN ('active', 'past_due', 'cancelled')),
+    subscription_started_at TIMESTAMP WITH TIME ZONE,
+    subscription_ends_at TIMESTAMP WITH TIME ZONE,
+    max_users INTEGER DEFAULT 50,
+    
+    -- Settings & Customization
+    settings JSONB DEFAULT '{"copay_enabled": false, "points_to_currency_ratio": 0.10, "peer_to_peer_recognition": true, "social_feed_enabled": true, "events_module_enabled": true}',
+    catalog_settings JSONB DEFAULT '{}',
+    branding JSONB DEFAULT '{}',
+    
+    -- Timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -31,7 +47,7 @@ CREATE TABLE departments (
     UNIQUE(tenant_id, name)
 );
 
--- Users
+-- Users with 4-tier role model
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -39,7 +55,7 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
-    role VARCHAR(50) NOT NULL CHECK (role IN ('platform_admin', 'hr_admin', 'manager', 'employee')),
+    role VARCHAR(50) NOT NULL CHECK (role IN ('platform_owner', 'platform_admin', 'tenant_admin', 'hr_admin', 'tenant_lead', 'manager', 'corporate_user', 'employee')),
     department_id UUID REFERENCES departments(id),
     manager_id UUID REFERENCES users(id),
     avatar_url VARCHAR(500),
@@ -292,6 +308,186 @@ CREATE TABLE notifications (
 );
 
 CREATE INDEX idx_notifications_user ON notifications(user_id, is_read, created_at DESC);
+
+-- =====================================================
+-- EVENTS & LOGISTICS TABLES
+-- =====================================================
+
+-- Events
+CREATE TABLE events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    event_type VARCHAR(50) DEFAULT 'mixed' CHECK (event_type IN ('recognition', 'logistics', 'mixed')),
+    start_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    end_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    registration_deadline TIMESTAMP WITH TIME ZONE,
+    location VARCHAR(500),
+    is_virtual BOOLEAN DEFAULT FALSE,
+    virtual_link VARCHAR(500),
+    max_participants INTEGER,
+    status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'ongoing', 'completed', 'cancelled')),
+    banner_image_url VARCHAR(500),
+    theme_color VARCHAR(20),
+    settings JSONB DEFAULT '{"require_manager_approval": true, "qr_checkin_enabled": true}',
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_events_tenant ON events(tenant_id, status, start_date);
+
+-- Event Activities
+CREATE TABLE event_activities (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    activity_type VARCHAR(50) DEFAULT 'general' CHECK (activity_type IN ('performance', 'gifting', 'workshop', 'networking', 'general')),
+    start_time TIMESTAMP WITH TIME ZONE,
+    end_time TIMESTAMP WITH TIME ZONE,
+    max_capacity INTEGER,
+    current_count INTEGER DEFAULT 0,
+    location VARCHAR(500),
+    participation_points DECIMAL(15, 2) DEFAULT 0,
+    settings JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Event Participants
+CREATE TABLE event_participants (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'checked_in', 'completed')),
+    approved_by UUID REFERENCES users(id),
+    approved_at TIMESTAMP WITH TIME ZONE,
+    rejection_reason TEXT,
+    checked_in_at TIMESTAMP WITH TIME ZONE,
+    checked_in_by UUID REFERENCES users(id),
+    custom_field_responses JSONB DEFAULT '{}',
+    registered_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(event_id, user_id)
+);
+
+CREATE INDEX idx_event_participants ON event_participants(event_id, status);
+
+-- Activity Participants
+CREATE TABLE activity_participants (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    activity_id UUID NOT NULL REFERENCES event_activities(id) ON DELETE CASCADE,
+    event_participant_id UUID NOT NULL REFERENCES event_participants(id) ON DELETE CASCADE,
+    status VARCHAR(50) DEFAULT 'registered' CHECK (status IN ('registered', 'attended', 'no_show')),
+    checked_in_at TIMESTAMP WITH TIME ZONE,
+    points_awarded DECIMAL(15, 2) DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Event Budgets
+CREATE TABLE event_budgets (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE UNIQUE,
+    total_budget DECIMAL(15, 2) NOT NULL DEFAULT 0,
+    allocated_amount DECIMAL(15, 2) NOT NULL DEFAULT 0,
+    spent_amount DECIMAL(15, 2) NOT NULL DEFAULT 0,
+    breakdown JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Event Gift Items
+CREATE TABLE event_gift_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    activity_id UUID NOT NULL REFERENCES event_activities(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    image_url VARCHAR(500),
+    total_quantity INTEGER NOT NULL DEFAULT 0,
+    allocated_quantity INTEGER NOT NULL DEFAULT 0,
+    distributed_quantity INTEGER NOT NULL DEFAULT 0,
+    unit_value DECIMAL(15, 2) DEFAULT 0,
+    points_value DECIMAL(15, 2) DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Gift Allocations
+CREATE TABLE gift_allocations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    gift_item_id UUID NOT NULL REFERENCES event_gift_items(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'ready', 'picked_up', 'expired')),
+    picked_up_at TIMESTAMP WITH TIME ZONE,
+    verified_by UUID REFERENCES users(id),
+    qr_token_hash VARCHAR(255),
+    allocated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    expires_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE INDEX idx_gift_allocations_user ON gift_allocations(user_id, status);
+
+-- =====================================================
+-- ANALYTICS TABLES
+-- =====================================================
+
+-- Tenant Analytics (Pre-computed metrics)
+CREATE TABLE tenant_analytics (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    period_type VARCHAR(20) NOT NULL CHECK (period_type IN ('daily', 'weekly', 'monthly', 'quarterly')),
+    period_start DATE NOT NULL,
+    period_end DATE NOT NULL,
+    active_users INTEGER DEFAULT 0,
+    recognitions_given INTEGER DEFAULT 0,
+    recognitions_received INTEGER DEFAULT 0,
+    points_distributed DECIMAL(15, 2) DEFAULT 0,
+    points_redeemed DECIMAL(15, 2) DEFAULT 0,
+    budget_utilization_rate DECIMAL(5, 2) DEFAULT 0,
+    budget_burn_rate DECIMAL(15, 2) DEFAULT 0,
+    engagement_score DECIMAL(5, 2) DEFAULT 0,
+    participation_rate DECIMAL(5, 2) DEFAULT 0,
+    department_metrics JSONB DEFAULT '{}',
+    top_recognizers JSONB DEFAULT '[]',
+    top_recipients JSONB DEFAULT '[]',
+    computed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(tenant_id, period_type, period_start)
+);
+
+CREATE INDEX idx_tenant_analytics ON tenant_analytics(tenant_id, period_type, period_start);
+
+-- Platform Metrics (Platform Owner view)
+CREATE TABLE platform_metrics (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    period_type VARCHAR(20) NOT NULL,
+    period_start DATE NOT NULL,
+    period_end DATE NOT NULL,
+    total_tenants INTEGER DEFAULT 0,
+    active_tenants INTEGER DEFAULT 0,
+    new_tenants INTEGER DEFAULT 0,
+    churned_tenants INTEGER DEFAULT 0,
+    total_users INTEGER DEFAULT 0,
+    active_users INTEGER DEFAULT 0,
+    new_users INTEGER DEFAULT 0,
+    total_recognitions INTEGER DEFAULT 0,
+    total_points_distributed DECIMAL(15, 2) DEFAULT 0,
+    total_redemptions INTEGER DEFAULT 0,
+    total_redemption_value DECIMAL(15, 2) DEFAULT 0,
+    mrr DECIMAL(15, 2) DEFAULT 0,
+    arr DECIMAL(15, 2) DEFAULT 0,
+    tier_breakdown JSONB DEFAULT '{}',
+    tenant_benchmarks JSONB DEFAULT '[]',
+    computed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
 -- =====================================================
 -- SEED DATA

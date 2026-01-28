@@ -10,13 +10,22 @@ const api = axios.create({
   },
 })
 
-// Request interceptor to add auth token
+// Request interceptor to add auth token and tenant context
 api.interceptors.request.use(
   (config) => {
-    const token = useAuthStore.getState().token
+    const state = useAuthStore.getState()
+    const token = state.token
+    const tenantId = state.getTenantId()
+    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    
+    // Add tenant context header for explicit tenant isolation
+    if (tenantId) {
+      config.headers['X-Tenant-ID'] = tenantId
+    }
+    
     return config
   },
   (error) => Promise.reject(error)
@@ -30,6 +39,10 @@ api.interceptors.response.use(
       useAuthStore.getState().logout()
       window.location.href = '/login'
     }
+    // Handle tenant access errors
+    if (error.response?.status === 403 && error.response?.data?.detail?.includes('tenant')) {
+      console.error('Tenant access denied:', error.response.data.detail)
+    }
     return Promise.reject(error)
   }
 )
@@ -39,6 +52,7 @@ export const authAPI = {
   login: (email, password) => api.post('/auth/login', { email, password }),
   me: () => api.get('/auth/me'),
   logout: () => api.post('/auth/logout'),
+  refreshToken: () => api.post('/auth/refresh'),
 }
 
 // Users API
@@ -49,6 +63,9 @@ export const usersAPI = {
   update: (id, data) => api.put(`/users/${id}`, data),
   search: (q) => api.get('/users/search', { params: { q } }),
   getDirectReports: (id) => api.get(`/users/${id}/direct-reports`),
+  bulkCreate: (data) => api.post('/users/bulk', data),
+  deactivate: (id) => api.put(`/users/${id}/deactivate`),
+  reactivate: (id) => api.put(`/users/${id}/reactivate`),
 }
 
 // Wallets API
@@ -70,6 +87,7 @@ export const budgetsAPI = {
   allocate: (id, data) => api.post(`/budgets/${id}/allocate`, data),
   getDepartmentBudgets: (id) => api.get(`/budgets/${id}/departments`),
   activate: (id) => api.put(`/budgets/${id}/activate`),
+  getUtilization: (id) => api.get(`/budgets/${id}/utilization`),
 }
 
 // Recognition API
@@ -93,6 +111,9 @@ export const redemptionAPI = {
   create: (data) => api.post('/redemptions', data),
   getMyRedemptions: (params) => api.get('/redemptions', { params }),
   getById: (id) => api.get(`/redemptions/${id}`),
+  // Tenant catalog management
+  getCatalogSettings: () => api.get('/redemptions/catalog/settings'),
+  updateCatalogSettings: (data) => api.put('/redemptions/catalog/settings', data),
 }
 
 // Feed API
@@ -119,6 +140,18 @@ export const tenantsAPI = {
   createDepartment: (data) => api.post('/tenants/departments', data),
   updateDepartment: (id, data) => api.put(`/tenants/departments/${id}`, data),
   deleteDepartment: (id) => api.delete(`/tenants/departments/${id}`),
+  // Tenant settings and branding
+  getSettings: () => api.get('/tenants/settings'),
+  updateSettings: (data) => api.put('/tenants/settings', data),
+  getBranding: () => api.get('/tenants/branding'),
+  updateBranding: (data) => api.put('/tenants/branding', data),
+  uploadLogo: (file) => {
+    const formData = new FormData()
+    formData.append('logo', file)
+    return api.post('/tenants/branding/logo', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
 }
 
 // Audit API
@@ -126,6 +159,130 @@ export const auditAPI = {
   getLogs: (params) => api.get('/audit', { params }),
   getActions: () => api.get('/audit/actions'),
   getEntityTypes: () => api.get('/audit/entity-types'),
+}
+
+// Events API (New - Multi-tenant Events & Logistics)
+export const eventsAPI = {
+  // Events CRUD
+  getAll: (params) => api.get('/events', { params }),
+  getById: (id) => api.get(`/events/${id}`),
+  create: (data) => api.post('/events', data),
+  update: (id, data) => api.put(`/events/${id}`, data),
+  delete: (id) => api.delete(`/events/${id}`),
+  
+  // Event status management
+  publish: (id) => api.put(`/events/${id}/publish`),
+  cancel: (id, reason) => api.put(`/events/${id}/cancel`, { reason }),
+  complete: (id) => api.put(`/events/${id}/complete`),
+  
+  // Activities
+  getActivities: (eventId) => api.get(`/events/${eventId}/activities`),
+  createActivity: (eventId, data) => api.post(`/events/${eventId}/activities`, data),
+  updateActivity: (eventId, activityId, data) => 
+    api.put(`/events/${eventId}/activities/${activityId}`, data),
+  deleteActivity: (eventId, activityId) => 
+    api.delete(`/events/${eventId}/activities/${activityId}`),
+  
+  // Registration & Participants
+  register: (eventId, data) => api.post(`/events/${eventId}/register`, data),
+  getParticipants: (eventId, params) => api.get(`/events/${eventId}/participants`, { params }),
+  approveParticipant: (eventId, participantId) => 
+    api.put(`/events/${eventId}/participants/${participantId}/approve`),
+  rejectParticipant: (eventId, participantId, reason) => 
+    api.put(`/events/${eventId}/participants/${participantId}/reject`, { reason }),
+  
+  // QR Check-in
+  generateQR: (eventId) => api.post(`/events/${eventId}/qr`),
+  checkIn: (eventId, data) => api.post(`/events/${eventId}/check-in`, data),
+  verifyQR: (token) => api.post('/events/qr/verify', { token }),
+  
+  // Gift Management
+  getGiftItems: (activityId) => api.get(`/events/activities/${activityId}/gifts`),
+  createGiftItem: (activityId, data) => api.post(`/events/activities/${activityId}/gifts`, data),
+  allocateGift: (giftId, data) => api.post(`/events/gifts/${giftId}/allocate`, data),
+  bulkAllocateGifts: (giftId, data) => api.post(`/events/gifts/${giftId}/allocate/bulk`, data),
+  
+  // Gift Pickup
+  getMyGifts: () => api.get('/events/my-gifts'),
+  generatePickupQR: (allocationId) => api.post(`/events/gifts/allocations/${allocationId}/qr`),
+  verifyPickup: (token) => api.post('/events/gifts/verify-pickup', { token }),
+  
+  // Event Budget
+  getEventBudget: (eventId) => api.get(`/events/${eventId}/budget`),
+  updateEventBudget: (eventId, data) => api.put(`/events/${eventId}/budget`, data),
+  
+  // My Events
+  getMyEvents: (params) => api.get('/events/my', { params }),
+  getMyRegistrations: (params) => api.get('/events/my/registrations', { params }),
+}
+
+// Analytics API (New - Tenant Dashboard & Insights)
+export const analyticsAPI = {
+  // Tenant Analytics
+  getDashboard: (params) => api.get('/analytics/dashboard', { params }),
+  getInsights: (params) => api.get('/analytics/insights', { params }),
+  getBenchmark: () => api.get('/analytics/benchmark'),
+  
+  // Specific metrics
+  getEngagementMetrics: (params) => api.get('/analytics/engagement', { params }),
+  getBudgetMetrics: (params) => api.get('/analytics/budget', { params }),
+  getRedemptionMetrics: (params) => api.get('/analytics/redemption', { params }),
+  getRecognitionMetrics: (params) => api.get('/analytics/recognition', { params }),
+  
+  // Department analytics
+  getDepartmentMetrics: (departmentId, params) => 
+    api.get(`/analytics/departments/${departmentId}`, { params }),
+  
+  // Leaderboards
+  getTopRecognizers: (params) => api.get('/analytics/leaderboard/recognizers', { params }),
+  getTopRecipients: (params) => api.get('/analytics/leaderboard/recipients', { params }),
+  
+  // Trends
+  getDailyTrends: (params) => api.get('/analytics/trends/daily', { params }),
+  getWeeklyTrends: (params) => api.get('/analytics/trends/weekly', { params }),
+  getMonthlyTrends: (params) => api.get('/analytics/trends/monthly', { params }),
+  
+  // Export
+  exportReport: (params) => api.get('/analytics/export', { 
+    params, 
+    responseType: 'blob' 
+  }),
+}
+
+// Platform API (New - Platform Owner Management)
+export const platformAPI = {
+  // Tenant Management
+  getTenants: (params) => api.get('/platform/tenants', { params }),
+  getTenantById: (id) => api.get(`/platform/tenants/${id}`),
+  createTenant: (data) => api.post('/platform/tenants', data),
+  updateTenant: (id, data) => api.put(`/platform/tenants/${id}`, data),
+  
+  // Tenant Status
+  suspendTenant: (id, reason) => api.post(`/platform/tenants/${id}/suspend`, { reason }),
+  activateTenant: (id) => api.post(`/platform/tenants/${id}/activate`),
+  
+  // Subscription Management
+  updateSubscription: (id, data) => api.put(`/platform/tenants/${id}/subscription`, data),
+  getSubscriptionTiers: () => api.get('/platform/subscription-tiers'),
+  
+  // Platform Metrics
+  getMetrics: (params) => api.get('/analytics/platform', { params }),
+  getHealth: () => api.get('/platform/health'),
+  
+  // Platform Audit
+  getAuditLogs: (params) => api.get('/platform/audit-logs', { params }),
+  
+  // Global Settings
+  getGlobalSettings: () => api.get('/platform/settings'),
+  updateGlobalSettings: (data) => api.put('/platform/settings', data),
+  
+  // Brand/Voucher Management (Global Catalog)
+  getBrands: (params) => api.get('/platform/brands', { params }),
+  createBrand: (data) => api.post('/platform/brands', data),
+  updateBrand: (id, data) => api.put(`/platform/brands/${id}`, data),
+  getVouchers: (params) => api.get('/platform/vouchers', { params }),
+  createVoucher: (data) => api.post('/platform/vouchers', data),
+  updateVoucher: (id, data) => api.put(`/platform/vouchers/${id}`, data),
 }
 
 // Alias exports for component compatibility
@@ -139,5 +296,8 @@ export const notificationsApi = notificationsAPI
 export const tenantsApi = tenantsAPI
 export const auditApi = auditAPI
 export const authApi = authAPI
+export const eventsApi = eventsAPI
+export const analyticsApi = analyticsAPI
+export const platformApi = platformAPI
 
 export default api

@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from config import settings
 from database import engine, Base
+from core.tenant import TenantMiddleware
 from auth.routes import router as auth_router
 from tenants.routes import router as tenants_router
 from users.routes import router as users_router
@@ -14,12 +15,15 @@ from redemption.routes import router as redemption_router
 from feed.routes import router as feed_router
 from notifications.routes import router as notifications_router
 from audit.routes import router as audit_router
+from events.routes import router as events_router
+from analytics.routes import router as analytics_router
+from platform.routes import router as platform_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    print("Starting SparkNode API...")
+    print("Starting SparkNode Multi-Tenant API...")
     yield
     # Shutdown
     print("Shutting down SparkNode API...")
@@ -27,10 +31,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="SparkNode API",
-    description="Employee Rewards & Recognition Platform",
-    version="1.0.0",
+    description="Multi-Tenant Employee Rewards & Recognition Platform",
+    version="2.0.0",
     lifespan=lifespan
 )
+
+# Tenant Context Middleware
+app.add_middleware(TenantMiddleware)
 
 # CORS Configuration
 app.add_middleware(
@@ -52,6 +59,9 @@ app.include_router(redemption_router, prefix="/api/redemptions", tags=["Redempti
 app.include_router(feed_router, prefix="/api/feed", tags=["Feed"])
 app.include_router(notifications_router, prefix="/api/notifications", tags=["Notifications"])
 app.include_router(audit_router, prefix="/api/audit", tags=["Audit"])
+app.include_router(events_router, prefix="/api/events", tags=["Events & Logistics"])
+app.include_router(analytics_router, prefix="/api/analytics", tags=["Analytics"])
+app.include_router(platform_router, prefix="/api/platform", tags=["Platform Admin"])
 
 
 @app.get("/")
