@@ -65,7 +65,7 @@ export default function Redeem() {
   return (
     <div className="space-y-6">
       {/* Header with balance */}
-      <div className="bg-gradient-to-r from-perksu-purple to-perksu-blue rounded-2xl p-6 text-white">
+      <div className="bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-2xl p-6 text-white">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-white/80 text-sm">Available Points</p>
@@ -83,7 +83,7 @@ export default function Redeem() {
           onClick={() => setActiveTab('catalog')}
           className={`pb-4 px-2 font-medium transition-colors ${
             activeTab === 'catalog'
-              ? 'text-perksu-purple border-b-2 border-perksu-purple'
+              ? 'text-sparknode-purple border-b-2 border-sparknode-purple'
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
@@ -93,7 +93,7 @@ export default function Redeem() {
           onClick={() => setActiveTab('history')}
           className={`pb-4 px-2 font-medium transition-colors ${
             activeTab === 'history'
-              ? 'text-perksu-purple border-b-2 border-perksu-purple'
+              ? 'text-sparknode-purple border-b-2 border-sparknode-purple'
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >

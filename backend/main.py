@@ -17,7 +17,7 @@ from notifications.routes import router as notifications_router
 from audit.routes import router as audit_router
 from events.routes import router as events_router
 from analytics.routes import router as analytics_router
-from platform.routes import router as platform_router
+from platform_admin.routes import router as platform_router
 
 
 @asynccontextmanager

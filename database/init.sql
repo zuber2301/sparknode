@@ -493,27 +493,27 @@ CREATE TABLE platform_metrics (
 -- SEED DATA
 -- =====================================================
 
--- Insert default badges
+-- Insert default badges (using emoji icons for display)
 INSERT INTO badges (name, description, icon_url, points_value, is_system) VALUES
-('Star Performer', 'Outstanding performance recognition', '/badges/star.svg', 100, TRUE),
-('Team Player', 'Excellent collaboration and teamwork', '/badges/team.svg', 75, TRUE),
-('Innovation Champion', 'Creative problem solving', '/badges/innovation.svg', 150, TRUE),
-('Customer Hero', 'Exceptional customer service', '/badges/customer.svg', 100, TRUE),
-('Quick Learner', 'Fast skill acquisition', '/badges/learning.svg', 50, TRUE),
-('Mentor', 'Helping others grow', '/badges/mentor.svg', 100, TRUE),
-('Above & Beyond', 'Going the extra mile', '/badges/beyond.svg', 125, TRUE),
-('Problem Solver', 'Finding solutions to challenges', '/badges/solver.svg', 75, TRUE);
+('Star Performer', 'Outstanding performance recognition', '⭐', 100, TRUE),
+('Team Player', 'Excellent collaboration and teamwork', '🤝', 75, TRUE),
+('Innovation Champion', 'Creative problem solving', '💡', 150, TRUE),
+('Customer Hero', 'Exceptional customer service', '🦸', 100, TRUE),
+('Quick Learner', 'Fast skill acquisition', '📚', 50, TRUE),
+('Mentor', 'Helping others grow', '🎓', 100, TRUE),
+('Above & Beyond', 'Going the extra mile', '🚀', 125, TRUE),
+('Problem Solver', 'Finding solutions to challenges', '🔧', 75, TRUE);
 
--- Insert sample brands
+-- Insert sample brands (using emoji icons for display)
 INSERT INTO brands (name, description, logo_url, category) VALUES
-('Amazon', 'World''s largest online retailer', '/brands/amazon.svg', 'Shopping'),
-('Starbucks', 'Premium coffee and beverages', '/brands/starbucks.svg', 'Food & Beverage'),
-('Netflix', 'Streaming entertainment service', '/brands/netflix.svg', 'Entertainment'),
-('Uber', 'Ride-sharing and food delivery', '/brands/uber.svg', 'Transportation'),
-('Spotify', 'Music streaming platform', '/brands/spotify.svg', 'Entertainment'),
-('Apple', 'Consumer electronics and services', '/brands/apple.svg', 'Technology'),
-('Nike', 'Athletic footwear and apparel', '/brands/nike.svg', 'Sports & Fashion'),
-('Target', 'Retail department store', '/brands/target.svg', 'Shopping');
+('Amazon', 'World''s largest online retailer', '📦', 'Shopping'),
+('Starbucks', 'Premium coffee and beverages', '☕', 'Food & Beverage'),
+('Netflix', 'Streaming entertainment service', '🎬', 'Entertainment'),
+('Uber', 'Ride-sharing and food delivery', '🚗', 'Transportation'),
+('Spotify', 'Music streaming platform', '🎵', 'Entertainment'),
+('Apple', 'Consumer electronics and services', '🍎', 'Technology'),
+('Nike', 'Athletic footwear and apparel', '👟', 'Sports & Fashion'),
+('Target', 'Retail department store', '🎯', 'Shopping');
 
 -- Insert sample vouchers
 INSERT INTO vouchers (brand_id, name, description, denomination, points_required, copay_amount, validity_days) VALUES

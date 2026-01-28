@@ -62,7 +62,7 @@ export default function Recognize() {
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Header */}
       <div className="text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-perksu-purple to-perksu-blue rounded-2xl mb-4">
+        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-2xl mb-4">
           <HiOutlineSparkles className="w-8 h-8 text-white" />
         </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Recognize Someone</h1>
@@ -98,9 +98,9 @@ export default function Recognize() {
                     <button
                       key={searchUser.id}
                       onClick={() => handleSelectUser(searchUser)}
-                      className="w-full flex items-center gap-4 p-4 rounded-lg border border-gray-200 hover:border-perksu-purple hover:bg-perksu-purple/5 transition-colors text-left"
+                      className="w-full flex items-center gap-4 p-4 rounded-lg border border-gray-200 hover:border-sparknode-purple hover:bg-sparknode-purple/5 transition-colors text-left"
                     >
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-r from-perksu-purple to-perksu-blue flex items-center justify-center text-white font-medium">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-r from-sparknode-purple to-sparknode-blue flex items-center justify-center text-white font-medium">
                         {searchUser.first_name[0]}{searchUser.last_name[0]}
                       </div>
                       <div className="flex-1">
@@ -127,9 +127,9 @@ export default function Recognize() {
           {badges?.data?.map((badge) => (
             <div
               key={badge.id}
-              className="p-4 rounded-lg border border-gray-200 text-center hover:border-perksu-purple hover:bg-perksu-purple/5 transition-colors"
+              className="p-4 rounded-lg border border-gray-200 text-center hover:border-sparknode-purple hover:bg-sparknode-purple/5 transition-colors"
             >
-              <div className="w-12 h-12 mx-auto mb-2 bg-gradient-to-r from-perksu-orange to-perksu-pink rounded-full flex items-center justify-center text-white">
+              <div className="w-12 h-12 mx-auto mb-2 bg-gradient-to-r from-sparknode-orange to-sparknode-pink rounded-full flex items-center justify-center text-white">
                 <HiOutlineStar className="w-6 h-6" />
               </div>
               <p className="font-medium text-gray-900 text-sm">{badge.name}</p>

@@ -32,16 +32,16 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-perksu-purple/10 via-white to-perksu-blue/10">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sparknode-purple/10 via-white to-sparknode-blue/10">
       <div className="w-full max-w-md p-8">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           {/* Logo */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-perksu-purple to-perksu-blue rounded-2xl mb-4">
-              <span className="text-3xl font-bold text-white">P</span>
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-2xl mb-4">
+              <span className="text-2xl font-bold text-white">SN</span>
             </div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-perksu-purple to-perksu-blue bg-clip-text text-transparent">
-              Perksu
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-sparknode-purple to-sparknode-blue bg-clip-text text-transparent">
+              SparkNode
             </h1>
             <p className="text-gray-500 mt-2">Employee Rewards & Recognition</p>
           </div>

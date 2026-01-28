@@ -203,7 +203,7 @@ export default function Budgets() {
               <div className="mt-4">
                 <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-perksu-purple to-perksu-blue"
+                    className="h-full bg-gradient-to-r from-sparknode-purple to-sparknode-blue"
                     style={{
                       width: `${(budget.allocated_points / budget.total_points) * 100}%`,
                     }}

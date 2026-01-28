@@ -75,7 +75,7 @@ export default function Layout() {
           <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold">S</span>
+                <span className="text-white font-bold text-sm">SN</span>
               </div>
               <span className="text-xl font-bold bg-gradient-to-r from-sparknode-purple to-sparknode-blue bg-clip-text text-transparent">
                 SparkNode
@@ -144,13 +144,24 @@ export default function Layout() {
       {/* Main content */}
       <div className="lg:pl-64 flex flex-col">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 bg-white border-b border-gray-200 lg:px-8">
-          <button
-            className="lg:hidden p-2 rounded-lg hover:bg-gray-100"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <HiOutlineMenu className="w-6 h-6" />
-          </button>
+        <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 bg-white border-b border-gray-200 lg:px-8 shadow-sm">
+          <div className="flex items-center gap-3">
+            <button
+              className="lg:hidden p-2 rounded-lg hover:bg-gray-100"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <HiOutlineMenu className="w-6 h-6" />
+            </button>
+            {/* Mobile Logo */}
+            <div className="lg:hidden flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">SN</span>
+              </div>
+              <span className="text-lg font-bold bg-gradient-to-r from-sparknode-purple to-sparknode-blue bg-clip-text text-transparent">
+                SparkNode
+              </span>
+            </div>
+          </div>
 
           <div className="flex-1" />
 

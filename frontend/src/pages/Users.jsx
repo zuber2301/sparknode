@@ -161,7 +161,7 @@ export default function Users() {
                   <tr key={user.id} className="hover:bg-gray-50">
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-perksu-purple to-perksu-blue flex items-center justify-center text-white font-medium text-sm">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-sparknode-purple to-sparknode-blue flex items-center justify-center text-white font-medium text-sm">
                           {user.first_name[0]}{user.last_name[0]}
                         </div>
                         <div>
@@ -193,7 +193,7 @@ export default function Users() {
                           setSelectedUser(user)
                           setShowAllocateModal(true)
                         }}
-                        className="text-perksu-purple hover:text-perksu-purple/80 font-medium text-sm"
+                        className="text-sparknode-purple hover:text-sparknode-purple/80 font-medium text-sm"
                       >
                         Allocate Points
                       </button>

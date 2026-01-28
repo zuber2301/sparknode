@@ -27,7 +27,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       {/* Welcome header */}
-      <div className="bg-gradient-to-r from-perksu-purple to-perksu-blue rounded-2xl p-8 text-white">
+      <div className="bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-2xl p-8 text-white">
         <h1 className="text-3xl font-bold mb-2">
           Welcome back, {user?.first_name}! 👋
         </h1>
@@ -46,8 +46,8 @@ export default function Dashboard() {
               <p className="text-sm text-gray-500">Recognitions Given</p>
               <p className="text-2xl font-bold text-gray-900">{stats?.data?.total_given || 0}</p>
             </div>
-            <div className="w-12 h-12 bg-perksu-purple/10 rounded-xl flex items-center justify-center">
-              <HiOutlineSparkles className="w-6 h-6 text-perksu-purple" />
+            <div className="w-12 h-12 bg-sparknode-purple/10 rounded-xl flex items-center justify-center">
+              <HiOutlineSparkles className="w-6 h-6 text-sparknode-purple" />
             </div>
           </div>
           <p className="text-sm text-gray-500 mt-2">
@@ -61,8 +61,8 @@ export default function Dashboard() {
               <p className="text-sm text-gray-500">Recognitions Received</p>
               <p className="text-2xl font-bold text-gray-900">{stats?.data?.total_received || 0}</p>
             </div>
-            <div className="w-12 h-12 bg-perksu-green/10 rounded-xl flex items-center justify-center">
-              <HiOutlineTrendingUp className="w-6 h-6 text-perksu-green" />
+            <div className="w-12 h-12 bg-sparknode-green/10 rounded-xl flex items-center justify-center">
+              <HiOutlineTrendingUp className="w-6 h-6 text-sparknode-green" />
             </div>
           </div>
           <p className="text-sm text-gray-500 mt-2">
@@ -78,8 +78,8 @@ export default function Dashboard() {
                 {stats?.data?.top_badges?.[0]?.name || 'None yet'}
               </p>
             </div>
-            <div className="w-12 h-12 bg-perksu-orange/10 rounded-xl flex items-center justify-center">
-              <HiOutlineGift className="w-6 h-6 text-perksu-orange" />
+            <div className="w-12 h-12 bg-sparknode-orange/10 rounded-xl flex items-center justify-center">
+              <HiOutlineGift className="w-6 h-6 text-sparknode-orange" />
             </div>
           </div>
           <p className="text-sm text-gray-500 mt-2">

@@ -22,7 +22,7 @@ from models import (
 )
 from auth.utils import get_password_hash
 from core.rbac import get_platform_owner
-from platform.schemas import (
+from platform_admin.schemas import (
     TenantCreateRequest, TenantUpdateRequest, SubscriptionUpdate,
     TenantListResponse, TenantDetailResponse,
     SubscriptionTiersResponse, SUBSCRIPTION_TIERS,

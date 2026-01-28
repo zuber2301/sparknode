@@ -50,7 +50,7 @@ export default function Wallet() {
   return (
     <div className="space-y-6">
       {/* Wallet balance card */}
-      <div className="bg-gradient-to-r from-perksu-purple to-perksu-blue rounded-2xl p-8 text-white">
+      <div className="bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-2xl p-8 text-white">
         <div className="flex items-center gap-4 mb-6">
           <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
             <HiOutlineCash className="w-7 h-7" />

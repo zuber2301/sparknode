@@ -88,7 +88,11 @@ export default function FeedCard({ item }) {
           <p className="text-gray-700">{item.metadata.message}</p>
           {item.metadata?.badge_name && (
             <div className="mt-2 inline-flex items-center space-x-1 px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">
-              <span className="text-lg">{item.metadata.badge_icon}</span>
+              {item.metadata.badge_icon && !item.metadata.badge_icon.startsWith('/') ? (
+                <span className="text-lg">{item.metadata.badge_icon}</span>
+              ) : (
+                <span className="text-lg">🏆</span>
+              )}
               <span>{item.metadata.badge_name}</span>
             </div>
           )}

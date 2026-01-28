@@ -21,6 +21,7 @@ class VoucherResponse(BaseModel):
     id: UUID
     brand_id: UUID
     brand_name: str
+    brand_logo: Optional[str] = None
     name: str
     description: Optional[str] = None
     denomination: Decimal

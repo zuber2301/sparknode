@@ -20,7 +20,7 @@ export default function Profile() {
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Profile Header */}
       <div className="card text-center">
-        <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-r from-perksu-purple to-perksu-blue flex items-center justify-center text-white text-3xl font-bold mb-4">
+        <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-r from-sparknode-purple to-sparknode-blue flex items-center justify-center text-white text-3xl font-bold mb-4">
           {user?.first_name?.[0]}{user?.last_name?.[0]}
         </div>
         <h1 className="text-2xl font-bold text-gray-900">
@@ -69,7 +69,7 @@ export default function Profile() {
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-gray-50 rounded-lg p-4">
             <p className="text-sm text-gray-500">Points Balance</p>
-            <p className="text-2xl font-bold text-perksu-purple">{wallet?.data?.balance || 0}</p>
+            <p className="text-2xl font-bold text-sparknode-purple">{wallet?.data?.balance || 0}</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-4">
             <p className="text-sm text-gray-500">Lifetime Earned</p>
@@ -94,7 +94,7 @@ export default function Profile() {
             {stats.data.top_badges.map((badge, index) => (
               <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-perksu-orange to-perksu-pink flex items-center justify-center text-white text-sm font-bold">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-sparknode-orange to-sparknode-pink flex items-center justify-center text-white text-sm font-bold">
                     {index + 1}
                   </div>
                   <span className="font-medium">{badge.name}</span>

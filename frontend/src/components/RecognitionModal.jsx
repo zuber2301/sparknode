@@ -231,7 +231,11 @@ export default function RecognitionModal({ isOpen, onClose }) {
                 >
                   None
                 </button>
-                {badges?.map(badge => (
+                {badges?.map(badge => {
+                  // Check if icon is emoji (not a URL path)
+                  const icon = badge.icon_url || badge.icon
+                  const isEmoji = icon && !icon.startsWith('/')
+                  return (
                   <button
                     key={badge.id}
                     type="button"
@@ -243,10 +247,17 @@ export default function RecognitionModal({ isOpen, onClose }) {
                     }`}
                     title={badge.description}
                   >
-                    <span className="text-lg">{badge.icon}</span>
+                    {isEmoji ? (
+                      <span className="text-lg">{icon}</span>
+                    ) : icon ? (
+                      <img src={icon} alt={badge.name} className="w-5 h-5" onError={(e) => e.target.style.display = 'none'} />
+                    ) : (
+                      <span className="text-lg">🏆</span>
+                    )}
                     <span className="text-sm">{badge.name}</span>
                   </button>
-                ))}
+                  )
+                })}
               </div>
             </div>
 

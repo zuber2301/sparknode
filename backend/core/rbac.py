@@ -231,6 +231,15 @@ class RolePermissions:
         return ROLE_HIERARCHY.get(user_role, 0)
 
 
+def get_current_user_dependency():
+    """
+    Placeholder for the actual get_current_user dependency.
+    This is imported from auth.utils at runtime to avoid circular imports.
+    """
+    from auth.utils import get_current_user
+    return get_current_user
+
+
 def require_permission(*permissions: Permission):
     """
     Dependency factory that checks if the user has required permissions.
@@ -344,15 +353,6 @@ async def get_tenant_lead(current_user = Depends(get_current_user_dependency)):
 async def get_corporate_user(current_user = Depends(get_current_user_dependency)):
     """Dependency that requires any authenticated user."""
     return current_user
-
-
-def get_current_user_dependency():
-    """
-    Placeholder for the actual get_current_user dependency.
-    This is imported from auth.utils at runtime to avoid circular imports.
-    """
-    from auth.utils import get_current_user
-    return get_current_user
 
 
 def check_team_access(current_user, target_user_id: UUID, db: Session) -> bool:
