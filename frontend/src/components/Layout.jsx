@@ -74,11 +74,11 @@ export default function Layout() {
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-perksu-purple to-perksu-blue rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold">P</span>
+              <div className="w-8 h-8 bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold">S</span>
               </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-perksu-purple to-perksu-blue bg-clip-text text-transparent">
-                Perksu
+              <span className="text-xl font-bold bg-gradient-to-r from-sparknode-purple to-sparknode-blue bg-clip-text text-transparent">
+                SparkNode
               </span>
             </div>
             <button className="lg:hidden" onClick={() => setSidebarOpen(false)}>
@@ -125,7 +125,7 @@ export default function Layout() {
           {/* User section */}
           <div className="p-4 border-t border-gray-200">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-perksu-purple to-perksu-blue flex items-center justify-center text-white font-medium">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-sparknode-purple to-sparknode-blue flex items-center justify-center text-white font-medium">
                 {user?.first_name?.[0]}{user?.last_name?.[0]}
               </div>
               <div className="flex-1 min-w-0">

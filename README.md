@@ -1,8 +1,8 @@
-# Perksu - Employee Rewards & Recognition Platform
+# SparkNode - Employee Rewards & Recognition Platform
 
 An enterprise-grade employee rewards and recognition platform with multi-tenant architecture, controlled budget flows, social recognition, and wallet-based accounting.
 
-![Perksu](https://img.shields.io/badge/Perksu-R%26R%20Platform-purple)
+![SparkNode](https://img.shields.io/badge/SparkNode-R%26R%20Platform-purple)
 ![Docker](https://img.shields.io/badge/Docker-Containerized-blue)
 ![React](https://img.shields.io/badge/React-18-61dafb)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688)
@@ -56,7 +56,7 @@ An enterprise-grade employee rewards and recognition platform with multi-tenant 
 
 1. Clone and navigate to the project:
 ```bash
-cd perksu
+cd sparknode
 ```
 
 2. Start all services:
@@ -82,7 +82,7 @@ docker-compose up -d
 ## Project Structure
 
 ```
-perksu/
+sparknode/
 ├── docker-compose.yml          # Docker orchestration
 ├── backend/
 │   ├── Dockerfile
@@ -201,7 +201,7 @@ docker-compose up --build
 
 ```bash
 # Connect to PostgreSQL
-docker exec -it perksu-db psql -U perksu
+docker exec -it sparknode-db psql -U sparknode
 
 # Common queries
 SELECT * FROM users;
@@ -233,4 +233,4 @@ MIT License - feel free to use this for your organization!
 
 ---
 
-Built with ❤️ by the Perksu Team
+Built with ❤️ by the SparkNode Team

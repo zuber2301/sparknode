@@ -65,7 +65,7 @@ export default function FeedCard({ item }) {
   return (
     <div className="card">
       <div className="flex items-start space-x-4">
-        <div className="w-10 h-10 bg-perksu-purple rounded-full flex items-center justify-center text-white font-medium">
+        <div className="w-10 h-10 bg-sparknode-purple rounded-full flex items-center justify-center text-white font-medium">
           {getInitials(item.actor_name)}
         </div>
         <div className="flex-1 min-w-0">
@@ -118,7 +118,7 @@ export default function FeedCard({ item }) {
 
         <button
           onClick={() => setShowComments(!showComments)}
-          className="flex items-center space-x-1 text-sm text-gray-500 hover:text-perksu-purple"
+          className="flex items-center space-x-1 text-sm text-gray-500 hover:text-sparknode-purple"
         >
           <HiOutlineChat className="w-5 h-5" />
           <span>{item.metadata?.comment_count || 0}</span>

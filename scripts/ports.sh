@@ -1,6 +1,6 @@
 #!/bin/bash
 # ===========================================
-# Perksu Port Management Script
+# SparkNode Port Management Script
 # ===========================================
 # Detects conflicts and manages Docker services
 
@@ -12,7 +12,7 @@ if [ -f .env ]; then
 fi
 
 # Default ports if not set
-PROJECT_NAME=${PROJECT_NAME:-perksu}
+PROJECT_NAME=${PROJECT_NAME:-sparknode}
 POSTGRES_EXTERNAL_PORT=${POSTGRES_EXTERNAL_PORT:-6432}
 BACKEND_EXTERNAL_PORT=${BACKEND_EXTERNAL_PORT:-6100}
 FRONTEND_EXTERNAL_PORT=${FRONTEND_EXTERNAL_PORT:-6173}
@@ -25,7 +25,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}╔═══════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║     Perksu Port Management Utility        ║${NC}"
+echo -e "${BLUE}║     SparkNode Port Management Utility     ║${NC}"
 echo -e "${BLUE}╚═══════════════════════════════════════════╝${NC}"
 echo ""
 

@@ -19,14 +19,14 @@ from audit.routes import router as audit_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    print("Starting Perksu API...")
+    print("Starting SparkNode API...")
     yield
     # Shutdown
-    print("Shutting down Perksu API...")
+    print("Shutting down SparkNode API...")
 
 
 app = FastAPI(
-    title="Perksu API",
+    title="SparkNode API",
     description="Employee Rewards & Recognition Platform",
     version="1.0.0",
     lifespan=lifespan
@@ -57,7 +57,7 @@ app.include_router(audit_router, prefix="/api/audit", tags=["Audit"])
 @app.get("/")
 async def root():
     return {
-        "name": "Perksu API",
+        "name": "SparkNode API",
         "version": "1.0.0",
         "status": "running"
     }

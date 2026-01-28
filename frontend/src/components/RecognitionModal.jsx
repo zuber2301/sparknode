@@ -97,8 +97,8 @@ export default function RecognitionModal({ isOpen, onClose }) {
           </button>
 
           <div className="flex items-center space-x-3 mb-6">
-            <div className="w-10 h-10 bg-perksu-purple/10 rounded-xl flex items-center justify-center">
-              <HiOutlineStar className="w-5 h-5 text-perksu-purple" />
+            <div className="w-10 h-10 bg-sparknode-purple/10 rounded-xl flex items-center justify-center">
+              <HiOutlineStar className="w-5 h-5 text-sparknode-purple" />
             </div>
             <h2 className="text-xl font-semibold text-gray-900">Give Recognition</h2>
           </div>
@@ -112,7 +112,7 @@ export default function RecognitionModal({ isOpen, onClose }) {
               {selectedUser ? (
                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-perksu-purple rounded-full flex items-center justify-center text-white text-sm font-medium">
+                    <div className="w-8 h-8 bg-sparknode-purple rounded-full flex items-center justify-center text-white text-sm font-medium">
                       {selectedUser.name.charAt(0)}
                     </div>
                     <div>
@@ -197,8 +197,8 @@ export default function RecognitionModal({ isOpen, onClose }) {
                     onClick={() => setPoints(p)}
                     className={`px-4 py-2 rounded-lg border transition ${
                       points === p
-                        ? 'bg-perksu-purple text-white border-perksu-purple'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-perksu-purple'
+                        ? 'bg-sparknode-purple text-white border-sparknode-purple'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-sparknode-purple'
                     }`}
                   >
                     {p}
@@ -238,8 +238,8 @@ export default function RecognitionModal({ isOpen, onClose }) {
                     onClick={() => setBadgeId(badge.id)}
                     className={`flex items-center space-x-2 px-3 py-2 rounded-lg border transition ${
                       badgeId === badge.id
-                        ? 'bg-perksu-purple/10 border-perksu-purple'
-                        : 'bg-white border-gray-200 hover:border-perksu-purple'
+                        ? 'bg-sparknode-purple/10 border-sparknode-purple'
+                        : 'bg-white border-gray-200 hover:border-sparknode-purple'
                     }`}
                     title={badge.description}
                   >
@@ -260,7 +260,7 @@ export default function RecognitionModal({ isOpen, onClose }) {
                 type="button"
                 onClick={() => setIsPrivate(!isPrivate)}
                 className={`relative w-12 h-6 rounded-full transition ${
-                  isPrivate ? 'bg-perksu-purple' : 'bg-gray-300'
+                  isPrivate ? 'bg-sparknode-purple' : 'bg-gray-300'
                 }`}
               >
                 <span

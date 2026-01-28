@@ -10,7 +10,7 @@ export default function WalletBalance({ wallet }) {
   }
 
   return (
-    <div className="stat-card bg-gradient-to-r from-perksu-purple to-perksu-blue text-white">
+    <div className="stat-card bg-gradient-to-r from-sparknode-purple to-sparknode-blue text-white">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-white/80 text-sm">Points Balance</p>

@@ -19,7 +19,7 @@ export default {
           800: '#075985',
           900: '#0c4a6e',
         },
-        perksu: {
+        sparknode: {
           purple: '#7c3aed',
           blue: '#3b82f6',
           green: '#10b981',

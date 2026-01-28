@@ -1,22 +1,22 @@
-# Perksu Docker Compose Configuration
+# SparkNode Docker Compose Configuration
 # All ports and settings are loaded from .env file
 # Run: docker-compose up -d
 
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: ${PROJECT_NAME:-perksu}-db
+    container_name: ${PROJECT_NAME:-sparknode}-db
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-perksu}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-perksu_secret_2024}
-      POSTGRES_DB: ${POSTGRES_DB:-perksu}
+      POSTGRES_USER: ${POSTGRES_USER:-sparknode}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sparknode_secret_2024}
+      POSTGRES_DB: ${POSTGRES_DB:-sparknode}
     ports:
       - "${POSTGRES_EXTERNAL_PORT:-6432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-perksu}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sparknode}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -27,10 +27,10 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: ${PROJECT_NAME:-perksu}-backend
+    container_name: ${PROJECT_NAME:-sparknode}-backend
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://perksu:perksu_secret_2024@postgres:5432/perksu}
-      SECRET_KEY: ${SECRET_KEY:-perksu-super-secret-key-change-in-production}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://sparknode:sparknode_secret_2024@postgres:5432/sparknode}
+      SECRET_KEY: ${SECRET_KEY:-sparknode-super-secret-key-change-in-production}
       ALGORITHM: ${ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:6173}
@@ -49,7 +49,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: ${PROJECT_NAME:-perksu}-frontend
+    container_name: ${PROJECT_NAME:-sparknode}-frontend
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:6100}
     ports:
@@ -65,9 +65,9 @@ services:
 
 volumes:
   postgres_data:
-    name: ${PROJECT_NAME:-perksu}_postgres_data
+    name: ${PROJECT_NAME:-sparknode}_postgres_data
 
 networks:
   app-network:
-    name: ${PROJECT_NAME:-perksu}-network
+    name: ${PROJECT_NAME:-sparknode}-network
     driver: bridge

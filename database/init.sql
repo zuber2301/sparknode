@@ -1,4 +1,4 @@
--- Perksu Database Initialization Script
+-- SparkNode Database Initialization Script
 -- Multi-tenant Employee Rewards & Recognition Platform
 
 -- Enable UUID extension

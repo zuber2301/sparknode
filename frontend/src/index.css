@@ -16,7 +16,7 @@ body {
 
 @layer components {
   .btn-primary {
-    @apply bg-gradient-to-r from-perksu-purple to-perksu-blue text-white font-semibold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-gradient-to-r from-sparknode-purple to-sparknode-blue text-white font-semibold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-secondary {
@@ -32,7 +32,7 @@ body {
   }
 
   .input {
-    @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-perksu-purple focus:border-transparent outline-none transition-all;
+    @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sparknode-purple focus:border-transparent outline-none transition-all;
   }
 
   .label {
@@ -68,6 +68,6 @@ body {
   }
 
   .nav-link-active {
-    @apply nav-link bg-gradient-to-r from-perksu-purple/10 to-perksu-blue/10 text-perksu-purple font-medium;
+    @apply nav-link bg-gradient-to-r from-sparknode-purple/10 to-sparknode-blue/10 text-sparknode-purple font-medium;
   }
 }

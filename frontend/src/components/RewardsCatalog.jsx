@@ -98,7 +98,7 @@ export default function RewardsCatalog({ vouchers, onRedeem, isRedeeming, wallet
                     <p className="text-xs text-gray-500">{voucher.brand_name}</p>
                     <h3 className="font-semibold text-gray-900">{voucher.name}</h3>
                   </div>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-perksu-purple/10 text-perksu-purple">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-sparknode-purple/10 text-sparknode-purple">
                     {formatCurrency(voucher.denomination || voucher.face_value)}
                   </span>
                 </div>
@@ -111,7 +111,7 @@ export default function RewardsCatalog({ vouchers, onRedeem, isRedeeming, wallet
 
                 <div className="flex items-center justify-between pt-4 border-t">
                   <div>
-                    <span className="text-2xl font-bold text-perksu-purple">
+                    <span className="text-2xl font-bold text-sparknode-purple">
                       {voucher.points_cost}
                     </span>
                     <span className="text-sm text-gray-500 ml-1">points</span>
