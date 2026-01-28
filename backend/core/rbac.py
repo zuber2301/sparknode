@@ -145,25 +145,10 @@ ROLE_PERMISSIONS: dict[UserRole, Set[Permission]] = {
         Permission.UPDATE_PROFILE,
     },
     UserRole.TENANT_LEAD: {
-        Permission.APPROVE_PARTICIPATION,
         Permission.MANAGE_TEAM_BUDGET,
-        Permission.VIEW_TEAM_WALLETS,
-        Permission.GIVE_RECOGNITION_WITH_POINTS,
-        Permission.MANAGE_TEAM_EVENTS,
-        Permission.GIVE_RECOGNITION,
-        Permission.REDEEM_POINTS,
-        Permission.VIEW_OWN_WALLET,
-        Permission.VIEW_FEED,
-        Permission.PARTICIPATE_EVENTS,
-        Permission.UPDATE_PROFILE,
     },
     UserRole.CORPORATE_USER: {
-        Permission.GIVE_RECOGNITION,
         Permission.REDEEM_POINTS,
-        Permission.VIEW_OWN_WALLET,
-        Permission.VIEW_FEED,
-        Permission.PARTICIPATE_EVENTS,
-        Permission.UPDATE_PROFILE,
     },
 }
 

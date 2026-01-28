@@ -12,6 +12,7 @@ import {
   HiOutlineChartBar,
   HiOutlineUsers,
   HiOutlineClipboardList,
+  HiOutlineOfficeBuilding,
   HiOutlineBell,
   HiOutlineLogout,
   HiOutlineUser,
@@ -28,9 +29,10 @@ const navigation = [
 ]
 
 const adminNavigation = [
-  { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar, roles: ['hr_admin', 'platform_admin'] },
-  { name: 'Users', href: '/users', icon: HiOutlineUsers, roles: ['hr_admin', 'platform_admin'] },
-  { name: 'Audit Log', href: '/audit', icon: HiOutlineClipboardList, roles: ['hr_admin', 'platform_admin'] },
+  { name: 'Tenants', href: '/platform/tenants', icon: HiOutlineOfficeBuilding, roles: ['platform_owner', 'platform_admin'] },
+  { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar, roles: ['tenant_admin', 'platform_owner', 'hr_admin', 'platform_admin'] },
+  { name: 'Users', href: '/users', icon: HiOutlineUsers, roles: ['tenant_admin', 'platform_owner', 'hr_admin', 'platform_admin'] },
+  { name: 'Audit Log', href: '/audit', icon: HiOutlineClipboardList, roles: ['tenant_admin', 'platform_owner', 'hr_admin', 'platform_admin'] },
 ]
 
 export default function Layout() {

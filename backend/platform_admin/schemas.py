@@ -18,13 +18,16 @@ from decimal import Decimal
 class TenantCreateRequest(BaseModel):
     """Request to create a new tenant."""
     name: str = Field(..., min_length=1, max_length=255)
+    slug: Optional[str] = Field(None, max_length=255)
     domain: Optional[str] = Field(None, max_length=255)
     logo_url: Optional[str] = None
     primary_color: Optional[str] = Field(default="#3B82F6", max_length=20)
+    branding_config: Optional[Dict[str, Any]] = {}
     
     # Subscription
-    subscription_tier: str = Field(default="starter", pattern="^(free|starter|professional|enterprise)$")
+    subscription_tier: str = Field(default="starter", pattern="^(free|starter|professional|enterprise|basic|premium)$")
     max_users: int = Field(default=50, ge=1)
+    master_budget_balance: Optional[Decimal] = Field(default=Decimal("0"), ge=0)
     
     # Initial admin
     admin_email: EmailStr
@@ -39,11 +42,13 @@ class TenantCreateRequest(BaseModel):
 class TenantUpdateRequest(BaseModel):
     """Request to update tenant details."""
     name: Optional[str] = Field(None, min_length=1, max_length=255)
+    slug: Optional[str] = Field(None, max_length=255)
     domain: Optional[str] = Field(None, max_length=255)
     logo_url: Optional[str] = None
     favicon_url: Optional[str] = None
     primary_color: Optional[str] = None
     status: Optional[str] = Field(None, pattern="^(active|inactive|suspended|trial)$")
+    branding_config: Optional[Dict[str, Any]] = None
     settings: Optional[Dict[str, Any]] = None
     catalog_settings: Optional[Dict[str, Any]] = None
     branding: Optional[Dict[str, Any]] = None
@@ -51,7 +56,7 @@ class TenantUpdateRequest(BaseModel):
 
 class SubscriptionUpdate(BaseModel):
     """Request to update subscription."""
-    subscription_tier: Optional[str] = Field(None, pattern="^(free|starter|professional|enterprise)$")
+    subscription_tier: Optional[str] = Field(None, pattern="^(free|starter|professional|enterprise|basic|premium)$")
     subscription_status: Optional[str] = Field(None, pattern="^(active|past_due|cancelled)$")
     subscription_ends_at: Optional[datetime] = None
     max_users: Optional[int] = Field(None, ge=1)
@@ -78,10 +83,12 @@ class TenantDetailResponse(BaseModel):
     """Detailed tenant response."""
     id: UUID
     name: str
+    slug: Optional[str]
     domain: Optional[str]
     logo_url: Optional[str]
     favicon_url: Optional[str]
     primary_color: Optional[str]
+    branding_config: Dict[str, Any]
     status: str
     
     # Subscription
@@ -90,6 +97,7 @@ class TenantDetailResponse(BaseModel):
     subscription_started_at: Optional[datetime]
     subscription_ends_at: Optional[datetime]
     max_users: int
+    master_budget_balance: Decimal
     
     # Settings
     settings: Dict[str, Any]

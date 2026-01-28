@@ -161,6 +161,29 @@ export const auditAPI = {
   getEntityTypes: () => api.get('/audit/entity-types'),
 }
 
+// Platform Admin API (Tenant Manager)
+export const platformAPI = {
+  getTenants: (params) => api.get('/platform/tenants', { params }),
+  getTenantById: (tenantId) => api.get(`/platform/tenants/${tenantId}`),
+  createTenant: (data) => api.post('/platform/tenants', data),
+  updateTenant: (tenantId, data) => api.put(`/platform/tenants/${tenantId}`, data),
+  suspendTenant: (tenantId, reason) => api.post(`/platform/tenants/${tenantId}/suspend`, null, { params: { reason } }),
+  activateTenant: (tenantId) => api.post(`/platform/tenants/${tenantId}/activate`),
+  updateSubscription: (tenantId, data) => api.put(`/platform/tenants/${tenantId}/subscription`, data),
+  getSubscriptionTiers: () => api.get('/platform/subscription-tiers'),
+  getMetrics: (params) => api.get('/analytics/platform', { params }),
+  getHealth: () => api.get('/platform/health'),
+  getAuditLogs: (params) => api.get('/platform/audit-logs', { params }),
+  getGlobalSettings: () => api.get('/platform/settings'),
+  updateGlobalSettings: (data) => api.put('/platform/settings', data),
+  getBrands: (params) => api.get('/platform/brands', { params }),
+  createBrand: (data) => api.post('/platform/brands', data),
+  updateBrand: (id, data) => api.put(`/platform/brands/${id}`, data),
+  getVouchers: (params) => api.get('/platform/vouchers', { params }),
+  createVoucher: (data) => api.post('/platform/vouchers', data),
+  updateVoucher: (id, data) => api.put(`/platform/vouchers/${id}`, data),
+}
+
 // Events API (New - Multi-tenant Events & Logistics)
 export const eventsAPI = {
   // Events CRUD
@@ -247,42 +270,6 @@ export const analyticsAPI = {
     params, 
     responseType: 'blob' 
   }),
-}
-
-// Platform API (New - Platform Owner Management)
-export const platformAPI = {
-  // Tenant Management
-  getTenants: (params) => api.get('/platform/tenants', { params }),
-  getTenantById: (id) => api.get(`/platform/tenants/${id}`),
-  createTenant: (data) => api.post('/platform/tenants', data),
-  updateTenant: (id, data) => api.put(`/platform/tenants/${id}`, data),
-  
-  // Tenant Status
-  suspendTenant: (id, reason) => api.post(`/platform/tenants/${id}/suspend`, { reason }),
-  activateTenant: (id) => api.post(`/platform/tenants/${id}/activate`),
-  
-  // Subscription Management
-  updateSubscription: (id, data) => api.put(`/platform/tenants/${id}/subscription`, data),
-  getSubscriptionTiers: () => api.get('/platform/subscription-tiers'),
-  
-  // Platform Metrics
-  getMetrics: (params) => api.get('/analytics/platform', { params }),
-  getHealth: () => api.get('/platform/health'),
-  
-  // Platform Audit
-  getAuditLogs: (params) => api.get('/platform/audit-logs', { params }),
-  
-  // Global Settings
-  getGlobalSettings: () => api.get('/platform/settings'),
-  updateGlobalSettings: (data) => api.put('/platform/settings', data),
-  
-  // Brand/Voucher Management (Global Catalog)
-  getBrands: (params) => api.get('/platform/brands', { params }),
-  createBrand: (data) => api.post('/platform/brands', data),
-  updateBrand: (id, data) => api.put(`/platform/brands/${id}`, data),
-  getVouchers: (params) => api.get('/platform/vouchers', { params }),
-  createVoucher: (data) => api.post('/platform/vouchers', data),
-  updateVoucher: (id, data) => api.put(`/platform/vouchers/${id}`, data),
 }
 
 // Alias exports for component compatibility

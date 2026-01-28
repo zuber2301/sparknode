@@ -18,7 +18,7 @@ from decimal import Decimal
 
 from database import get_db
 from models import (
-    Tenant, User, Department, Budget, Recognition, Redemption, Wallet, AuditLog
+    Tenant, User, Department, Budget, Recognition, Redemption, Wallet, AuditLog, MasterBudgetLedger
 )
 from auth.utils import get_password_hash
 from core.rbac import get_platform_owner
@@ -92,100 +92,131 @@ async def create_tenant(
     db: Session = Depends(get_db)
 ):
     """Create a new tenant (Platform Owner only)"""
-    # Check domain uniqueness
+    # Check domain/slug uniqueness
     if tenant_data.domain:
         existing = db.query(Tenant).filter(Tenant.domain == tenant_data.domain).first()
         if existing:
             raise HTTPException(status_code=400, detail="Domain already in use")
+    if tenant_data.slug:
+        existing = db.query(Tenant).filter(Tenant.slug == tenant_data.slug).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Slug already in use")
+
+    starting_balance = tenant_data.master_budget_balance or Decimal("0")
     
-    # Create tenant
-    tenant = Tenant(
-        name=tenant_data.name,
-        domain=tenant_data.domain,
-        logo_url=tenant_data.logo_url,
-        primary_color=tenant_data.primary_color,
-        status='active',
-        subscription_tier=tenant_data.subscription_tier,
-        subscription_status='active',
-        subscription_started_at=datetime.utcnow(),
-        max_users=tenant_data.max_users,
-        settings=tenant_data.settings or {
-            "copay_enabled": False,
-            "points_to_currency_ratio": 0.10,
-            "peer_to_peer_recognition": True,
-            "social_feed_enabled": True,
-            "events_module_enabled": True
-        },
-        catalog_settings={},
-        branding={}
-    )
-    db.add(tenant)
-    db.flush()
-    
-    # Create default HR department
-    hr_dept = Department(
-        tenant_id=tenant.id,
-        name="Human Resources"
-    )
-    db.add(hr_dept)
-    db.flush()
-    
-    # Create admin user
-    admin_user = User(
-        tenant_id=tenant.id,
-        email=tenant_data.admin_email,
-        password_hash=get_password_hash(tenant_data.admin_password),
-        first_name=tenant_data.admin_first_name,
-        last_name=tenant_data.admin_last_name,
-        role='tenant_admin',
-        department_id=hr_dept.id,
-        status='active'
-    )
-    db.add(admin_user)
-    db.flush()
-    
-    # Create wallet for admin
-    wallet = Wallet(
-        tenant_id=tenant.id,
-        user_id=admin_user.id,
-        balance=0,
-        lifetime_earned=0,
-        lifetime_spent=0
-    )
-    db.add(wallet)
-    
-    # Audit log
-    audit = AuditLog(
-        tenant_id=tenant.id,
-        actor_id=current_user.id,
-        action="tenant_created",
-        entity_type="tenant",
-        entity_id=tenant.id,
-        new_values={
-            "name": tenant.name,
-            "domain": tenant.domain,
-            "subscription_tier": tenant.subscription_tier,
-            "admin_email": tenant_data.admin_email
-        }
-    )
-    db.add(audit)
-    
-    db.commit()
-    db.refresh(tenant)
+    try:
+        # Create tenant
+        tenant = Tenant(
+            name=tenant_data.name,
+            slug=tenant_data.slug,
+            domain=tenant_data.domain,
+            logo_url=tenant_data.logo_url,
+            primary_color=tenant_data.primary_color,
+            branding_config=tenant_data.branding_config or {},
+            status='active',
+            subscription_tier=tenant_data.subscription_tier,
+            subscription_status='active',
+            subscription_started_at=datetime.utcnow(),
+            max_users=tenant_data.max_users,
+            master_budget_balance=starting_balance,
+            settings=tenant_data.settings or {
+                "copay_enabled": False,
+                "points_to_currency_ratio": 0.10,
+                "peer_to_peer_recognition": True,
+                "social_feed_enabled": True,
+                "events_module_enabled": True
+            },
+            catalog_settings={},
+            branding={}
+        )
+        db.add(tenant)
+        db.flush()
+        
+        # Initialize master budget ledger
+        ledger_entry = MasterBudgetLedger(
+            tenant_id=tenant.id,
+            transaction_type="credit",
+            source="provisioning",
+            points=starting_balance,
+            balance_after=starting_balance,
+            description="Initial master budget allocation",
+            created_by=current_user.id
+        )
+        db.add(ledger_entry)
+        
+        # Create default HR department
+        hr_dept = Department(
+            tenant_id=tenant.id,
+            name="Human Resources"
+        )
+        db.add(hr_dept)
+        db.flush()
+        
+        # Create admin user
+        admin_user = User(
+            tenant_id=tenant.id,
+            email=tenant_data.admin_email,
+            password_hash=get_password_hash(tenant_data.admin_password),
+            first_name=tenant_data.admin_first_name,
+            last_name=tenant_data.admin_last_name,
+            role='tenant_admin',
+            department_id=hr_dept.id,
+            status='active',
+            is_super_admin=True
+        )
+        db.add(admin_user)
+        db.flush()
+        
+        # Create wallet for admin
+        wallet = Wallet(
+            tenant_id=tenant.id,
+            user_id=admin_user.id,
+            balance=0,
+            lifetime_earned=0,
+            lifetime_spent=0
+        )
+        db.add(wallet)
+        
+        # Audit log
+        audit = AuditLog(
+            tenant_id=tenant.id,
+            actor_id=current_user.id,
+            action="tenant_created",
+            entity_type="tenant",
+            entity_id=tenant.id,
+            new_values={
+                "name": tenant.name,
+                "slug": tenant.slug,
+                "domain": tenant.domain,
+                "subscription_tier": tenant.subscription_tier,
+                "admin_email": tenant_data.admin_email,
+                "master_budget_balance": str(starting_balance)
+            }
+        )
+        db.add(audit)
+        
+        db.commit()
+        db.refresh(tenant)
+    except Exception:
+        db.rollback()
+        raise
     
     return TenantDetailResponse(
         id=tenant.id,
         name=tenant.name,
+        slug=tenant.slug,
         domain=tenant.domain,
         logo_url=tenant.logo_url,
         favicon_url=tenant.favicon_url,
         primary_color=tenant.primary_color,
+        branding_config=tenant.branding_config or {},
         status=tenant.status,
         subscription_tier=tenant.subscription_tier,
         subscription_status=tenant.subscription_status,
         subscription_started_at=tenant.subscription_started_at,
         subscription_ends_at=tenant.subscription_ends_at,
         max_users=tenant.max_users or 50,
+        master_budget_balance=Decimal(str(tenant.master_budget_balance or 0)),
         settings=tenant.settings or {},
         catalog_settings=tenant.catalog_settings or {},
         branding=tenant.branding or {},
@@ -236,16 +267,19 @@ async def get_tenant(
     return TenantDetailResponse(
         id=tenant.id,
         name=tenant.name,
+        slug=tenant.slug,
         domain=tenant.domain,
         logo_url=tenant.logo_url,
         favicon_url=tenant.favicon_url,
         primary_color=tenant.primary_color,
+        branding_config=tenant.branding_config or {},
         status=tenant.status,
         subscription_tier=tenant.subscription_tier,
         subscription_status=tenant.subscription_status,
         subscription_started_at=tenant.subscription_started_at,
         subscription_ends_at=tenant.subscription_ends_at,
         max_users=tenant.max_users or 50,
+        master_budget_balance=Decimal(str(tenant.master_budget_balance or 0)),
         settings=tenant.settings or {},
         catalog_settings=tenant.catalog_settings or {},
         branding=tenant.branding or {},
@@ -279,6 +313,13 @@ async def update_tenant(
         ).first()
         if existing:
             raise HTTPException(status_code=400, detail="Domain already in use")
+    if tenant_data.slug and tenant_data.slug != tenant.slug:
+        existing = db.query(Tenant).filter(
+            Tenant.slug == tenant_data.slug,
+            Tenant.id != tenant_id
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Slug already in use")
     
     update_data = tenant_data.model_dump(exclude_unset=True)
     old_values = {k: str(getattr(tenant, k)) for k in update_data.keys()}
@@ -310,16 +351,19 @@ async def update_tenant(
     return TenantDetailResponse(
         id=tenant.id,
         name=tenant.name,
+        slug=tenant.slug,
         domain=tenant.domain,
         logo_url=tenant.logo_url,
         favicon_url=tenant.favicon_url,
         primary_color=tenant.primary_color,
+        branding_config=tenant.branding_config or {},
         status=tenant.status,
         subscription_tier=tenant.subscription_tier,
         subscription_status=tenant.subscription_status,
         subscription_started_at=tenant.subscription_started_at,
         subscription_ends_at=tenant.subscription_ends_at,
         max_users=tenant.max_users or 50,
+        master_budget_balance=Decimal(str(tenant.master_budget_balance or 0)),
         settings=tenant.settings or {},
         catalog_settings=tenant.catalog_settings or {},
         branding=tenant.branding or {},
@@ -370,16 +414,19 @@ async def update_subscription(
     return TenantDetailResponse(
         id=tenant.id,
         name=tenant.name,
+        slug=tenant.slug,
         domain=tenant.domain,
         logo_url=tenant.logo_url,
         favicon_url=tenant.favicon_url,
         primary_color=tenant.primary_color,
+        branding_config=tenant.branding_config or {},
         status=tenant.status,
         subscription_tier=tenant.subscription_tier,
         subscription_status=tenant.subscription_status,
         subscription_started_at=tenant.subscription_started_at,
         subscription_ends_at=tenant.subscription_ends_at,
         max_users=tenant.max_users or 50,
+        master_budget_balance=Decimal(str(tenant.master_budget_balance or 0)),
         settings=tenant.settings or {},
         catalog_settings=tenant.catalog_settings or {},
         branding=tenant.branding or {},

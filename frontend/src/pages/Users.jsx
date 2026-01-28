@@ -79,10 +79,10 @@ export default function Users() {
 
   const getRoleColor = (role) => {
     const colors = {
-      platform_admin: 'bg-red-100 text-red-800',
-      hr_admin: 'bg-purple-100 text-purple-800',
-      manager: 'bg-blue-100 text-blue-800',
-      employee: 'bg-green-100 text-green-800',
+      platform_owner: 'bg-red-100 text-red-800',
+      tenant_admin: 'bg-purple-100 text-purple-800',
+      tenant_lead: 'bg-blue-100 text-blue-800',
+      corporate_user: 'bg-green-100 text-green-800',
     }
     return colors[role] || 'bg-gray-100 text-gray-800'
   }
@@ -92,7 +92,7 @@ export default function Users() {
       <div className="card text-center py-12">
         <HiOutlineUsers className="w-16 h-16 mx-auto mb-4 text-gray-300" />
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Restricted</h2>
-        <p className="text-gray-500">Only HR Admins can manage users.</p>
+        <p className="text-gray-500">Only Tenant Admins can manage users.</p>
       </div>
     )
   }
@@ -239,9 +239,9 @@ export default function Users() {
               <div>
                 <label className="label">Role</label>
                 <select name="role" className="input" required>
-                  <option value="employee">Employee</option>
-                  <option value="manager">Manager</option>
-                  <option value="hr_admin">HR Admin</option>
+                  <option value="corporate_user">Corporate User</option>
+                  <option value="tenant_lead">Tenant Lead</option>
+                  <option value="tenant_admin">Tenant Admin</option>
                 </select>
               </div>
               <div>

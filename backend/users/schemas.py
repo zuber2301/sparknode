@@ -3,14 +3,14 @@ from typing import Optional, Literal
 from uuid import UUID
 from datetime import datetime, date
 
-VALID_ROLES = ['platform_admin', 'hr_admin', 'manager', 'employee']
+VALID_ROLES = ['platform_owner', 'tenant_admin', 'tenant_lead', 'corporate_user']
 
 
 class UserBase(BaseModel):
     email: EmailStr
     first_name: str
     last_name: str
-    role: Literal['platform_admin', 'hr_admin', 'manager', 'employee']
+    role: Literal['tenant_admin', 'tenant_lead', 'corporate_user']
     department_id: Optional[UUID] = None
     manager_id: Optional[UUID] = None
 
@@ -23,7 +23,7 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    role: Optional[Literal['platform_admin', 'hr_admin', 'manager', 'employee']] = None
+    role: Optional[Literal['tenant_admin', 'tenant_lead', 'corporate_user']] = None
     department_id: Optional[UUID] = None
     manager_id: Optional[UUID] = None
     avatar_url: Optional[str] = None

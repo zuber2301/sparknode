@@ -64,10 +64,12 @@ class Tenant(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False)
+    slug = Column(String(255), unique=True)
     domain = Column(String(255), unique=True)
     logo_url = Column(String(500))
     favicon_url = Column(String(500))
     primary_color = Column(String(20), default="#3B82F6")  # Brand color
+    branding_config = Column(JSONB, default={})
     status = Column(String(50), default='active')
     
     # Subscription & Billing
@@ -76,6 +78,9 @@ class Tenant(Base):
     subscription_started_at = Column(DateTime(timezone=True))
     subscription_ends_at = Column(DateTime(timezone=True))
     max_users = Column(Integer, default=50)  # User limit based on plan
+
+    # Master budget pool
+    master_budget_balance = Column(Numeric(15, 2), nullable=False, default=0)
     
     # Feature Flags & Settings
     settings = Column(JSONB, default={})
@@ -125,6 +130,7 @@ class Tenant(Base):
     users = relationship("User", back_populates="tenant", cascade="all, delete-orphan")
     budgets = relationship("Budget", back_populates="tenant", cascade="all, delete-orphan")
     events = relationship("Event", back_populates="tenant", cascade="all, delete-orphan")
+    master_budget_ledger = relationship("MasterBudgetLedger", back_populates="tenant", cascade="all, delete-orphan")
     
     @property
     def is_active(self):
@@ -171,6 +177,7 @@ class User(Base):
     date_of_birth = Column(Date)
     hire_date = Column(Date)
     status = Column(String(50), default='active')
+    is_super_admin = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
@@ -267,6 +274,24 @@ class WalletLedger(Base):
     
     # Relationships
     wallet = relationship("Wallet", back_populates="ledger_entries")
+
+
+class MasterBudgetLedger(Base):
+    __tablename__ = "master_budget_ledger"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    transaction_type = Column(String(20), nullable=False)  # credit/debit
+    source = Column(String(50), nullable=False)  # provisioning/adjustment/allocation/reversal
+    points = Column(Numeric(15, 2), nullable=False)
+    balance_after = Column(Numeric(15, 2), nullable=False)
+    reference_type = Column(String(50))
+    reference_id = Column(UUID(as_uuid=True))
+    description = Column(Text)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    tenant = relationship("Tenant", back_populates="master_budget_ledger")
 
 
 class Badge(Base):
