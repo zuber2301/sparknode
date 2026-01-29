@@ -121,6 +121,22 @@ async def allocate_points(
     db: Session = Depends(get_db)
 ):
     """Allocate points to a user (HR Admin only)"""
+    # Get target user
+    target_user = db.query(User).filter(
+        User.id == allocation.user_id,
+        User.tenant_id == current_user.tenant_id
+    ).first()
+
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Target user not found")
+
+    # Restriction: Tenant Admins (HR Admins) can only allocate points to Tenant Leads
+    if current_user.role == 'tenant_admin' and target_user.role != 'tenant_lead':
+        raise HTTPException(
+            status_code=403,
+            detail="Tenant Admins can only allocate points to Tenant Leads"
+        )
+
     # Get target user's wallet
     wallet = db.query(Wallet).filter(
         Wallet.user_id == allocation.user_id,

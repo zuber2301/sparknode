@@ -239,6 +239,12 @@ class UserUploadStaging(Base):
     manager_email = Column(String(255))
     first_name = Column(String(100))
     last_name = Column(String(100))
+    corporate_email = Column(String(255))
+    personal_email = Column(String(255))
+    phone_number = Column(String(20))
+    mobile_number = Column(String(20))
+    date_of_birth = Column(String(50))  # Stored as string in staging for parsing flexibility
+    hire_date = Column(String(50))      # Stored as string in staging
     department_id = Column(UUID(as_uuid=True))
     manager_id = Column(UUID(as_uuid=True))
     status = Column(String(50), default="pending")

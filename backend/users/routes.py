@@ -6,6 +6,17 @@ from uuid import UUID, uuid4
 import io
 import pandas as pd
 from email_validator import validate_email, EmailNotValidError
+from datetime import datetime
+
+def try_parse_date(date_str):
+    if not date_str or str(date_str).lower() in ('nan', 'none', ''):
+        return None
+    for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%d-%m-%Y'):
+        try:
+            return datetime.strptime(str(date_str), fmt).date()
+        except ValueError:
+            pass
+    return None
 
 from database import get_db
 from models import User, Wallet, WalletLedger, AuditLog, Department, Tenant, UserUploadStaging
@@ -39,16 +50,18 @@ def validate_staging_row(
     db: Session,
     tenant_id: UUID,
     allowed_roles: set,
-    full_name: str,
     email: str,
     department_name: str,
     role: str,
-    manager_email: str
+    manager_email: str,
+    full_name: str = "",
+    first_name: str = "",
+    last_name: str = ""
 ):
     errors = []
 
-    if not full_name:
-        errors.append("Full Name is required")
+    if not first_name and not last_name and not full_name:
+        errors.append("First Name/Last Name are required")
     if not email:
         errors.append("Email is required")
     else:
@@ -85,9 +98,12 @@ def validate_staging_row(
     if existing_user:
         errors.append("Duplicate Email")
 
-    name_parts = full_name.split()
-    first_name = name_parts[0] if name_parts else ""
-    last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+    if not first_name or not last_name:
+        name_parts = full_name.split()
+        if not first_name:
+            first_name = name_parts[0] if name_parts else ""
+        if not last_name:
+            last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
 
     return {
         "errors": errors,
@@ -307,7 +323,7 @@ async def get_direct_reports(
 
 @router.get("/bulk/template")
 async def download_bulk_template():
-    headers = "Full Name,Email,Department,Role,Manager Email\n"
+    headers = "First Name,Last Name,Email,Corporate Email,Personal Email,Role,Department,Manager Email,Phone Number,Mobile Number,Date of Birth,Hire Date\n"
     return Response(
         content=headers,
         media_type="text/csv",
@@ -328,9 +344,14 @@ async def upload_bulk_users(
     df = await read_upload_to_dataframe(file)
     df = normalize_headers(df)
 
-    required_cols = {"full name", "email", "department", "role", "manager email"}
-    if not required_cols.issubset(set(df.columns)):
-        raise HTTPException(status_code=400, detail="Invalid template headers")
+    required_cols = {"email", "role", "department"}
+    # Flexible header checking: support either "full name" OR "first name" + "last name"
+    columns = set(df.columns)
+    if not ("full name" in columns or ("first name" in columns and "last name" in columns)):
+        raise HTTPException(status_code=400, detail="Template must have 'Full Name' or 'First Name' and 'Last Name'")
+    
+    if not required_cols.issubset(columns):
+        raise HTTPException(status_code=400, detail=f"Missing required columns: {required_cols - columns}")
 
     batch_id = uuid4()
     allowed_roles = set(get_allowed_roles(tenant))
@@ -343,21 +364,31 @@ async def upload_bulk_users(
         total_rows += 1
         errors = []
 
+        first_name = str(row.get("first name", "")).strip()
+        last_name = str(row.get("last name", "")).strip()
         full_name = str(row.get("full name", "")).strip()
         email = str(row.get("email", "")).strip().lower()
+        corporate_email = str(row.get("corporate email", "")).strip().lower()
+        personal_email = str(row.get("personal email", "")).strip().lower()
         department_name = str(row.get("department", "")).strip()
         role = str(row.get("role", "")).strip()
         manager_email = str(row.get("manager email", "")).strip().lower()
+        phone_number = str(row.get("phone number", "")).strip()
+        mobile_number = str(row.get("mobile number", "")).strip()
+        date_of_birth = str(row.get("date of birth", "")).strip()
+        hire_date = str(row.get("hire date", "")).strip()
 
         validation = validate_staging_row(
             db,
             current_user.tenant_id,
             allowed_roles,
-            full_name,
             email,
             department_name,
             role,
-            manager_email
+            manager_email,
+            full_name=full_name,
+            first_name=first_name,
+            last_name=last_name
         )
 
         errors = validation["errors"]
@@ -371,13 +402,19 @@ async def upload_bulk_users(
         staging = UserUploadStaging(
             tenant_id=current_user.tenant_id,
             batch_id=batch_id,
-            full_name=full_name,
+            full_name=f"{validation['first_name']} {validation['last_name']}".strip(),
+            first_name=validation["first_name"],
+            last_name=validation["last_name"],
             email=email,
+            corporate_email=corporate_email or email,
+            personal_email=personal_email,
             department_name=department_name,
             role=role,
             manager_email=manager_email,
-            first_name=validation["first_name"],
-            last_name=validation["last_name"],
+            phone_number=phone_number,
+            mobile_number=mobile_number,
+            date_of_birth=date_of_birth,
+            hire_date=hire_date,
             department_id=validation["department_id"],
             manager_id=validation["manager_id"],
             status=status_value,
@@ -433,11 +470,13 @@ async def update_staging_row(
         db,
         current_user.tenant_id,
         allowed_roles,
-        row.full_name,
         row.email,
         row.department_name or "",
         row.role or "",
-        row.manager_email or ""
+        row.manager_email or "",
+        full_name=row.full_name,
+        first_name=row.first_name,
+        last_name=row.last_name
     )
 
     row.first_name = validation["first_name"]
@@ -473,13 +512,18 @@ async def confirm_bulk_upload(
         user = User(
             tenant_id=current_user.tenant_id,
             email=row.email,
-            corporate_email=row.email,
-            password_hash=get_password_hash("password123"),
-            first_name=row.first_name or row.full_name,
-            last_name=row.last_name or "",
+            corporate_email=row.corporate_email or row.email,
+            personal_email=row.personal_email,
+            password_hash=get_password_hash("password123"), # Temporary, will be changed on invite
+            first_name=row.first_name,
+            last_name=row.last_name,
             role=row.role or "corporate_user",
             department_id=row.department_id,
             manager_id=row.manager_id,
+            phone_number=row.phone_number,
+            mobile_number=row.mobile_number or row.phone_number,
+            date_of_birth=try_parse_date(row.date_of_birth),
+            hire_date=try_parse_date(row.hire_date),
             status="PENDING_INVITE",
             invitation_sent_at=func.now()
         )

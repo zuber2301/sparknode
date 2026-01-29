@@ -1,21 +1,38 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { budgetsAPI, tenantsAPI } from '../lib/api'
+import { budgetsAPI, tenantsAPI, usersAPI, walletsAPI } from '../lib/api'
 import { useAuthStore } from '../store/authStore'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
-import { HiOutlinePlus, HiOutlinePencil, HiOutlineChartBar, HiOutlineCheck } from 'react-icons/hi'
+import { 
+  HiOutlinePlus, 
+  HiOutlinePencil, 
+  HiOutlineChartBar, 
+  HiOutlineCheck,
+  HiOutlineUsers,
+  HiOutlineCurrencyDollar
+} from 'react-icons/hi'
 
 export default function Budgets() {
+  const [activeTab, setActiveTab] = useState('budgets') // 'budgets' or 'leads'
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showAllocateModal, setShowAllocateModal] = useState(false)
+  const [showLeadAllocateModal, setShowLeadAllocateModal] = useState(false)
   const [selectedBudget, setSelectedBudget] = useState(null)
+  const [selectedLead, setSelectedLead] = useState(null)
   const queryClient = useQueryClient()
   const { isHRAdmin } = useAuthStore()
 
-  const { data: budgets, isLoading } = useQuery({
+  const { data: budgets, isLoading: isLoadingBudgets } = useQuery({
     queryKey: ['budgets'],
     queryFn: () => budgetsAPI.getAll(),
+    enabled: activeTab === 'budgets',
+  })
+
+  const { data: tenantLeads, isLoading: isLoadingLeads } = useQuery({
+    queryKey: ['users', { role: 'tenant_lead' }],
+    queryFn: () => usersAPI.getAll({ role: 'tenant_lead' }),
+    enabled: activeTab === 'leads',
   })
 
   const { data: departments } = useQuery({
@@ -51,6 +68,19 @@ export default function Budgets() {
     },
     onError: (error) => {
       toast.error(error.response?.data?.detail || 'Failed to allocate budget')
+    },
+  })
+
+  const leadAllocateMutation = useMutation({
+    mutationFn: (data) => walletsAPI.allocatePoints(data),
+    onSuccess: () => {
+      toast.success('Points allocated to Lead')
+      queryClient.invalidateQueries(['users', { role: 'tenant_lead' }])
+      setShowLeadAllocateModal(false)
+      setSelectedLead(null)
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.detail || 'Failed to allocate points')
     },
   })
 
@@ -103,6 +133,16 @@ export default function Budgets() {
     })
   }
 
+  const handleLeadAllocate = (e) => {
+    e.preventDefault()
+    const formData = new FormData(e.target)
+    leadAllocateMutation.mutate({
+      user_id: selectedLead.id,
+      points: parseFloat(formData.get('points')),
+      description: formData.get('description'),
+    })
+  }
+
   const getStatusColor = (status) => {
     const colors = {
       draft: 'bg-gray-100 text-gray-800',
@@ -126,107 +166,200 @@ export default function Budgets() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Budget Management</h1>
+        {activeTab === 'budgets' && (
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="btn-primary flex items-center gap-2"
+          >
+            <HiOutlinePlus className="w-5 h-5" />
+            Create Budget
+          </button>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200">
         <button
-          onClick={() => setShowCreateModal(true)}
-          className="btn-primary flex items-center gap-2"
+          onClick={() => setActiveTab('budgets')}
+          className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'budgets'
+              ? 'border-sparknode-purple text-sparknode-purple'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
         >
-          <HiOutlinePlus className="w-5 h-5" />
-          Create Budget
+          <div className="flex items-center gap-2">
+            <HiOutlineChartBar className="w-5 h-5" />
+            Company Budgets
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab('leads')}
+          className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'leads'
+              ? 'border-sparknode-purple text-sparknode-purple'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <HiOutlineUsers className="w-5 h-5" />
+            Lead Allocations
+          </div>
         </button>
       </div>
 
-      {/* Budgets list */}
-      {isLoading ? (
-        <div className="space-y-4">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-32 bg-gray-200 rounded-xl animate-pulse" />
-          ))}
-        </div>
-      ) : budgets?.data?.length > 0 ? (
-        <div className="space-y-4">
-          {budgets.data.map((budget) => (
-            <div key={budget.id} className="card">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-lg font-semibold text-gray-900">{budget.name}</h3>
-                    <span className={`badge ${getStatusColor(budget.status)}`}>
-                      {budget.status}
-                    </span>
+      {activeTab === 'budgets' ? (
+        <>
+          {/* Budgets list */}
+          {isLoadingBudgets ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-32 bg-gray-200 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          ) : budgets?.data?.length > 0 ? (
+            <div className="space-y-4">
+              {budgets.data.map((budget) => (
+                <div key={budget.id} className="card">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-lg font-semibold text-gray-900">{budget.name}</h3>
+                        <span className={`badge ${getStatusColor(budget.status)}`}>
+                          {budget.status}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1">
+                        FY {budget.fiscal_year} {budget.fiscal_quarter && `Q${budget.fiscal_quarter}`}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      {budget.status === 'draft' && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setSelectedBudget(budget)
+                              setShowAllocateModal(true)
+                            }}
+                            className="btn-secondary text-sm"
+                          >
+                            <HiOutlinePencil className="w-4 h-4 mr-1" />
+                            Allocate
+                          </button>
+                          <button
+                            onClick={() => activateMutation.mutate(budget.id)}
+                            className="btn-primary text-sm"
+                            disabled={activateMutation.isPending}
+                          >
+                            <HiOutlineCheck className="w-4 h-4 mr-1" />
+                            Activate
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-500 mt-1">
-                    FY {budget.fiscal_year} {budget.fiscal_quarter && `Q${budget.fiscal_quarter}`}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  {budget.status === 'draft' && (
-                    <>
-                      <button
-                        onClick={() => {
-                          setSelectedBudget(budget)
-                          setShowAllocateModal(true)
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <p className="text-sm text-gray-500">Total Budget</p>
+                      <p className="text-xl font-semibold text-gray-900">{budget.total_points}</p>
+                    </div>
+                    <div className="bg-blue-50 rounded-lg p-4">
+                      <p className="text-sm text-gray-500">Allocated</p>
+                      <p className="text-xl font-semibold text-blue-600">{budget.allocated_points}</p>
+                    </div>
+                    <div className="bg-green-50 rounded-lg p-4">
+                      <p className="text-sm text-gray-500">Remaining</p>
+                      <p className="text-xl font-semibold text-green-600">{budget.remaining_points}</p>
+                    </div>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="mt-4">
+                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-sparknode-purple to-sparknode-blue"
+                        style={{
+                          width: `${(budget.allocated_points / budget.total_points) * 100}%`,
                         }}
-                        className="btn-secondary text-sm"
-                      >
-                        <HiOutlinePencil className="w-4 h-4 mr-1" />
-                        Allocate
-                      </button>
-                      <button
-                        onClick={() => activateMutation.mutate(budget.id)}
-                        className="btn-primary text-sm"
-                        disabled={activateMutation.isPending}
-                      >
-                        <HiOutlineCheck className="w-4 h-4 mr-1" />
-                        Activate
-                      </button>
-                    </>
-                  )}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {((budget.allocated_points / budget.total_points) * 100).toFixed(1)}% allocated
+                    </p>
+                  </div>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-500">Total Budget</p>
-                  <p className="text-xl font-semibold text-gray-900">{budget.total_points}</p>
-                </div>
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-500">Allocated</p>
-                  <p className="text-xl font-semibold text-blue-600">{budget.allocated_points}</p>
-                </div>
-                <div className="bg-green-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-500">Remaining</p>
-                  <p className="text-xl font-semibold text-green-600">{budget.remaining_points}</p>
-                </div>
-              </div>
-
-              {/* Progress bar */}
-              <div className="mt-4">
-                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-sparknode-purple to-sparknode-blue"
-                    style={{
-                      width: `${(budget.allocated_points / budget.total_points) * 100}%`,
-                    }}
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {((budget.allocated_points / budget.total_points) * 100).toFixed(1)}% allocated
-                </p>
+              ))}
+            </div>
+          ) : (
+            <div className="card text-center py-12">
+              <HiOutlineChartBar className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No budgets yet</h3>
+              <p className="text-gray-500 mb-4">Create your first budget to start allocating points.</p>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="btn-primary"
+              >
+                Create Budget
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="space-y-4">
+          <div className="card">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Tenant Leads</h3>
+                <p className="text-sm text-gray-500">Allocate points to leads for peer recognition and rewards</p>
               </div>
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="card text-center py-12">
-          <HiOutlineChartBar className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No budgets yet</h3>
-          <p className="text-gray-500 mb-4">Create your first budget to start allocating points.</p>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="btn-primary"
-          >
-            Create Budget
-          </button>
+
+            {isLoadingLeads ? (
+              <div className="space-y-4">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse" />
+                ))}
+              </div>
+            ) : tenantLeads?.data?.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lead Name</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {tenantLeads.data.map((lead) => (
+                      <tr key={lead.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-4">
+                          <div className="font-medium text-gray-900">{lead.first_name} {lead.last_name}</div>
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-500">{lead.email}</td>
+                        <td className="px-4 py-4 text-right">
+                          <button
+                            onClick={() => {
+                              setSelectedLead(lead)
+                              setShowLeadAllocateModal(true)
+                            }}
+                            className="btn-secondary text-sm flex items-center gap-2 ml-auto"
+                          >
+                            <HiOutlineCurrencyDollar className="w-4 h-4" />
+                            Allocate Points
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                No Tenant Leads found.
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -354,6 +487,58 @@ export default function Budgets() {
                   className="btn-primary flex-1"
                 >
                   {allocateMutation.isPending ? 'Allocating...' : 'Allocate'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Allocate Points to Lead Modal */}
+      {showLeadAllocateModal && selectedLead && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+            <h2 className="text-xl font-semibold mb-2">Allocate Points to Lead</h2>
+            <p className="text-gray-500 mb-4">
+              To: {selectedLead.first_name} {selectedLead.last_name} ({selectedLead.email})
+            </p>
+            <form onSubmit={handleLeadAllocate} className="space-y-4">
+              <div>
+                <label className="label">Points to Allocate</label>
+                <input
+                  name="points"
+                  type="number"
+                  className="input"
+                  required
+                  min="1"
+                  placeholder="100"
+                />
+              </div>
+              <div>
+                <label className="label">Description (optional)</label>
+                <input
+                  name="description"
+                  className="input"
+                  placeholder="e.g., Q1 Recognition Budget"
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowLeadAllocateModal(false)
+                    setSelectedLead(null)
+                  }}
+                  className="btn-secondary flex-1"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={leadAllocateMutation.isPending}
+                  className="btn-primary flex-1"
+                >
+                  {leadAllocateMutation.isPending ? 'Allocating...' : 'Allocate'}
                 </button>
               </div>
             </form>

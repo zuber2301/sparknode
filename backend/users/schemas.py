@@ -153,10 +153,18 @@ class StagingRowResponse(BaseModel):
     id: UUID
     batch_id: UUID
     full_name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     email: str
+    corporate_email: Optional[str] = None
+    personal_email: Optional[str] = None
     department_name: Optional[str] = None
     role: Optional[str] = None
     manager_email: Optional[str] = None
+    phone_number: Optional[str] = None
+    mobile_number: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    hire_date: Optional[str] = None
     errors: List[str] = Field(default_factory=list)
     status: str
 
@@ -223,7 +231,15 @@ class UserPatch(BaseModel):
 
 class StagingRowUpdate(BaseModel):
     full_name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     email: Optional[EmailStr] = None
+    corporate_email: Optional[EmailStr] = None
+    personal_email: Optional[EmailStr] = None
     department_name: Optional[str] = None
     role: Optional[str] = None
     manager_email: Optional[EmailStr] = None
+    phone_number: Optional[str] = None
+    mobile_number: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    hire_date: Optional[str] = None

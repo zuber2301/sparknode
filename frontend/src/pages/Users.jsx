@@ -23,14 +23,19 @@ export default function Users() {
   const [stagingRows, setStagingRows] = useState([])
   const [editingStagingId, setEditingStagingId] = useState(null)
   const [stagingForm, setStagingForm] = useState({
-    full_name: '',
+    first_name: '',
+    last_name: '',
     email: '',
+    corporate_email: '',
+    personal_email: '',
     department_name: '',
     role: '',
     manager_email: '',
+    phone_number: '',
+    mobile_number: '',
+    date_of_birth: '',
+    hire_date: '',
   })
-  const [showAllocateModal, setShowAllocateModal] = useState(false)
-  const [selectedUser, setSelectedUser] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterDepartment, setFilterDepartment] = useState('')
   const [selectedUserIds, setSelectedUserIds] = useState([])
@@ -152,18 +157,6 @@ export default function Users() {
     },
   })
 
-  const allocateMutation = useMutation({
-    mutationFn: (data) => walletsAPI.allocatePoints(data),
-    onSuccess: () => {
-      toast.success('Points allocated successfully')
-      setShowAllocateModal(false)
-      setSelectedUser(null)
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.detail || 'Failed to allocate points')
-    },
-  })
-
   const handleCreateUser = (e) => {
     e.preventDefault()
     const formData = new FormData(e.target)
@@ -174,16 +167,6 @@ export default function Users() {
       last_name: formData.get('last_name'),
       role: formData.get('role'),
       department_id: formData.get('department_id') || null,
-    })
-  }
-
-  const handleAllocatePoints = (e) => {
-    e.preventDefault()
-    const formData = new FormData(e.target)
-    allocateMutation.mutate({
-      user_id: selectedUser.id,
-      points: parseFloat(formData.get('points')),
-      description: formData.get('description'),
     })
   }
 
@@ -226,11 +209,18 @@ export default function Users() {
   const startEditStagingRow = (row) => {
     setEditingStagingId(row.id)
     setStagingForm({
-      full_name: row.full_name || '',
+      first_name: row.first_name || '',
+      last_name: row.last_name || '',
       email: row.email || '',
+      corporate_email: row.corporate_email || '',
+      personal_email: row.personal_email || '',
       department_name: row.department_name || '',
       role: row.role || '',
       manager_email: row.manager_email || '',
+      phone_number: row.phone_number || '',
+      mobile_number: row.mobile_number || '',
+      date_of_birth: row.date_of_birth || '',
+      hire_date: row.hire_date || '',
     })
   }
 
@@ -486,15 +476,7 @@ export default function Users() {
                       </span>
                     </td>
                     <td className="px-4 py-4 text-right">
-                      <button
-                        onClick={() => {
-                          setSelectedUser(user)
-                          setShowAllocateModal(true)
-                        }}
-                        className="text-sparknode-purple hover:text-sparknode-purple/80 font-medium text-sm"
-                      >
-                        Allocate Points
-                      </button>
+                      {/* Actions can be added here if needed */}
                     </td>
                   </tr>
                 ))}
@@ -576,7 +558,7 @@ export default function Users() {
       {showBulkModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-3xl w-full">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-3">
               <h2 className="text-xl font-semibold">Bulk Provision Users</h2>
               <button
                 className="text-gray-500 hover:text-gray-700"
@@ -586,20 +568,28 @@ export default function Users() {
               </button>
             </div>
 
-            <div className="mb-6 flex items-center gap-3">
-              <span className={`badge ${bulkStep === 1 ? 'badge-success' : 'badge-default'}`}>Upload</span>
-              <span className={`badge ${bulkStep === 2 ? 'badge-success' : 'badge-default'}`}>Validate</span>
-              <span className={`badge ${bulkStep === 3 ? 'badge-success' : 'badge-default'}`}>Complete</span>
+            <div className="mb-4">
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span className={bulkStep >= 1 ? 'text-sparknode-purple font-medium' : ''}>Upload</span>
+                <span className={bulkStep >= 2 ? 'text-sparknode-purple font-medium' : ''}>Validate</span>
+                <span className={bulkStep >= 3 ? 'text-sparknode-purple font-medium' : ''}>Complete</span>
+              </div>
+              <div className="mt-2 h-1.5 w-full rounded-full bg-gray-100">
+                <div
+                  className="h-1.5 rounded-full bg-sparknode-purple transition-all"
+                  style={{ width: `${(bulkStep / 3) * 100}%` }}
+                />
+              </div>
             </div>
 
             {bulkStep === 1 && (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="border-2 border-dashed border-gray-200 rounded-2xl p-6 text-center">
+                  <div className="border-2 border-dashed border-gray-200 rounded-2xl p-4 text-center">
                     <div className="w-12 h-12 mx-auto rounded-2xl bg-purple-50 flex items-center justify-center">
                       <HiOutlineUpload className="w-6 h-6 text-sparknode-purple" />
                     </div>
-                    <h3 className="text-base font-semibold text-gray-900 mt-3">Upload CSV or XLSX</h3>
+                    <h3 className="text-base font-semibold text-gray-900 mt-2">Upload CSV or XLSX</h3>
                     <p className="text-xs text-gray-500 mt-1">Drag and drop your file here or click to browse</p>
                     <label className="block mt-4">
                       <input
@@ -622,7 +612,7 @@ export default function Users() {
                     </label>
                   </div>
 
-                  <div className="bg-purple-50 rounded-2xl p-5">
+                  <div className="bg-purple-50 rounded-2xl p-4">
                     <h4 className="text-base font-semibold text-sparknode-purple">Instructions</h4>
                     <ul className="mt-2 space-y-1 text-xs text-purple-700 list-disc list-inside">
                       <li>Use our official CSV template for formatting</li>
@@ -630,7 +620,7 @@ export default function Users() {
                       <li>Role must be tenant_admin, tenant_lead, or corporate_user</li>
                       <li>Department names must match existing ones</li>
                     </ul>
-                    <button className="btn-secondary w-full mt-4 py-2 text-sm" onClick={handleDownloadTemplate}>
+                    <button className="btn-secondary w-full mt-3 py-2 text-sm" onClick={handleDownloadTemplate}>
                       Download Template
                     </button>
                   </div>
@@ -665,11 +655,10 @@ export default function Users() {
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-3 py-2 text-left">Name</th>
+                        <th className="px-3 py-2 text-left">First Name</th>
+                        <th className="px-3 py-2 text-left">Last Name</th>
                         <th className="px-3 py-2 text-left">Email</th>
-                        <th className="px-3 py-2 text-left">Department</th>
                         <th className="px-3 py-2 text-left">Role</th>
-                        <th className="px-3 py-2 text-left">Manager Email</th>
                         <th className="px-3 py-2 text-left">Errors</th>
                         <th className="px-3 py-2 text-left">Action</th>
                       </tr>
@@ -677,11 +666,10 @@ export default function Users() {
                     <tbody>
                       {stagingRows.map((row) => (
                         <tr key={row.id} className="border-t">
-                          <td className="px-3 py-2">{row.full_name}</td>
+                          <td className="px-3 py-2">{row.first_name}</td>
+                          <td className="px-3 py-2">{row.last_name}</td>
                           <td className="px-3 py-2">{row.email}</td>
-                          <td className="px-3 py-2">{row.department_name || '-'}</td>
-                          <td className="px-3 py-2">{row.role || '-'}</td>
-                          <td className="px-3 py-2">{row.manager_email || '-'}</td>
+                          <td className="px-3 py-2 text-xs font-mono">{row.role || '-'}</td>
                           <td className="px-3 py-2">
                             {row.errors?.length ? (
                               <div className="flex items-center gap-2 text-red-600">
@@ -712,20 +700,38 @@ export default function Users() {
                 </div>
 
                 {editingStagingId && (
-                  <div className="border rounded-lg p-4 space-y-3">
+                  <div className="border rounded-lg p-4 space-y-3 bg-gray-50">
                     <h3 className="font-medium text-gray-900">Fix Row</h3>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                       <input
                         className="input"
-                        placeholder="Full Name"
-                        value={stagingForm.full_name}
-                        onChange={(e) => setStagingForm({ ...stagingForm, full_name: e.target.value })}
+                        placeholder="First Name"
+                        value={stagingForm.first_name}
+                        onChange={(e) => setStagingForm({ ...stagingForm, first_name: e.target.value })}
+                      />
+                      <input
+                        className="input"
+                        placeholder="Last Name"
+                        value={stagingForm.last_name}
+                        onChange={(e) => setStagingForm({ ...stagingForm, last_name: e.target.value })}
                       />
                       <input
                         className="input"
                         placeholder="Email"
                         value={stagingForm.email}
                         onChange={(e) => setStagingForm({ ...stagingForm, email: e.target.value })}
+                      />
+                      <input
+                        className="input"
+                        placeholder="Corporate Email"
+                        value={stagingForm.corporate_email}
+                        onChange={(e) => setStagingForm({ ...stagingForm, corporate_email: e.target.value })}
+                      />
+                      <input
+                        className="input"
+                        placeholder="Personal Email"
+                        value={stagingForm.personal_email}
+                        onChange={(e) => setStagingForm({ ...stagingForm, personal_email: e.target.value })}
                       />
                       <input
                         className="input"
@@ -744,6 +750,30 @@ export default function Users() {
                         placeholder="Manager Email"
                         value={stagingForm.manager_email}
                         onChange={(e) => setStagingForm({ ...stagingForm, manager_email: e.target.value })}
+                      />
+                      <input
+                        className="input"
+                        placeholder="Phone Number"
+                        value={stagingForm.phone_number}
+                        onChange={(e) => setStagingForm({ ...stagingForm, phone_number: e.target.value })}
+                      />
+                      <input
+                        className="input"
+                        placeholder="Mobile Number"
+                        value={stagingForm.mobile_number}
+                        onChange={(e) => setStagingForm({ ...stagingForm, mobile_number: e.target.value })}
+                      />
+                      <input
+                        className="input"
+                        placeholder="DOB (YYYY-MM-DD)"
+                        value={stagingForm.date_of_birth}
+                        onChange={(e) => setStagingForm({ ...stagingForm, date_of_birth: e.target.value })}
+                      />
+                      <input
+                        className="input"
+                        placeholder="Hire Date (YYYY-MM-DD)"
+                        value={stagingForm.hire_date}
+                        onChange={(e) => setStagingForm({ ...stagingForm, hire_date: e.target.value })}
                       />
                     </div>
                     <div className="flex gap-3">
@@ -789,58 +819,6 @@ export default function Users() {
                 </button>
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Allocate Points Modal */}
-      {showAllocateModal && selectedUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full">
-            <h2 className="text-xl font-semibold mb-2">Allocate Points</h2>
-            <p className="text-gray-500 mb-4">
-              To: {selectedUser.first_name} {selectedUser.last_name}
-            </p>
-            <form onSubmit={handleAllocatePoints} className="space-y-4">
-              <div>
-                <label className="label">Points to Allocate</label>
-                <input
-                  name="points"
-                  type="number"
-                  className="input"
-                  required
-                  min="1"
-                  placeholder="100"
-                />
-              </div>
-              <div>
-                <label className="label">Description (optional)</label>
-                <input
-                  name="description"
-                  className="input"
-                  placeholder="e.g., Monthly allocation"
-                />
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAllocateModal(false)
-                    setSelectedUser(null)
-                  }}
-                  className="btn-secondary flex-1"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={allocateMutation.isPending}
-                  className="btn-primary flex-1"
-                >
-                  {allocateMutation.isPending ? 'Allocating...' : 'Allocate'}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}
