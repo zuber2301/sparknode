@@ -1,7 +1,7 @@
 """
 Platform Admin Routes
 
-Platform Owner endpoints for:
+Platform Admin endpoints for:
 - Tenant management (create, update, suspend)
 - Subscription management
 - Platform-wide health monitoring
@@ -21,13 +21,14 @@ from models import (
     Tenant, User, Department, Budget, Recognition, Redemption, Wallet, AuditLog, MasterBudgetLedger
 )
 from auth.utils import get_password_hash
-from core.rbac import get_platform_owner
+from core import append_impersonation_metadata
+from core.rbac import get_platform_admin
 from platform_admin.schemas import (
     TenantCreateRequest, TenantUpdateRequest, SubscriptionUpdate,
     TenantListResponse, TenantDetailResponse,
     SubscriptionTiersResponse, SUBSCRIPTION_TIERS,
     PlatformHealthResponse, SystemHealthCheck,
-    PlatformAuditEntry, PlatformAuditResponse
+    PlatformAuditEntry, PlatformAuditResponse, FeatureFlagsUpdate
 )
 
 router = APIRouter()
@@ -44,10 +45,10 @@ async def list_tenants(
     search: Optional[str] = None,
     skip: int = 0,
     limit: int = 50,
-    current_user: User = Depends(get_platform_owner),
+    current_user: User = Depends(get_platform_admin),
     db: Session = Depends(get_db)
 ):
-    """List all tenants (Platform Owner only)"""
+    """List all tenants (Platform Admin only)"""
     query = db.query(Tenant)
     
     if status:
@@ -88,10 +89,10 @@ async def list_tenants(
 @router.post("/tenants", response_model=TenantDetailResponse)
 async def create_tenant(
     tenant_data: TenantCreateRequest,
-    current_user: User = Depends(get_platform_owner),
+    current_user: User = Depends(get_platform_admin),
     db: Session = Depends(get_db)
 ):
-    """Create a new tenant (Platform Owner only)"""
+    """Create a new tenant (Platform Admin only)"""
     # Check domain/slug uniqueness
     if tenant_data.domain:
         existing = db.query(Tenant).filter(Tenant.domain == tenant_data.domain).first()
@@ -126,6 +127,7 @@ async def create_tenant(
                 "social_feed_enabled": True,
                 "events_module_enabled": True
             },
+            feature_flags={},
             catalog_settings={},
             branding={}
         )
@@ -184,14 +186,14 @@ async def create_tenant(
             action="tenant_created",
             entity_type="tenant",
             entity_id=tenant.id,
-            new_values={
+            new_values=append_impersonation_metadata({
                 "name": tenant.name,
                 "slug": tenant.slug,
                 "domain": tenant.domain,
                 "subscription_tier": tenant.subscription_tier,
                 "admin_email": tenant_data.admin_email,
                 "master_budget_balance": str(starting_balance)
-            }
+            })
         )
         db.add(audit)
         
@@ -210,6 +212,7 @@ async def create_tenant(
         favicon_url=tenant.favicon_url,
         primary_color=tenant.primary_color,
         branding_config=tenant.branding_config or {},
+        feature_flags=tenant.feature_flags or {},
         status=tenant.status,
         subscription_tier=tenant.subscription_tier,
         subscription_status=tenant.subscription_status,
@@ -231,10 +234,10 @@ async def create_tenant(
 @router.get("/tenants/{tenant_id}", response_model=TenantDetailResponse)
 async def get_tenant(
     tenant_id: UUID,
-    current_user: User = Depends(get_platform_owner),
+    current_user: User = Depends(get_platform_admin),
     db: Session = Depends(get_db)
 ):
-    """Get tenant details (Platform Owner only)"""
+    """Get tenant details (Platform Admin only)"""
     tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
@@ -297,10 +300,10 @@ async def get_tenant(
 async def update_tenant(
     tenant_id: UUID,
     tenant_data: TenantUpdateRequest,
-    current_user: User = Depends(get_platform_owner),
+    current_user: User = Depends(get_platform_admin),
     db: Session = Depends(get_db)
 ):
-    """Update tenant details (Platform Owner only)"""
+    """Update tenant details (Platform Admin only)"""
     tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
@@ -335,7 +338,7 @@ async def update_tenant(
         entity_type="tenant",
         entity_id=tenant.id,
         old_values=old_values,
-        new_values={k: str(v) for k, v in update_data.items()}
+        new_values=append_impersonation_metadata({k: str(v) for k, v in update_data.items()})
     )
     db.add(audit)
     
@@ -377,10 +380,10 @@ async def update_tenant(
 async def update_subscription(
     tenant_id: UUID,
     subscription: SubscriptionUpdate,
-    current_user: User = Depends(get_platform_owner),
+    current_user: User = Depends(get_platform_admin),
     db: Session = Depends(get_db)
 ):
-    """Update tenant subscription (Platform Owner only)"""
+    """Update tenant subscription (Platform Admin only)"""
     tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
@@ -399,7 +402,7 @@ async def update_subscription(
         entity_type="tenant",
         entity_id=tenant.id,
         old_values={"subscription_tier": old_tier},
-        new_values=update_data
+        new_values=append_impersonation_metadata(update_data)
     )
     db.add(audit)
     
@@ -420,6 +423,7 @@ async def update_subscription(
         favicon_url=tenant.favicon_url,
         primary_color=tenant.primary_color,
         branding_config=tenant.branding_config or {},
+        feature_flags=tenant.feature_flags or {},
         status=tenant.status,
         subscription_tier=tenant.subscription_tier,
         subscription_status=tenant.subscription_status,
@@ -440,10 +444,10 @@ async def update_subscription(
 async def suspend_tenant(
     tenant_id: UUID,
     reason: str = Query(..., min_length=1),
-    current_user: User = Depends(get_platform_owner),
+    current_user: User = Depends(get_platform_admin),
     db: Session = Depends(get_db)
 ):
-    """Suspend a tenant (Platform Owner only)"""
+    """Suspend a tenant (Platform Admin only)"""
     tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
@@ -457,7 +461,7 @@ async def suspend_tenant(
         action="tenant_suspended",
         entity_type="tenant",
         entity_id=tenant.id,
-        new_values={"reason": reason}
+        new_values=append_impersonation_metadata({"reason": reason})
     )
     db.add(audit)
     
@@ -469,10 +473,10 @@ async def suspend_tenant(
 @router.post("/tenants/{tenant_id}/activate")
 async def activate_tenant(
     tenant_id: UUID,
-    current_user: User = Depends(get_platform_owner),
+    current_user: User = Depends(get_platform_admin),
     db: Session = Depends(get_db)
 ):
-    """Activate a suspended tenant (Platform Owner only)"""
+    """Activate a suspended tenant (Platform Admin only)"""
     tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
@@ -485,7 +489,8 @@ async def activate_tenant(
         actor_id=current_user.id,
         action="tenant_activated",
         entity_type="tenant",
-        entity_id=tenant.id
+        entity_id=tenant.id,
+        new_values=append_impersonation_metadata({})
     )
     db.add(audit)
     
@@ -494,13 +499,54 @@ async def activate_tenant(
     return {"message": f"Tenant {tenant.name} has been activated"}
 
 
+@router.get("/tenants/{tenant_id}/feature_flags")
+async def get_tenant_feature_flags(
+    tenant_id: UUID,
+    current_user: User = Depends(get_platform_admin),
+    db: Session = Depends(get_db)
+):
+    """Get tenant feature flags (Platform Admin only)"""
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    return {"tenant_id": tenant.id, "feature_flags": tenant.feature_flags or {}}
+
+
+@router.patch("/tenants/{tenant_id}/feature_flags")
+async def update_tenant_feature_flags(
+    tenant_id: UUID,
+    payload: FeatureFlagsUpdate,
+    current_user: User = Depends(get_platform_admin),
+    db: Session = Depends(get_db)
+):
+    """Update tenant feature flags (Platform Admin only)"""
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    tenant.feature_flags = payload.feature_flags or {}
+
+    audit = AuditLog(
+        tenant_id=tenant.id,
+        actor_id=current_user.id,
+        action="tenant_feature_flags_updated",
+        entity_type="tenant",
+        entity_id=tenant.id,
+        new_values=append_impersonation_metadata({"feature_flags": tenant.feature_flags})
+    )
+    db.add(audit)
+
+    db.commit()
+    return {"message": "Feature flags updated", "feature_flags": tenant.feature_flags}
+
+
 # =====================================================
 # SUBSCRIPTION TIERS ENDPOINT
 # =====================================================
 
 @router.get("/subscription-tiers", response_model=SubscriptionTiersResponse)
 async def get_subscription_tiers(
-    current_user: User = Depends(get_platform_owner)
+    current_user: User = Depends(get_platform_admin)
 ):
     """Get available subscription tiers"""
     return SubscriptionTiersResponse(tiers=SUBSCRIPTION_TIERS)
@@ -512,10 +558,10 @@ async def get_subscription_tiers(
 
 @router.get("/health", response_model=PlatformHealthResponse)
 async def get_platform_health(
-    current_user: User = Depends(get_platform_owner),
+    current_user: User = Depends(get_platform_admin),
     db: Session = Depends(get_db)
 ):
-    """Get platform health status (Platform Owner only)"""
+    """Get platform health status (Platform Admin only)"""
     components = []
     
     # Database check
@@ -562,10 +608,10 @@ async def get_platform_audit_logs(
     end_date: Optional[datetime] = None,
     page: int = 1,
     page_size: int = 50,
-    current_user: User = Depends(get_platform_owner),
+    current_user: User = Depends(get_platform_admin),
     db: Session = Depends(get_db)
 ):
-    """Get platform-wide audit logs (Platform Owner only)"""
+    """Get platform-wide audit logs (Platform Admin only)"""
     query = db.query(AuditLog)
     
     if tenant_id:

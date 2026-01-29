@@ -31,6 +31,7 @@ CREATE TABLE tenants (
     
     -- Settings & Customization
     settings JSONB DEFAULT '{"copay_enabled": false, "points_to_currency_ratio": 0.10, "peer_to_peer_recognition": true, "social_feed_enabled": true, "events_module_enabled": true}',
+    feature_flags JSONB DEFAULT '{}',
     catalog_settings JSONB DEFAULT '{}',
     branding JSONB DEFAULT '{}',
     
@@ -55,20 +56,37 @@ CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     email VARCHAR(255) NOT NULL,
+    corporate_email VARCHAR(255) NOT NULL,
+    personal_email VARCHAR(255),
     password_hash VARCHAR(255) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
-    role VARCHAR(50) NOT NULL CHECK (role IN ('platform_owner', 'platform_admin', 'tenant_admin', 'hr_admin', 'tenant_lead', 'manager', 'corporate_user', 'employee')),
+    role VARCHAR(50) NOT NULL CHECK (role IN ('tenant_admin', 'hr_admin', 'tenant_lead', 'manager', 'corporate_user', 'employee')),
     department_id UUID REFERENCES departments(id),
     manager_id UUID REFERENCES users(id),
     avatar_url VARCHAR(500),
+    phone_number VARCHAR(20),
+    mobile_number VARCHAR(20),
     date_of_birth DATE,
     hire_date DATE,
-    status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'suspended')),
+    status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('pending', 'active', 'deactivated')),
     is_super_admin BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(tenant_id, email)
+    UNIQUE(tenant_id, email),
+    UNIQUE(tenant_id, corporate_email)
+);
+
+-- System Admins (Platform Admins)
+CREATE TABLE system_admins (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    is_super_admin BOOLEAN DEFAULT FALSE,
+    mfa_enabled BOOLEAN DEFAULT TRUE,
+    last_login_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- =====================================================
@@ -484,7 +502,7 @@ CREATE TABLE tenant_analytics (
 
 CREATE INDEX idx_tenant_analytics ON tenant_analytics(tenant_id, period_type, period_start);
 
--- Platform Metrics (Platform Owner view)
+-- Platform Metrics (Platform Admin view)
 CREATE TABLE platform_metrics (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     period_type VARCHAR(20) NOT NULL,
@@ -536,21 +554,21 @@ INSERT INTO brands (name, description, logo_url, category) VALUES
 
 -- Insert sample vouchers
 INSERT INTO vouchers (brand_id, name, description, denomination, points_required, copay_amount, validity_days) VALUES
-((SELECT id FROM brands WHERE name = 'Amazon'), 'Amazon Gift Card $25', 'Redeemable on Amazon.com', 25.00, 250, 0, 365),
-((SELECT id FROM brands WHERE name = 'Amazon'), 'Amazon Gift Card $50', 'Redeemable on Amazon.com', 50.00, 500, 0, 365),
-((SELECT id FROM brands WHERE name = 'Amazon'), 'Amazon Gift Card $100', 'Redeemable on Amazon.com', 100.00, 1000, 0, 365),
-((SELECT id FROM brands WHERE name = 'Starbucks'), 'Starbucks Card $10', 'Valid at all Starbucks locations', 10.00, 100, 0, 180),
-((SELECT id FROM brands WHERE name = 'Starbucks'), 'Starbucks Card $25', 'Valid at all Starbucks locations', 25.00, 250, 0, 180),
+((SELECT id FROM brands WHERE name = 'Amazon'), 'Amazon Gift Card ₹25', 'Redeemable on Amazon.com', 25.00, 250, 0, 365),
+((SELECT id FROM brands WHERE name = 'Amazon'), 'Amazon Gift Card ₹50', 'Redeemable on Amazon.com', 50.00, 500, 0, 365),
+((SELECT id FROM brands WHERE name = 'Amazon'), 'Amazon Gift Card ₹100', 'Redeemable on Amazon.com', 100.00, 1000, 0, 365),
+((SELECT id FROM brands WHERE name = 'Starbucks'), 'Starbucks Card ₹10', 'Valid at all Starbucks locations', 10.00, 100, 0, 180),
+((SELECT id FROM brands WHERE name = 'Starbucks'), 'Starbucks Card ₹25', 'Valid at all Starbucks locations', 25.00, 250, 0, 180),
 ((SELECT id FROM brands WHERE name = 'Netflix'), 'Netflix 1 Month', 'One month standard subscription', 15.99, 160, 0, 90),
 ((SELECT id FROM brands WHERE name = 'Netflix'), 'Netflix 3 Months', 'Three months standard subscription', 47.97, 450, 0, 90),
-((SELECT id FROM brands WHERE name = 'Uber'), 'Uber Credit $15', 'Valid for rides or Uber Eats', 15.00, 150, 0, 180),
-((SELECT id FROM brands WHERE name = 'Uber'), 'Uber Credit $30', 'Valid for rides or Uber Eats', 30.00, 300, 0, 180),
+((SELECT id FROM brands WHERE name = 'Uber'), 'Uber Credit ₹15', 'Valid for rides or Uber Eats', 15.00, 150, 0, 180),
+((SELECT id FROM brands WHERE name = 'Uber'), 'Uber Credit ₹30', 'Valid for rides or Uber Eats', 30.00, 300, 0, 180),
 ((SELECT id FROM brands WHERE name = 'Spotify'), 'Spotify 1 Month Premium', 'Ad-free music streaming', 10.99, 110, 0, 60),
-((SELECT id FROM brands WHERE name = 'Apple'), 'Apple Gift Card $25', 'For App Store, iTunes, and more', 25.00, 250, 0, 365),
-((SELECT id FROM brands WHERE name = 'Apple'), 'Apple Gift Card $50', 'For App Store, iTunes, and more', 50.00, 500, 0, 365),
-((SELECT id FROM brands WHERE name = 'Nike'), 'Nike Gift Card $50', 'Valid online and in-store', 50.00, 500, 0, 365),
-((SELECT id FROM brands WHERE name = 'Target'), 'Target GiftCard $25', 'Valid at Target stores and Target.com', 25.00, 250, 0, 365),
-((SELECT id FROM brands WHERE name = 'Target'), 'Target GiftCard $50', 'Valid at Target stores and Target.com', 50.00, 500, 0, 365);
+((SELECT id FROM brands WHERE name = 'Apple'), 'Apple Gift Card ₹25', 'For App Store, iTunes, and more', 25.00, 250, 0, 365),
+((SELECT id FROM brands WHERE name = 'Apple'), 'Apple Gift Card ₹50', 'For App Store, iTunes, and more', 50.00, 500, 0, 365),
+((SELECT id FROM brands WHERE name = 'Nike'), 'Nike Gift Card ₹50', 'Valid online and in-store', 50.00, 500, 0, 365),
+((SELECT id FROM brands WHERE name = 'Target'), 'Target GiftCard ₹25', 'Valid at Target stores and Target.com', 25.00, 250, 0, 365),
+((SELECT id FROM brands WHERE name = 'Target'), 'Target GiftCard ₹50', 'Valid at Target stores and Target.com', 50.00, 500, 0, 365);
 
 -- Insert demo tenant
 INSERT INTO tenants (id, name, domain, status) VALUES
@@ -583,10 +601,14 @@ INSERT INTO departments (id, tenant_id, name) VALUES
 -- Insert root tenant users (password is 'jspark123' for all)
 -- Hash: $2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u
 INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, role, department_id, is_super_admin) VALUES
-('120e8400-e29b-41d4-a716-446655440000', '100e8400-e29b-41d4-a716-446655440000', 'super_user@jspark.com', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Super', 'User', 'platform_owner', '110e8400-e29b-41d4-a716-446655440000', TRUE),
 ('120e8400-e29b-41d4-a716-446655440001', '100e8400-e29b-41d4-a716-446655440000', 'tenant_admin@jspark.com', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Tenant', 'Admin', 'tenant_admin', '110e8400-e29b-41d4-a716-446655440000', FALSE),
 ('120e8400-e29b-41d4-a716-446655440002', '100e8400-e29b-41d4-a716-446655440000', 'tenant_lead@jspark.com', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Tenant', 'Lead', 'tenant_lead', '110e8400-e29b-41d4-a716-446655440000', FALSE),
 ('120e8400-e29b-41d4-a716-446655440003', '100e8400-e29b-41d4-a716-446655440000', 'user@jspark.com', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Corporate', 'User', 'corporate_user', '110e8400-e29b-41d4-a716-446655440000', FALSE);
+
+-- Insert system admin (password is 'jspark123')
+INSERT INTO system_admins (id, email, password_hash, is_super_admin, mfa_enabled)
+VALUES
+('220e8400-e29b-41d4-a716-446655440000', 'admin@nodewave.io', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', TRUE, TRUE);
 
 -- Insert bulk users per tenant (40 users each)
 INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, role, department_id)
@@ -636,7 +658,6 @@ FROM generate_series(1, 36) AS gs;
 
 -- Create wallets for root tenant users
 INSERT INTO wallets (tenant_id, user_id, balance, lifetime_earned, lifetime_spent) VALUES
-('100e8400-e29b-41d4-a716-446655440000', '120e8400-e29b-41d4-a716-446655440000', 0, 0, 0),
 ('100e8400-e29b-41d4-a716-446655440000', '120e8400-e29b-41d4-a716-446655440001', 0, 0, 0),
 ('100e8400-e29b-41d4-a716-446655440000', '120e8400-e29b-41d4-a716-446655440002', 0, 0, 0),
 ('100e8400-e29b-41d4-a716-446655440000', '120e8400-e29b-41d4-a716-446655440003', 0, 0, 0);

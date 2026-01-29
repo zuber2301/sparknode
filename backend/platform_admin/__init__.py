@@ -1,4 +1,4 @@
-# Platform Admin Module (Platform Owner only)
+# Platform Admin Module (Platform Admin only)
 from .routes import router
 from .schemas import (
     TenantListResponse,

@@ -9,6 +9,9 @@ export default function PlatformTenants() {
   const queryClient = useQueryClient()
   const { isPlatformOwner } = useAuthStore()
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showFlagsModal, setShowFlagsModal] = useState(false)
+  const [selectedTenant, setSelectedTenant] = useState(null)
+  const [featureFlagsValue, setFeatureFlagsValue] = useState('{}')
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [tierFilter, setTierFilter] = useState('')
@@ -62,6 +65,19 @@ export default function PlatformTenants() {
     },
   })
 
+  const updateFlagsMutation = useMutation({
+    mutationFn: ({ tenantId, payload }) => platformAPI.updateFeatureFlags(tenantId, payload),
+    onSuccess: () => {
+      toast.success('Feature flags updated')
+      queryClient.invalidateQueries(['platformTenants'])
+      setShowFlagsModal(false)
+      setSelectedTenant(null)
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.detail || 'Failed to update feature flags')
+    },
+  })
+
   const tiers = useMemo(() => tiersResponse?.data?.tiers || [], [tiersResponse])
   const tenants = useMemo(() => tenantsResponse?.data || [], [tenantsResponse])
 
@@ -88,12 +104,28 @@ export default function PlatformTenants() {
     suspendMutation.mutate({ tenantId: tenant.id, reason })
   }
 
+  const handleOpenFlags = (tenant) => {
+    setSelectedTenant(tenant)
+    setFeatureFlagsValue(JSON.stringify(tenant.feature_flags || {}, null, 2))
+    setShowFlagsModal(true)
+  }
+
+  const handleSaveFlags = (e) => {
+    e.preventDefault()
+    try {
+      const parsed = JSON.parse(featureFlagsValue || '{}')
+      updateFlagsMutation.mutate({ tenantId: selectedTenant.id, payload: { feature_flags: parsed } })
+    } catch (error) {
+      toast.error('Feature flags must be valid JSON')
+    }
+  }
+
   if (!isPlatformOwner()) {
     return (
       <div className="card text-center py-12">
         <HiOutlineOfficeBuilding className="w-16 h-16 mx-auto mb-4 text-gray-300" />
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Restricted</h2>
-        <p className="text-gray-500">Only Platform Owners can manage tenants.</p>
+        <p className="text-gray-500">Only Perksu Admins can manage tenants.</p>
       </div>
     )
   }
@@ -188,6 +220,12 @@ export default function PlatformTenants() {
                     <td className="px-4 py-4 text-gray-600 capitalize">{tenant.subscription_tier || 'free'}</td>
                     <td className="px-4 py-4 text-gray-600">{tenant.user_count ?? 0}</td>
                     <td className="px-4 py-4 text-right space-x-3">
+                      <button
+                        onClick={() => handleOpenFlags(tenant)}
+                        className="text-sparknode-purple hover:text-sparknode-purple/80 font-medium text-sm"
+                      >
+                        Flags
+                      </button>
                       {tenant.status === 'suspended' ? (
                         <button
                           onClick={() => activateMutation.mutate(tenant.id)}
@@ -299,6 +337,41 @@ export default function PlatformTenants() {
                   className="btn-primary flex-1"
                 >
                   {createMutation.isPending ? 'Provisioning...' : 'Create Tenant'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showFlagsModal && selectedTenant && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full">
+            <h2 className="text-xl font-semibold mb-2">Feature Flags</h2>
+            <p className="text-sm text-gray-500 mb-4">{selectedTenant.name}</p>
+            <form onSubmit={handleSaveFlags} className="space-y-4">
+              <textarea
+                className="input min-h-[220px] font-mono text-xs"
+                value={featureFlagsValue}
+                onChange={(e) => setFeatureFlagsValue(e.target.value)}
+              />
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowFlagsModal(false)
+                    setSelectedTenant(null)
+                  }}
+                  className="btn-secondary flex-1"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updateFlagsMutation.isPending}
+                  className="btn-primary flex-1"
+                >
+                  {updateFlagsMutation.isPending ? 'Saving...' : 'Save Flags'}
                 </button>
               </div>
             </form>

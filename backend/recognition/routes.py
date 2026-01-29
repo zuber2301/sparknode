@@ -6,6 +6,7 @@ from uuid import UUID
 from decimal import Decimal
 
 from database import get_db
+from core import append_impersonation_metadata
 from models import (
     Recognition, Badge, User, Wallet, WalletLedger,
     DepartmentBudget, Feed, Notification, AuditLog,
@@ -217,11 +218,11 @@ async def create_recognition(
         action="recognition_created",
         entity_type="recognition",
         entity_id=recognition.id,
-        new_values={
+        new_values=append_impersonation_metadata({
             "to_user_id": str(recognition_data.to_user_id),
             "points": str(recognition_data.points),
             "message": recognition_data.message
-        }
+        })
     )
     db.add(audit)
     

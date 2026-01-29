@@ -5,6 +5,7 @@ from uuid import UUID
 from decimal import Decimal
 
 from database import get_db
+from core import append_impersonation_metadata
 from models import Budget, DepartmentBudget, User, AuditLog
 from auth.utils import get_current_user, get_hr_admin
 from budgets.schemas import (
@@ -80,7 +81,7 @@ async def create_budget(
         action="budget_created",
         entity_type="budget",
         entity_id=budget.id,
-        new_values={"name": budget.name, "total_points": str(budget.total_points)}
+        new_values=append_impersonation_metadata({"name": budget.name, "total_points": str(budget.total_points)})
     )
     db.add(audit)
     
@@ -160,7 +161,7 @@ async def update_budget(
         entity_type="budget",
         entity_id=budget.id,
         old_values=old_values,
-        new_values=update_data
+        new_values=append_impersonation_metadata(update_data)
     )
     db.add(audit)
     
@@ -251,7 +252,7 @@ async def allocate_budget_to_departments(
         action="budget_allocated",
         entity_type="budget",
         entity_id=budget_id,
-        new_values={"allocations": [{"department_id": str(a.department_id), "points": str(a.allocated_points)} for a in allocation_data.allocations]}
+        new_values=append_impersonation_metadata({"allocations": [{"department_id": str(a.department_id), "points": str(a.allocated_points)} for a in allocation_data.allocations]})
     )
     db.add(audit)
     
@@ -314,7 +315,8 @@ async def activate_budget(
         actor_id=current_user.id,
         action="budget_activated",
         entity_type="budget",
-        entity_id=budget_id
+        entity_id=budget_id,
+        new_values=append_impersonation_metadata({})
     )
     db.add(audit)
     

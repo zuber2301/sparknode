@@ -6,7 +6,7 @@ Tenant-specific analytics with:
 - Engagement scores and participation rates
 - Culture heatmaps
 - Budget burn rates
-- Platform-wide benchmarking (Platform Owner only)
+    - Platform-wide benchmarking (Platform Admin only)
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -23,7 +23,7 @@ from models import (
     Department, Badge, Tenant, TenantAnalytics, PlatformMetrics
 )
 from auth.utils import get_current_user
-from core.rbac import get_tenant_admin, get_platform_owner, RolePermissions
+from core.rbac import get_tenant_admin, get_platform_admin, RolePermissions
 from analytics.schemas import (
     TenantAnalyticsResponse, EngagementMetrics, BudgetMetrics, RedemptionMetrics,
     DepartmentMetrics, LeaderboardEntry, CultureHeatmap, CultureHeatmapCell,
@@ -482,7 +482,7 @@ async def get_insights(
 
 
 # =====================================================
-# PLATFORM ANALYTICS (Platform Owner only)
+# PLATFORM ANALYTICS (Platform Admin only)
 # =====================================================
 
 @router.get("/platform", response_model=PlatformMetricsResponse)
@@ -490,11 +490,88 @@ async def get_platform_metrics(
     period_type: str = Query(default="monthly"),
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
-    current_user: User = Depends(get_platform_owner),
+    tenant_id: Optional[UUID] = None,
+    current_user: User = Depends(get_platform_admin),
     db: Session = Depends(get_db)
 ):
-    """Get platform-wide metrics (Platform Owner only)"""
+    """Get platform-wide metrics (Platform Admin only)"""
     period_start, period_end = get_period_dates(period_type, start_date, end_date)
+
+    if tenant_id:
+        tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+        if not tenant:
+            raise HTTPException(status_code=404, detail="Tenant not found")
+
+        total_tenants = 1
+        active_tenants = 1 if tenant.status == 'active' and tenant.subscription_status == 'active' else 0
+        new_tenants = 1 if period_start <= tenant.created_at.date() <= period_end else 0
+
+        total_users = db.query(User).filter(
+            User.status == 'active',
+            User.tenant_id == tenant_id
+        ).count()
+
+        total_recognitions = db.query(Recognition).filter(
+            Recognition.tenant_id == tenant_id,
+            func.date(Recognition.created_at) >= period_start,
+            func.date(Recognition.created_at) <= period_end,
+            Recognition.status == 'active'
+        ).count()
+
+        total_points = db.query(func.sum(Recognition.points)).filter(
+            Recognition.tenant_id == tenant_id,
+            func.date(Recognition.created_at) >= period_start,
+            func.date(Recognition.created_at) <= period_end,
+            Recognition.status == 'active'
+        ).scalar() or 0
+
+        total_redemptions = db.query(Redemption).filter(
+            Redemption.tenant_id == tenant_id,
+            func.date(Redemption.created_at) >= period_start,
+            func.date(Redemption.created_at) <= period_end
+        ).count()
+
+        tier_breakdown = {tenant.subscription_tier or 'free': 1}
+
+        active_users = db.query(func.count(func.distinct(Recognition.from_user_id))).filter(
+            Recognition.tenant_id == tenant_id,
+            func.date(Recognition.created_at) >= period_start,
+            func.date(Recognition.created_at) <= period_end
+        ).scalar() or 0
+
+        engagement = (active_users / total_users * 100) if total_users > 0 else 0
+
+        tenant_summaries = [TenantSummary(
+            tenant_id=tenant.id,
+            tenant_name=tenant.name,
+            status=tenant.status,
+            subscription_tier=tenant.subscription_tier or 'free',
+            user_count=total_users,
+            active_user_count=active_users,
+            engagement_score=round(engagement, 2),
+            monthly_recognitions=total_recognitions,
+            created_at=tenant.created_at
+        )]
+
+        return PlatformMetricsResponse(
+            period_type=period_type,
+            period_start=period_start,
+            period_end=period_end,
+            total_tenants=total_tenants,
+            active_tenants=active_tenants,
+            new_tenants=new_tenants,
+            churned_tenants=0,
+            total_users=total_users,
+            active_users=0,
+            new_users=0,
+            total_recognitions=total_recognitions,
+            total_points_distributed=Decimal(str(total_points)),
+            total_redemptions=total_redemptions,
+            total_redemption_value=Decimal("0"),
+            tier_breakdown=tier_breakdown,
+            top_tenants_by_engagement=tenant_summaries,
+            computed_at=datetime.utcnow()
+        )
     
     # Tenant metrics
     total_tenants = db.query(Tenant).count()

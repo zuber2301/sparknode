@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 import json
 
 from database import get_db
+from core import append_impersonation_metadata
 from models import (
     Event, EventActivity, EventParticipant, ActivityParticipant,
     EventBudget, EventGiftItem, GiftAllocation, User, Feed, Notification, AuditLog
@@ -107,7 +108,7 @@ async def create_event(
         action="event_created",
         entity_type="event",
         entity_id=event.id,
-        new_values={"name": event.name, "event_type": event.event_type}
+        new_values=append_impersonation_metadata({"name": event.name, "event_type": event.event_type})
     )
     db.add(audit)
     
@@ -203,7 +204,7 @@ async def update_event(
         entity_type="event",
         entity_id=event.id,
         old_values=old_values,
-        new_values={k: str(v) for k, v in update_data.items()}
+        new_values=append_impersonation_metadata({k: str(v) for k, v in update_data.items()})
     )
     db.add(audit)
     

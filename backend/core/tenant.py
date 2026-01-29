@@ -48,12 +48,18 @@ class TenantContext:
         tenant_id: UUID,
         user_id: UUID,
         role: str,
-        is_platform_owner: bool = False
+        is_platform_admin: bool = False,
+        global_access: bool = False,
+        actual_user_id: Optional[UUID] = None,
+        is_impersonating: bool = False
     ):
         self.tenant_id = tenant_id
         self.user_id = user_id
         self.role = role
-        self.is_platform_owner = is_platform_owner
+        self.is_platform_admin = is_platform_admin
+        self.global_access = global_access
+        self.actual_user_id = actual_user_id
+        self.is_impersonating = is_impersonating
     
     @property
     def asset_path_prefix(self) -> str:
@@ -62,8 +68,8 @@ class TenantContext:
     
     @property
     def can_access_all_tenants(self) -> bool:
-        """Platform owners can access data across all tenants"""
-        return self.is_platform_owner
+        """Platform admins can access data across all tenants"""
+        return self.is_platform_admin or self.global_access
     
     def validate_tenant_access(self, resource_tenant_id: UUID) -> bool:
         """Check if current context can access a resource from another tenant"""
@@ -90,6 +96,19 @@ def get_tenant_context() -> Optional[TenantContext]:
 def clear_tenant_context() -> None:
     """Clear the tenant context after request completion"""
     _tenant_context.set(None)
+
+
+def append_impersonation_metadata(values: Optional[dict]) -> Optional[dict]:
+    """Attach impersonation metadata to audit payloads when in ghost mode."""
+    context = get_tenant_context()
+    if context and context.is_impersonating:
+        payload = dict(values or {})
+        payload["impersonation"] = {
+            "actual_user_id": str(context.actual_user_id) if context.actual_user_id else None,
+            "effective_tenant_id": str(context.tenant_id)
+        }
+        return payload
+    return values
 
 
 class TenantScopedQuery:
@@ -134,6 +153,8 @@ class TenantScopedQuery:
             return query
         
         if hasattr(model, 'tenant_id'):
+            if self.tenant_context.global_access:
+                return query
             if table_name in self.OPTIONAL_TENANT_TABLES:
                 # For optional tables, include both tenant-specific and global records
                 query = query.filter(

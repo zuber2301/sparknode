@@ -152,7 +152,7 @@ class AnalyticsQueryParams(BaseModel):
 
 
 # =====================================================
-# PLATFORM METRICS (Platform Owner only)
+# PLATFORM METRICS (Platform Admin only)
 # =====================================================
 
 class TenantSummary(BaseModel):
@@ -169,7 +169,7 @@ class TenantSummary(BaseModel):
 
 
 class PlatformMetricsResponse(BaseModel):
-    """Platform-wide metrics for Platform Owner."""
+    """Platform-wide metrics for Platform Admin."""
     period_type: str
     period_start: date
     period_end: date

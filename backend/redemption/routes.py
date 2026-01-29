@@ -8,6 +8,7 @@ import secrets
 import string
 
 from database import get_db
+from core import append_impersonation_metadata
 from models import (
     Brand, Voucher, TenantVoucher, Redemption, User,
     Wallet, WalletLedger, Feed, Notification, AuditLog
@@ -272,12 +273,12 @@ async def create_redemption(
         action="voucher_redeemed",
         entity_type="redemption",
         entity_id=redemption.id,
-        new_values={
+        new_values=append_impersonation_metadata({
             "voucher_id": str(voucher.id),
             "points_used": str(points_required),
             "old_balance": str(old_balance),
             "new_balance": str(wallet.balance)
-        }
+        })
     )
     db.add(audit)
     

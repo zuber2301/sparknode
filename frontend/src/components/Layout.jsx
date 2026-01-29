@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { useQuery } from '@tanstack/react-query'
-import { notificationsAPI } from '../lib/api'
+import { notificationsAPI, platformAPI, tenantsAPI } from '../lib/api'
 import {
   HiOutlineHome,
   HiOutlineSparkles,
@@ -17,7 +17,8 @@ import {
   HiOutlineLogout,
   HiOutlineUser,
   HiOutlineMenu,
-  HiOutlineX
+  HiOutlineX,
+  HiOutlineSelector
 } from 'react-icons/hi'
 
 const navigation = [
@@ -29,15 +30,27 @@ const navigation = [
 ]
 
 const adminNavigation = [
-  { name: 'Tenants', href: '/platform/tenants', icon: HiOutlineOfficeBuilding, roles: ['platform_owner', 'platform_admin'] },
-  { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar, roles: ['tenant_admin', 'platform_owner', 'hr_admin', 'platform_admin'] },
-  { name: 'Users', href: '/users', icon: HiOutlineUsers, roles: ['tenant_admin', 'platform_owner', 'hr_admin', 'platform_admin'] },
-  { name: 'Audit Log', href: '/audit', icon: HiOutlineClipboardList, roles: ['tenant_admin', 'platform_owner', 'hr_admin', 'platform_admin'] },
+  { name: 'Tenants', href: '/platform/tenants', icon: HiOutlineOfficeBuilding, roles: ['platform_admin'] },
+  { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
+  { name: 'Users', href: '/users', icon: HiOutlineUsers, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
+  { name: 'Audit Log', href: '/audit', icon: HiOutlineClipboardList, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
 ]
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { user, logout } = useAuthStore()
+  const [selectorOpen, setSelectorOpen] = useState(false)
+  const [tenantSearch, setTenantSearch] = useState('')
+  const [profileOpen, setProfileOpen] = useState(false)
+  const {
+    user,
+    logout,
+    updateTenantContext,
+    tenantContext,
+    getEffectiveRole,
+    setPersonaRole,
+    clearPersonaRole,
+    isPlatformOwnerUser,
+  } = useAuthStore()
   const navigate = useNavigate()
 
   const { data: notificationCount } = useQuery({
@@ -46,6 +59,53 @@ export default function Layout() {
     refetchInterval: 30000,
   })
 
+  const isPlatformUser = isPlatformOwnerUser()
+
+  const { data: currentTenantResponse } = useQuery({
+    queryKey: ['currentTenant'],
+    queryFn: () => tenantsAPI.getCurrent(),
+    enabled: !isPlatformUser,
+  })
+
+  const { data: tenantsResponse } = useQuery({
+    queryKey: ['platformTenantsSelector'],
+    queryFn: () => platformAPI.getTenants({ limit: 200 }),
+    enabled: isPlatformOwnerUser(),
+  })
+
+  const tenants = useMemo(() => tenantsResponse?.data || [], [tenantsResponse])
+  const effectiveRole = getEffectiveRole()
+  const filteredTenants = useMemo(() => {
+    if (!tenantSearch) return tenants
+    const term = tenantSearch.toLowerCase()
+    return tenants.filter((tenant) =>
+      `${tenant.name} ${tenant.domain || ''} ${tenant.slug || ''}`.toLowerCase().includes(term)
+    )
+  }, [tenantSearch, tenants])
+
+  const contextTitle = tenantContext?.tenant_name === 'All Tenants' ? 'Context' : 'Context Set'
+  const contextName = tenantContext?.tenant_name || (isPlatformUser ? 'All Tenants' : '—')
+  const contextId = tenantContext?.tenant_id ? tenantContext.tenant_id : '—'
+
+  useEffect(() => {
+    if (!isPlatformUser || !tenants.length) return
+    if (tenantContext?.tenant_id) return
+    const allTenants = tenants.find((tenant) => tenant.name === 'All Tenants')
+    const fallback = allTenants || tenants[0]
+    if (fallback) {
+      updateTenantContext({ tenant_id: fallback.id, tenant_name: fallback.name })
+    }
+  }, [isPlatformUser, tenantContext, tenants, updateTenantContext])
+
+  useEffect(() => {
+    if (isPlatformUser) return
+    if (tenantContext?.tenant_id) return
+    const tenant = currentTenantResponse?.data
+    if (tenant?.id) {
+      updateTenantContext({ tenant_id: tenant.id, tenant_name: tenant.name })
+    }
+  }, [currentTenantResponse, isPlatformUser, tenantContext, updateTenantContext])
+
   const handleLogout = () => {
     logout()
     navigate('/login')
@@ -53,7 +113,7 @@ export default function Layout() {
 
   const canAccess = (roles) => {
     if (!roles) return true
-    return roles.includes(user?.role)
+    return roles.includes(effectiveRole)
   }
 
   return (
@@ -122,6 +182,43 @@ export default function Layout() {
                 ))}
               </>
             )}
+
+            {isPlatformUser && (
+              <div className="pt-4">
+                <div className="px-4 pb-2">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    Tenant Context
+                  </p>
+                </div>
+                <div className="px-4">
+                  <input
+                    value={tenantSearch}
+                    onChange={(e) => setTenantSearch(e.target.value)}
+                    className="input text-sm"
+                    placeholder="Search tenants..."
+                  />
+                </div>
+                <div className="mt-3 max-h-56 overflow-y-auto px-2 space-y-1">
+                  {filteredTenants.map((tenant) => (
+                    <button
+                      key={tenant.id}
+                      onClick={() => updateTenantContext({ tenant_id: tenant.id, tenant_name: tenant.name })}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                        tenantContext?.tenant_id === tenant.id
+                          ? 'bg-sparknode-purple/10 text-sparknode-purple'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      <p className="font-medium">{tenant.name}</p>
+                      <p className="text-xs text-gray-500">{tenant.domain || tenant.slug || '-'}</p>
+                    </button>
+                  ))}
+                  {filteredTenants.length === 0 && (
+                    <div className="px-3 py-2 text-xs text-gray-400">No tenants found</div>
+                  )}
+                </div>
+              </div>
+            )}
           </nav>
 
           {/* User section */}
@@ -135,7 +232,7 @@ export default function Layout() {
                   {user?.first_name} {user?.last_name}
                 </p>
                 <p className="text-xs text-gray-500 truncate capitalize">
-                  {user?.role?.replace('_', ' ')}
+                  {effectiveRole === 'platform_admin' ? 'Perksu Admin' : effectiveRole?.replace('_', ' ')}
                 </p>
               </div>
             </div>
@@ -168,6 +265,11 @@ export default function Layout() {
           <div className="flex-1" />
 
           <div className="flex items-center gap-4">
+            <div className="px-3 py-2 border border-gray-200 rounded-lg text-xs text-gray-600 leading-tight">
+              <div className="font-semibold uppercase tracking-wide text-[10px] text-gray-400">{contextTitle}</div>
+              <div className="text-sm font-medium text-gray-900">{contextName}</div>
+              <div className="text-[11px] text-gray-500 truncate max-w-[180px]">{contextName === 'All Tenants' ? 'All Tenant' : contextId}</div>
+            </div>
             {/* Notifications */}
             <button className="relative p-2 rounded-lg hover:bg-gray-100">
               <HiOutlineBell className="w-6 h-6 text-gray-600" />
@@ -179,16 +281,38 @@ export default function Layout() {
             </button>
 
             {/* Profile dropdown */}
-            <div className="flex items-center gap-2">
-              <NavLink to="/profile" className="p-2 rounded-lg hover:bg-gray-100">
-                <HiOutlineUser className="w-6 h-6 text-gray-600" />
-              </NavLink>
-              <button 
-                onClick={handleLogout}
-                className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-red-600"
+            <div className="relative">
+              <button
+                onClick={() => setProfileOpen(!profileOpen)}
+                className="p-2 rounded-lg hover:bg-gray-100"
               >
-                <HiOutlineLogout className="w-6 h-6" />
+                <HiOutlineUser className="w-6 h-6 text-gray-600" />
               </button>
+              {profileOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50">
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <p className="text-sm font-medium text-gray-900">
+                      {user?.first_name} {user?.last_name}
+                    </p>
+                    <p className="text-xs text-gray-500 capitalize">
+                      {effectiveRole === 'platform_admin' ? 'Perksu Admin' : effectiveRole?.replace('_', ' ')}
+                    </p>
+                  </div>
+                  <div className="p-2">
+                    <NavLink to="/profile" className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+                      <HiOutlineUser className="w-4 h-4" />
+                      Profile
+                    </NavLink>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50"
+                    >
+                      <HiOutlineLogout className="w-4 h-4" />
+                      Logout
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </header>
@@ -198,6 +322,37 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+
+      {isPlatformUser && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-44">
+            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Persona</div>
+            <div className="space-y-2">
+              {[
+                { value: 'tenant_admin', label: 'Tenant Admin', color: 'bg-sparknode-purple text-white' },
+                { value: 'tenant_lead', label: 'Tenant Leader', color: 'bg-sparknode-blue text-white' },
+                { value: 'corporate_user', label: 'Corporate User', color: 'bg-sparknode-green text-white' },
+              ].map((persona) => (
+                <button
+                  key={persona.value}
+                  onClick={() => setPersonaRole(persona.value)}
+                  className={`w-full text-left px-2 py-1.5 rounded-md text-[11px] font-medium ${
+                    effectiveRole === persona.value ? persona.color : 'bg-gray-100 text-gray-600'
+                  }`}
+                >
+                  {persona.label}
+                </button>
+              ))}
+              <button
+                onClick={clearPersonaRole}
+                className="w-full text-left px-2 py-1.5 rounded-md text-[10px] font-medium bg-gray-50 text-gray-500"
+              >
+                Reset to Platform Admin
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

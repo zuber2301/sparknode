@@ -84,11 +84,12 @@ class Tenant(Base):
     
     # Feature Flags & Settings
     settings = Column(JSONB, default={})
+    feature_flags = Column(JSONB, default={})
     # settings structure:
     # {
     #   "copay_enabled": true,
     #   "copay_max_percentage": 50,
-    #   "points_to_currency_ratio": 0.10,  # 1 point = $0.10
+    #   "points_to_currency_ratio": 0.10,  # 1 point = ₹0.10
     #   "recognition_approval_required": false,
     #   "manager_budget_enabled": true,
     #   "peer_to_peer_recognition": true,
@@ -167,6 +168,8 @@ class User(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
     email = Column(String(255), nullable=False)
+    corporate_email = Column(String(255), nullable=True)
+    personal_email = Column(String(255))
     password_hash = Column(String(255), nullable=False)
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
@@ -174,6 +177,8 @@ class User(Base):
     department_id = Column(UUID(as_uuid=True), ForeignKey("departments.id"))
     manager_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     avatar_url = Column(String(500))
+    phone_number = Column(String(20))
+    mobile_number = Column(String(20))
     date_of_birth = Column(Date)
     hire_date = Column(Date)
     status = Column(String(50), default='active')
@@ -191,6 +196,19 @@ class User(Base):
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
+
+
+class SystemAdmin(Base):
+    __tablename__ = "system_admins"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email = Column(String(255), nullable=False, unique=True)
+    password_hash = Column(String(255), nullable=False)
+    is_super_admin = Column(Boolean, default=False)
+    mfa_enabled = Column(Boolean, default=True)
+    last_login_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class Budget(Base):
@@ -862,7 +880,7 @@ class TenantAnalytics(Base):
 
 class PlatformMetrics(Base):
     """
-    Platform-wide metrics for Platform Owner dashboard.
+    Platform-wide metrics for Platform Admin dashboard.
     Aggregated across all tenants without exposing individual data.
     """
     __tablename__ = "platform_metrics"

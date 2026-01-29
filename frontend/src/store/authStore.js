@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware'
 
 // Role hierarchy constants
 export const UserRole = {
-  PLATFORM_OWNER: 'platform_owner',
+  PLATFORM_ADMIN: 'platform_admin',
   TENANT_ADMIN: 'tenant_admin',
   TENANT_LEAD: 'tenant_lead',
   CORPORATE_USER: 'corporate_user',
@@ -15,7 +15,7 @@ export const UserRole = {
 
 // Role hierarchy levels (higher = more permissions)
 const ROLE_HIERARCHY = {
-  platform_owner: 100,
+  platform_admin: 100,
   tenant_admin: 80,
   hr_admin: 80, // Legacy alias
   tenant_lead: 60,
@@ -30,7 +30,6 @@ const normalizeRole = (role) => {
     hr_admin: 'tenant_admin',
     manager: 'tenant_lead',
     employee: 'corporate_user',
-    platform_admin: 'platform_owner',
   }
   return legacyMap[role] || role
 }
@@ -42,6 +41,7 @@ export const useAuthStore = create(
       token: null,
       isAuthenticated: false,
       tenantContext: null, // { tenant_id, tenant_name, subscription_tier, settings }
+      personaRole: null, // platform admin UI override
 
       setAuth: (user, token, tenantContext = null) => {
         set({
@@ -76,15 +76,35 @@ export const useAuthStore = create(
         })
       },
 
+      setPersonaRole: (role) => {
+        const { user } = get()
+        const actualRole = normalizeRole(user?.role)
+        if (actualRole !== 'platform_admin') return
+        set({ personaRole: role })
+      },
+
+      clearPersonaRole: () => {
+        set({ personaRole: null })
+      },
+
+      getEffectiveRole: () => {
+        const { user, personaRole } = get()
+        const actualRole = normalizeRole(user?.role)
+        if (actualRole === 'platform_admin' && personaRole) {
+          return personaRole
+        }
+        return actualRole
+      },
+
       // Role hierarchy helpers
       getNormalizedRole: () => {
-        const { user } = get()
-        return normalizeRole(user?.role)
+        const { getEffectiveRole } = get()
+        return getEffectiveRole()
       },
 
       getRoleLevel: () => {
-        const { user } = get()
-        const role = normalizeRole(user?.role)
+        const { getEffectiveRole } = get()
+        const role = getEffectiveRole()
         return ROLE_HIERARCHY[role] || 0
       },
 
@@ -94,25 +114,28 @@ export const useAuthStore = create(
         return getRoleLevel() >= requiredLevel
       },
 
-      // Platform Owner check
+      // Platform Admin check
       isPlatformOwner: () => {
-        const { user } = get()
-        const role = normalizeRole(user?.role)
-        return role === 'platform_owner'
+        const { getEffectiveRole } = get()
+        return getEffectiveRole() === 'platform_admin'
       },
 
-      // Tenant Admin check (includes Platform Owner)
+      // Platform Admin (actual user role)
+      isPlatformOwnerUser: () => {
+        const { user } = get()
+        return normalizeRole(user?.role) === 'platform_admin'
+      },
+
+      // Tenant Admin check (includes Platform Admin)
       isTenantAdmin: () => {
-        const { user, isPlatformOwner } = get()
-        const role = normalizeRole(user?.role)
-        return isPlatformOwner() || role === 'tenant_admin'
+        const { getEffectiveRole } = get()
+        return getEffectiveRole() === 'tenant_admin' || getEffectiveRole() === 'platform_admin'
       },
 
       // Tenant Lead check (includes Tenant Admin and above)
       isTenantLead: () => {
-        const { user, isTenantAdmin } = get()
-        const role = normalizeRole(user?.role)
-        return isTenantAdmin() || role === 'tenant_lead'
+        const { getEffectiveRole, isTenantAdmin } = get()
+        return isTenantAdmin() || getEffectiveRole() === 'tenant_lead'
       },
 
       // Any authenticated user within tenant

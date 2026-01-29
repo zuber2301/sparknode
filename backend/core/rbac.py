@@ -3,7 +3,7 @@ Hierarchical Role-Based Access Control (RBAC)
 
 This module implements a four-tier persona model for multi-tenant access control:
 
-1. Platform Owner: System-wide visibility for subscription and global health
+1. Platform Admin: System-wide visibility for subscription and global health
 2. Tenant Admin: Full control over a specific company's budget, events, and user list
 3. Tenant Lead: Manager-level access to approve and manage team-specific resources
 4. Corporate User: End-user access for recognition and reward redemption
@@ -26,13 +26,12 @@ class UserRole(str, Enum):
     """
     Four-tier role hierarchy for multi-tenant access control.
     """
-    PLATFORM_OWNER = "platform_owner"      # System-wide admin
+    PLATFORM_ADMIN = "platform_admin"      # System-wide admin
     TENANT_ADMIN = "tenant_admin"          # Company HR/Admin
     TENANT_LEAD = "tenant_lead"            # Manager/Team Lead
     CORPORATE_USER = "corporate_user"      # Regular Employee
     
     # Legacy role mappings for backward compatibility
-    PLATFORM_ADMIN = "platform_admin"      # Maps to PLATFORM_OWNER
     HR_ADMIN = "hr_admin"                  # Maps to TENANT_ADMIN
     MANAGER = "manager"                    # Maps to TENANT_LEAD
     EMPLOYEE = "employee"                  # Maps to CORPORATE_USER
@@ -40,8 +39,7 @@ class UserRole(str, Enum):
 
 # Role hierarchy mapping (higher roles inherit lower role permissions)
 ROLE_HIERARCHY = {
-    UserRole.PLATFORM_OWNER: 4,
-    UserRole.PLATFORM_ADMIN: 4,  # Legacy
+    UserRole.PLATFORM_ADMIN: 4,
     UserRole.TENANT_ADMIN: 3,
     UserRole.HR_ADMIN: 3,  # Legacy
     UserRole.TENANT_LEAD: 2,
@@ -92,7 +90,7 @@ class Permission(str, Enum):
 
 # Role-Permission mapping
 ROLE_PERMISSIONS: dict[UserRole, Set[Permission]] = {
-    UserRole.PLATFORM_OWNER: {
+    UserRole.PLATFORM_ADMIN: {
         # All permissions
         Permission.MANAGE_TENANTS,
         Permission.VIEW_ALL_TENANTS,
@@ -154,7 +152,6 @@ ROLE_PERMISSIONS: dict[UserRole, Set[Permission]] = {
 
 # Legacy role mapping
 LEGACY_ROLE_PERMISSIONS = {
-    UserRole.PLATFORM_ADMIN: ROLE_PERMISSIONS[UserRole.PLATFORM_OWNER],
     UserRole.HR_ADMIN: ROLE_PERMISSIONS[UserRole.TENANT_ADMIN],
     UserRole.MANAGER: ROLE_PERMISSIONS[UserRole.TENANT_LEAD],
     UserRole.EMPLOYEE: ROLE_PERMISSIONS[UserRole.CORPORATE_USER],
@@ -195,7 +192,7 @@ class RolePermissions:
     def is_platform_level(role: str) -> bool:
         """Check if role has platform-level access."""
         user_role = RolePermissions.normalize_role(role)
-        return user_role in [UserRole.PLATFORM_OWNER, UserRole.PLATFORM_ADMIN]
+        return user_role == UserRole.PLATFORM_ADMIN
     
     @staticmethod
     def is_tenant_admin_level(role: str) -> bool:
@@ -258,7 +255,7 @@ def require_role(*allowed_roles: UserRole):
     Usage:
         @router.get("/admin/settings")
         async def get_settings(
-            current_user: User = Depends(require_role(UserRole.TENANT_ADMIN, UserRole.PLATFORM_OWNER))
+            current_user: User = Depends(require_role(UserRole.TENANT_ADMIN, UserRole.PLATFORM_ADMIN))
         ):
             ...
     """
@@ -305,12 +302,12 @@ def require_minimum_role(minimum_role: UserRole):
 
 
 # Convenience dependencies for common role checks
-async def get_platform_owner(current_user = Depends(get_current_user_dependency)):
-    """Dependency that requires Platform Owner role."""
+async def get_platform_admin(current_user = Depends(get_current_user_dependency)):
+    """Dependency that requires Platform Admin role."""
     if not RolePermissions.is_platform_level(current_user.role):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Platform Owner access required"
+            detail="Platform Admin access required"
         )
     return current_user
 
@@ -345,14 +342,14 @@ def check_team_access(current_user, target_user_id: UUID, db: Session) -> bool:
     Check if current user has access to target user's data.
     
     Rules:
-    - Platform owners can access all users
+    - Platform admins can access all users
     - Tenant admins can access all users in their tenant
     - Tenant leads can access their direct reports
     - Corporate users can only access themselves
     """
     from models import User
     
-    # Platform owners can access everything
+    # Platform admins can access everything
     if RolePermissions.is_platform_level(current_user.role):
         return True
     

@@ -69,7 +69,7 @@ Auth relies on `users` table (see User Management). OAuth users store `hashed_pa
 
 ### 2.1 Overview
 Every tenant (company) is isolated by `tenant_id`. Roles gate access:
-- `SUPER_ADMIN`, `PLATFORM_OWNER`, `TENANT_ADMIN`, `TENANT_LEAD`, `CORPORATE_USER`
+- `SUPER_ADMIN`, `PLATFORM_ADMIN`, `TENANT_ADMIN`, `TENANT_LEAD`, `CORPORATE_USER`
 
 ### 2.2 Frontend
 Role-gated views and dashboards:
@@ -127,7 +127,7 @@ Key endpoints (from `ENDPOINTS_NodeSpark.md`):
 ## 4) Tenant Management
 
 ### 4.1 Overview
-Tenants (companies) are onboarded by platform admins. Each tenant has branding, feature flags, and a master budget balance.
+Tenants (companies) are onboarded by Platform Admin. Each tenant has branding, feature flags, and a master budget balance.
 
 ### 4.2 Frontend
 - Tenant onboarding UI:
@@ -387,7 +387,7 @@ Key endpoints (from `ENDPOINTS_NodeSpark.md`):
 
 **Table**: `budget_load_logs`
 - `id` (PK)
-- `platform_owner_id` (FK → users.id)
+- `platform_admin_id` (FK → system_admins.id)
 - `tenant_id` (FK → tenants.id)
 - `amount` (Numeric(15,2))
 - `transaction_type` (default DEPOSIT)
@@ -721,7 +721,7 @@ No new tables; relies on:
 ## 18) Platform Insights Analytics (Tenant Insights)
 
 ### 18.1 Overview
-Platform owners can fetch deep tenant culture insights from recognition and budget data.
+Platform admins can fetch deep tenant culture insights from recognition and budget data.
 
 ### 18.2 Frontend
 - `frontend/src/components/TenantActivityDashboard.jsx`

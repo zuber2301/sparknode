@@ -5,7 +5,26 @@
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS slug VARCHAR(255);
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS branding_config JSONB DEFAULT '{}';
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS master_budget_balance DECIMAL(15, 2) NOT NULL DEFAULT 0;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS feature_flags JSONB DEFAULT '{}';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_super_admin BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number VARCHAR(20);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS corporate_email VARCHAR(255);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS personal_email VARCHAR(255);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS mobile_number VARCHAR(20);
+CREATE TABLE IF NOT EXISTS system_admins (
+     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+     email VARCHAR(255) NOT NULL UNIQUE,
+     password_hash VARCHAR(255) NOT NULL,
+     is_super_admin BOOLEAN DEFAULT FALSE,
+     mfa_enabled BOOLEAN DEFAULT TRUE,
+     last_login_at TIMESTAMP WITH TIME ZONE,
+     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+ALTER TABLE system_admins ADD COLUMN IF NOT EXISTS mfa_enabled BOOLEAN DEFAULT TRUE;
+
+UPDATE users SET corporate_email = email WHERE corporate_email IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_tenant_corporate_email ON users(tenant_id, corporate_email);
 
 -- Tenants
 INSERT INTO tenants (id, name, slug, domain, status, subscription_tier, master_budget_balance)
@@ -26,20 +45,27 @@ VALUES
 ('110e8400-e29b-41d4-a716-446655440012', '100e8400-e29b-41d4-a716-446655440012', 'General')
 ON CONFLICT (tenant_id, name) DO NOTHING;
 
+-- System admins (password is 'jspark123')
+-- Hash: $2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u
+INSERT INTO system_admins (id, email, password_hash, is_super_admin, mfa_enabled)
+VALUES
+('220e8400-e29b-41d4-a716-446655440000', 'admin@nodewave.io', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', TRUE, TRUE)
+ON CONFLICT (email) DO NOTHING;
+
 -- Root tenant users (password is 'jspark123' for all)
 -- Hash: $2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u
-INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, role, department_id, is_super_admin)
+INSERT INTO users (id, tenant_id, email, corporate_email, password_hash, first_name, last_name, role, department_id, is_super_admin)
 VALUES
-('120e8400-e29b-41d4-a716-446655440000', '100e8400-e29b-41d4-a716-446655440000', 'super_user@jspark.com', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Super', 'User', 'platform_owner', '110e8400-e29b-41d4-a716-446655440000', TRUE),
-('120e8400-e29b-41d4-a716-446655440001', '100e8400-e29b-41d4-a716-446655440000', 'tenant_admin@jspark.com', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Tenant', 'Admin', 'tenant_admin', '110e8400-e29b-41d4-a716-446655440000', FALSE),
-('120e8400-e29b-41d4-a716-446655440002', '100e8400-e29b-41d4-a716-446655440000', 'tenant_lead@jspark.com', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Tenant', 'Lead', 'tenant_lead', '110e8400-e29b-41d4-a716-446655440000', FALSE),
-('120e8400-e29b-41d4-a716-446655440003', '100e8400-e29b-41d4-a716-446655440000', 'user@jspark.com', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Corporate', 'User', 'corporate_user', '110e8400-e29b-41d4-a716-446655440000', FALSE)
+('120e8400-e29b-41d4-a716-446655440001', '100e8400-e29b-41d4-a716-446655440000', 'tenant_admin@jspark.com', 'tenant_admin@jspark.com', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Tenant', 'Admin', 'tenant_admin', '110e8400-e29b-41d4-a716-446655440000', FALSE),
+('120e8400-e29b-41d4-a716-446655440002', '100e8400-e29b-41d4-a716-446655440000', 'tenant_lead@jspark.com', 'tenant_lead@jspark.com', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Tenant', 'Lead', 'tenant_lead', '110e8400-e29b-41d4-a716-446655440000', FALSE),
+('120e8400-e29b-41d4-a716-446655440003', '100e8400-e29b-41d4-a716-446655440000', 'user@jspark.com', 'user@jspark.com', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Corporate', 'User', 'corporate_user', '110e8400-e29b-41d4-a716-446655440000', FALSE)
 ON CONFLICT (tenant_id, email) DO NOTHING;
 
 -- Bulk users per tenant (40 users each)
-INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, role, department_id)
+INSERT INTO users (id, tenant_id, email, corporate_email, password_hash, first_name, last_name, role, department_id)
 SELECT uuid_generate_v4(), '100e8400-e29b-41d4-a716-446655440010',
        'user' || gs || '@triton.com',
+     'user' || gs || '@triton.com',
        '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u',
        'Triton', 'User' || gs,
        CASE WHEN gs = 1 THEN 'tenant_admin'
@@ -49,9 +75,10 @@ SELECT uuid_generate_v4(), '100e8400-e29b-41d4-a716-446655440010',
 FROM generate_series(1, 40) AS gs
 ON CONFLICT (tenant_id, email) DO NOTHING;
 
-INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, role, department_id)
+INSERT INTO users (id, tenant_id, email, corporate_email, password_hash, first_name, last_name, role, department_id)
 SELECT uuid_generate_v4(), '100e8400-e29b-41d4-a716-446655440011',
        'user' || gs || '@uniplane.com',
+     'user' || gs || '@uniplane.com',
        '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u',
        'Uniplane', 'User' || gs,
        CASE WHEN gs = 1 THEN 'tenant_admin'
@@ -61,9 +88,10 @@ SELECT uuid_generate_v4(), '100e8400-e29b-41d4-a716-446655440011',
 FROM generate_series(1, 40) AS gs
 ON CONFLICT (tenant_id, email) DO NOTHING;
 
-INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, role, department_id)
+INSERT INTO users (id, tenant_id, email, corporate_email, password_hash, first_name, last_name, role, department_id)
 SELECT uuid_generate_v4(), '100e8400-e29b-41d4-a716-446655440012',
        'user' || gs || '@zebra.com',
+     'user' || gs || '@zebra.com',
        '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u',
        'Zebra', 'User' || gs,
        CASE WHEN gs = 1 THEN 'tenant_admin'
@@ -73,9 +101,10 @@ SELECT uuid_generate_v4(), '100e8400-e29b-41d4-a716-446655440012',
 FROM generate_series(1, 40) AS gs
 ON CONFLICT (tenant_id, email) DO NOTHING;
 
-INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, role, department_id)
+INSERT INTO users (id, tenant_id, email, corporate_email, password_hash, first_name, last_name, role, department_id)
 SELECT uuid_generate_v4(), '100e8400-e29b-41d4-a716-446655440000',
        'jspark.user' || gs || '@jspark.com',
+     'jspark.user' || gs || '@jspark.com',
        '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u',
        'jSpark', 'User' || gs,
        CASE WHEN gs = 1 THEN 'tenant_admin'

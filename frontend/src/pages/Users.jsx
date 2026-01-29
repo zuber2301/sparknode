@@ -77,9 +77,14 @@ export default function Users() {
       .includes(searchQuery.toLowerCase())
   )
 
+  const getRoleLabel = (role) => {
+    if (role === 'platform_admin') return 'Perksu Admin'
+    return role?.replace('_', ' ')
+  }
+
   const getRoleColor = (role) => {
     const colors = {
-      platform_owner: 'bg-red-100 text-red-800',
+      platform_admin: 'bg-red-100 text-red-800',
       tenant_admin: 'bg-purple-100 text-purple-800',
       tenant_lead: 'bg-blue-100 text-blue-800',
       corporate_user: 'bg-green-100 text-green-800',
@@ -174,7 +179,7 @@ export default function Users() {
                     </td>
                     <td className="px-4 py-4">
                       <span className={`badge ${getRoleColor(user.role)}`}>
-                        {user.role.replace('_', ' ')}
+                        {getRoleLabel(user.role)}
                       </span>
                     </td>
                     <td className="px-4 py-4 text-gray-600">

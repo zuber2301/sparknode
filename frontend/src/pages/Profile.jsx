@@ -1,7 +1,7 @@
 import { useAuthStore } from '../store/authStore'
 import { useQuery } from '@tanstack/react-query'
 import { walletsAPI, recognitionAPI } from '../lib/api'
-import { HiOutlineUser, HiOutlineMail, HiOutlineBriefcase } from 'react-icons/hi'
+import { HiOutlineUser, HiOutlineMail, HiOutlineBriefcase, HiOutlinePhone } from 'react-icons/hi'
 
 export default function Profile() {
   const { user } = useAuthStore()
@@ -26,7 +26,7 @@ export default function Profile() {
         <h1 className="text-2xl font-bold text-gray-900">
           {user?.first_name} {user?.last_name}
         </h1>
-        <p className="text-gray-500 capitalize">{user?.role?.replace('_', ' ')}</p>
+        <p className="text-gray-500 capitalize">{user?.role === 'platform_admin' ? 'Perksu Admin' : user?.role?.replace('_', ' ')}</p>
       </div>
 
       {/* Contact Info */}
@@ -44,11 +44,20 @@ export default function Profile() {
           </div>
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+              <HiOutlinePhone className="w-5 h-5 text-gray-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Phone</p>
+              <p className="font-medium">{user?.phone_number || 'Not provided'}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
               <HiOutlineBriefcase className="w-5 h-5 text-gray-600" />
             </div>
             <div>
               <p className="text-sm text-gray-500">Role</p>
-              <p className="font-medium capitalize">{user?.role?.replace('_', ' ')}</p>
+              <p className="font-medium capitalize">{user?.role === 'platform_admin' ? 'Perksu Admin' : user?.role?.replace('_', ' ')}</p>
             </div>
           </div>
           <div className="flex items-center gap-4">

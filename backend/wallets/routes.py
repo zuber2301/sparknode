@@ -5,6 +5,7 @@ from uuid import UUID
 from decimal import Decimal
 
 from database import get_db
+from core import append_impersonation_metadata
 from models import Wallet, WalletLedger, User, AuditLog
 from auth.utils import get_current_user, get_hr_admin
 from wallets.schemas import (
@@ -155,7 +156,7 @@ async def allocate_points(
         entity_type="wallet",
         entity_id=wallet.id,
         old_values={"balance": str(old_balance)},
-        new_values={"balance": str(wallet.balance), "points_added": str(allocation.points)}
+        new_values=append_impersonation_metadata({"balance": str(wallet.balance), "points_added": str(allocation.points)})
     )
     db.add(audit)
     
@@ -271,7 +272,7 @@ async def adjust_wallet_balance(
         entity_type="wallet",
         entity_id=wallet.id,
         old_values={"balance": str(old_balance)},
-        new_values={"balance": str(wallet.balance), "adjustment": str(adjustment.points), "type": adjustment.adjustment_type, "reason": adjustment.reason}
+        new_values=append_impersonation_metadata({"balance": str(wallet.balance), "adjustment": str(adjustment.points), "type": adjustment.adjustment_type, "reason": adjustment.reason})
     )
     db.add(audit)
     

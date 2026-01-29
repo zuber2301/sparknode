@@ -50,6 +50,7 @@ class TenantUpdateRequest(BaseModel):
     status: Optional[str] = Field(None, pattern="^(active|inactive|suspended|trial)$")
     branding_config: Optional[Dict[str, Any]] = None
     settings: Optional[Dict[str, Any]] = None
+    feature_flags: Optional[Dict[str, Any]] = None
     catalog_settings: Optional[Dict[str, Any]] = None
     branding: Optional[Dict[str, Any]] = None
 
@@ -89,6 +90,7 @@ class TenantDetailResponse(BaseModel):
     favicon_url: Optional[str]
     primary_color: Optional[str]
     branding_config: Dict[str, Any]
+    feature_flags: Dict[str, Any]
     status: str
     
     # Subscription
@@ -198,6 +200,11 @@ SUBSCRIPTION_TIERS = [
 class SubscriptionTiersResponse(BaseModel):
     """List of available subscription tiers."""
     tiers: List[SubscriptionTier]
+
+
+class FeatureFlagsUpdate(BaseModel):
+    """Request to update tenant feature flags."""
+    feature_flags: Dict[str, Any]
 
 
 # =====================================================

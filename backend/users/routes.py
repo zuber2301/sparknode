@@ -43,9 +43,10 @@ async def create_user(
 ):
     """Create a new user (HR Admin only)"""
     # Check if email already exists in tenant
+    email_to_check = user_data.corporate_email or user_data.email
     existing_user = db.query(User).filter(
         User.tenant_id == current_user.tenant_id,
-        User.email == user_data.email
+        ((User.email == user_data.email) | (User.corporate_email == email_to_check))
     ).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -54,10 +55,14 @@ async def create_user(
     user = User(
         tenant_id=current_user.tenant_id,
         email=user_data.email,
+        corporate_email=user_data.corporate_email or user_data.email,
+        personal_email=user_data.personal_email,
         password_hash=get_password_hash(user_data.password),
         first_name=user_data.first_name,
         last_name=user_data.last_name,
         role=user_data.role,
+        phone_number=user_data.phone_number or user_data.mobile_number,
+        mobile_number=user_data.mobile_number or user_data.phone_number,
         department_id=user_data.department_id,
         manager_id=user_data.manager_id
     )
@@ -130,6 +135,10 @@ async def update_user(
         raise HTTPException(status_code=404, detail="User not found")
     
     update_data = user_data.model_dump(exclude_unset=True)
+    if "mobile_number" in update_data and "phone_number" not in update_data:
+        update_data["phone_number"] = update_data.get("mobile_number")
+    if "phone_number" in update_data and "mobile_number" not in update_data:
+        update_data["mobile_number"] = update_data.get("phone_number")
     for key, value in update_data.items():
         setattr(user, key, value)
     

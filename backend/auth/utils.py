@@ -9,8 +9,10 @@ from uuid import UUID
 
 from config import settings
 from database import get_db
-from models import User
+from models import User, SystemAdmin, Tenant
 from auth.schemas import TokenData
+from core.tenant import set_tenant_context, TenantContext
+from core.rbac import RolePermissions
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
@@ -42,6 +44,9 @@ def decode_token(token: str) -> TokenData:
         tenant_id: str = payload.get("tenant_id")
         email: str = payload.get("email")
         role: str = payload.get("role")
+        token_type: str = payload.get("type", "tenant")
+        actual_user_id: str = payload.get("actual_user_id")
+        effective_tenant_id: str = payload.get("effective_tenant_id")
         if user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -52,7 +57,10 @@ def decode_token(token: str) -> TokenData:
             user_id=UUID(user_id),
             tenant_id=UUID(tenant_id) if tenant_id else None,
             email=email,
-            role=role
+            role=role,
+            token_type=token_type,
+            actual_user_id=UUID(actual_user_id) if actual_user_id else None,
+            effective_tenant_id=UUID(effective_tenant_id) if effective_tenant_id else None
         )
     except JWTError:
         raise HTTPException(
@@ -67,6 +75,70 @@ async def get_current_user(
     db: Session = Depends(get_db)
 ) -> User:
     token_data = decode_token(token)
+    if token_data.token_type == "system":
+        admin = db.query(SystemAdmin).filter(SystemAdmin.id == token_data.user_id).first()
+        if admin is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="System admin not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        effective_tenant_id = token_data.effective_tenant_id
+        if effective_tenant_id is None:
+            placeholder_user = User(
+                id=admin.id,
+                tenant_id=UUID(int=0),
+                email=admin.email,
+                password_hash=admin.password_hash,
+                first_name="Platform",
+                last_name="Admin",
+                role="platform_admin",
+                status="active",
+            )
+            set_tenant_context(
+                TenantContext(
+                    tenant_id=UUID(int=0),
+                    user_id=admin.id,
+                    role=placeholder_user.role,
+                    is_platform_admin=True,
+                    global_access=True,
+                    actual_user_id=admin.id,
+                    is_impersonating=False
+                )
+            )
+            return placeholder_user
+
+        tenant = db.query(Tenant).filter(Tenant.id == effective_tenant_id).first()
+        if tenant is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Tenant not found"
+            )
+
+        user = User(
+            id=admin.id,
+            tenant_id=effective_tenant_id,
+            email=admin.email,
+            password_hash=admin.password_hash,
+            first_name="Perksu",
+            last_name="Admin",
+            role="platform_admin",
+            status="active"
+        )
+        set_tenant_context(
+            TenantContext(
+                tenant_id=effective_tenant_id,
+                user_id=admin.id,
+                role=user.role,
+                is_platform_admin=True,
+                global_access=False,
+                actual_user_id=admin.id,
+                is_impersonating=True
+            )
+        )
+        return user
+
     user = db.query(User).filter(User.id == token_data.user_id).first()
     if user is None:
         raise HTTPException(
@@ -74,11 +146,26 @@ async def get_current_user(
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    if user.status != 'active':
+    if (user.status or '').lower() != 'active':
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is not active"
         )
+
+    tenant_id = token_data.tenant_id or user.tenant_id
+    is_platform_user = RolePermissions.is_platform_level(user.role)
+    set_tenant_context(
+        TenantContext(
+            tenant_id=tenant_id,
+            user_id=user.id,
+            role=user.role,
+            is_platform_admin=is_platform_user,
+            global_access=is_platform_user,
+            actual_user_id=user.id,
+            is_impersonating=False
+        )
+    )
+
     return user
 
 
@@ -96,7 +183,7 @@ def require_role(*allowed_roles):
 
 # Role-based dependencies for convenience
 async def get_hr_admin(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.role not in ['tenant_admin', 'platform_owner', 'hr_admin', 'platform_admin']:
+    if current_user.role not in ['tenant_admin', 'platform_admin', 'hr_admin']:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="HR Admin access required"
@@ -105,9 +192,61 @@ async def get_hr_admin(current_user: User = Depends(get_current_user)) -> User:
 
 
 async def get_manager_or_above(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.role not in ['tenant_lead', 'tenant_admin', 'platform_owner', 'manager', 'hr_admin', 'platform_admin']:
+    if current_user.role not in ['tenant_lead', 'tenant_admin', 'platform_admin', 'manager', 'hr_admin']:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Manager access required"
         )
     return current_user
+
+
+def validate_otp_contact(
+    db: Session,
+    email: Optional[str] = None,
+    mobile_number: Optional[str] = None,
+    tenant_id: Optional[UUID] = None
+) -> User:
+    """
+    Validate a user's email/mobile before generating OTP codes.
+
+    Email is matched against corporate, personal, or legacy email fields.
+    Mobile is matched against mobile_number or legacy phone_number.
+    """
+    if not email and not mobile_number:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email or mobile number is required for OTP validation"
+        )
+
+    query = db.query(User)
+    if tenant_id:
+        query = query.filter(User.tenant_id == tenant_id)
+
+    if email:
+        query = query.filter(
+            (User.corporate_email == email) |
+            (User.personal_email == email) |
+            (User.email == email)
+        )
+
+    user = query.first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found for OTP validation"
+        )
+
+    if mobile_number:
+        if user.mobile_number != mobile_number and user.phone_number != mobile_number:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Mobile number does not match the user"
+            )
+
+    if (user.status or '').lower() != 'active':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is not active"
+        )
+
+    return user
