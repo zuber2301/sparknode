@@ -65,3 +65,30 @@ class SystemAdminLoginResponse(BaseModel):
     access_token: str
     token_type: str
     admin: SystemAdminResponse
+
+
+class EmailOtpRequest(BaseModel):
+    email: EmailStr
+    tenant_id: Optional[UUID] = None
+
+
+class EmailOtpVerify(BaseModel):
+    email: EmailStr
+    code: str
+    tenant_id: Optional[UUID] = None
+
+
+class SmsOtpRequest(BaseModel):
+    mobile_number: str
+    tenant_id: Optional[UUID] = None
+
+
+class SmsOtpVerify(BaseModel):
+    mobile_number: str
+    code: str
+    tenant_id: Optional[UUID] = None
+
+
+class OtpResponse(BaseModel):
+    success: bool
+    message: str

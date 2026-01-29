@@ -6,9 +6,23 @@ from datetime import timedelta, datetime
 from database import get_db
 from models import User
 from config import settings
-from auth.schemas import Token, LoginRequest, LoginResponse, UserResponse, SystemAdminLoginResponse, SystemAdminResponse
-from auth.utils import verify_password, create_access_token, get_current_user
-from models import SystemAdmin, Tenant
+from auth.schemas import (
+    Token,
+    LoginRequest,
+    LoginResponse,
+    UserResponse,
+    SystemAdminLoginResponse,
+    SystemAdminResponse,
+    EmailOtpRequest,
+    EmailOtpVerify,
+    SmsOtpRequest,
+    SmsOtpVerify,
+    OtpResponse
+)
+from auth.utils import verify_password, create_access_token, get_current_user, validate_otp_contact
+from models import SystemAdmin, Tenant, OtpToken
+from core.security import generate_verification_code, hash_token, verify_token_hash
+from core.notifications import send_email_otp, send_sms_otp, NotificationError
 from uuid import UUID
 
 router = APIRouter()
@@ -207,3 +221,95 @@ async def impersonate_tenant(
 async def logout(current_user: User = Depends(get_current_user)):
     """Logout user (client should discard the token)"""
     return {"message": "Successfully logged out"}
+
+
+@router.post("/otp/email/request", response_model=OtpResponse)
+async def request_email_otp(
+    payload: EmailOtpRequest,
+    db: Session = Depends(get_db)
+):
+    user = validate_otp_contact(db, email=payload.email, tenant_id=payload.tenant_id)
+    code = generate_verification_code()
+    try:
+        await send_email_otp(payload.email, code)
+    except NotificationError as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+    token = OtpToken(
+        tenant_id=user.tenant_id,
+        user_id=user.id,
+        channel="email",
+        destination=payload.email,
+        token_hash=hash_token(code),
+        expires_at=datetime.utcnow() + timedelta(minutes=10)
+    )
+    db.add(token)
+    db.commit()
+    return OtpResponse(success=True, message="OTP sent to email")
+
+
+@router.post("/otp/email/verify", response_model=OtpResponse)
+async def verify_email_otp(
+    payload: EmailOtpVerify,
+    db: Session = Depends(get_db)
+):
+    user = validate_otp_contact(db, email=payload.email, tenant_id=payload.tenant_id)
+    token = db.query(OtpToken).filter(
+        OtpToken.user_id == user.id,
+        OtpToken.channel == "email",
+        OtpToken.destination == payload.email,
+        OtpToken.used_at.is_(None),
+        OtpToken.expires_at > datetime.utcnow()
+    ).order_by(OtpToken.created_at.desc()).first()
+
+    if not token or not verify_token_hash(payload.code, token.token_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired OTP")
+
+    token.used_at = datetime.utcnow()
+    db.commit()
+    return OtpResponse(success=True, message="OTP verified")
+
+
+@router.post("/otp/sms/request", response_model=OtpResponse)
+async def request_sms_otp(
+    payload: SmsOtpRequest,
+    db: Session = Depends(get_db)
+):
+    user = validate_otp_contact(db, mobile_number=payload.mobile_number, tenant_id=payload.tenant_id)
+    code = generate_verification_code()
+    try:
+        await send_sms_otp(payload.mobile_number, code)
+    except NotificationError as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+    token = OtpToken(
+        tenant_id=user.tenant_id,
+        user_id=user.id,
+        channel="sms",
+        destination=payload.mobile_number,
+        token_hash=hash_token(code),
+        expires_at=datetime.utcnow() + timedelta(minutes=10)
+    )
+    db.add(token)
+    db.commit()
+    return OtpResponse(success=True, message="OTP sent to mobile")
+
+
+@router.post("/otp/sms/verify", response_model=OtpResponse)
+async def verify_sms_otp(
+    payload: SmsOtpVerify,
+    db: Session = Depends(get_db)
+):
+    user = validate_otp_contact(db, mobile_number=payload.mobile_number, tenant_id=payload.tenant_id)
+    token = db.query(OtpToken).filter(
+        OtpToken.user_id == user.id,
+        OtpToken.channel == "sms",
+        OtpToken.destination == payload.mobile_number,
+        OtpToken.used_at.is_(None),
+        OtpToken.expires_at > datetime.utcnow()
+    ).order_by(OtpToken.created_at.desc()).first()
+
+    if not token or not verify_token_hash(payload.code, token.token_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired OTP")
+
+    token.used_at = datetime.utcnow()
+    db.commit()
+    return OtpResponse(success=True, message="OTP verified")

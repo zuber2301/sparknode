@@ -69,8 +69,9 @@ CREATE TABLE users (
     mobile_number VARCHAR(20),
     date_of_birth DATE,
     hire_date DATE,
-    status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('pending', 'active', 'deactivated')),
+    status VARCHAR(50) DEFAULT 'ACTIVE' CHECK (status IN ('PENDING_INVITE', 'ACTIVE', 'DEACTIVATED', 'pending_invite', 'active', 'deactivated')),
     is_super_admin BOOLEAN DEFAULT FALSE,
+    invitation_sent_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(tenant_id, email),
@@ -88,6 +89,43 @@ CREATE TABLE system_admins (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- OTP Tokens (Email/SMS verification)
+CREATE TABLE otp_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    channel VARCHAR(20) NOT NULL CHECK (channel IN ('email', 'sms')),
+    destination VARCHAR(255) NOT NULL,
+    token_hash VARCHAR(255) NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    used_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_otp_tokens_user_channel ON otp_tokens(user_id, channel);
+
+-- Bulk Upload Staging
+CREATE TABLE user_upload_staging (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    batch_id UUID NOT NULL,
+    full_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    department_name VARCHAR(255),
+    role VARCHAR(50),
+    manager_email VARCHAR(255),
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    department_id UUID,
+    manager_id UUID,
+    status VARCHAR(50) DEFAULT 'pending',
+    errors JSONB DEFAULT '[]'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_user_upload_staging_batch ON user_upload_staging(batch_id);
 
 -- =====================================================
 -- BUDGET & ALLOCATION TABLES
@@ -576,7 +614,7 @@ INSERT INTO tenants (id, name, domain, status) VALUES
 
 -- Insert root tenant (jSpark)
 INSERT INTO tenants (id, name, slug, domain, status, subscription_tier, master_budget_balance) VALUES
-('100e8400-e29b-41d4-a716-446655440000', 'jSpark', 'jspark', 'jspark.nodewave.io', 'active', 'enterprise', 0);
+('100e8400-e29b-41d4-a716-446655440000', 'jSpark', 'jspark', 'jspark.sparknode.io', 'active', 'enterprise', 0);
 
 -- Insert default tenant scope (All Tenants)
 INSERT INTO tenants (id, name, slug, domain, status, subscription_tier, master_budget_balance) VALUES
@@ -584,9 +622,9 @@ INSERT INTO tenants (id, name, slug, domain, status, subscription_tier, master_b
 
 -- Insert additional tenants
 INSERT INTO tenants (id, name, slug, domain, status, subscription_tier, master_budget_balance) VALUES
-('100e8400-e29b-41d4-a716-446655440010', 'Triton', 'triton', 'triton.nodewave.io', 'active', 'professional', 0),
-('100e8400-e29b-41d4-a716-446655440011', 'Uniplane', 'uniplane', 'uniplane.nodewave.io', 'active', 'starter', 0),
-('100e8400-e29b-41d4-a716-446655440012', 'Zebra', 'zebra', 'zebra.nodewave.io', 'active', 'starter', 0);
+('100e8400-e29b-41d4-a716-446655440010', 'Triton', 'triton', 'triton.sparknode.io', 'active', 'professional', 0),
+('100e8400-e29b-41d4-a716-446655440011', 'Uniplane', 'uniplane', 'uniplane.sparknode.io', 'active', 'starter', 0),
+('100e8400-e29b-41d4-a716-446655440012', 'Zebra', 'zebra', 'zebra.sparknode.io', 'active', 'starter', 0);
 
 -- Insert root tenant department
 INSERT INTO departments (id, tenant_id, name) VALUES
@@ -608,7 +646,7 @@ INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, r
 -- Insert system admin (password is 'jspark123')
 INSERT INTO system_admins (id, email, password_hash, is_super_admin, mfa_enabled)
 VALUES
-('220e8400-e29b-41d4-a716-446655440000', 'admin@nodewave.io', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', TRUE, TRUE);
+('220e8400-e29b-41d4-a716-446655440000', 'admin@sparknode.io', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', TRUE, TRUE);
 
 -- Insert bulk users per tenant (40 users each)
 INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, role, department_id)

@@ -9,9 +9,13 @@ import { HiOutlineMail, HiOutlineLockClosed, HiOutlineEye, HiOutlineEyeOff } fro
 export default function Login() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [emailOtp, setEmailOtp] = useState('')
-  const [smsOtp, setSmsOtp] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [showEmailOtp, setShowEmailOtp] = useState(false)
+  const [showSmsOtp, setShowSmsOtp] = useState(false)
+  const [emailAddress, setEmailAddress] = useState('')
+  const [emailOtp, setEmailOtp] = useState('')
+  const [mobileNumber, setMobileNumber] = useState('')
+  const [smsOtp, setSmsOtp] = useState('')
   const navigate = useNavigate()
   const { setAuth } = useAuthStore()
 
@@ -28,9 +32,81 @@ export default function Login() {
     },
   })
 
+  const emailOtpRequestMutation = useMutation({
+    mutationFn: () => authAPI.requestEmailOtp(emailAddress),
+    onSuccess: () => {
+      toast.success('OTP sent to email')
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.detail || 'Failed to send email OTP')
+    },
+  })
+
+  const emailOtpVerifyMutation = useMutation({
+    mutationFn: () => authAPI.verifyEmailOtp(emailAddress, emailOtp),
+    onSuccess: () => {
+      toast.success('Email OTP verified')
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.detail || 'Invalid email OTP')
+    },
+  })
+
+  const smsOtpRequestMutation = useMutation({
+    mutationFn: () => authAPI.requestSmsOtp(mobileNumber),
+    onSuccess: () => {
+      toast.success('OTP sent to mobile')
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.detail || 'Failed to send SMS OTP')
+    },
+  })
+
+  const smsOtpVerifyMutation = useMutation({
+    mutationFn: () => authAPI.verifySmsOtp(mobileNumber, smsOtp),
+    onSuccess: () => {
+      toast.success('SMS OTP verified')
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.detail || 'Invalid SMS OTP')
+    },
+  })
+
   const handleSubmit = (e) => {
     e.preventDefault()
     loginMutation.mutate()
+  }
+
+  const handleEmailOtpRequest = () => {
+    if (!emailAddress) {
+      toast.error('Enter email address')
+      return
+    }
+    emailOtpRequestMutation.mutate()
+  }
+
+  const handleEmailOtpVerify = () => {
+    if (!emailAddress || !emailOtp) {
+      toast.error('Enter email and OTP')
+      return
+    }
+    emailOtpVerifyMutation.mutate()
+  }
+
+  const handleSmsOtpRequest = () => {
+    if (!mobileNumber) {
+      toast.error('Enter mobile number')
+      return
+    }
+    smsOtpRequestMutation.mutate()
+  }
+
+  const handleSmsOtpVerify = () => {
+    if (!mobileNumber || !smsOtp) {
+      toast.error('Enter mobile number and OTP')
+      return
+    }
+    smsOtpVerifyMutation.mutate()
   }
 
   return (
@@ -91,28 +167,6 @@ export default function Login() {
               </div>
             </div>
 
-            <div>
-              <label className="label">Email OTP</label>
-              <input
-                type="text"
-                value={emailOtp}
-                onChange={(e) => setEmailOtp(e.target.value)}
-                className="input"
-                placeholder="Enter email OTP"
-              />
-            </div>
-
-            <div>
-              <label className="label">SMS OTP</label>
-              <input
-                type="text"
-                value={smsOtp}
-                onChange={(e) => setSmsOtp(e.target.value)}
-                className="input"
-                placeholder="Enter SMS OTP"
-              />
-            </div>
-
             <button
               type="submit"
               disabled={loginMutation.isPending}
@@ -121,11 +175,108 @@ export default function Login() {
               {loginMutation.isPending ? 'Signing in...' : 'Sign in'}
             </button>
 
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                className="w-full btn-secondary py-2"
+                onClick={() => setShowEmailOtp((prev) => !prev)}
+              >
+                Email OTP
+              </button>
+              <button
+                type="button"
+                className="w-full btn-secondary py-2"
+                onClick={() => setShowSmsOtp((prev) => !prev)}
+              >
+                SMS OTP
+              </button>
+            </div>
+
+            {showEmailOtp && (
+              <div className="space-y-3">
+                <div>
+                  <label className="label">Email address</label>
+                  <input
+                    type="email"
+                    value={emailAddress}
+                    onChange={(e) => setEmailAddress(e.target.value)}
+                    className="input"
+                    placeholder="you@company.com"
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    className="btn-secondary py-2 px-4"
+                    onClick={handleEmailOtpRequest}
+                    disabled={emailOtpRequestMutation.isPending}
+                  >
+                    {emailOtpRequestMutation.isPending ? 'Sending...' : 'Generate OTP'}
+                  </button>
+                  <input
+                    type="text"
+                    value={emailOtp}
+                    onChange={(e) => setEmailOtp(e.target.value)}
+                    className="input"
+                    placeholder="Enter OTP"
+                  />
+                  <button
+                    type="button"
+                    className="btn-primary py-2 px-4"
+                    onClick={handleEmailOtpVerify}
+                    disabled={emailOtpVerifyMutation.isPending}
+                  >
+                    {emailOtpVerifyMutation.isPending ? 'Verifying...' : 'Submit OTP'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {showSmsOtp && (
+              <div className="space-y-3">
+                <div>
+                  <label className="label">Mobile number</label>
+                  <input
+                    type="tel"
+                    value={mobileNumber}
+                    onChange={(e) => setMobileNumber(e.target.value)}
+                    className="input"
+                    placeholder="+91 98765 43210"
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    className="btn-secondary py-2 px-4"
+                    onClick={handleSmsOtpRequest}
+                    disabled={smsOtpRequestMutation.isPending}
+                  >
+                    {smsOtpRequestMutation.isPending ? 'Sending...' : 'Generate OTP'}
+                  </button>
+                  <input
+                    type="text"
+                    value={smsOtp}
+                    onChange={(e) => setSmsOtp(e.target.value)}
+                    className="input"
+                    placeholder="Enter OTP"
+                  />
+                  <button
+                    type="button"
+                    className="btn-primary py-2 px-4"
+                    onClick={handleSmsOtpVerify}
+                    disabled={smsOtpVerifyMutation.isPending}
+                  >
+                    {smsOtpVerifyMutation.isPending ? 'Verifying...' : 'Submit OTP'}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <button
               type="button"
-              className="w-full btn-secondary py-2.5"
+              className="w-full btn-secondary py-2"
             >
-              Continue with SSO
+              SSO
             </button>
           </form>
         </div>

@@ -273,7 +273,7 @@ export default function PlatformTenants() {
                 </div>
                 <div>
                   <label className="label">Domain</label>
-                  <input name="domain" className="input" placeholder="triton-energy.nodewave.io" />
+                  <input name="domain" className="input" placeholder="triton-energy.sparknode.io" />
                 </div>
                 <div>
                   <label className="label">Subscription Tier</label>

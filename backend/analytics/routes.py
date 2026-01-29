@@ -82,7 +82,7 @@ async def get_tenant_analytics(
     # Get total users
     total_users = db.query(User).filter(
         User.tenant_id == tenant_id,
-        User.status == 'active'
+        func.lower(User.status) == 'active'
     ).count()
     
     # Get active users (who gave or received recognition in period)
@@ -188,7 +188,7 @@ async def get_tenant_analytics(
     for dept in departments:
         dept_users = db.query(User).filter(
             User.department_id == dept.id,
-            User.status == 'active'
+            func.lower(User.status) == 'active'
         ).all()
         dept_user_ids = [u.id for u in dept_users]
         
@@ -402,7 +402,7 @@ async def get_insights(
     # Get current metrics
     total_users = db.query(User).filter(
         User.tenant_id == tenant_id,
-        User.status == 'active'
+        func.lower(User.status) == 'active'
     ).count()
     
     recognitions = db.query(Recognition).filter(
@@ -507,7 +507,7 @@ async def get_platform_metrics(
         new_tenants = 1 if period_start <= tenant.created_at.date() <= period_end else 0
 
         total_users = db.query(User).filter(
-            User.status == 'active',
+            func.lower(User.status) == 'active',
             User.tenant_id == tenant_id
         ).count()
 
@@ -586,7 +586,7 @@ async def get_platform_metrics(
     ).count()
     
     # User metrics
-    total_users = db.query(User).filter(User.status == 'active').count()
+    total_users = db.query(User).filter(func.lower(User.status) == 'active').count()
     
     # Transaction metrics
     total_recognitions = db.query(Recognition).filter(
@@ -619,7 +619,7 @@ async def get_platform_metrics(
     for tenant in tenants:
         user_count = db.query(User).filter(
             User.tenant_id == tenant.id,
-            User.status == 'active'
+            func.lower(User.status) == 'active'
         ).count()
         
         monthly_recognitions = db.query(Recognition).filter(
@@ -687,7 +687,7 @@ async def get_tenant_benchmark(
     # Calculate tenant metrics
     tenant_users = db.query(User).filter(
         User.tenant_id == tenant_id,
-        User.status == 'active'
+        func.lower(User.status) == 'active'
     ).count()
     
     tenant_recognitions = db.query(Recognition).filter(
@@ -714,7 +714,7 @@ async def get_tenant_benchmark(
     for tenant in all_tenants:
         t_users = db.query(User).filter(
             User.tenant_id == tenant.id,
-            User.status == 'active'
+            func.lower(User.status) == 'active'
         ).count()
         
         if t_users > 0:

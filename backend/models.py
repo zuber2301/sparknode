@@ -181,8 +181,9 @@ class User(Base):
     mobile_number = Column(String(20))
     date_of_birth = Column(Date)
     hire_date = Column(Date)
-    status = Column(String(50), default='active')
+    status = Column(String(50), default='ACTIVE')
     is_super_admin = Column(Boolean, default=False)
+    invitation_sent_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
@@ -207,6 +208,41 @@ class SystemAdmin(Base):
     is_super_admin = Column(Boolean, default=False)
     mfa_enabled = Column(Boolean, default=True)
     last_login_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class OtpToken(Base):
+    __tablename__ = "otp_tokens"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    channel = Column(String(20), nullable=False)  # email | sms
+    destination = Column(String(255), nullable=False)
+    token_hash = Column(String(255), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class UserUploadStaging(Base):
+    __tablename__ = "user_upload_staging"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    batch_id = Column(UUID(as_uuid=True), nullable=False)
+    full_name = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=False)
+    department_name = Column(String(255))
+    role = Column(String(50))
+    manager_email = Column(String(255))
+    first_name = Column(String(100))
+    last_name = Column(String(100))
+    department_id = Column(UUID(as_uuid=True))
+    manager_id = Column(UUID(as_uuid=True))
+    status = Column(String(50), default="pending")
+    errors = Column(JSONB, default=list)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

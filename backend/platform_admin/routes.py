@@ -67,7 +67,7 @@ async def list_tenants(
     for tenant in tenants:
         user_count = db.query(User).filter(
             User.tenant_id == tenant.id,
-            User.status == 'active'
+            func.lower(User.status) == 'active'
         ).count()
         
         result.append(TenantListResponse(
@@ -245,7 +245,7 @@ async def get_tenant(
     # Get counts
     user_count = db.query(User).filter(
         User.tenant_id == tenant_id,
-        User.status == 'active'
+        func.lower(User.status) == 'active'
     ).count()
     
     active_user_count = db.query(func.count(func.distinct(Recognition.from_user_id))).filter(
@@ -348,7 +348,7 @@ async def update_tenant(
     # Get counts
     user_count = db.query(User).filter(
         User.tenant_id == tenant_id,
-        User.status == 'active'
+        func.lower(User.status) == 'active'
     ).count()
     
     return TenantDetailResponse(
@@ -411,7 +411,7 @@ async def update_subscription(
     
     user_count = db.query(User).filter(
         User.tenant_id == tenant_id,
-        User.status == 'active'
+        func.lower(User.status) == 'active'
     ).count()
     
     return TenantDetailResponse(

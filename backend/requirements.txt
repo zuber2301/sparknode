@@ -14,5 +14,7 @@ httpx==0.26.0
 celery==5.3.6
 redis==5.0.1
 email-validator==2.1.0.post1
+pandas==2.2.2
+openpyxl==3.1.5
 pytest==7.4.4
 pytest-asyncio==0.23.3

@@ -53,6 +53,10 @@ export const authAPI = {
   me: () => api.get('/auth/me'),
   logout: () => api.post('/auth/logout'),
   refreshToken: () => api.post('/auth/refresh'),
+  requestEmailOtp: (email, tenant_id) => api.post('/auth/otp/email/request', { email, tenant_id }),
+  verifyEmailOtp: (email, code, tenant_id) => api.post('/auth/otp/email/verify', { email, code, tenant_id }),
+  requestSmsOtp: (mobile_number, tenant_id) => api.post('/auth/otp/sms/request', { mobile_number, tenant_id }),
+  verifySmsOtp: (mobile_number, code, tenant_id) => api.post('/auth/otp/sms/verify', { mobile_number, code, tenant_id }),
 }
 
 // Users API
@@ -61,11 +65,26 @@ export const usersAPI = {
   getById: (id) => api.get(`/users/${id}`),
   create: (data) => api.post('/users', data),
   update: (id, data) => api.put(`/users/${id}`, data),
+  patch: (id, data) => api.patch(`/users/${id}`, data),
   search: (q) => api.get('/users/search', { params: { q } }),
   getDirectReports: (id) => api.get(`/users/${id}/direct-reports`),
   bulkCreate: (data) => api.post('/users/bulk', data),
   deactivate: (id) => api.put(`/users/${id}/deactivate`),
   reactivate: (id) => api.put(`/users/${id}/reactivate`),
+  downloadTemplate: () => api.get('/users/bulk/template', { responseType: 'blob' }),
+  uploadBulk: (file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post('/users/bulk/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  getStaging: (batchId) => api.get('/users/bulk/staging', { params: { batch_id: batchId } }),
+  updateStagingRow: (rowId, data) => api.patch(`/users/bulk/staging/${rowId}`, data),
+  confirmBulk: (payload) => api.post('/users/bulk/confirm', payload),
+  bulkDeactivate: (payload) => api.post('/users/bulk/deactivate', payload),
+  bulkReactivate: (payload) => api.post('/users/bulk/reactivate', payload),
+  bulkResendInvites: (payload) => api.post('/users/bulk/resend-invites', payload),
 }
 
 // Wallets API
