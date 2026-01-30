@@ -30,6 +30,7 @@ export default function Users() {
   const [stagingData, setStagingData] = useState([])
   const [editingStagingId, setEditingStagingId] = useState(null)
   const [stagingForm, setStagingForm] = useState({})
+  const [sendInvites, setSendInvites] = useState(true)
   
   const [selectedUser, setSelectedUser] = useState(null)
   const [selectedUserIds, setSelectedUserIds] = useState([])
@@ -98,13 +99,13 @@ export default function Users() {
       const res = await usersAPI.getStaging(batchId)
       setStagingData(res.data)
       
-      const validRows = res.data.filter(r => !r.errors?.length).length
-      const invalidRows = res.data.filter(r => r.errors?.length > 0).length
+      const vRows = res.data.filter(r => r.is_valid).length
+      const tRows = res.data.length
       
       setBatchInfo(prev => ({ 
         ...prev, 
-        valid_rows: validRows, 
-        invalid_rows: invalidRows 
+        valid_rows: vRows, 
+        total_rows: tRows
       }))
     } catch (err) {
       toast.error('Failed to fetch preview data')
@@ -112,7 +113,7 @@ export default function Users() {
   }
 
   const confirmImportMutation = useMutation({
-    mutationFn: (batchId) => usersAPI.confirmBulk({ batch_id: batchId, send_invites: true }),
+    mutationFn: (batchId) => usersAPI.confirmBulk(batchId, { batch_id: batchId, send_invites: sendInvites }),
     onSuccess: () => {
       queryClient.invalidateQueries(['users'])
       setUploadStep('processing') 
@@ -260,17 +261,12 @@ export default function Users() {
   const startEditStagingRow = (row) => {
     setEditingStagingId(row.id)
     setStagingForm({
-      first_name: row.first_name || '',
-      last_name: row.last_name || '',
-      email: row.email || '',
-      corporate_email: row.corporate_email || '',
-      personal_email: row.personal_email || '',
-      department_name: row.department_name || '',
-      org_role: row.org_role || row.role || '',
+      raw_full_name: row.raw_full_name || '',
+      raw_email: row.raw_email || '',
+      raw_department: row.raw_department || '',
+      raw_role: row.raw_role || '',
+      raw_mobile_phone: row.raw_mobile_phone || '',
       manager_email: row.manager_email || '',
-      mobile_number: row.mobile_number || '',
-      date_of_birth: row.date_of_birth || '',
-      hire_date: row.hire_date || '',
     })
   }
 
@@ -617,7 +613,7 @@ export default function Users() {
                     </div>
                     <div className="p-4 bg-red-50 border border-red-100 rounded-2xl">
                        <p className="text-xs text-red-600 font-bold uppercase">Errors Detected</p>
-                       <p className="text-2xl font-bold text-red-700">{batchInfo?.invalid_rows}</p>
+                       <p className="text-2xl font-bold text-red-700">{batchInfo?.total_rows - (batchInfo?.valid_rows || 0)}</p>
                     </div>
                     <div className="p-4 bg-gray-50 border border-gray-100 rounded-2xl">
                        <p className="text-xs text-gray-500 font-bold uppercase">Total Rows</p>
@@ -634,42 +630,46 @@ export default function Users() {
                           <th className="px-4 py-3 text-left font-bold text-gray-400 text-[10px] uppercase">Status</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y">
+                      <tbody className="divide-y relative">
                         {stagingData.map((row) => (
-                          <tr key={row.id} className={!row.errors?.length ? 'bg-white' : 'bg-red-50/50'}>
+                          <tr key={row.id} className={row.is_valid ? 'bg-white' : 'bg-red-50/20'}>
                              <td className="px-4 py-3">
-                                <p className="font-bold text-gray-900">{row.first_name} {row.last_name}</p>
-                                <p className="text-xs text-gray-500">{row.corporate_email || row.email}</p>
-                                <div className="mt-1 flex gap-2">
-                                  {row.personal_email && <span className="text-[10px] text-gray-400">P: {row.personal_email}</span>}
-                                  {row.mobile_number && <span className="text-[10px] text-gray-400">M: {row.mobile_number}</span>}
-                                </div>
+                                <p className="font-bold text-gray-900">{row.raw_full_name}</p>
+                                <p className="text-xs text-gray-500">{row.raw_email}</p>
+                                {row.raw_mobile_phone && (
+                                  <p className="text-[10px] text-gray-400 mt-0.5">{row.raw_mobile_phone}</p>
+                                )}
                              </td>
                              <td className="px-4 py-3">
                                 <div className="flex gap-2">
-                                  <span className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] text-gray-600 font-medium uppercase">{row.org_role || row.role}</span>
-                                  <span className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] text-gray-600 font-medium uppercase">{row.department_name}</span>
+                                  <span className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] text-gray-500 font-bold uppercase tracking-tight">{row.raw_role}</span>
+                                  <span className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] text-gray-500 font-bold uppercase tracking-tight">{row.raw_department}</span>
                                 </div>
                              </td>
-                             <td className="px-4 py-3 text-right">
-                                {!row.errors?.length ? (
-                                  <div className="flex items-center justify-end gap-1.5 text-green-600 text-xs font-bold uppercase">
-                                    <HiOutlineCheckCircle className="w-4 h-4" /> Valid
-                                  </div>
+                             <td className="px-4 py-3 text-right group relative">
+                                {row.is_valid ? (
+                                  <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-[10px] font-bold uppercase">Ready</span>
                                 ) : (
-                                  <div className="space-y-2">
-                                    <div className="text-red-500 text-[10px] font-bold uppercase">
-                                      {row.errors.map((err, i) => (
-                                        <p key={i} className="flex items-center justify-end gap-1">
-                                          <HiOutlineExclamationCircle className="w-3 h-3" /> {err}
-                                        </p>
-                                      ))}
+                                  <div className="inline-block relative">
+                                    <span className="px-2 py-1 bg-red-100 text-red-600 rounded-full text-[10px] font-bold uppercase cursor-help peer">
+                                      {row.validation_errors?.length || 0} Errors
+                                    </span>
+                                    {/* Tooltip implementation */}
+                                    <div className="invisible group-hover:visible absolute right-0 bottom-full mb-2 w-56 bg-gray-900 text-white text-[10px] rounded-lg p-3 z-50 shadow-2xl border border-white/10 text-left">
+                                      <ul className="space-y-1.5">
+                                        {row.validation_errors?.map((err, idx) => (
+                                          <li key={idx} className="flex gap-2">
+                                            <span className="text-red-400 font-black">!</span> {err}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                      <div className="absolute -bottom-1 right-4 w-2 h-2 bg-gray-900 rotate-45 border-r border-b border-white/10"></div>
                                     </div>
                                     <button 
                                       onClick={() => startEditStagingRow(row)}
-                                      className="text-[9px] font-bold text-sparknode-purple hover:underline"
+                                      className="block mt-1 ml-auto text-[9px] font-bold text-sparknode-purple hover:underline"
                                     >
-                                      Edit Details
+                                      Fix Record
                                     </button>
                                   </div>
                                 )}
@@ -689,11 +689,11 @@ export default function Users() {
                         </button>
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {['first_name', 'last_name', 'email', 'corporate_email', 'department_name', 'org_role', 'mobile_number', 'manager_email'].map(field => (
+                        {['raw_full_name', 'raw_email', 'raw_department', 'raw_role', 'raw_mobile_phone', 'manager_email'].map(field => (
                           <div key={field}>
-                            <label className="text-[10px] font-black text-gray-500 uppercase ml-1 mb-1 block tracking-widest">{field.replace('_', ' ')}</label>
+                            <label className="text-[10px] font-black text-gray-500 uppercase ml-1 mb-1 block tracking-widest">{field.replace('raw_', '').replace('_', ' ')}</label>
                             <input
-                              className="w-full bg-[#334155] border-none rounded-xl text-sm text-white focus:ring-2 focus:ring-sparknode-purple placeholder-gray-500 py-2 px-3"
+                              className="w-full bg-[#334155] border-none rounded-xl text-sm text-white focus:ring-2 focus:ring-sparknode-purple placeholder-gray-500 py-2.5 px-3"
                               value={stagingForm[field] || ''}
                               onChange={(e) => setStagingForm({ ...stagingForm, [field]: e.target.value })}
                             />

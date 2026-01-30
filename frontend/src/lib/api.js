@@ -75,13 +75,13 @@ export const usersAPI = {
   uploadBulk: (file) => {
     const formData = new FormData()
     formData.append('file', file)
-    return api.post('/users/bulk/upload', formData, {
+    return api.post('/users/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
   },
-  getStaging: (batchId) => api.get('/users/bulk/staging', { params: { batch_id: batchId } }),
-  updateStagingRow: (rowId, data) => api.patch(`/users/bulk/staging/${rowId}`, data),
-  confirmBulk: (payload) => api.post('/users/bulk/confirm', payload),
+  getStaging: (batchId) => api.get(`/users/staging/${batchId}`),
+  updateStagingRow: (rowId, data) => api.patch(`/users/staging/row/${rowId}`, data),
+  confirmBulk: (batchId, payload) => api.post(`/users/staging/${batchId}/confirm`, payload),
   bulkDeactivate: (payload) => api.post('/users/bulk/deactivate', payload),
   bulkReactivate: (payload) => api.post('/users/bulk/reactivate', payload),
   bulkResendInvites: (payload) => api.post('/users/bulk/resend-invites', payload),
