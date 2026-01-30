@@ -157,7 +157,9 @@ export const notificationsAPI = {
 export const tenantsAPI = {
   getCurrent: () => api.get('/tenants/current'),
   updateCurrent: (data) => api.put('/tenants/current', data),
-  getDepartments: () => api.get('/tenants/departments'),
+  getDepartments: (tenantId) => api.get('/tenants/departments', { 
+    headers: tenantId ? { 'X-Tenant-ID': tenantId } : {} 
+  }),
   createDepartment: (data) => api.post('/tenants/departments', data),
   updateDepartment: (id, data) => api.put(`/tenants/departments/${id}`, data),
   deleteDepartment: (id) => api.delete(`/tenants/departments/${id}`),

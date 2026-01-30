@@ -41,7 +41,7 @@ export default function Users() {
   const [filterStatus, setFilterStatus] = useState('')
   
   const queryClient = useQueryClient()
-  const { isHRAdmin } = useAuthStore()
+  const { isHRAdmin, tenantContext } = useAuthStore()
 
   const { data: users, isLoading } = useQuery({
     queryKey: ['users', { department_id: filterDepartment || undefined, status: filterStatus || undefined }],
@@ -52,17 +52,19 @@ export default function Users() {
   })
 
   const { data: departments, isLoading: loadingDepartments } = useQuery({
-    queryKey: ['departments'],
-    queryFn: () => tenantsAPI.getDepartments(),
+    queryKey: ['departments', tenantContext?.tenant_id],
+    queryFn: () => tenantsAPI.getDepartments(tenantContext?.tenant_id),
   })
 
   // Normalize departments response: some endpoints return the array directly,
   // others return an object like { data: [...] }.
-  const deptList = departments?.data && Array.isArray(departments.data)
-    ? departments.data
-    : (departments?.data?.data && Array.isArray(departments.data.data))
-      ? departments.data.data
-      : (Array.isArray(departments) ? departments : [])
+  const deptList = Array.isArray(departments)
+    ? departments
+    : (departments?.data && Array.isArray(departments.data))
+      ? departments.data
+      : (departments?.data?.data && Array.isArray(departments.data.data))
+        ? departments.data.data
+        : []
 
   const createMutation = useMutation({
     mutationFn: (data) => usersAPI.create(data),

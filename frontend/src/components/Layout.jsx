@@ -43,6 +43,7 @@ export default function Layout() {
   const [selectorOpen, setSelectorOpen] = useState(false)
   const [tenantSearch, setTenantSearch] = useState('')
   const [profileOpen, setProfileOpen] = useState(false)
+  const [personaCollapsed, setPersonaCollapsed] = useState(false)
   const {
     user,
     logout,
@@ -341,31 +342,42 @@ export default function Layout() {
 
       {isPlatformUser && (
         <div className="fixed bottom-6 right-6 z-50">
-          <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-44">
-            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Persona</div>
-            <div className="space-y-2">
-              {[
-                { value: 'tenant_admin', label: 'Tenant Admin', color: 'bg-sparknode-purple text-white' },
-                { value: 'tenant_lead', label: 'Tenant Leader', color: 'bg-sparknode-blue text-white' },
-                { value: 'corporate_user', label: 'Corporate User', color: 'bg-sparknode-green text-white' },
-              ].map((persona) => (
+          <div className="bg-gradient-to-br from-sparknode-purple/5 to-sparknode-purple/10 border border-sparknode-purple/20 rounded-lg shadow-lg w-36">
+            <button
+              onClick={() => setPersonaCollapsed(!personaCollapsed)}
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-t-lg hover:bg-sparknode-purple/10 transition-colors border-b border-sparknode-purple/10"
+            >
+              <span className="text-[8px] font-black text-sparknode-purple uppercase tracking-wider">Persona</span>
+              <span className={`text-sparknode-purple transition-transform duration-200 text-xs ${personaCollapsed ? 'rotate-180' : ''}`}>
+                ▼
+              </span>
+            </button>
+            
+            {!personaCollapsed && (
+              <div className="p-1.5 space-y-1">
+                {[
+                  { value: 'tenant_admin', label: 'Tenant Admin', color: 'bg-sparknode-purple text-white' },
+                  { value: 'tenant_lead', label: 'Tenant Leader', color: 'bg-sparknode-blue text-white' },
+                  { value: 'corporate_user', label: 'Corporate User', color: 'bg-sparknode-green text-white' },
+                ].map((persona) => (
+                  <button
+                    key={persona.value}
+                    onClick={() => setPersonaRole(persona.value)}
+                    className={`px-1.5 py-0.5 rounded text-[8px] font-bold transition-colors ${
+                      effectiveRole === persona.value ? persona.color : 'bg-sparknode-purple/15 text-sparknode-purple hover:bg-sparknode-purple/25'
+                    }`}
+                  >
+                    {persona.label}
+                  </button>
+                ))}
                 <button
-                  key={persona.value}
-                  onClick={() => setPersonaRole(persona.value)}
-                  className={`w-full text-left px-2 py-1.5 rounded-md text-[11px] font-medium ${
-                    effectiveRole === persona.value ? persona.color : 'bg-gray-100 text-gray-600'
-                  }`}
+                  onClick={clearPersonaRole}
+                  className="px-1.5 py-0.5 rounded text-[7px] font-bold bg-sparknode-purple/20 text-sparknode-purple hover:bg-sparknode-purple/30 transition-colors"
                 >
-                  {persona.label}
+                  Reset
                 </button>
-              ))}
-              <button
-                onClick={clearPersonaRole}
-                className="w-full text-left px-2 py-1.5 rounded-md text-[10px] font-medium bg-gray-50 text-gray-500"
-              >
-                Reset to Platform Admin
-              </button>
-            </div>
+              </div>
+            )}
           </div>
         </div>
       )}
