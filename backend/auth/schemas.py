@@ -27,6 +27,7 @@ class LoginRequest(BaseModel):
 class UserResponse(BaseModel):
     id: UUID
     tenant_id: Optional[UUID] = None
+    tenant_name: Optional[str] = None
     corporate_email: str
     personal_email: Optional[str] = None
     first_name: str

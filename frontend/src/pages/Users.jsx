@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usersAPI, tenantsAPI } from '../lib/api'
 import { useAuthStore } from '../store/authStore'
@@ -51,9 +51,13 @@ export default function Users() {
     }),
   })
 
-  const { data: departments, isLoading: loadingDepartments } = useQuery({
+  // Get departments - only if we have a valid tenant context
+  const isValidTenant = tenantContext?.tenant_id && tenantContext.tenant_id !== '00000000-0000-0000-0000-000000000000'
+  
+  const { data: departments, isLoading: loadingDepartments, error: deptError } = useQuery({
     queryKey: ['departments', tenantContext?.tenant_id],
-    queryFn: () => tenantsAPI.getDepartments(tenantContext?.tenant_id),
+    queryFn: () => tenantsAPI.getDepartments(),
+    enabled: isValidTenant || tenantContext?.tenant_name === 'root_tenant_sparknode', // Allow root_tenant_sparknode
   })
 
   // Normalize departments response: some endpoints return the array directly,
@@ -65,6 +69,26 @@ export default function Users() {
       : (departments?.data?.data && Array.isArray(departments.data.data))
         ? departments.data.data
         : []
+
+  // DEBUG: Log to see what's happening
+  useEffect(() => {
+    if (Array.isArray(departments) && departments.length > 0) {
+      console.log('[DEPTS] Got array:', departments)
+    } else if (departments?.data) {
+      console.log('[DEPTS] Got axios response with data:', {
+        dataLength: departments.data?.length,
+        data: departments.data
+      })
+    }
+    if (deptList.length > 0) {
+      console.log('[DEPT LIST] Has', deptList.length, 'departments:', deptList)
+    } else {
+      console.log('[DEPT LIST] Empty:', deptList)
+    }
+    if (deptError) {
+      console.error('[DEPT ERROR]', deptError)
+    }
+  }, [departments, deptList, deptError])
 
   const createMutation = useMutation({
     mutationFn: (data) => usersAPI.create(data),

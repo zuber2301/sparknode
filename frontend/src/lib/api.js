@@ -22,8 +22,21 @@ api.interceptors.request.use(
     }
     
     // Add tenant context header for explicit tenant isolation
-    if (tenantId) {
+    // But only if it's a valid UUID (not the zero/null UUID)
+    if (tenantId && tenantId !== '00000000-0000-0000-0000-000000000000') {
       config.headers['X-Tenant-ID'] = tenantId
+    }
+    
+    // DEBUG: Log department requests
+    if (config.url.includes('departments')) {
+      console.log('[API] Departments request:', {
+        url: config.url,
+        user: state.user,
+        tenantContext: state.tenantContext,
+        tenantId: tenantId,
+        'X-Tenant-ID': config.headers['X-Tenant-ID'],
+        isSent: !!config.headers['X-Tenant-ID']
+      })
     }
     
     return config
@@ -157,9 +170,7 @@ export const notificationsAPI = {
 export const tenantsAPI = {
   getCurrent: () => api.get('/tenants/current'),
   updateCurrent: (data) => api.put('/tenants/current', data),
-  getDepartments: (tenantId) => api.get('/tenants/departments', { 
-    headers: tenantId ? { 'X-Tenant-ID': tenantId } : {} 
-  }),
+  getDepartments: () => api.get('/tenants/departments'),
   createDepartment: (data) => api.post('/tenants/departments', data),
   updateDepartment: (id, data) => api.put(`/tenants/departments/${id}`, data),
   deleteDepartment: (id) => api.delete(`/tenants/departments/${id}`),

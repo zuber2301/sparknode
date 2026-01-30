@@ -189,7 +189,19 @@ export const useAuthStore = create(
       // Tenant context helpers
       getTenantId: () => {
         const { tenantContext, user } = get()
-        return tenantContext?.tenant_id || user?.tenant_id
+        const zeroUUID = '00000000-0000-0000-0000-000000000000'
+        
+        // Prefer tenantContext if it has a valid (non-zero) tenant_id
+        if (tenantContext?.tenant_id && tenantContext.tenant_id !== zeroUUID) {
+          return tenantContext.tenant_id
+        }
+        
+        // Fall back to user's tenant_id (even if it's the zero UUID for system admin)
+        if (user?.tenant_id) {
+          return user.tenant_id
+        }
+        
+        return null
       },
 
       getTenantName: () => {

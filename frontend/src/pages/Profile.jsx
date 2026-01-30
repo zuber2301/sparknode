@@ -1,10 +1,10 @@
 import { useAuthStore } from '../store/authStore'
 import { useQuery } from '@tanstack/react-query'
 import { walletsAPI, recognitionAPI } from '../lib/api'
-import { HiOutlineUser, HiOutlineMail, HiOutlineBriefcase, HiOutlinePhone } from 'react-icons/hi'
+import { HiOutlineUser, HiOutlineMail, HiOutlineBriefcase, HiOutlinePhone, HiOutlineOfficeBuilding } from 'react-icons/hi'
 
 export default function Profile() {
-  const { user } = useAuthStore()
+  const { user, tenantContext } = useAuthStore()
 
   const { data: wallet } = useQuery({
     queryKey: ['myWallet'],
@@ -77,6 +77,24 @@ export default function Profile() {
             <div>
               <p className="text-sm text-gray-500">Status</p>
               <p className="font-medium capitalize">{user?.status}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+              <HiOutlineOfficeBuilding className="w-5 h-5 text-gray-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Tenant Name</p>
+              <p className="font-medium">{tenantContext?.tenant_name || user?.tenant_name || 'Not assigned'}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+              <HiOutlineBriefcase className="w-5 h-5 text-gray-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Tenant ID</p>
+              <p className="font-medium text-xs break-all">{tenantContext?.tenant_id || user?.tenant_id || 'Not assigned'}</p>
             </div>
           </div>
         </div>

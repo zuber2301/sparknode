@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { useQuery } from '@tanstack/react-query'
@@ -44,6 +44,7 @@ export default function Layout() {
   const [tenantSearch, setTenantSearch] = useState('')
   const [profileOpen, setProfileOpen] = useState(false)
   const [personaCollapsed, setPersonaCollapsed] = useState(false)
+  const profileRef = useRef(null)
   const {
     user,
     logout,
@@ -56,6 +57,20 @@ export default function Layout() {
     isPlatformOwner,
   } = useAuthStore()
   const navigate = useNavigate()
+
+  // Close profile dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setProfileOpen(false)
+      }
+    }
+
+    if (profileOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [profileOpen])
 
   const { data: notificationCount } = useQuery({
     queryKey: ['notificationCount'],
@@ -298,16 +313,29 @@ export default function Layout() {
             </button>
 
             {/* Profile dropdown */}
-            <div className="relative">
+            <div className="relative" ref={profileRef}>
               <button
                 onClick={() => setProfileOpen(!profileOpen)}
-                className="p-2 rounded-lg hover:bg-gray-100"
+                className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100"
               >
                 <HiOutlineUser className="w-6 h-6 text-gray-600" />
+                <span className="hidden sm:inline text-sm text-gray-700 font-medium">
+                  {user?.first_name} {user?.last_name}
+                </span>
               </button>
               {profileOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50">
                   <div className="px-4 py-3 border-b border-gray-100">
+                    {tenantContext?.tenant_name && (
+                      <>
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                          Tenant
+                        </p>
+                        <p className="text-sm font-medium text-gray-900 mb-3">
+                          {tenantContext.tenant_name}
+                        </p>
+                      </>
+                    )}
                     <p className="text-sm font-medium text-gray-900">
                       {user?.first_name} {user?.last_name}
                     </p>
@@ -316,12 +344,19 @@ export default function Layout() {
                     </p>
                   </div>
                   <div className="p-2">
-                    <NavLink to="/profile" className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+                    <NavLink 
+                      to="/profile" 
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
+                    >
                       <HiOutlineUser className="w-4 h-4" />
                       Profile
                     </NavLink>
                     <button
-                      onClick={handleLogout}
+                      onClick={() => {
+                        handleLogout()
+                        setProfileOpen(false)
+                      }}
                       className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50"
                     >
                       <HiOutlineLogout className="w-4 h-4" />

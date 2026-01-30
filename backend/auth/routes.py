@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from datetime import timedelta, datetime
 
 from database import get_db
-from models import User
+from models import User, Tenant
 from config import settings
 from auth.schemas import (
     Token,
@@ -94,6 +94,10 @@ async def login(
             )
 
         # Regular tenant user login
+        # Get tenant name
+        tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+        tenant_name = tenant.name if tenant else None
+        
         access_token = create_access_token(
             data={
                 "sub": str(user.id),
@@ -111,6 +115,7 @@ async def login(
             user=UserResponse(
                 id=user.id,
                 tenant_id=user.tenant_id,
+                tenant_name=tenant_name,
                 corporate_email=user.corporate_email,
                 first_name=user.first_name,
                 last_name=user.last_name,
