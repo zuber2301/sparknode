@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { HiOutlinePlus, HiOutlineSearch, HiOutlineOfficeBuilding } from 'react-icons/hi'
+import { HiOutlinePlus, HiOutlineSearch, HiOutlineOfficeBuilding, HiOutlineDotsVertical } from 'react-icons/hi'
 import { platformAPI } from '../lib/api'
 import { useAuthStore } from '../store/authStore'
 
@@ -10,6 +10,10 @@ export default function PlatformTenants() {
   const { isPlatformOwner } = useAuthStore()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showFlagsModal, setShowFlagsModal] = useState(false)
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [showAddUserModal, setShowAddUserModal] = useState(false)
+  const [openMenuId, setOpenMenuId] = useState(null)
   const [selectedTenant, setSelectedTenant] = useState(null)
   const [featureFlagsValue, setFeatureFlagsValue] = useState('{}')
   const [searchQuery, setSearchQuery] = useState('')
@@ -110,6 +114,11 @@ export default function PlatformTenants() {
     setShowFlagsModal(true)
   }
 
+  const handleOpenDetails = (tenant) => {
+    setSelectedTenant(tenant)
+    setShowDetailsModal(true)
+  }
+
   const handleSaveFlags = (e) => {
     e.preventDefault()
     try {
@@ -207,10 +216,13 @@ export default function PlatformTenants() {
                 {tenants.map((tenant) => (
                   <tr key={tenant.id} className="hover:bg-gray-50">
                     <td className="px-4 py-4">
-                      <div>
-                        <p className="font-medium text-gray-900">{tenant.name}</p>
+                      <button
+                        onClick={() => handleOpenDetails(tenant)}
+                        className="text-left hover:text-sparknode-purple transition-colors"
+                      >
+                        <p className="font-medium text-gray-900 hover:underline">{tenant.name}</p>
                         <p className="text-sm text-gray-500">{tenant.domain || tenant.slug || '-'}</p>
-                      </div>
+                      </button>
                     </td>
                     <td className="px-4 py-4">
                       <span className={`badge ${tenant.status === 'active' ? 'badge-success' : tenant.status === 'suspended' ? 'badge-error' : 'badge-warning'}`}>
@@ -219,28 +231,57 @@ export default function PlatformTenants() {
                     </td>
                     <td className="px-4 py-4 text-gray-600 capitalize">{tenant.subscription_tier || 'free'}</td>
                     <td className="px-4 py-4 text-gray-600">{tenant.user_count ?? 0}</td>
-                    <td className="px-4 py-4 text-right space-x-3">
-                      <button
-                        onClick={() => handleOpenFlags(tenant)}
-                        className="text-sparknode-purple hover:text-sparknode-purple/80 font-medium text-sm"
-                      >
-                        Flags
-                      </button>
-                      {tenant.status === 'suspended' ? (
+                    <td className="px-4 py-4 text-right">
+                      <div className="relative inline-block">
                         <button
-                          onClick={() => activateMutation.mutate(tenant.id)}
-                          className="text-green-600 hover:text-green-700 font-medium text-sm"
+                          onClick={() => setOpenMenuId(openMenuId === tenant.id ? null : tenant.id)}
+                          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
                         >
-                          Activate
+                          <HiOutlineDotsVertical className="w-5 h-5 text-gray-600" />
                         </button>
-                      ) : (
-                        <button
-                          onClick={() => handleSuspend(tenant)}
-                          className="text-red-600 hover:text-red-700 font-medium text-sm"
-                        >
-                          Suspend
-                        </button>
-                      )}
+                        {openMenuId === tenant.id && (
+                          <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-40">
+                            <button
+                              onClick={() => {
+                                setSelectedTenant(tenant)
+                                setShowEditModal(true)
+                                setOpenMenuId(null)
+                              }}
+                              className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 first:rounded-t-lg"
+                            >
+                              Edit Tenant
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedTenant(tenant)
+                                setShowAddUserModal(true)
+                                setOpenMenuId(null)
+                              }}
+                              className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700"
+                            >
+                              Add a User
+                            </button>
+                            <button
+                              onClick={() => {
+                                handleSuspend(tenant)
+                                setOpenMenuId(null)
+                              }}
+                              className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700"
+                            >
+                              {tenant.status === 'suspended' ? 'Activate' : 'Suspend'}
+                            </button>
+                            <button
+                              onClick={() => {
+                                handleOpenFlags(tenant)
+                                setOpenMenuId(null)
+                              }}
+                              className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 last:rounded-b-lg"
+                            >
+                              Feature Flags
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -372,6 +413,214 @@ export default function PlatformTenants() {
                   className="btn-primary flex-1"
                 >
                   {updateFlagsMutation.isPending ? 'Saving...' : 'Save Flags'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showDetailsModal && selectedTenant && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-semibold mb-1">{selectedTenant.name}</h2>
+            <p className="text-sm text-gray-500 mb-6">ID: {selectedTenant.id}</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              {/* Basic Info */}
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase">Slug</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedTenant.slug || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase">Domain</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedTenant.domain || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase">Status</p>
+                  <span className={`inline-block badge ${selectedTenant.status === 'active' ? 'badge-success' : selectedTenant.status === 'suspended' ? 'badge-error' : 'badge-warning'}`}>
+                    {selectedTenant.status}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase">Subscription Tier</p>
+                  <p className="text-sm font-medium text-gray-900 capitalize">{selectedTenant.subscription_tier || 'Free'}</p>
+                </div>
+              </div>
+
+              {/* Usage & Limits */}
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase">Users</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedTenant.user_count ?? 0}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase">Max Users</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedTenant.max_users || 'Unlimited'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase">Master Budget Balance</p>
+                  <p className="text-sm font-medium text-gray-900">${selectedTenant.master_budget_balance?.toFixed(2) || '0.00'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase">Created</p>
+                  <p className="text-sm font-medium text-gray-900">{new Date(selectedTenant.created_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Feature Flags Preview */}
+            {selectedTenant.feature_flags && Object.keys(selectedTenant.feature_flags).length > 0 && (
+              <div className="mb-6 border-t border-gray-200 pt-6">
+                <p className="text-sm font-semibold text-gray-700 mb-3">Feature Flags</p>
+                <div className="bg-gray-50 rounded-lg p-4 font-mono text-xs max-h-[200px] overflow-y-auto">
+                  <pre>{JSON.stringify(selectedTenant.feature_flags, null, 2)}</pre>
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="border-t border-gray-200 pt-4 flex gap-3">
+              <button
+                onClick={() => handleOpenFlags(selectedTenant)}
+                className="flex-1 btn-secondary"
+              >
+                Edit Feature Flags
+              </button>
+              {selectedTenant.status === 'suspended' ? (
+                <button
+                  onClick={() => {
+                    activateMutation.mutate(selectedTenant.id)
+                    setShowDetailsModal(false)
+                  }}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg"
+                >
+                  Activate
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    handleSuspend(selectedTenant)
+                    setShowDetailsModal(false)
+                  }}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg"
+                >
+                  Suspend
+                </button>
+              )}
+              <button
+                onClick={() => setShowDetailsModal(false)}
+                className="flex-1 btn-secondary"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Tenant Modal */}
+      {showEditModal && selectedTenant && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-semibold mb-4">Edit Tenant: {selectedTenant.name}</h2>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Tenant Name</label>
+                  <input type="text" className="input" defaultValue={selectedTenant.name} readOnly />
+                </div>
+                <div>
+                  <label className="label">Slug</label>
+                  <input type="text" className="input" defaultValue={selectedTenant.slug || ''} readOnly />
+                </div>
+                <div>
+                  <label className="label">Domain</label>
+                  <input type="text" className="input" defaultValue={selectedTenant.domain || ''} readOnly />
+                </div>
+                <div>
+                  <label className="label">Subscription Tier</label>
+                  <select className="input" defaultValue={selectedTenant.subscription_tier || 'free'}>
+                    <option value="free">Free</option>
+                    <option value="starter">Starter</option>
+                    <option value="professional">Professional</option>
+                    <option value="enterprise">Enterprise</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Max Users</label>
+                  <input type="number" className="input" defaultValue={selectedTenant.max_users || 50} min="1" />
+                </div>
+                <div>
+                  <label className="label">Master Budget Balance</label>
+                  <input type="number" className="input" defaultValue={selectedTenant.master_budget_balance || 0} min="0" step="0.01" />
+                </div>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="btn-secondary flex-1"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn-primary flex-1"
+                  disabled
+                >
+                  Save Changes (Coming Soon)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add User Modal */}
+      {showAddUserModal && selectedTenant && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full">
+            <h2 className="text-xl font-semibold mb-2">Add User to {selectedTenant.name}</h2>
+            <p className="text-sm text-gray-500 mb-4">Create a new user for this tenant.</p>
+            <form className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="label">First Name</label>
+                  <input type="text" className="input" required />
+                </div>
+                <div>
+                  <label className="label">Last Name</label>
+                  <input type="text" className="input" required />
+                </div>
+                <div>
+                  <label className="label">Email</label>
+                  <input type="email" className="input" required />
+                </div>
+                <div>
+                  <label className="label">Role</label>
+                  <select className="input" required>
+                    <option value="">Select a role</option>
+                    <option value="tenant_admin">Tenant Admin</option>
+                    <option value="hr_admin">HR Admin</option>
+                    <option value="manager">Manager</option>
+                    <option value="employee">Employee</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowAddUserModal(false)}
+                  className="btn-secondary flex-1"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary flex-1"
+                  disabled
+                >
+                  Add User (Coming Soon)
                 </button>
               </div>
             </form>
