@@ -125,7 +125,7 @@ export default function PlatformTenants() {
       <div className="card text-center py-12">
         <HiOutlineOfficeBuilding className="w-16 h-16 mx-auto mb-4 text-gray-300" />
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Restricted</h2>
-        <p className="text-gray-500">Only Perksu Admins can manage tenants.</p>
+        <p className="text-gray-500">Only Sparknode Admins can manage tenants.</p>
       </div>
     )
   }

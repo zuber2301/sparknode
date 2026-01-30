@@ -628,7 +628,7 @@ INSERT INTO vouchers (brand_id, name, description, denomination, points_required
 
 -- Insert demo tenant
 INSERT INTO tenants (id, name, domain, status) VALUES
-('550e8400-e29b-41d4-a716-446655440000', 'Demo Company', 'demo.perksu.com', 'active');
+('550e8400-e29b-41d4-a716-446655440000', 'Demo Company', 'demo.sparknode.com', 'active');
 
 -- Insert root tenant (jSpark)
 INSERT INTO tenants (id, name, slug, domain, status, subscription_tier, master_budget_balance) VALUES

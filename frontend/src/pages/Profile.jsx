@@ -16,6 +16,16 @@ export default function Profile() {
     queryFn: () => recognitionAPI.getMyStats(),
   })
 
+  const getRoleDisplayName = (role) => {
+    const roles = {
+      'platform_admin': 'Platform Admin',
+      'tenant_admin': 'Tenant Admin',
+      'tenant_lead': 'Tenant Leader',
+      'corporate_user': 'Corporate User'
+    };
+    return roles[role] || (role ? role.replace('_', ' ') : 'Employee');
+  };
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Profile Header */}
@@ -26,7 +36,7 @@ export default function Profile() {
         <h1 className="text-2xl font-bold text-gray-900">
           {user?.first_name} {user?.last_name}
         </h1>
-        <p className="text-gray-500 capitalize">{user?.org_role === 'platform_admin' ? 'Perksu Admin' : user?.org_role?.replace('_', ' ')}</p>
+        <p className="text-gray-500">{getRoleDisplayName(user?.org_role)}</p>
       </div>
 
       {/* Contact Info */}
@@ -57,7 +67,7 @@ export default function Profile() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Role</p>
-              <p className="font-medium capitalize">{user?.org_role === 'platform_admin' ? 'Perksu Admin' : user?.org_role?.replace('_', ' ')}</p>
+              <p className="font-medium">{getRoleDisplayName(user?.org_role)}</p>
             </div>
           </div>
           <div className="flex items-center gap-4">

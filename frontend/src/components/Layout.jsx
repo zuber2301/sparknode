@@ -90,6 +90,19 @@ export default function Layout() {
   const contextName = tenantContext?.tenant_name || (isPlatformUser ? 'All Tenants' : '—')
   const contextId = tenantContext?.tenant_id ? tenantContext.tenant_id : '—'
 
+  const getRoleDisplayName = (role) => {
+    const roles = {
+      platform_admin: 'Platform Admin',
+      tenant_admin: 'Tenant Admin',
+      tenant_lead: 'Tenant Leader',
+      corporate_user: 'Corporate User',
+      hr_admin: 'Tenant Admin',
+      manager: 'Tenant Leader',
+      employee: 'Corporate User',
+    }
+    return roles[role] || role?.replace('_', ' ') || ''
+  }
+
   useEffect(() => {
     if (!isPlatformUser || !tenants.length) return
     if (tenantContext?.tenant_id) return
@@ -234,8 +247,8 @@ export default function Layout() {
                 <p className="text-sm font-medium text-gray-900 truncate">
                   {user?.first_name} {user?.last_name}
                 </p>
-                <p className="text-xs text-gray-500 truncate capitalize">
-                  {effectiveRole === 'platform_admin' ? 'Perksu Admin' : effectiveRole?.replace('_', ' ')}
+                <p className="text-xs text-gray-500 truncate">
+                  {getRoleDisplayName(effectiveRole)}
                 </p>
               </div>
             </div>
@@ -297,8 +310,8 @@ export default function Layout() {
                     <p className="text-sm font-medium text-gray-900">
                       {user?.first_name} {user?.last_name}
                     </p>
-                    <p className="text-xs text-gray-500 capitalize">
-                      {effectiveRole === 'platform_admin' ? 'Perksu Admin' : effectiveRole?.replace('_', ' ')}
+                    <p className="text-xs text-gray-500">
+                      {getRoleDisplayName(effectiveRole)}
                     </p>
                   </div>
                   <div className="p-2">

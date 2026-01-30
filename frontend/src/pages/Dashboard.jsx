@@ -40,7 +40,7 @@ export default function Dashboard() {
             {tenantContext?.tenant_name || 'All Tenants'} Dashboard
           </h1>
           <p className="text-white/80">
-            Perksu Admin view with context-aware tenant insights.
+            Sparknode Admin view with context-aware tenant insights.
           </p>
         </div>
 

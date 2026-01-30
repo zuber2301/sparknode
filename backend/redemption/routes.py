@@ -232,7 +232,7 @@ async def create_redemption(
     redemption.status = 'completed'
     redemption.fulfilled_at = datetime.utcnow()
     redemption.expires_at = datetime.utcnow() + timedelta(days=voucher.validity_days)
-    redemption.provider_reference = f"PERKSU-{secrets.token_hex(8).upper()}"
+    redemption.provider_reference = f"SPARKNODE-{secrets.token_hex(8).upper()}"
     
     # Update stock
     if voucher.stock_quantity is not None:
