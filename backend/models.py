@@ -266,39 +266,31 @@ class OtpToken(Base):
 
 class UserUploadStaging(Base):
     __tablename__ = "user_upload_staging"
-
+    
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
     batch_id = Column(UUID(as_uuid=True), nullable=False)
-    full_name = Column(String(255), nullable=False)
-    email = Column(String(255), nullable=False)
-    department_name = Column(String(255))
-    org_role = Column(String(50))
+    # raw_ fields as requested
+    raw_full_name = Column(String(255), nullable=True)
+    raw_email = Column(String(255), nullable=True)
+    raw_department = Column(String(255), nullable=True)
+    raw_role = Column(String(50), nullable=True)
+    raw_mobile_phone = Column(String(20), nullable=True)
+    
     manager_email = Column(String(255))
     first_name = Column(String(100))
     last_name = Column(String(100))
     corporate_email = Column(String(255))
     personal_email = Column(String(255))
-    phone_number = Column(String(20))
-    mobile_number = Column(String(20))
-    date_of_birth = Column(String(50))  # Stored as string in staging for parsing flexibility
-    hire_date = Column(String(50))      # Stored as string in staging
+    date_of_birth = Column(String(50))
+    hire_date = Column(String(50))
     department_id = Column(UUID(as_uuid=True))
     manager_id = Column(UUID(as_uuid=True))
+    is_valid = Column(Boolean, default=False)
+    validation_errors = Column(JSONB, default=list)
     status = Column(String(50), default="pending")
-    errors = Column(JSONB, default=list)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-    @property
-    def role(self):
-        return self.org_role
-
-    @role.setter
-    def role(self, value):
-        self.org_role = value
-
-
 class Budget(Base):
     __tablename__ = "budgets"
     

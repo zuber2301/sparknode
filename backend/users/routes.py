@@ -5,185 +5,106 @@ from typing import List, Optional
 from uuid import UUID, uuid4
 import io
 import pandas as pd
+import secrets
+import string
 from email_validator import validate_email, EmailNotValidError
 from datetime import datetime
 
-def try_parse_date(date_str):
-    if not date_str or str(date_str).lower() in ('nan', 'none', ''):
-        return None
-    
-    # Handle direct date objects (from pandas if it already parsed it)
-    if isinstance(date_str, (datetime, date)):
-        return date_str.date() if isinstance(date_str, datetime) else date_str
-
-    for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%d-%m-%Y', '%Y/%m/%d'):
-        try:
-            return datetime.strptime(str(date_str).strip(), fmt).date()
-        except (ValueError, TypeError):
-            pass
-    return None
-
+import re
 from database import get_db
-from models import User, Wallet, WalletLedger, AuditLog, Department, Tenant, UserUploadStaging
-from auth.utils import get_current_user, get_hr_admin, get_password_hash, verify_password
+from models import User, Tenant, Department, UserUploadStaging, Wallet
+from auth.utils import get_current_user, get_hr_admin, get_password_hash
 from users.schemas import (
     UserCreate,
-    UserUpdate,
-    UserPatch,
     UserResponse,
     UserListResponse,
-    PasswordChange,
     BulkUploadResponse,
     StagingRowResponse,
     BulkConfirmRequest,
     BulkActionRequest,
     BulkResendRequest,
     StagingRowUpdate,
-    VALID_ROLES
+    VALID_ROLES,
+    UserPatch
 )
 from core.tasks import send_invite_email_task
-from core import append_impersonation_metadata
 
 router = APIRouter()
 
+def generate_random_password(length=12):
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
 
-def get_allowed_roles(tenant: Tenant) -> List[str]:
-    return tenant.settings.get("allowed_roles", VALID_ROLES)
-
+def clean_mobile(mobile):
+    if not mobile: return ""
+    mobile = str(mobile).replace('.0', '').replace(' ', '').strip()
+    mobile = "".join(c for c in mobile if c.isdigit() or c == '+')
+    if len(mobile) == 10 and mobile.isdigit():
+        mobile = f"+91{mobile}"
+    return mobile
 
 def validate_staging_row(
     db: Session,
     tenant_id: UUID,
-    allowed_roles: set,
     email: str,
     department_name: str,
     role: str,
     manager_email: str,
     full_name: str = "",
-    first_name: str = "",
-    last_name: str = "",
-    mobile_number: str = "",
-    phone_number: str = "",
-    personal_email: str = ""
+    mobile_number: str = ""
 ):
     errors = []
-    import re
-
-    if not first_name and not last_name and not full_name:
-        errors.append("First Name/Last Name are required")
     
-    # Work Email Validation
+    if not full_name:
+        errors.append("Full Name is required")
+    
     if not email:
-        errors.append("Email is required")
+        errors.append("Work Email is required")
     else:
         try:
             validate_email(email)
         except EmailNotValidError:
-            errors.append("Invalid Email Format")
+            errors.append("Invalid Work Email format")
 
-    # Personal Email Validation
-    if personal_email:
-        try:
-            validate_email(personal_email)
-        except EmailNotValidError:
-            errors.append("Invalid Personal Email Format")
-
-    if not department_name or not str(department_name).strip():
-        errors.append("Department is required")
-
-    if role and role not in allowed_roles:
-        errors.append(f"Invalid Role: {role}")
-
-    # Mobile validation matching screenshot requirement
-    if mobile_number:
-        # Normalize: remove .0 from excel floats, remove spaces
-        norm_mobile = str(mobile_number).replace(".0", "").replace(" ", "").strip()
-        if not re.match(r"^\+91[6-9]\d{9}$", norm_mobile):
-            # Try to auto-fix if it's 10 digits
-            if re.match(r"^[6-9]\d{9}$", norm_mobile):
-                norm_mobile = f"+91{norm_mobile}"
-            elif re.match(r"^91[6-9]\d{9}$", norm_mobile):
-                norm_mobile = f"+{norm_mobile}"
-            else:
-                errors.append("Mobile must follow +91XXXXXXXXXX format")
-        mobile_number = norm_mobile
-
-    department = None
-    if department_name:
-        department = db.query(Department).filter(
-            Department.tenant_id == tenant_id,
-            func.lower(Department.name) == department_name.lower()
-        ).first()
-        if not department:
-            errors.append(f"Department '{department_name}' not found")
-
-    manager = None
-    if manager_email:
-        manager = db.query(User).filter(
-            User.tenant_id == tenant_id,
-            (func.lower(User.corporate_email) == manager_email.lower()) | 
-            (func.lower(User.email) == manager_email.lower())
-        ).first()
-        if not manager:
-            errors.append(f"Manager Email '{manager_email}' not found")
-
-    # Conflict Detection: Work Email or Mobile Number already registered
-    # Phase 2 Implementation as per requirements
-    existing_user = db.query(User).filter(
+    # Conflict check
+    norm_mobile = clean_mobile(mobile_number)
+    existing = db.query(User).filter(
         User.tenant_id == tenant_id,
         (
-            (func.lower(User.corporate_email) == email.lower()) | 
-            (func.lower(User.email) == email.lower()) |
-            ((User.mobile_number == mobile_number) if mobile_number else False)
+            (func.lower(User.email) == email.lower()) | 
+            (func.lower(User.corporate_email) == email.lower()) |
+            ((User.mobile_number == norm_mobile) if norm_mobile else False)
         )
     ).first()
+    
+    if existing:
+        if existing.email.lower() == email.lower() or (existing.corporate_email and existing.corporate_email.lower() == email.lower()):
+            errors.append(f"Email {email} is already in use")
+        elif norm_mobile and existing.mobile_number == norm_mobile:
+            errors.append(f"Mobile {norm_mobile} is already in use")
 
-    if existing_user:
-        if email and (existing_user.email.lower() == email.lower() or (existing_user.corporate_email and existing_user.corporate_email.lower() == email.lower())):
-            errors.append(f"Work email {email} already exists")
-        elif mobile_number and existing_user.mobile_number == mobile_number:
-            errors.append(f"Mobile number {mobile_number} already exists")
+    # Department validation
+    department = None
+    if not department_name or str(department_name).lower() == 'nan':
+        errors.append("Department is required")
+    else:
+        dept_name_clean = str(department_name).strip()
+        department = db.query(Department).filter(
+            Department.tenant_id == tenant_id,
+            func.lower(Department.name) == dept_name_clean.lower()
+        ).first()
+        if not department:
+            errors.append(f"Department '{dept_name_clean}' not found")
 
-    if not first_name or not last_name:
-        name_parts = str(full_name).split()
-        if not first_name:
-            first_name = name_parts[0] if name_parts else ""
-        if not last_name:
-            last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+    if role and role not in VALID_ROLES:
+        errors.append(f"Invalid Role: {role}")
 
     return {
         "errors": errors,
         "department_id": department.id if department else None,
-        "manager_id": manager.id if manager else None,
-        "first_name": first_name,
-        "last_name": last_name,
-        "mobile_number": mobile_number
+        "is_valid": len(errors) == 0,
+        "cleaned_mobile": norm_mobile
     }
-
-
-def get_str_val(row, key, default=""):
-    val = row.get(key)
-    if val is None or str(val).lower() in ('nan', 'none', ''):
-        return default
-    return str(val).strip()
-
-
-async def read_upload_to_dataframe(file: UploadFile) -> pd.DataFrame:
-    content = await file.read()
-    filename = (file.filename or "").lower()
-    if filename.endswith(".xlsx") or filename.endswith(".xls"):
-        return pd.read_excel(io.BytesIO(content))
-    return pd.read_csv(io.BytesIO(content))
-
-
-def normalize_headers(df: pd.DataFrame) -> pd.DataFrame:
-    """Phase 1: Normalize headers to snake_case"""
-    df.columns = [
-        str(col).strip().lower().replace(" ", "_").replace("-", "_") 
-        for col in df.columns
-    ]
-    return df
-
 
 @router.get("/", response_model=List[UserListResponse])
 async def get_users(
@@ -195,19 +116,14 @@ async def get_users(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get all users for current tenant with optional filters"""
     query = db.query(User).filter(User.tenant_id == current_user.tenant_id)
-    
     if department_id:
         query = query.filter(User.department_id == department_id)
     if org_role:
         query = query.filter(User.org_role == org_role)
     if status:
         query = query.filter(func.lower(User.status) == status.lower())
-    
-    users = query.offset(skip).limit(limit).all()
-    return users
-
+    return query.offset(skip).limit(limit).all()
 
 @router.post("/", response_model=UserResponse)
 async def create_user(
@@ -215,17 +131,14 @@ async def create_user(
     current_user: User = Depends(get_hr_admin),
     db: Session = Depends(get_db)
 ):
-    """Create a new user (HR Admin only)"""
-    # Check if email already exists in tenant
     email_to_check = user_data.corporate_email or user_data.email
-    existing_user = db.query(User).filter(
+    existing = db.query(User).filter(
         User.tenant_id == current_user.tenant_id,
         ((User.email == user_data.email) | (User.corporate_email == email_to_check))
     ).first()
-    if existing_user:
+    if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Create user
     user = User(
         tenant_id=current_user.tenant_id,
         email=user_data.email,
@@ -235,8 +148,7 @@ async def create_user(
         first_name=user_data.first_name,
         last_name=user_data.last_name,
         org_role=user_data.org_role,
-        phone_number=user_data.phone_number or user_data.mobile_number,
-        mobile_number=user_data.mobile_number or user_data.phone_number,
+        mobile_number=clean_mobile(user_data.mobile_number),
         department_id=user_data.department_id,
         manager_id=user_data.manager_id,
         date_of_birth=user_data.date_of_birth,
@@ -245,83 +157,11 @@ async def create_user(
     db.add(user)
     db.flush()
     
-    # Create wallet for user
-    wallet = Wallet(
-        tenant_id=current_user.tenant_id,
-        user_id=user.id,
-        balance=0,
-        lifetime_earned=0,
-        lifetime_spent=0
-    )
+    wallet = Wallet(tenant_id=current_user.tenant_id, user_id=user.id, balance=0)
     db.add(wallet)
-    
     db.commit()
     db.refresh(user)
     return user
-
-
-@router.get("/search", response_model=List[UserListResponse])
-async def search_users(
-    q: str = Query(..., min_length=2),
-    limit: int = 10,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Search users by name or email"""
-    search_term = f"%{q}%"
-    users = db.query(User).filter(
-        User.tenant_id == current_user.tenant_id,
-        func.lower(User.status) == 'active',
-        (User.first_name.ilike(search_term) | 
-         User.last_name.ilike(search_term) | 
-         User.email.ilike(search_term))
-    ).limit(limit).all()
-    return users
-
-
-@router.get("/{user_id}", response_model=UserResponse)
-async def get_user(
-    user_id: UUID,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get a specific user"""
-    user = db.query(User).filter(
-        User.id == user_id,
-        User.tenant_id == current_user.tenant_id
-    ).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
-
-
-@router.put("/{user_id}", response_model=UserResponse)
-async def update_user(
-    user_id: UUID,
-    user_data: UserUpdate,
-    current_user: User = Depends(get_hr_admin),
-    db: Session = Depends(get_db)
-):
-    """Update a user (HR Admin only)"""
-    user = db.query(User).filter(
-        User.id == user_id,
-        User.tenant_id == current_user.tenant_id
-    ).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    update_data = user_data.model_dump(exclude_unset=True)
-    if "mobile_number" in update_data and "phone_number" not in update_data:
-        update_data["phone_number"] = update_data.get("mobile_number")
-    if "phone_number" in update_data and "mobile_number" not in update_data:
-        update_data["mobile_number"] = update_data.get("phone_number")
-    for key, value in update_data.items():
-        setattr(user, key, value)
-    
-    db.commit()
-    db.refresh(user)
-    return user
-
 
 @router.patch("/{user_id}", response_model=UserResponse)
 async def patch_user(
@@ -330,18 +170,16 @@ async def patch_user(
     current_user: User = Depends(get_hr_admin),
     db: Session = Depends(get_db)
 ):
-    user = db.query(User).filter(
-        User.id == user_id,
-        User.tenant_id == current_user.tenant_id
-    ).first()
+    user = db.query(User).filter(User.id == user_id, User.tenant_id == current_user.tenant_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
     update_data = user_data.model_dump(exclude_unset=True)
-    if "mobile_number" in update_data and "phone_number" not in update_data:
-        update_data["phone_number"] = update_data.get("mobile_number")
-    if "phone_number" in update_data and "mobile_number" not in update_data:
-        update_data["mobile_number"] = update_data.get("phone_number")
+    if "mobile_number" in update_data:
+        update_data["mobile_number"] = clean_mobile(update_data["mobile_number"])
+
+    if "role" in update_data:
+        user.org_role = update_data.pop("role")
 
     for key, value in update_data.items():
         setattr(user, key, value)
@@ -350,374 +188,182 @@ async def patch_user(
     db.refresh(user)
     return user
 
-
-@router.put("/me/password")
-async def change_password(
-    password_data: PasswordChange,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Change current user's password"""
-    if not verify_password(password_data.current_password, current_user.password_hash):
-        raise HTTPException(status_code=400, detail="Incorrect current password")
-    
-    current_user.password_hash = get_password_hash(password_data.new_password)
-    db.commit()
-    return {"message": "Password changed successfully"}
-
-
-@router.get("/{user_id}/direct-reports", response_model=List[UserListResponse])
-async def get_direct_reports(
-    user_id: UUID,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get direct reports for a user"""
-    reports = db.query(User).filter(
-        User.tenant_id == current_user.tenant_id,
-        User.manager_id == user_id,
-        func.lower(User.status) == 'active'
-    ).all()
-    return reports
-
-
 @router.get("/bulk/template")
 async def download_bulk_template():
-    headers = "First Name,Last Name,Email,Corporate Email,Personal Email,Role,Department,Manager Email,Phone Number,Mobile Number,Date of Birth,Hire Date\n"
+    headers = "Full Name,Email,Role,Department,Manager Email,Mobile Number,Personal Email,Date of Birth,Hire Date\n"
     return Response(
         content=headers,
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=sparknode_user_template.csv"}
     )
 
+# --- Enhanced Bulk Upload Endpoints ---
 
-@router.post("/bulk/upload", response_model=BulkUploadResponse)
+@router.post("/upload", response_model=BulkUploadResponse)
 async def upload_bulk_users(
     file: UploadFile = File(...),
     current_user: User = Depends(get_hr_admin),
     db: Session = Depends(get_db)
 ):
-    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
-    if not tenant:
-        raise HTTPException(status_code=404, detail="Tenant not found")
-
-    df = await read_upload_to_dataframe(file)
+    content = await file.read()
+    if file.filename.endswith('.csv'):
+        df = pd.read_csv(io.BytesIO(content))
+    else:
+        df = pd.read_excel(io.BytesIO(content))
+    
     if df.empty:
-        raise HTTPException(status_code=400, detail="The uploaded file is empty")
+        raise HTTPException(status_code=400, detail="File is empty")
     
-    df = normalize_headers(df)
-
-    # Phase 1: snake_case requirement
-    required_cols = {"email", "role", "department"}
-    columns = set(df.columns)
+    # Normalization
+    df.columns = [str(c).strip().lower().replace(' ', '_') for c in df.columns]
     
-    # Check if first_name/last_name exists in snake_case
-    if not ("full_name" in columns or ("first_name" in columns and "last_name" in columns)):
-        # Fallback check for "full name" just in case normalization missed something, but it shouldn't
-        if not ("full name" in columns or ("first name" in columns and "last name" in columns)):
-            raise HTTPException(status_code=400, detail="Template must have 'Full Name' or 'First Name' and 'Last Name'")
-    
-    if not required_cols.issubset(columns):
-        raise HTTPException(status_code=400, detail=f"Missing required columns: {required_cols - columns}")
-
     batch_id = uuid4()
-    allowed_roles = set(get_allowed_roles(tenant))
-
-    total_rows = 0
     valid_rows = 0
-    error_rows = 0
-
+    
     for _, row in df.iterrows():
-        total_rows += 1
-        errors = []
-
-        first_name = get_str_val(row, "first_name", get_str_val(row, "first name"))
-        last_name = get_str_val(row, "last_name", get_str_val(row, "last name"))
-        full_name = get_str_val(row, "full_name", get_str_val(row, "full name"))
-        email = get_str_val(row, "email").lower()
-        corporate_email = get_str_val(row, "corporate_email", get_str_val(row, "corporate email")).lower()
-        personal_email = get_str_val(row, "personal_email", get_str_val(row, "personal email")).lower()
-        department_name = get_str_val(row, "department")
-        role = get_str_val(row, "role")
-        manager_email = get_str_val(row, "manager_email", get_str_val(row, "manager email")).lower()
-        phone_number = get_str_val(row, "phone_number", get_str_val(row, "phone number"))
-        mobile_number = get_str_val(row, "mobile_number", get_str_val(row, "mobile number"))
-        date_of_birth = get_str_val(row, "date_of_birth", get_str_val(row, "date of birth"))
-        hire_date = get_str_val(row, "hire_date", get_str_val(row, "hire date"))
-
+        raw_email = str(row.get('email', '')).strip()
+        raw_full_name = str(row.get('full_name', row.get('name', ''))).strip()
+        raw_dept = str(row.get('department', '')).strip()
+        raw_role = str(row.get('role', 'corporate_user')).strip()
+        raw_manager = str(row.get('manager_email', '')).strip()
+        raw_mobile = str(row.get('mobile_number', row.get('mobile', row.get('phone', '')))).strip()
+        personal_email = str(row.get('personal_email', '')).strip()
+        
         validation = validate_staging_row(
-            db,
-            current_user.tenant_id,
-            allowed_roles,
-            email,
-            department_name,
-            role,
-            manager_email,
-            full_name=full_name,
-            first_name=first_name,
-            last_name=last_name,
-            mobile_number=mobile_number,
-            phone_number=phone_number,
-            personal_email=personal_email
+            db, current_user.tenant_id, raw_email, raw_dept, raw_role, raw_manager,
+            full_name=raw_full_name, mobile_number=raw_mobile
         )
-
-        errors = validation["errors"]
-
-        status_value = "valid" if not errors else "error"
-        if errors:
-            error_rows += 1
-        else:
+        
+        if validation["is_valid"]:
             valid_rows += 1
-
+            
         staging = UserUploadStaging(
             tenant_id=current_user.tenant_id,
             batch_id=batch_id,
-            full_name=f"{validation['first_name']} {validation['last_name']}".strip() or full_name,
-            first_name=validation["first_name"],
-            last_name=validation["last_name"],
-            email=email,
-            corporate_email=corporate_email or email,
+            raw_full_name=raw_full_name,
+            raw_email=raw_email,
+            raw_department=raw_dept,
+            raw_role=raw_role,
+            raw_mobile_phone=validation["cleaned_mobile"],
+            manager_email=raw_manager,
             personal_email=personal_email,
-            department_name=department_name,
-            role=role,
-            manager_email=manager_email,
-            phone_number=phone_number,
-            mobile_number=validation["mobile_number"],
-            date_of_birth=date_of_birth,
-            hire_date=hire_date,
             department_id=validation["department_id"],
-            manager_id=validation["manager_id"],
-            status=status_value,
-            errors=errors
+            is_valid=validation["is_valid"],
+            validation_errors=validation["errors"],
+            status="valid" if validation["is_valid"] else "error"
         )
         db.add(staging)
-
+        db.flush() 
+    
     db.commit()
+    return BulkUploadResponse(batch_id=batch_id, total_rows=len(df), valid_rows=valid_rows, error_rows=len(df)-valid_rows)
 
-    return BulkUploadResponse(
-        batch_id=batch_id,
-        total_rows=total_rows,
-        valid_rows=valid_rows,
-        error_rows=error_rows
-    )
-
-
-@router.get("/bulk/staging", response_model=List[StagingRowResponse])
-async def get_staging_rows(
-    batch_id: UUID,
-    current_user: User = Depends(get_hr_admin),
-    db: Session = Depends(get_db)
-):
-    rows = db.query(UserUploadStaging).filter(
+@router.get("/staging/{batch_id}", response_model=List[StagingRowResponse])
+async def get_staging(batch_id: UUID, current_user: User = Depends(get_hr_admin), db: Session = Depends(get_db)):
+    return db.query(UserUploadStaging).filter(
         UserUploadStaging.tenant_id == current_user.tenant_id,
         UserUploadStaging.batch_id == batch_id
     ).all()
-    return rows
 
-
-@router.patch("/bulk/staging/{row_id}", response_model=StagingRowResponse)
-async def update_staging_row(
-    row_id: UUID,
-    payload: StagingRowUpdate,
-    current_user: User = Depends(get_hr_admin),
-    db: Session = Depends(get_db)
-):
-    row = db.query(UserUploadStaging).filter(
-        UserUploadStaging.id == row_id,
-        UserUploadStaging.tenant_id == current_user.tenant_id
-    ).first()
-    if not row:
-        raise HTTPException(status_code=404, detail="Staging row not found")
-
+@router.patch("/staging/row/{row_id}", response_model=StagingRowResponse)
+async def update_staging_row(row_id: UUID, payload: StagingRowUpdate, current_user: User = Depends(get_hr_admin), db: Session = Depends(get_db)):
+    row = db.query(UserUploadStaging).filter(UserUploadStaging.id == row_id, UserUploadStaging.tenant_id == current_user.tenant_id).first()
+    if not row: raise HTTPException(status_code=404, detail="Row not found")
+    
     update_data = payload.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(row, key, value)
-
-    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
-    allowed_roles = set(get_allowed_roles(tenant))
-
-    validation = validate_staging_row(
-        db,
-        current_user.tenant_id,
-        allowed_roles,
-        row.email,
-        row.department_name or "",
-        row.org_role or "",
-        row.manager_email or "",
-        full_name=row.full_name,
-        first_name=row.first_name,
-        last_name=row.last_name
+    for k, v in update_data.items(): setattr(row, k, v)
+    
+    val = validate_staging_row(
+        db, current_user.tenant_id, row.raw_email, row.raw_department, row.raw_role, row.manager_email,
+        full_name=row.raw_full_name, mobile_number=row.raw_mobile_phone
     )
-
-    row.first_name = validation["first_name"]
-    row.last_name = validation["last_name"]
-    row.mobile_number = validation["mobile_number"]
-    row.department_id = validation["department_id"]
-    row.manager_id = validation["manager_id"]
-    row.errors = validation["errors"]
-    row.status = "error" if validation["errors"] else "valid"
-
+    row.is_valid = val["is_valid"]
+    row.status = "valid" if val["is_valid"] else "error"
+    row.validation_errors = val["errors" ]
+    row.department_id = val["department_id"]
+    row.raw_mobile_phone = val["cleaned_mobile"]
+    
     db.commit()
     db.refresh(row)
     return row
 
-
-@router.post("/bulk/confirm")
+@router.post("/staging/{batch_id}/confirm")
 async def confirm_bulk_upload(
-    payload: BulkConfirmRequest,
-    current_user: User = Depends(get_hr_admin),
+    batch_id: UUID, 
+    payload: BulkConfirmRequest, 
+    current_user: User = Depends(get_hr_admin), 
     db: Session = Depends(get_db)
 ):
     tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
-    if not tenant:
-        raise HTTPException(status_code=404, detail="Tenant not found")
-
     rows = db.query(UserUploadStaging).filter(
+        UserUploadStaging.batch_id == batch_id,
         UserUploadStaging.tenant_id == current_user.tenant_id,
-        UserUploadStaging.batch_id == payload.batch_id,
-        UserUploadStaging.status == "valid"
+        UserUploadStaging.is_valid == True
     ).all()
-
-    created = 0
+    
+    users_by_email = {}
+    
     for row in rows:
+        temp_pwd = generate_random_password()
+        # Parse first/last name from raw_full_name
+        name_parts = row.raw_full_name.split(' ', 1)
+        f_name = name_parts[0]
+        l_name = name_parts[1] if len(name_parts) > 1 else ""
+        
         user = User(
             tenant_id=current_user.tenant_id,
-            email=row.email,
-            corporate_email=row.corporate_email or row.email,
+            email=row.raw_email,
+            corporate_email=row.raw_email,
             personal_email=row.personal_email,
-            password_hash=get_password_hash("password123"), # Temporary, will be changed on invite
-            first_name=row.first_name,
-            last_name=row.last_name,
-            org_role=row.org_role or "corporate_user",
+            password_hash=get_password_hash(temp_pwd),
+            first_name=f_name,
+            last_name=l_name,
+            org_role=row.raw_role or "corporate_user",
             department_id=row.department_id,
-            manager_id=row.manager_id,
-            phone_number=row.phone_number,
-            mobile_number=row.mobile_number or row.phone_number,
-            date_of_birth=try_parse_date(row.date_of_birth),
-            hire_date=try_parse_date(row.hire_date),
-            status="PENDING_INVITE",
-            invitation_sent_at=func.now()
+            mobile_number=row.raw_mobile_phone,
+            status="PENDING_INVITE"
         )
         db.add(user)
         db.flush()
-
-        wallet = Wallet(
-            tenant_id=current_user.tenant_id,
-            user_id=user.id,
-            balance=0,
-            lifetime_earned=0,
-            lifetime_spent=0
-        )
+        
+        from models import Wallet
+        wallet = Wallet(tenant_id=current_user.tenant_id, user_id=user.id, balance=0)
         db.add(wallet)
-        created += 1
-
+        
+        users_by_email[user.email.lower()] = user
+        
         if payload.send_invites:
-            send_invite_email_task.delay(user.corporate_email or user.email, tenant.name)
-
+            send_invite_email_task.delay(user.email, tenant.name)
+            
+    for row in rows:
+        user = users_by_email.get(row.raw_email.lower())
+        if not user or not row.manager_email:
+            continue
+            
+        manager = db.query(User).filter(
+            User.tenant_id == current_user.tenant_id,
+            (func.lower(User.email) == row.manager_email.lower()) | (func.lower(User.corporate_email) == row.manager_email.lower())
+        ).first()
+        
+        if not manager:
+            manager = users_by_email.get(row.manager_email.lower())
+            
+        if manager:
+            user.manager_id = manager.id
+            
     db.commit()
-    return {"created": created, "batch_id": str(payload.batch_id)}
-
+    return {"status": "success", "created": len(rows)}
 
 @router.post("/bulk/deactivate")
-async def bulk_deactivate_users(
-    payload: BulkActionRequest,
-    current_user: User = Depends(get_hr_admin),
-    db: Session = Depends(get_db)
-):
-    results = []
-    for user_id in payload.user_ids:
-        user = db.query(User).filter(
-            User.id == user_id,
-            User.tenant_id == current_user.tenant_id
-        ).first()
-        if not user:
-            results.append({"user_id": str(user_id), "status": "failed", "error": "User not found"})
-            continue
-
-        user.status = "DEACTIVATED"
-
-        wallet = db.query(Wallet).filter(
-            Wallet.user_id == user.id,
-            Wallet.tenant_id == current_user.tenant_id
-        ).first()
-        if wallet and wallet.balance > 0:
-            old_balance = wallet.balance
-            wallet.balance = 0
-            wallet.lifetime_spent = wallet.lifetime_spent + old_balance
-            ledger_entry = WalletLedger(
-                tenant_id=current_user.tenant_id,
-                wallet_id=wallet.id,
-                transaction_type='debit',
-                source='expiry',
-                points=old_balance,
-                balance_after=wallet.balance,
-                description="Balance frozen on deactivation",
-                created_by=current_user.id
-            )
-            db.add(ledger_entry)
-            audit = AuditLog(
-                tenant_id=current_user.tenant_id,
-                actor_id=current_user.id,
-                action="user_deactivated",
-                entity_type="user",
-                entity_id=user.id,
-                old_values={"balance": str(old_balance)},
-                new_values=append_impersonation_metadata({"balance": str(wallet.balance)})
-            )
-            db.add(audit)
-
-        results.append({"user_id": str(user_id), "status": "success"})
-
+async def bulk_deactivate_users(payload: BulkActionRequest, current_user: User = Depends(get_hr_admin), db: Session = Depends(get_db)):
+    db.query(User).filter(User.id.in_(payload.user_ids), User.tenant_id == current_user.tenant_id).update({"status": "DEACTIVATED"}, synchronize_session=False)
     db.commit()
-    return {"results": results}
-
-
-@router.post("/bulk/reactivate")
-async def bulk_reactivate_users(
-    payload: BulkActionRequest,
-    current_user: User = Depends(get_hr_admin),
-    db: Session = Depends(get_db)
-):
-    results = []
-    for user_id in payload.user_ids:
-        user = db.query(User).filter(
-            User.id == user_id,
-            User.tenant_id == current_user.tenant_id
-        ).first()
-        if not user:
-            results.append({"user_id": str(user_id), "status": "failed", "error": "User not found"})
-            continue
-        user.status = "ACTIVE"
-        results.append({"user_id": str(user_id), "status": "success"})
-
-    db.commit()
-    return {"results": results}
-
+    return {"status": "success"}
 
 @router.post("/bulk/resend-invites")
-async def bulk_resend_invites(
-    payload: BulkResendRequest,
-    current_user: User = Depends(get_hr_admin),
-    db: Session = Depends(get_db)
-):
+async def bulk_resend_invites(payload: BulkResendRequest, current_user: User = Depends(get_hr_admin), db: Session = Depends(get_db)):
     tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
-    if not tenant:
-        raise HTTPException(status_code=404, detail="Tenant not found")
-
-    results = []
-    for user_id in payload.user_ids:
-        user = db.query(User).filter(
-            User.id == user_id,
-            User.tenant_id == current_user.tenant_id
-        ).first()
-        if not user:
-            results.append({"user_id": str(user_id), "status": "failed", "error": "User not found"})
-            continue
-        if user.status not in ["PENDING_INVITE", "pending_invite", "ACTIVE", "active"]:
-            results.append({"user_id": str(user_id), "status": "skipped"})
-            continue
-        send_invite_email_task.delay(user.corporate_email or user.email, tenant.name)
-        results.append({"user_id": str(user_id), "status": "sent"})
-
-    db.commit()
-    return {"results": results}
+    users = db.query(User).filter(User.id.in_(payload.user_ids), User.tenant_id == current_user.tenant_id).all()
+    for u in users:
+        send_invite_email_task.delay(u.email, tenant.name)
+    return {"status": "success"}
