@@ -5,7 +5,6 @@ from .schemas import (
     TenantDetailResponse,
     TenantCreateRequest,
     TenantUpdateRequest,
-    SubscriptionUpdate,
 )
 
 __all__ = [

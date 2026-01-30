@@ -25,7 +25,7 @@ from auth.utils import get_password_hash
 from core import append_impersonation_metadata
 from core.rbac import get_platform_admin
 from platform_admin.schemas import (
-    TenantCreateRequest, TenantUpdateRequest, SubscriptionUpdate,
+    TenantCreateRequest, TenantUpdateRequest,
     TenantListResponse, TenantDetailResponse,
     SubscriptionTiersResponse, SUBSCRIPTION_TIERS,
     PlatformHealthResponse, SystemHealthCheck,
@@ -391,7 +391,7 @@ async def update_tenant(
 @router.put("/tenants/{tenant_id}/subscription", response_model=TenantDetailResponse)
 async def update_subscription(
     tenant_id: UUID,
-    subscription: SubscriptionUpdate,
+    subscription: TenantUpdateRequest,
     current_user: User = Depends(get_platform_admin),
     db: Session = Depends(get_db)
 ):

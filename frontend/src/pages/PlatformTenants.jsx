@@ -1,25 +1,50 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { HiOutlinePlus, HiOutlineSearch, HiOutlineOfficeBuilding, HiOutlineDotsVertical } from 'react-icons/hi'
+import { HiOutlinePlus, HiOutlineSearch, HiOutlineOfficeBuilding, HiOutlineEye } from 'react-icons/hi'
 import { platformAPI } from '../lib/api'
 import { useAuthStore } from '../store/authStore'
 
 export default function PlatformTenants() {
   const queryClient = useQueryClient()
   const { isPlatformOwner } = useAuthStore()
+  
+  // Modals
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showFlagsModal, setShowFlagsModal] = useState(false)
-  const [showDetailsModal, setShowDetailsModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
   const [showAddUserModal, setShowAddUserModal] = useState(false)
-  const [openMenuId, setOpenMenuId] = useState(null)
+  
+  // Selected tenant & tabs
   const [selectedTenant, setSelectedTenant] = useState(null)
-  const [editForm, setEditForm] = useState({ subscription_tier: 'free', max_users: 50, master_budget_balance: 0 })
-  const [featureFlagsValue, setFeatureFlagsValue] = useState('{}')
+  const [activeTab, setActiveTab] = useState('overview')
+  
+  // Filters
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [tierFilter, setTierFilter] = useState('')
+  
+  // Edit form state
+  const [editForm, setEditForm] = useState({
+    subscription_tier: 'free',
+    max_users: 50,
+    master_budget_balance: 0,
+    currency_label: 'Points',
+    conversion_rate: 1.0,
+    auto_refill_threshold: 20,
+    peer_to_peer_enabled: true,
+    auth_method: 'PASSWORD_AND_OTP',
+    theme_config: {
+      primary_color: '#3B82F6',
+      secondary_color: '#8B5CF6',
+      font_family: 'Inter'
+    },
+    domain_whitelist: [],
+    award_tiers: {},
+    expiry_policy: 'NEVER'
+  })
+  
+  // Feature flags state
+  const [featureFlagsValue, setFeatureFlagsValue] = useState('{}')
 
   const { data: tiersResponse } = useQuery({
     queryKey: ['subscriptionTiers'],
@@ -53,6 +78,7 @@ export default function PlatformTenants() {
     onSuccess: () => {
       toast.success('Tenant suspended')
       queryClient.invalidateQueries(['platformTenants'])
+      setSelectedTenant(null)
     },
     onError: (error) => {
       toast.error(error.response?.data?.detail || 'Failed to suspend tenant')
@@ -70,13 +96,24 @@ export default function PlatformTenants() {
     },
   })
 
+  const updateMutation = useMutation({
+    mutationFn: ({ tenantId, payload }) => platformAPI.updateTenant(tenantId, payload),
+    onSuccess: () => {
+      toast.success('Tenant updated')
+      queryClient.invalidateQueries(['platformTenants'])
+      setSelectedTenant(prev => ({ ...prev, ...editForm }))
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.detail || 'Failed to update tenant')
+    }
+  })
+
   const updateFlagsMutation = useMutation({
     mutationFn: ({ tenantId, payload }) => platformAPI.updateFeatureFlags(tenantId, payload),
     onSuccess: () => {
       toast.success('Feature flags updated')
       queryClient.invalidateQueries(['platformTenants'])
       setShowFlagsModal(false)
-      setSelectedTenant(null)
     },
     onError: (error) => {
       toast.error(error.response?.data?.detail || 'Failed to update feature flags')
@@ -84,7 +121,15 @@ export default function PlatformTenants() {
   })
 
   const tiers = useMemo(() => tiersResponse?.data?.tiers || [], [tiersResponse])
-  const tenants = useMemo(() => tenantsResponse?.data || [], [tenantsResponse])
+  const tenants = useMemo(() => {
+    // The API returns the array directly, axios wraps it in response.data
+    const data = Array.isArray(tenantsResponse?.data) 
+      ? tenantsResponse.data 
+      : Array.isArray(tenantsResponse) 
+        ? tenantsResponse 
+        : []
+    return data
+  }, [tenantsResponse])
 
   const handleCreateTenant = (e) => {
     e.preventDefault()
@@ -103,31 +148,52 @@ export default function PlatformTenants() {
     })
   }
 
+  const handleSelectTenant = (tenant) => {
+    setSelectedTenant(tenant)
+    setActiveTab('overview')
+    setEditForm({
+      subscription_tier: tenant.subscription_tier || 'free',
+      max_users: tenant.max_users || 50,
+      master_budget_balance: tenant.master_budget_balance || 0,
+      currency_label: tenant.currency_label || 'Points',
+      conversion_rate: tenant.conversion_rate || 1.0,
+      auto_refill_threshold: tenant.auto_refill_threshold || 20,
+      peer_to_peer_enabled: tenant.peer_to_peer_enabled !== false,
+      auth_method: tenant.auth_method || 'PASSWORD_AND_OTP',
+      theme_config: tenant.theme_config || {
+        primary_color: '#3B82F6',
+        secondary_color: '#8B5CF6',
+        font_family: 'Inter'
+      },
+      domain_whitelist: tenant.domain_whitelist || [],
+      award_tiers: tenant.award_tiers || {},
+      expiry_policy: tenant.expiry_policy || 'NEVER'
+    })
+  }
+
   const handleSuspend = (tenant) => {
     const reason = window.prompt(`Suspend ${tenant.name}. Provide a reason:`)
     if (!reason) return
     suspendMutation.mutate({ tenantId: tenant.id, reason })
   }
 
-  const handleOpenFlags = (tenant) => {
-    setSelectedTenant(tenant)
-    setFeatureFlagsValue(JSON.stringify(tenant.feature_flags || {}, null, 2))
-    setShowFlagsModal(true)
-  }
-
-  const handleOpenDetails = (tenant) => {
-    setSelectedTenant(tenant)
-    setShowDetailsModal(true)
-  }
-
-  const handleOpenEdit = (tenant) => {
-    setSelectedTenant(tenant)
-    setEditForm({
-      subscription_tier: tenant.subscription_tier || 'free',
-      max_users: tenant.max_users || 50,
-      master_budget_balance: tenant.master_budget_balance || 0,
-    })
-    setShowEditModal(true)
+  const handleSaveChanges = () => {
+    if (!selectedTenant) return
+    const payload = {
+      subscription_tier: editForm.subscription_tier,
+      max_users: editForm.max_users,
+      master_budget_balance: editForm.master_budget_balance,
+      currency_label: editForm.currency_label,
+      conversion_rate: editForm.conversion_rate,
+      auto_refill_threshold: editForm.auto_refill_threshold,
+      peer_to_peer_enabled: editForm.peer_to_peer_enabled,
+      auth_method: editForm.auth_method,
+      theme_config: editForm.theme_config,
+      domain_whitelist: editForm.domain_whitelist,
+      award_tiers: editForm.award_tiers,
+      expiry_policy: editForm.expiry_policy
+    }
+    updateMutation.mutate({ tenantId: selectedTenant.id, payload })
   }
 
   const handleSaveFlags = (e) => {
@@ -139,19 +205,6 @@ export default function PlatformTenants() {
       toast.error('Feature flags must be valid JSON')
     }
   }
-
-  const updateMutation = useMutation({
-    mutationFn: ({ tenantId, payload }) => platformAPI.updateTenant(tenantId, payload),
-    onSuccess: () => {
-      toast.success('Tenant updated')
-      queryClient.invalidateQueries(['platformTenants'])
-      setShowEditModal(false)
-      setSelectedTenant(null)
-    },
-    onError: (err) => {
-      toast.error(err.response?.data?.detail || 'Failed to update tenant')
-    }
-  })
 
   if (!isPlatformOwner()) {
     return (
@@ -165,10 +218,11 @@ export default function PlatformTenants() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Tenant Manager</h1>
-          <p className="text-sm text-gray-500">Provision, suspend, and monitor tenant health.</p>
+          <p className="text-sm text-gray-500">Manage tenant properties, settings, and configurations.</p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
@@ -214,7 +268,7 @@ export default function PlatformTenants() {
         </select>
       </div>
 
-      {/* Table */}
+      {/* Master-Detail Layout */}
       {isLoading ? (
         <div className="card">
           <div className="space-y-4">
@@ -224,96 +278,314 @@ export default function PlatformTenants() {
           </div>
         </div>
       ) : (
-        <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tenant</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tier</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Users</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {tenants.map((tenant) => (
-                  <tr key={tenant.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-4">
-                      <button
-                        onClick={() => handleOpenDetails(tenant)}
-                        className="text-left hover:text-sparknode-purple transition-colors"
-                      >
-                        <p className="font-medium text-gray-900 hover:underline">{tenant.name}</p>
-                        <p className="text-sm text-gray-500">{tenant.domain || tenant.slug || '-'}</p>
-                      </button>
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className={`badge ${tenant.status === 'active' ? 'badge-success' : tenant.status === 'suspended' ? 'badge-error' : 'badge-warning'}`}>
-                        {tenant.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-gray-600 capitalize">{tenant.subscription_tier || 'free'}</td>
-                    <td className="px-4 py-4 text-gray-600">{tenant.user_count ?? 0}</td>
-                    <td className="px-4 py-4 text-right">
-                      <div className="relative inline-block">
-                        <button
-                          onClick={() => setOpenMenuId(openMenuId === tenant.id ? null : tenant.id)}
-                          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                        >
-                          <HiOutlineDotsVertical className="w-5 h-5 text-gray-600" />
-                        </button>
-                        {openMenuId === tenant.id && (
-                          <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-40">
-                            <button
-                              onClick={() => {
-                                handleOpenEdit(tenant)
-                                setOpenMenuId(null)
-                              }}
-                              className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 first:rounded-t-lg"
-                            >
-                              Edit Tenant
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedTenant(tenant)
-                                setShowAddUserModal(true)
-                                setOpenMenuId(null)
-                              }}
-                              className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700"
-                            >
-                              Add a User
-                            </button>
-                            <button
-                              onClick={() => {
-                                handleSuspend(tenant)
-                                setOpenMenuId(null)
-                              }}
-                              className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700"
-                            >
-                              {tenant.status === 'suspended' ? 'Activate' : 'Suspend'}
-                            </button>
-                            <button
-                              onClick={() => {
-                                handleOpenFlags(tenant)
-                                setOpenMenuId(null)
-                              }}
-                              className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 last:rounded-b-lg"
-                            >
-                              Feature Flags
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="flex gap-6 min-h-[600px]">
+          {/* Left: Tenant List (Compacted) */}
+          <div className="w-full lg:w-96 card overflow-hidden flex flex-col">
+            <div className="font-semibold text-gray-900 px-4 py-3 border-b border-gray-200">
+              Tenants ({tenants.length})
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {tenants.map((tenant) => (
+                <button
+                  key={tenant.id}
+                  onClick={() => handleSelectTenant(tenant)}
+                  className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                    selectedTenant?.id === tenant.id ? 'bg-sparknode-purple/5 border-l-4 border-l-sparknode-purple' : ''
+                  }`}
+                >
+                  <p className="font-medium text-gray-900 text-sm">{tenant.name}</p>
+                  <p className="text-xs text-gray-500">{tenant.domain || tenant.slug || '-'}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className={`inline-block px-2 py-1 text-xs font-medium rounded ${
+                      tenant.status === 'active' ? 'bg-green-100 text-green-700' : 
+                      tenant.status === 'suspended' ? 'bg-red-100 text-red-700' : 
+                      'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {tenant.status}
+                    </span>
+                    <span className="text-xs text-gray-500">{tenant.user_count ?? 0} users</span>
+                  </div>
+                </button>
+              ))}
+              {tenants.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  No tenants found
+                </div>
+              )}
+            </div>
           </div>
-          {tenants.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              No tenants found
+
+          {/* Right: Tenant Detail Panel */}
+          {selectedTenant ? (
+            <div className="flex-1 card flex flex-col">
+              {/* Detail Header */}
+              <div className="border-b border-gray-200 px-6 py-4">
+                <h2 className="text-xl font-bold text-gray-900">{selectedTenant.name}</h2>
+                <p className="text-sm text-gray-500 mt-1">{selectedTenant.domain || selectedTenant.slug || 'No domain'}</p>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex gap-1 border-b border-gray-200 px-6 overflow-x-auto">
+                {['overview', 'branding', 'security', 'economy', 'danger'].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
+                      activeTab === tab
+                        ? 'border-sparknode-purple text-sparknode-purple'
+                        : 'border-transparent text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    {tab === 'overview' && 'Overview'}
+                    {tab === 'branding' && 'Identity & Branding'}
+                    {tab === 'security' && 'Access & Security'}
+                    {tab === 'economy' && 'Fiscal & Rules'}
+                    {tab === 'danger' && 'Danger Zone'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Tab Content */}
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
+                {/* Overview Tab */}
+                {activeTab === 'overview' && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Status</p>
+                        <p className="text-lg font-bold text-gray-900 capitalize">{selectedTenant.status}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Subscription Tier</p>
+                        <p className="text-lg font-bold text-gray-900 capitalize">{selectedTenant.subscription_tier}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Active Users</p>
+                        <p className="text-lg font-bold text-gray-900">{selectedTenant.user_count ?? 0}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Master Budget</p>
+                        <p className="text-lg font-bold text-gray-900">${Number(selectedTenant.master_budget_balance || 0).toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Identity & Branding Tab */}
+                {activeTab === 'branding' && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="label">Logo URL</label>
+                      <input type="url" className="input" placeholder="https://..." />
+                    </div>
+                    <div>
+                      <label className="label">Favicon URL</label>
+                      <input type="url" className="input" placeholder="https://..." />
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="label">Primary Color</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="color"
+                            value={editForm.theme_config.primary_color}
+                            onChange={(e) => setEditForm({
+                              ...editForm,
+                              theme_config: { ...editForm.theme_config, primary_color: e.target.value }
+                            })}
+                            className="w-12 h-10 rounded border border-gray-200"
+                          />
+                          <input
+                            type="text"
+                            value={editForm.theme_config.primary_color}
+                            className="input flex-1"
+                            readOnly
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="label">Secondary Color</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="color"
+                            value={editForm.theme_config.secondary_color}
+                            onChange={(e) => setEditForm({
+                              ...editForm,
+                              theme_config: { ...editForm.theme_config, secondary_color: e.target.value }
+                            })}
+                            className="w-12 h-10 rounded border border-gray-200"
+                          />
+                          <input
+                            type="text"
+                            value={editForm.theme_config.secondary_color}
+                            className="input flex-1"
+                            readOnly
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="label">Font Family</label>
+                        <select
+                          value={editForm.theme_config.font_family}
+                          onChange={(e) => setEditForm({
+                            ...editForm,
+                            theme_config: { ...editForm.theme_config, font_family: e.target.value }
+                          })}
+                          className="input"
+                        >
+                          <option>Inter</option>
+                          <option>Helvetica</option>
+                          <option>Georgia</option>
+                          <option>Monospace</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Access & Security Tab */}
+                {activeTab === 'security' && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="label">Authentication Method</label>
+                      <select
+                        value={editForm.auth_method}
+                        onChange={(e) => setEditForm({ ...editForm, auth_method: e.target.value })}
+                        className="input"
+                      >
+                        <option value="PASSWORD_AND_OTP">Password + OTP</option>
+                        <option value="OTP_ONLY">OTP Only</option>
+                        <option value="SSO_SAML">SSO/SAML</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="label">Domain Whitelist (comma-separated)</label>
+                      <textarea
+                        value={editForm.domain_whitelist.join('\n')}
+                        onChange={(e) => setEditForm({
+                          ...editForm,
+                          domain_whitelist: e.target.value.split('\n').filter(d => d.trim())
+                        })}
+                        className="input min-h-[100px]"
+                        placeholder="@company.com&#10;@company-intl.io"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Fiscal & Rules Tab */}
+                {activeTab === 'economy' && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="label">Currency Label</label>
+                        <input
+                          type="text"
+                          value={editForm.currency_label}
+                          onChange={(e) => setEditForm({ ...editForm, currency_label: e.target.value })}
+                          className="input"
+                          placeholder="Points"
+                        />
+                      </div>
+                      <div>
+                        <label className="label">Conversion Rate ($/unit)</label>
+                        <input
+                          type="number"
+                          value={editForm.conversion_rate}
+                          onChange={(e) => setEditForm({ ...editForm, conversion_rate: Number(e.target.value) })}
+                          className="input"
+                          step="0.01"
+                          min="0"
+                        />
+                      </div>
+                      <div>
+                        <label className="label">Auto-Refill Threshold (%)</label>
+                        <input
+                          type="number"
+                          value={editForm.auto_refill_threshold}
+                          onChange={(e) => setEditForm({ ...editForm, auto_refill_threshold: Number(e.target.value) })}
+                          className="input"
+                          step="1"
+                          min="0"
+                          max="100"
+                        />
+                      </div>
+                      <div>
+                        <label className="label">Expiry Policy</label>
+                        <select
+                          value={editForm.expiry_policy}
+                          onChange={(e) => setEditForm({ ...editForm, expiry_policy: e.target.value })}
+                          className="input"
+                        >
+                          <option value="NEVER">Never</option>
+                          <option value="90_DAYS">90 Days</option>
+                          <option value="1_YEAR">1 Year</option>
+                          <option value="CUSTOM">Custom</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="label flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={editForm.peer_to_peer_enabled}
+                          onChange={(e) => setEditForm({ ...editForm, peer_to_peer_enabled: e.target.checked })}
+                          className="rounded"
+                        />
+                        <span>Allow Peer-to-Peer Recognition</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* Danger Zone Tab */}
+                {activeTab === 'danger' && (
+                  <div className="space-y-4 border-t border-red-200 pt-4">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-red-900 mb-2">Suspend Tenant</h3>
+                      <p className="text-sm text-red-800 mb-4">Temporarily lock this tenant. Users cannot access the platform.</p>
+                      <button
+                        onClick={() => handleSuspend(selectedTenant)}
+                        className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                      >
+                        {selectedTenant.status === 'suspended' ? 'Reactivate' : 'Suspend'} Tenant
+                      </button>
+                    </div>
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-red-900 mb-2">Manage Feature Flags</h3>
+                      <button
+                        onClick={() => {
+                          setFeatureFlagsValue(JSON.stringify(selectedTenant.feature_flags || {}, null, 2))
+                          setShowFlagsModal(true)
+                        }}
+                        className="bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                      >
+                        Edit Feature Flags
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Save Button */}
+              {activeTab !== 'danger' && (
+                <div className="border-t border-gray-200 px-6 py-4 flex gap-3">
+                  <button
+                    onClick={handleSaveChanges}
+                    disabled={updateMutation.isPending}
+                    className="btn-primary"
+                  >
+                    {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex-1 card flex items-center justify-center text-center">
+              <div>
+                <HiOutlineEye className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+                <p className="text-gray-500">Select a tenant to view details</p>
+              </div>
             </div>
           )}
         </div>
@@ -322,7 +594,7 @@ export default function PlatformTenants() {
       {/* Create Tenant Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full">
+          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-semibold mb-2">Provision New Tenant</h2>
             <p className="text-sm text-gray-500 mb-4">Creates tenant, initializes master budget, and provisions a SUPER_ADMIN.</p>
             <form onSubmit={handleCreateTenant} className="space-y-4">
@@ -408,6 +680,7 @@ export default function PlatformTenants() {
         </div>
       )}
 
+      {/* Feature Flags Modal */}
       {showFlagsModal && selectedTenant && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-lg w-full">
@@ -422,10 +695,7 @@ export default function PlatformTenants() {
               <div className="flex gap-3">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowFlagsModal(false)
-                    setSelectedTenant(null)
-                  }}
+                  onClick={() => setShowFlagsModal(false)}
                   className="btn-secondary flex-1"
                 >
                   Cancel
@@ -436,240 +706,6 @@ export default function PlatformTenants() {
                   className="btn-primary flex-1"
                 >
                   {updateFlagsMutation.isPending ? 'Saving...' : 'Save Flags'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showDetailsModal && selectedTenant && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-semibold mb-1">{selectedTenant.name}</h2>
-            <p className="text-sm text-gray-500 mb-6">ID: {selectedTenant.id}</p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              {/* Basic Info */}
-              <div className="space-y-4">
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase">Slug</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedTenant.slug || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase">Domain</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedTenant.domain || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase">Status</p>
-                  <span className={`inline-block badge ${selectedTenant.status === 'active' ? 'badge-success' : selectedTenant.status === 'suspended' ? 'badge-error' : 'badge-warning'}`}>
-                    {selectedTenant.status}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase">Subscription Tier</p>
-                  <p className="text-sm font-medium text-gray-900 capitalize">{selectedTenant.subscription_tier || 'Free'}</p>
-                </div>
-              </div>
-
-              {/* Usage & Limits */}
-              <div className="space-y-4">
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase">Users</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedTenant.user_count ?? 0}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase">Max Users</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedTenant.max_users || 'Unlimited'}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase">Master Budget Balance</p>
-                  <p className="text-sm font-medium text-gray-900">${selectedTenant.master_budget_balance?.toFixed(2) || '0.00'}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase">Created</p>
-                  <p className="text-sm font-medium text-gray-900">{new Date(selectedTenant.created_at).toLocaleDateString()}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Feature Flags Preview */}
-            {selectedTenant.feature_flags && Object.keys(selectedTenant.feature_flags).length > 0 && (
-              <div className="mb-6 border-t border-gray-200 pt-6">
-                <p className="text-sm font-semibold text-gray-700 mb-3">Feature Flags</p>
-                <div className="bg-gray-50 rounded-lg p-4 font-mono text-xs max-h-[200px] overflow-y-auto">
-                  <pre>{JSON.stringify(selectedTenant.feature_flags, null, 2)}</pre>
-                </div>
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="border-t border-gray-200 pt-4 flex gap-3">
-              <button
-                onClick={() => handleOpenFlags(selectedTenant)}
-                className="flex-1 btn-secondary"
-              >
-                Edit Feature Flags
-              </button>
-              {selectedTenant.status === 'suspended' ? (
-                <button
-                  onClick={() => {
-                    activateMutation.mutate(selectedTenant.id)
-                    setShowDetailsModal(false)
-                  }}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg"
-                >
-                  Activate
-                </button>
-              ) : (
-                <button
-                  onClick={() => {
-                    handleSuspend(selectedTenant)
-                    setShowDetailsModal(false)
-                  }}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg"
-                >
-                  Suspend
-                </button>
-              )}
-              <button
-                onClick={() => setShowDetailsModal(false)}
-                className="flex-1 btn-secondary"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Tenant Modal */}
-      {showEditModal && selectedTenant && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-semibold mb-4">Edit Tenant: {selectedTenant.name}</h2>
-            <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="label">Tenant Name</label>
-                  <input type="text" className="input" value={selectedTenant.name} readOnly />
-                </div>
-                <div>
-                  <label className="label">Slug</label>
-                  <input type="text" className="input" value={selectedTenant.slug || ''} readOnly />
-                </div>
-                <div>
-                  <label className="label">Domain</label>
-                  <input type="text" className="input" value={selectedTenant.domain || ''} readOnly />
-                </div>
-                <div>
-                  <label className="label">Subscription Tier</label>
-                  <select
-                    className="input"
-                    value={editForm.subscription_tier}
-                    onChange={(e) => setEditForm({ ...editForm, subscription_tier: e.target.value })}
-                  >
-                    <option value="free">Free</option>
-                    <option value="starter">Starter</option>
-                    <option value="professional">Professional</option>
-                    <option value="enterprise">Enterprise</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="label">Max Users</label>
-                  <input
-                    type="number"
-                    className="input"
-                    value={editForm.max_users}
-                    min="1"
-                    onChange={(e) => setEditForm({ ...editForm, max_users: Number(e.target.value) })}
-                  />
-                </div>
-                <div>
-                  <label className="label">Master Budget Balance</label>
-                  <input
-                    type="number"
-                    className="input"
-                    value={editForm.master_budget_balance}
-                    min="0"
-                    step="0.01"
-                    onChange={(e) => setEditForm({ ...editForm, master_budget_balance: Number(e.target.value) })}
-                  />
-                </div>
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="btn-secondary flex-1"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    if (!selectedTenant) return
-                    const payload = {
-                      subscription_tier: editForm.subscription_tier,
-                      max_users: editForm.max_users,
-                      master_budget_balance: editForm.master_budget_balance,
-                    }
-                    updateMutation.mutate({ tenantId: selectedTenant.id, payload })
-                  }}
-                  className="btn-primary flex-1"
-                  disabled={updateMutation.isLoading}
-                >
-                  {updateMutation.isLoading ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add User Modal */}
-      {showAddUserModal && selectedTenant && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full">
-            <h2 className="text-xl font-semibold mb-2">Add User to {selectedTenant.name}</h2>
-            <p className="text-sm text-gray-500 mb-4">Create a new user for this tenant.</p>
-            <form className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="label">First Name</label>
-                  <input type="text" className="input" required />
-                </div>
-                <div>
-                  <label className="label">Last Name</label>
-                  <input type="text" className="input" required />
-                </div>
-                <div>
-                  <label className="label">Email</label>
-                  <input type="email" className="input" required />
-                </div>
-                <div>
-                  <label className="label">Role</label>
-                  <select className="input" required>
-                    <option value="">Select a role</option>
-                    <option value="tenant_admin">Tenant Admin</option>
-                    <option value="hr_admin">HR Admin</option>
-                    <option value="manager">Manager</option>
-                    <option value="employee">Employee</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowAddUserModal(false)}
-                  className="btn-secondary flex-1"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn-primary flex-1"
-                  disabled
-                >
-                  Add User (Coming Soon)
                 </button>
               </div>
             </form>
