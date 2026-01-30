@@ -15,6 +15,7 @@ export default function PlatformTenants() {
   const [showAddUserModal, setShowAddUserModal] = useState(false)
   const [openMenuId, setOpenMenuId] = useState(null)
   const [selectedTenant, setSelectedTenant] = useState(null)
+  const [editForm, setEditForm] = useState({ subscription_tier: 'free', max_users: 50, master_budget_balance: 0 })
   const [featureFlagsValue, setFeatureFlagsValue] = useState('{}')
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -119,6 +120,16 @@ export default function PlatformTenants() {
     setShowDetailsModal(true)
   }
 
+  const handleOpenEdit = (tenant) => {
+    setSelectedTenant(tenant)
+    setEditForm({
+      subscription_tier: tenant.subscription_tier || 'free',
+      max_users: tenant.max_users || 50,
+      master_budget_balance: tenant.master_budget_balance || 0,
+    })
+    setShowEditModal(true)
+  }
+
   const handleSaveFlags = (e) => {
     e.preventDefault()
     try {
@@ -128,6 +139,19 @@ export default function PlatformTenants() {
       toast.error('Feature flags must be valid JSON')
     }
   }
+
+  const updateMutation = useMutation({
+    mutationFn: ({ tenantId, payload }) => platformAPI.updateTenant(tenantId, payload),
+    onSuccess: () => {
+      toast.success('Tenant updated')
+      queryClient.invalidateQueries(['platformTenants'])
+      setShowEditModal(false)
+      setSelectedTenant(null)
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.detail || 'Failed to update tenant')
+    }
+  })
 
   if (!isPlatformOwner()) {
     return (
@@ -243,8 +267,7 @@ export default function PlatformTenants() {
                           <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-40">
                             <button
                               onClick={() => {
-                                setSelectedTenant(tenant)
-                                setShowEditModal(true)
+                                handleOpenEdit(tenant)
                                 setOpenMenuId(null)
                               }}
                               className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 first:rounded-t-lg"
@@ -526,22 +549,26 @@ export default function PlatformTenants() {
           <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-semibold mb-4">Edit Tenant: {selectedTenant.name}</h2>
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="label">Tenant Name</label>
-                  <input type="text" className="input" defaultValue={selectedTenant.name} readOnly />
+                  <input type="text" className="input" value={selectedTenant.name} readOnly />
                 </div>
                 <div>
                   <label className="label">Slug</label>
-                  <input type="text" className="input" defaultValue={selectedTenant.slug || ''} readOnly />
+                  <input type="text" className="input" value={selectedTenant.slug || ''} readOnly />
                 </div>
                 <div>
                   <label className="label">Domain</label>
-                  <input type="text" className="input" defaultValue={selectedTenant.domain || ''} readOnly />
+                  <input type="text" className="input" value={selectedTenant.domain || ''} readOnly />
                 </div>
                 <div>
                   <label className="label">Subscription Tier</label>
-                  <select className="input" defaultValue={selectedTenant.subscription_tier || 'free'}>
+                  <select
+                    className="input"
+                    value={editForm.subscription_tier}
+                    onChange={(e) => setEditForm({ ...editForm, subscription_tier: e.target.value })}
+                  >
                     <option value="free">Free</option>
                     <option value="starter">Starter</option>
                     <option value="professional">Professional</option>
@@ -550,11 +577,24 @@ export default function PlatformTenants() {
                 </div>
                 <div>
                   <label className="label">Max Users</label>
-                  <input type="number" className="input" defaultValue={selectedTenant.max_users || 50} min="1" />
+                  <input
+                    type="number"
+                    className="input"
+                    value={editForm.max_users}
+                    min="1"
+                    onChange={(e) => setEditForm({ ...editForm, max_users: Number(e.target.value) })}
+                  />
                 </div>
                 <div>
                   <label className="label">Master Budget Balance</label>
-                  <input type="number" className="input" defaultValue={selectedTenant.master_budget_balance || 0} min="0" step="0.01" />
+                  <input
+                    type="number"
+                    className="input"
+                    value={editForm.master_budget_balance}
+                    min="0"
+                    step="0.01"
+                    onChange={(e) => setEditForm({ ...editForm, master_budget_balance: Number(e.target.value) })}
+                  />
                 </div>
               </div>
               <div className="flex gap-3 pt-4">
@@ -565,10 +605,19 @@ export default function PlatformTenants() {
                   Cancel
                 </button>
                 <button
+                  onClick={() => {
+                    if (!selectedTenant) return
+                    const payload = {
+                      subscription_tier: editForm.subscription_tier,
+                      max_users: editForm.max_users,
+                      master_budget_balance: editForm.master_budget_balance,
+                    }
+                    updateMutation.mutate({ tenantId: selectedTenant.id, payload })
+                  }}
                   className="btn-primary flex-1"
-                  disabled
+                  disabled={updateMutation.isLoading}
                 >
-                  Save Changes (Coming Soon)
+                  {updateMutation.isLoading ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </div>

@@ -79,8 +79,32 @@ class Tenant(Base):
     domain = Column(String(255), unique=True)
     logo_url = Column(String(500))
     favicon_url = Column(String(500))
-    primary_color = Column(String(20), default="#3B82F6")  # Brand color
-    branding_config = Column(JSONB, default={})
+    
+    # Theme & Branding Config
+    theme_config = Column(JSONB, default=lambda: {
+        "primary_color": "#3B82F6",
+        "secondary_color": "#8B5CF6",
+        "font_family": "Inter"
+    })
+    
+    # Access & Security
+    domain_whitelist = Column(JSONB, default=lambda: [])  # Array of email suffixes
+    auth_method = Column(String(50), default='PASSWORD_AND_OTP')  # PASSWORD_AND_OTP, OTP_ONLY, SSO_SAML
+    
+    # Point Economy Config
+    currency_label = Column(String(100), default="Points")  # Custom name for points
+    conversion_rate = Column(Numeric(10, 4), default=1.0)  # $1 = X points (for invoicing)
+    auto_refill_threshold = Column(Numeric(5, 2), default=20.0)  # Percentage to trigger notification
+    
+    # Recognition Laws Config
+    award_tiers = Column(JSONB, default=lambda: {
+        "Gold": 5000,
+        "Silver": 2500,
+        "Bronze": 1000
+    })
+    peer_to_peer_enabled = Column(Boolean, default=True)
+    expiry_policy = Column(String(50), default='NEVER')  # NEVER, 90_DAYS, 1_YEAR, CUSTOM
+    
     status = Column(String(50), default='active')
     
     # Subscription & Billing

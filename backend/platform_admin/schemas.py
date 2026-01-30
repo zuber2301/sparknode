@@ -46,21 +46,38 @@ class TenantUpdateRequest(BaseModel):
     domain: Optional[str] = Field(None, max_length=255)
     logo_url: Optional[str] = None
     favicon_url: Optional[str] = None
-    primary_color: Optional[str] = None
-    status: Optional[str] = Field(None, pattern="^(active|inactive|suspended|trial)$")
+    
+    # Theme & Branding
+    theme_config: Optional[Dict[str, Any]] = None  # {primary_color, secondary_color, font_family}
+    
+    # Access & Security
+    domain_whitelist: Optional[List[str]] = None  # Email suffixes
+    auth_method: Optional[str] = Field(None, pattern="^(PASSWORD_AND_OTP|OTP_ONLY|SSO_SAML)$")
+    status: Optional[str] = Field(None, pattern="^(active|inactive|suspended|trial|archived)$")
+    
+    # Point Economy
+    currency_label: Optional[str] = None
+    conversion_rate: Optional[Decimal] = None
+    auto_refill_threshold: Optional[Decimal] = None
+    
+    # Recognition Laws
+    award_tiers: Optional[Dict[str, int]] = None
+    peer_to_peer_enabled: Optional[bool] = None
+    expiry_policy: Optional[str] = Field(None, pattern="^(NEVER|90_DAYS|1_YEAR|CUSTOM)$")
+    
+    # Subscription
+    subscription_tier: Optional[str] = Field(None, pattern="^(free|starter|professional|enterprise|basic|premium)$")
+    subscription_status: Optional[str] = Field(None, pattern="^(active|past_due|cancelled)$")
+    subscription_ends_at: Optional[datetime] = None
+    max_users: Optional[int] = Field(None, ge=1)
+    master_budget_balance: Optional[Decimal] = None
+    
+    # Legacy settings (backwards compatibility)
     branding_config: Optional[Dict[str, Any]] = None
     settings: Optional[Dict[str, Any]] = None
     feature_flags: Optional[Dict[str, Any]] = None
     catalog_settings: Optional[Dict[str, Any]] = None
     branding: Optional[Dict[str, Any]] = None
-
-
-class SubscriptionUpdate(BaseModel):
-    """Request to update subscription."""
-    subscription_tier: Optional[str] = Field(None, pattern="^(free|starter|professional|enterprise|basic|premium)$")
-    subscription_status: Optional[str] = Field(None, pattern="^(active|past_due|cancelled)$")
-    subscription_ends_at: Optional[datetime] = None
-    max_users: Optional[int] = Field(None, ge=1)
 
 
 class TenantListResponse(BaseModel):
@@ -88,10 +105,24 @@ class TenantDetailResponse(BaseModel):
     domain: Optional[str]
     logo_url: Optional[str]
     favicon_url: Optional[str]
-    primary_color: Optional[str]
-    branding_config: Dict[str, Any]
-    feature_flags: Dict[str, Any]
+    
+    # Theme & Branding
+    theme_config: Dict[str, Any]
+    
+    # Access & Security
+    domain_whitelist: List[str]
+    auth_method: str
     status: str
+    
+    # Point Economy
+    currency_label: str
+    conversion_rate: Decimal
+    auto_refill_threshold: Decimal
+    
+    # Recognition Laws
+    award_tiers: Dict[str, int]
+    peer_to_peer_enabled: bool
+    expiry_policy: str
     
     # Subscription
     subscription_tier: Optional[str]
@@ -102,12 +133,17 @@ class TenantDetailResponse(BaseModel):
     master_budget_balance: Decimal
     
     # Settings
+    feature_flags: Dict[str, Any]
     settings: Dict[str, Any]
     catalog_settings: Dict[str, Any]
     branding: Dict[str, Any]
     
     # Timestamps
     created_at: datetime
+    user_count: Optional[int] = 0
+    
+    class Config:
+        from_attributes = True
     updated_at: datetime
     
     # Computed fields
