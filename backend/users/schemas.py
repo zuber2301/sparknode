@@ -9,8 +9,7 @@ VALID_STATUSES = {"PENDING_INVITE", "ACTIVE", "DEACTIVATED", "pending_invite", "
 
 
 class UserBase(BaseModel):
-    email: EmailStr
-    corporate_email: Optional[EmailStr] = None
+    corporate_email: EmailStr
     personal_email: Optional[EmailStr] = None
     first_name: str
     last_name: str
@@ -101,8 +100,7 @@ class UserUpdate(BaseModel):
 class UserResponse(BaseModel):
     id: UUID
     tenant_id: UUID
-    email: str
-    corporate_email: Optional[str] = None
+    corporate_email: str
     personal_email: Optional[str] = None
     first_name: str
     last_name: str
@@ -123,8 +121,7 @@ class UserResponse(BaseModel):
 
 class UserListResponse(BaseModel):
     id: UUID
-    email: str
-    corporate_email: Optional[str] = None
+    corporate_email: str
     personal_email: Optional[str] = None
     first_name: str
     last_name: str

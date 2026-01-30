@@ -36,7 +36,7 @@ async def login(
     """Authenticate user and return JWT token"""
     # 1. Try to find in User table
     user = db.query(User).filter(
-        (User.corporate_email == login_data.email) | (User.email == login_data.email)
+        (User.corporate_email == login_data.email)
     ).first()
     
     if user:
@@ -61,7 +61,7 @@ async def login(
                 data={
                     "sub": str(user.system_admin.admin_id),
                     "user_id": str(user.id),
-                    "email": user.email,
+                    "email": user.corporate_email,
                     "org_role": "platform_admin",
                     "type": "system"
                 },
@@ -73,14 +73,14 @@ async def login(
                 user=UserResponse(
                     id=user.id,
                     tenant_id=user.tenant_id,
-                    email=user.email,
+                    corporate_email=user.corporate_email,
                     first_name=user.first_name,
                     last_name=user.last_name,
                     org_role="platform_admin",
                     role="platform_admin",
                     phone_number=user.phone_number,
                     mobile_number=user.mobile_number,
-                    corporate_email=user.corporate_email,
+                    corporate_corporate_email=user.corporate_email,
                     personal_email=user.personal_email,
                     department_id=user.department_id,
                     manager_id=user.manager_id,
@@ -98,7 +98,7 @@ async def login(
             data={
                 "sub": str(user.id),
                 "tenant_id": str(user.tenant_id),
-                "email": user.corporate_email or user.email,
+                "email": user.corporate_email,
                 "org_role": user.org_role,
                 "type": "tenant"
             },
@@ -111,14 +111,14 @@ async def login(
             user=UserResponse(
                 id=user.id,
                 tenant_id=user.tenant_id,
-                email=user.email,
+                corporate_email=user.corporate_email,
                 first_name=user.first_name,
                 last_name=user.last_name,
                 org_role=user.org_role,
                 role=user.org_role,
                 phone_number=user.phone_number,
                 mobile_number=user.mobile_number,
-                corporate_email=user.corporate_email,
+                corporate_corporate_email=user.corporate_email,
                 personal_email=user.personal_email,
                 department_id=user.department_id,
                 manager_id=user.manager_id,
@@ -146,7 +146,7 @@ async def system_login(
 ):
     """Authenticate platform admin and return JWT token"""
     user = db.query(User).filter(
-        (User.corporate_email == login_data.email) | (User.email == login_data.email)
+        (User.corporate_email == login_data.email)
     ).first()
 
     if not user or not user.system_admin or not verify_password(login_data.password, user.password_hash):
@@ -164,7 +164,7 @@ async def system_login(
         data={
             "sub": str(user.system_admin.admin_id),
             "user_id": str(user.id),
-            "email": user.email,
+            "email": user.corporate_email,
             "org_role": "platform_admin",
             "type": "system"
         },
@@ -206,7 +206,7 @@ async def login_for_access_token(
         data={
             "sub": str(user.id),
             "tenant_id": str(user.tenant_id),
-            "email": user.corporate_email or user.email,
+            "email": user.corporate_email,
             "org_role": user.org_role,
             "type": "tenant"
         },
@@ -224,7 +224,7 @@ async def get_current_user_info(
     return UserResponse(
         id=current_user.id,
         tenant_id=current_user.tenant_id,
-        email=current_user.email,
+        email=current_user.corporate_email,
         first_name=current_user.first_name,
         last_name=current_user.last_name,
         org_role=current_user.org_role,
@@ -257,7 +257,7 @@ async def impersonate_tenant(
     access_token = create_access_token(
         data={
             "sub": str(current_user.id),
-            "email": current_user.email,
+            "email": current_user.corporate_email,
             "org_role": "platform_admin",
             "type": "system",
             "actual_user_id": str(current_user.id),

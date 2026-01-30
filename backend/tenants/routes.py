@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
@@ -49,12 +49,40 @@ async def update_current_tenant(
 # Department endpoints
 @router.get("/departments", response_model=List[DepartmentResponse])
 async def get_departments(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get all departments for current tenant"""
+    """Get all departments for current tenant.
+
+    Platform admins may provide an `X-Tenant-ID` header to fetch departments
+    for a specific tenant context (used by the frontend tenant selector).
+    """
+    # Allow platform admins to override tenant selection via header
+    header_tenant = request.headers.get('x-tenant-id')
+    tenant_id = None
+
+    if header_tenant:
+        try:
+            tenant_id = UUID(header_tenant)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid X-Tenant-ID header")
+
+        # Only permit overrides for platform-level users
+        if not (current_user.is_platform_admin or current_user.is_super_admin):
+            raise HTTPException(status_code=403, detail="Insufficient permissions to access other tenants' departments")
+
+        # If the special "All Tenants" selector is used, detect and return
+        # departments across all tenants instead of filtering to a single one.
+        tenant_record = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+        if tenant_record and tenant_record.name == 'All Tenants':
+            return db.query(Department).all()
+
+    # Fallback to the current user's tenant
+    tenant_id = tenant_id or current_user.tenant_id
+
     departments = db.query(Department).filter(
-        Department.tenant_id == current_user.tenant_id
+        Department.tenant_id == tenant_id
     ).all()
     return departments
 

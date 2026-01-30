@@ -218,7 +218,7 @@ def validate_otp_contact(
     """
     Validate a user's email/mobile before generating OTP codes.
 
-    Email is matched against corporate, personal, or legacy email fields.
+    Email is matched against corporate or personal email fields.
     Mobile is matched against mobile_number or legacy phone_number.
     """
     if not email and not mobile_number:
@@ -234,8 +234,7 @@ def validate_otp_contact(
     if email:
         query = query.filter(
             (User.corporate_email == email) |
-            (User.personal_email == email) |
-            (User.email == email)
+            (User.personal_email == email)
         )
 
     user = query.first()

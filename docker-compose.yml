@@ -102,7 +102,7 @@ services:
       dockerfile: Dockerfile
     container_name: ${PROJECT_NAME:-sparknode}-frontend
     environment:
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:6100}
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:7100}
     ports:
       - "${FRONTEND_EXTERNAL_PORT:-6173}:5173"
     volumes:

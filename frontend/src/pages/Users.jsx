@@ -51,10 +51,18 @@ export default function Users() {
     }),
   })
 
-  const { data: departments } = useQuery({
+  const { data: departments, isLoading: loadingDepartments } = useQuery({
     queryKey: ['departments'],
     queryFn: () => tenantsAPI.getDepartments(),
   })
+
+  // Normalize departments response: some endpoints return the array directly,
+  // others return an object like { data: [...] }.
+  const deptList = departments?.data && Array.isArray(departments.data)
+    ? departments.data
+    : (departments?.data?.data && Array.isArray(departments.data.data))
+      ? departments.data.data
+      : (Array.isArray(departments) ? departments : [])
 
   const createMutation = useMutation({
     mutationFn: (data) => usersAPI.create(data),
@@ -165,13 +173,12 @@ export default function Users() {
     const formData = new FormData(e.target)
     
     const payload = {
-      email: formData.get('email'),
-      corporate_email: formData.get('email'),
+      corporate_email: formData.get('corporate_email') || formData.get('email'),
+      personal_email: formData.get('personal_email') || null,
       first_name: formData.get('first_name'),
       last_name: formData.get('last_name'),
       org_role: formData.get('org_role'),
-      department_id: formData.get('department_id') || null,
-      personal_email: formData.get('personal_email') || null,
+      department_id: formData.get('department_id') ? parseInt(formData.get('department_id')) : null,
       mobile_number: formData.get('mobile_number') || null,
       date_of_birth: formData.get('date_of_birth') || null,
       hire_date: formData.get('hire_date') || null,
@@ -253,7 +260,7 @@ export default function Users() {
   }
 
   const filteredUsers = users?.data?.filter((user) =>
-    `${user.first_name} ${user.last_name} ${user.email} ${user.personal_email || ''} ${user.mobile_number || ''}`
+    `${user.first_name} ${user.last_name} ${user.corporate_email} ${user.personal_email || ''} ${user.mobile_number || ''}`
       .toLowerCase()
       .includes(searchQuery.toLowerCase())
   )
@@ -349,10 +356,16 @@ export default function Users() {
           onChange={(e) => setFilterDepartment(e.target.value)}
           className="input h-11"
         >
-          <option value="">All Departments</option>
-          {departments?.data?.map((dept) => (
-            <option key={dept.id} value={dept.id}>{dept.name}</option>
-          ))}
+          {loadingDepartments ? (
+            <option value="">Loading departments...</option>
+          ) : (
+            <>
+              <option value="">All Departments</option>
+              {deptList.map((dept) => (
+                <option key={dept.id} value={String(dept.id)}>{dept.name}</option>
+              ))}
+            </>
+          )}
         </select>
         <select
           value={filterStatus}
@@ -418,7 +431,7 @@ export default function Users() {
                         <p className="font-bold text-gray-900 truncate">
                           {user.first_name} {user.last_name}
                         </p>
-                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                        <p className="text-xs text-gray-500 truncate">{user.corporate_email}</p>
                       </div>
                     </div>
                   </td>
@@ -434,7 +447,7 @@ export default function Users() {
                     </span>
                   </td>
                   <td className="px-4 py-4 text-sm text-gray-600">
-                    {departments?.data?.find((d) => d.id === user.department_id)?.name || '-'}
+                    {deptList.find((d) => d.id === user.department_id)?.name || '-'}
                   </td>
                   <td className="px-4 py-4">
                     <span className={`badge ${getStatusColor(user.status)}`}>
@@ -798,7 +811,7 @@ export default function Users() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="label">Work Email</label>
-                  <input name="email" type="email" className="input" defaultValue={selectedUser?.email} placeholder="john@sparknode.com" required />
+                  <input name="corporate_email" type="email" className="input" defaultValue={selectedUser?.corporate_email} placeholder="john@sparknode.com" required />
                 </div>
                 <div>
                   <label className="label">Personal Email</label>
@@ -838,11 +851,17 @@ export default function Users() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="label">Department</label>
-                  <select name="department_id" className="input" defaultValue={selectedUser?.department_id || ''} required>
-                    <option value="">Select department</option>
-                    {departments?.data?.map((dept) => (
-                      <option key={dept.id} value={dept.id}>{dept.name}</option>
-                    ))}
+                  <select name="department_id" className="input" defaultValue={selectedUser?.department_id ? String(selectedUser.department_id) : ''} required>
+                    {loadingDepartments ? (
+                      <option value="">Loading departments...</option>
+                    ) : (
+                      <>
+                        <option value="">Select department</option>
+                        {deptList.map((dept) => (
+                          <option key={dept.id} value={String(dept.id)}>{dept.name}</option>
+                        ))}
+                      </>
+                    )}
                   </select>
                 </div>
                 {!selectedUser ? (

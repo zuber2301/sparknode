@@ -71,14 +71,13 @@ def validate_staging_row(
     existing = db.query(User).filter(
         User.tenant_id == tenant_id,
         (
-            (func.lower(User.email) == email.lower()) | 
             (func.lower(User.corporate_email) == email.lower()) |
             ((User.mobile_number == norm_mobile) if norm_mobile else False)
         )
     ).first()
     
     if existing:
-        if existing.email.lower() == email.lower() or (existing.corporate_email and existing.corporate_email.lower() == email.lower()):
+        if existing.corporate_email.lower() == email.lower():
             errors.append(f"Email {email} is already in use")
         elif norm_mobile and existing.mobile_number == norm_mobile:
             errors.append(f"Mobile {norm_mobile} is already in use")
@@ -131,18 +130,16 @@ async def create_user(
     current_user: User = Depends(get_hr_admin),
     db: Session = Depends(get_db)
 ):
-    email_to_check = user_data.corporate_email or user_data.email
     existing = db.query(User).filter(
         User.tenant_id == current_user.tenant_id,
-        ((User.email == user_data.email) | (User.corporate_email == email_to_check))
+        (User.corporate_email == user_data.corporate_email)
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
     
     user = User(
         tenant_id=current_user.tenant_id,
-        email=user_data.email,
-        corporate_email=user_data.corporate_email or user_data.email,
+        corporate_email=user_data.corporate_email,
         personal_email=user_data.personal_email,
         password_hash=get_password_hash(user_data.password),
         first_name=user_data.first_name,
@@ -312,7 +309,6 @@ async def confirm_bulk_upload(
         
         user = User(
             tenant_id=current_user.tenant_id,
-            email=row.raw_email,
             corporate_email=row.raw_email,
             personal_email=row.personal_email,
             password_hash=get_password_hash(temp_pwd),
@@ -330,10 +326,10 @@ async def confirm_bulk_upload(
         wallet = Wallet(tenant_id=current_user.tenant_id, user_id=user.id, balance=0)
         db.add(wallet)
         
-        users_by_email[user.email.lower()] = user
+        users_by_email[user.corporate_email.lower()] = user
         
         if payload.send_invites:
-            send_invite_email_task.delay(user.email, tenant.name)
+            send_invite_email_task.delay(user.corporate_email, tenant.name)
             
     for row in rows:
         user = users_by_email.get(row.raw_email.lower())
@@ -342,7 +338,7 @@ async def confirm_bulk_upload(
             
         manager = db.query(User).filter(
             User.tenant_id == current_user.tenant_id,
-            (func.lower(User.email) == row.manager_email.lower()) | (func.lower(User.corporate_email) == row.manager_email.lower())
+            (func.lower(User.corporate_email) == row.manager_email.lower()) | (func.lower(User.corporate_email) == row.manager_email.lower())
         ).first()
         
         if not manager:
@@ -365,5 +361,5 @@ async def bulk_resend_invites(payload: BulkResendRequest, current_user: User = D
     tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
     users = db.query(User).filter(User.id.in_(payload.user_ids), User.tenant_id == current_user.tenant_id).all()
     for u in users:
-        send_invite_email_task.delay(u.email, tenant.name)
+        send_invite_email_task.delay(u.corporate_email, tenant.name)
     return {"status": "success"}

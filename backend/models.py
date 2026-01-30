@@ -42,9 +42,6 @@ class AllowedDepartment(str, enum.Enum):
     BU1 = "Business Unit -1"
     BU2 = "Business Unit-2"
     BU3 = "Business Unit-3"
-    ONGOING = "ongoing"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
 
 
 class EventType(str, enum.Enum):
@@ -188,14 +185,13 @@ class User(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
-    email = Column(String(255), nullable=False)
-    corporate_email = Column(String(255), nullable=True)
+    corporate_email = Column(String(255), nullable=False)
     personal_email = Column(String(255))
     password_hash = Column(String(255), nullable=False)
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
     org_role = Column(String(50), nullable=False)
-    department_id = Column(UUID(as_uuid=True), ForeignKey("departments.id"))
+    department_id = Column(UUID(as_uuid=True), ForeignKey("departments.id"), nullable=False)
     manager_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     avatar_url = Column(String(500))
     phone_number = Column(String(20))

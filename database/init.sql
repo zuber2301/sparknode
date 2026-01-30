@@ -55,14 +55,13 @@ CREATE TABLE departments (
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    email VARCHAR(255) NOT NULL,
     corporate_email VARCHAR(255) NOT NULL,
     personal_email VARCHAR(255),
     password_hash VARCHAR(255) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     org_role VARCHAR(50) NOT NULL CHECK (org_role IN ('tenant_admin', 'hr_admin', 'tenant_lead', 'manager', 'corporate_user', 'employee')),
-    department_id UUID REFERENCES departments(id),
+    department_id UUID NOT NULL REFERENCES departments(id),
     manager_id UUID REFERENCES users(id),
     avatar_url VARCHAR(500),
     phone_number VARCHAR(20),
@@ -74,7 +73,6 @@ CREATE TABLE users (
     invitation_sent_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(tenant_id, email),
     UNIQUE(tenant_id, corporate_email)
 );
 
