@@ -11,10 +11,15 @@ from datetime import datetime
 def try_parse_date(date_str):
     if not date_str or str(date_str).lower() in ('nan', 'none', ''):
         return None
-    for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%d-%m-%Y'):
+    
+    # Handle direct date objects (from pandas if it already parsed it)
+    if isinstance(date_str, (datetime, date)):
+        return date_str.date() if isinstance(date_str, datetime) else date_str
+
+    for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%d-%m-%Y', '%Y/%m/%d'):
         try:
-            return datetime.strptime(str(date_str), fmt).date()
-        except ValueError:
+            return datetime.strptime(str(date_str).strip(), fmt).date()
+        except (ValueError, TypeError):
             pass
     return None
 
@@ -56,12 +61,18 @@ def validate_staging_row(
     manager_email: str,
     full_name: str = "",
     first_name: str = "",
-    last_name: str = ""
+    last_name: str = "",
+    mobile_number: str = "",
+    phone_number: str = "",
+    personal_email: str = ""
 ):
     errors = []
+    import re
 
     if not first_name and not last_name and not full_name:
         errors.append("First Name/Last Name are required")
+    
+    # Work Email Validation
     if not email:
         errors.append("Email is required")
     else:
@@ -70,8 +81,32 @@ def validate_staging_row(
         except EmailNotValidError:
             errors.append("Invalid Email Format")
 
+    # Personal Email Validation
+    if personal_email:
+        try:
+            validate_email(personal_email)
+        except EmailNotValidError:
+            errors.append("Invalid Personal Email Format")
+
+    if not department_name or not str(department_name).strip():
+        errors.append("Department is required")
+
     if role and role not in allowed_roles:
-        errors.append("Invalid Role")
+        errors.append(f"Invalid Role: {role}")
+
+    # Mobile validation matching screenshot requirement
+    if mobile_number:
+        # Normalize: remove .0 from excel floats, remove spaces
+        norm_mobile = str(mobile_number).replace(".0", "").replace(" ", "").strip()
+        if not re.match(r"^\+91[6-9]\d{9}$", norm_mobile):
+            # Try to auto-fix if it's 10 digits
+            if re.match(r"^[6-9]\d{9}$", norm_mobile):
+                norm_mobile = f"+91{norm_mobile}"
+            elif re.match(r"^91[6-9]\d{9}$", norm_mobile):
+                norm_mobile = f"+{norm_mobile}"
+            else:
+                errors.append("Mobile must follow +91XXXXXXXXXX format")
+        mobile_number = norm_mobile
 
     department = None
     if department_name:
@@ -80,26 +115,37 @@ def validate_staging_row(
             func.lower(Department.name) == department_name.lower()
         ).first()
         if not department:
-            errors.append("Department does not exist")
+            errors.append(f"Department '{department_name}' not found")
 
     manager = None
     if manager_email:
         manager = db.query(User).filter(
             User.tenant_id == tenant_id,
-            (User.corporate_email == manager_email) | (User.email == manager_email)
+            (func.lower(User.corporate_email) == manager_email.lower()) | 
+            (func.lower(User.email) == manager_email.lower())
         ).first()
         if not manager:
-            errors.append("Manager Email not found")
+            errors.append(f"Manager Email '{manager_email}' not found")
 
+    # Conflict Detection: Work Email or Mobile Number already registered
+    # Phase 2 Implementation as per requirements
     existing_user = db.query(User).filter(
         User.tenant_id == tenant_id,
-        (User.corporate_email == email) | (User.email == email)
+        (
+            (func.lower(User.corporate_email) == email.lower()) | 
+            (func.lower(User.email) == email.lower()) |
+            ((User.mobile_number == mobile_number) if mobile_number else False)
+        )
     ).first()
+
     if existing_user:
-        errors.append("Duplicate Email")
+        if email and (existing_user.email.lower() == email.lower() or (existing_user.corporate_email and existing_user.corporate_email.lower() == email.lower())):
+            errors.append(f"Work email {email} already exists")
+        elif mobile_number and existing_user.mobile_number == mobile_number:
+            errors.append(f"Mobile number {mobile_number} already exists")
 
     if not first_name or not last_name:
-        name_parts = full_name.split()
+        name_parts = str(full_name).split()
         if not first_name:
             first_name = name_parts[0] if name_parts else ""
         if not last_name:
@@ -111,7 +157,15 @@ def validate_staging_row(
         "manager_id": manager.id if manager else None,
         "first_name": first_name,
         "last_name": last_name,
+        "mobile_number": mobile_number
     }
+
+
+def get_str_val(row, key, default=""):
+    val = row.get(key)
+    if val is None or str(val).lower() in ('nan', 'none', ''):
+        return default
+    return str(val).strip()
 
 
 async def read_upload_to_dataframe(file: UploadFile) -> pd.DataFrame:
@@ -123,14 +177,18 @@ async def read_upload_to_dataframe(file: UploadFile) -> pd.DataFrame:
 
 
 def normalize_headers(df: pd.DataFrame) -> pd.DataFrame:
-    df.columns = [str(col).strip().lower() for col in df.columns]
+    """Phase 1: Normalize headers to snake_case"""
+    df.columns = [
+        str(col).strip().lower().replace(" ", "_").replace("-", "_") 
+        for col in df.columns
+    ]
     return df
 
 
 @router.get("/", response_model=List[UserListResponse])
 async def get_users(
     department_id: Optional[UUID] = None,
-    role: Optional[str] = None,
+    org_role: Optional[str] = Query(None, alias="role"),
     status: Optional[str] = Query(default="active"),
     skip: int = 0,
     limit: int = 100,
@@ -142,8 +200,8 @@ async def get_users(
     
     if department_id:
         query = query.filter(User.department_id == department_id)
-    if role:
-        query = query.filter(User.role == role)
+    if org_role:
+        query = query.filter(User.org_role == org_role)
     if status:
         query = query.filter(func.lower(User.status) == status.lower())
     
@@ -176,11 +234,13 @@ async def create_user(
         password_hash=get_password_hash(user_data.password),
         first_name=user_data.first_name,
         last_name=user_data.last_name,
-        role=user_data.role,
+        org_role=user_data.org_role,
         phone_number=user_data.phone_number or user_data.mobile_number,
         mobile_number=user_data.mobile_number or user_data.phone_number,
         department_id=user_data.department_id,
-        manager_id=user_data.manager_id
+        manager_id=user_data.manager_id,
+        date_of_birth=user_data.date_of_birth,
+        hire_date=user_data.hire_date
     )
     db.add(user)
     db.flush()
@@ -342,13 +402,20 @@ async def upload_bulk_users(
         raise HTTPException(status_code=404, detail="Tenant not found")
 
     df = await read_upload_to_dataframe(file)
+    if df.empty:
+        raise HTTPException(status_code=400, detail="The uploaded file is empty")
+    
     df = normalize_headers(df)
 
+    # Phase 1: snake_case requirement
     required_cols = {"email", "role", "department"}
-    # Flexible header checking: support either "full name" OR "first name" + "last name"
     columns = set(df.columns)
-    if not ("full name" in columns or ("first name" in columns and "last name" in columns)):
-        raise HTTPException(status_code=400, detail="Template must have 'Full Name' or 'First Name' and 'Last Name'")
+    
+    # Check if first_name/last_name exists in snake_case
+    if not ("full_name" in columns or ("first_name" in columns and "last_name" in columns)):
+        # Fallback check for "full name" just in case normalization missed something, but it shouldn't
+        if not ("full name" in columns or ("first name" in columns and "last name" in columns)):
+            raise HTTPException(status_code=400, detail="Template must have 'Full Name' or 'First Name' and 'Last Name'")
     
     if not required_cols.issubset(columns):
         raise HTTPException(status_code=400, detail=f"Missing required columns: {required_cols - columns}")
@@ -364,19 +431,19 @@ async def upload_bulk_users(
         total_rows += 1
         errors = []
 
-        first_name = str(row.get("first name", "")).strip()
-        last_name = str(row.get("last name", "")).strip()
-        full_name = str(row.get("full name", "")).strip()
-        email = str(row.get("email", "")).strip().lower()
-        corporate_email = str(row.get("corporate email", "")).strip().lower()
-        personal_email = str(row.get("personal email", "")).strip().lower()
-        department_name = str(row.get("department", "")).strip()
-        role = str(row.get("role", "")).strip()
-        manager_email = str(row.get("manager email", "")).strip().lower()
-        phone_number = str(row.get("phone number", "")).strip()
-        mobile_number = str(row.get("mobile number", "")).strip()
-        date_of_birth = str(row.get("date of birth", "")).strip()
-        hire_date = str(row.get("hire date", "")).strip()
+        first_name = get_str_val(row, "first_name", get_str_val(row, "first name"))
+        last_name = get_str_val(row, "last_name", get_str_val(row, "last name"))
+        full_name = get_str_val(row, "full_name", get_str_val(row, "full name"))
+        email = get_str_val(row, "email").lower()
+        corporate_email = get_str_val(row, "corporate_email", get_str_val(row, "corporate email")).lower()
+        personal_email = get_str_val(row, "personal_email", get_str_val(row, "personal email")).lower()
+        department_name = get_str_val(row, "department")
+        role = get_str_val(row, "role")
+        manager_email = get_str_val(row, "manager_email", get_str_val(row, "manager email")).lower()
+        phone_number = get_str_val(row, "phone_number", get_str_val(row, "phone number"))
+        mobile_number = get_str_val(row, "mobile_number", get_str_val(row, "mobile number"))
+        date_of_birth = get_str_val(row, "date_of_birth", get_str_val(row, "date of birth"))
+        hire_date = get_str_val(row, "hire_date", get_str_val(row, "hire date"))
 
         validation = validate_staging_row(
             db,
@@ -388,7 +455,10 @@ async def upload_bulk_users(
             manager_email,
             full_name=full_name,
             first_name=first_name,
-            last_name=last_name
+            last_name=last_name,
+            mobile_number=mobile_number,
+            phone_number=phone_number,
+            personal_email=personal_email
         )
 
         errors = validation["errors"]
@@ -402,7 +472,7 @@ async def upload_bulk_users(
         staging = UserUploadStaging(
             tenant_id=current_user.tenant_id,
             batch_id=batch_id,
-            full_name=f"{validation['first_name']} {validation['last_name']}".strip(),
+            full_name=f"{validation['first_name']} {validation['last_name']}".strip() or full_name,
             first_name=validation["first_name"],
             last_name=validation["last_name"],
             email=email,
@@ -412,7 +482,7 @@ async def upload_bulk_users(
             role=role,
             manager_email=manager_email,
             phone_number=phone_number,
-            mobile_number=mobile_number,
+            mobile_number=validation["mobile_number"],
             date_of_birth=date_of_birth,
             hire_date=hire_date,
             department_id=validation["department_id"],
@@ -472,7 +542,7 @@ async def update_staging_row(
         allowed_roles,
         row.email,
         row.department_name or "",
-        row.role or "",
+        row.org_role or "",
         row.manager_email or "",
         full_name=row.full_name,
         first_name=row.first_name,
@@ -481,6 +551,7 @@ async def update_staging_row(
 
     row.first_name = validation["first_name"]
     row.last_name = validation["last_name"]
+    row.mobile_number = validation["mobile_number"]
     row.department_id = validation["department_id"]
     row.manager_id = validation["manager_id"]
     row.errors = validation["errors"]
@@ -517,7 +588,7 @@ async def confirm_bulk_upload(
             password_hash=get_password_hash("password123"), # Temporary, will be changed on invite
             first_name=row.first_name,
             last_name=row.last_name,
-            role=row.role or "corporate_user",
+            org_role=row.org_role or "corporate_user",
             department_id=row.department_id,
             manager_id=row.manager_id,
             phone_number=row.phone_number,

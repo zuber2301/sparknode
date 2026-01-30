@@ -13,10 +13,22 @@ Each role has specific permissions that are checked via decorators and dependenc
 
 from enum import Enum
 from typing import List, Set, Optional
+
+
+class AllowedDepartment(str, Enum):
+    """
+    Standard department categories allowed in the system.
+    """
+    HR = "Human Resource (HR)"
+    IT = "Techology (IT)"
+    SALES_MARKETING = "Sale & Marketting"
+    BU1 = "Business Unit -1"
+    BU2 = "Business Unit-2"
+    BU3 = "Business Unit-3"
 from functools import wraps
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -213,13 +225,35 @@ class RolePermissions:
         return ROLE_HIERARCHY.get(user_role, 0)
 
 
-def get_current_user_dependency():
+async def get_current_user_dependency(request: Request, db: Session = Depends(get_db)):
     """
-    Placeholder for the actual get_current_user dependency.
-    This is imported from auth.utils at runtime to avoid circular imports.
+    Lazily resolve the current user by parsing the Authorization header and
+    delegating to `auth.utils.get_current_user` at request time. This avoids
+    circular imports and ensures the dependency returns a user object (not a
+    function).
     """
-    from auth.utils import get_current_user
-    return get_current_user
+    auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+    if not auth_header or not auth_header.lower().startswith("bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    token = auth_header.split(" ", 1)[1]
+    from importlib import import_module
+
+    auth_utils = import_module("auth.utils")
+    # debug prints to observe what's being returned (will appear in container logs)
+    try:
+        print("[rbac] auth_utils.get_current_user:", auth_utils.get_current_user)
+    except Exception:
+        print("[rbac] auth_utils.get_current_user: <unavailable>")
+    result = await auth_utils.get_current_user(token=token, db=db)
+    try:
+        print("[rbac] get_current_user returned type:", type(result))
+    except Exception:
+        pass
+    return result
 
 
 def require_permission(*permissions: Permission):
@@ -233,16 +267,17 @@ def require_permission(*permissions: Permission):
         ):
             ...
     """
-    async def permission_checker(current_user = Depends(get_current_user_dependency)):
-        user_permissions = RolePermissions.get_permissions(current_user.role)
-        
+    async def permission_checker(request: Request, db: Session = Depends(get_db)):
+        current_user = await get_current_user_dependency(request, db)
+        user_permissions = RolePermissions.get_permissions(current_user.org_role)
+
         for perm in permissions:
             if perm not in user_permissions:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=f"Permission denied: {perm.value} required"
                 )
-        
+
         return current_user
     
     return permission_checker
@@ -259,12 +294,13 @@ def require_role(*allowed_roles: UserRole):
         ):
             ...
     """
-    async def role_checker(current_user = Depends(get_current_user_dependency)):
-        user_role = RolePermissions.normalize_role(current_user.role)
+    async def role_checker(request: Request, db: Session = Depends(get_db)):
+        current_user = await get_current_user_dependency(request, db)
+        user_role = RolePermissions.normalize_role(current_user.org_role)
         
         # Check both the normalized role and legacy mappings
         allowed = [r.value for r in allowed_roles]
-        if current_user.role not in allowed and user_role not in allowed_roles:
+        if current_user.org_role not in allowed and user_role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Access denied. Required roles: {', '.join(allowed)}"
@@ -286,8 +322,9 @@ def require_minimum_role(minimum_role: UserRole):
         ):
             ...
     """
-    async def role_level_checker(current_user = Depends(get_current_user_dependency)):
-        user_level = RolePermissions.get_role_level(current_user.role)
+    async def role_level_checker(request: Request, db: Session = Depends(get_db)):
+        current_user = await get_current_user_dependency(request, db)
+        user_level = RolePermissions.get_role_level(current_user.org_role)
         required_level = ROLE_HIERARCHY.get(minimum_role, 0)
         
         if user_level < required_level:
@@ -302,9 +339,15 @@ def require_minimum_role(minimum_role: UserRole):
 
 
 # Convenience dependencies for common role checks
-async def get_platform_admin(current_user = Depends(get_current_user_dependency)):
+async def get_platform_admin(request: Request, db: Session = Depends(get_db)):
     """Dependency that requires Platform Admin role."""
-    if not RolePermissions.is_platform_level(current_user.role):
+    current_user = await get_current_user_dependency(request, db)
+    try:
+        print("[rbac] get_platform_admin current_user type:", type(current_user), "value:", getattr(current_user, 'id', '<no-id>'))
+    except Exception:
+        print("[rbac] get_platform_admin current_user debug failed")
+    
+    if not current_user.is_platform_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Platform Admin access required"
@@ -312,9 +355,10 @@ async def get_platform_admin(current_user = Depends(get_current_user_dependency)
     return current_user
 
 
-async def get_tenant_admin(current_user = Depends(get_current_user_dependency)):
+async def get_tenant_admin(request: Request, db: Session = Depends(get_db)):
     """Dependency that requires Tenant Admin or higher role."""
-    if not RolePermissions.is_tenant_admin_level(current_user.role):
+    current_user = await get_current_user_dependency(request, db)
+    if not RolePermissions.is_tenant_admin_level(current_user.org_role):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Tenant Admin access required"
@@ -322,9 +366,10 @@ async def get_tenant_admin(current_user = Depends(get_current_user_dependency)):
     return current_user
 
 
-async def get_tenant_lead(current_user = Depends(get_current_user_dependency)):
+async def get_tenant_lead(request: Request, db: Session = Depends(get_db)):
     """Dependency that requires Tenant Lead or higher role."""
-    if not RolePermissions.is_lead_level(current_user.role):
+    current_user = await get_current_user_dependency(request, db)
+    if not RolePermissions.is_lead_level(current_user.org_role):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Team Lead access required"
@@ -332,8 +377,9 @@ async def get_tenant_lead(current_user = Depends(get_current_user_dependency)):
     return current_user
 
 
-async def get_corporate_user(current_user = Depends(get_current_user_dependency)):
+async def get_corporate_user(request: Request, db: Session = Depends(get_db)):
     """Dependency that requires any authenticated user."""
+    current_user = await get_current_user_dependency(request, db)
     return current_user
 
 
@@ -350,7 +396,7 @@ def check_team_access(current_user, target_user_id: UUID, db: Session) -> bool:
     from models import User
     
     # Platform admins can access everything
-    if RolePermissions.is_platform_level(current_user.role):
+    if RolePermissions.is_platform_level(current_user.org_role):
         return True
     
     # Same user
@@ -358,12 +404,12 @@ def check_team_access(current_user, target_user_id: UUID, db: Session) -> bool:
         return True
     
     # Tenant admins can access all users in their tenant
-    if RolePermissions.is_tenant_admin_level(current_user.role):
+    if RolePermissions.is_tenant_admin_level(current_user.org_role):
         target_user = db.query(User).filter(User.id == target_user_id).first()
         return target_user and target_user.tenant_id == current_user.tenant_id
     
     # Tenant leads can access their direct reports
-    if RolePermissions.is_lead_level(current_user.role):
+    if RolePermissions.is_lead_level(current_user.org_role):
         target_user = db.query(User).filter(User.id == target_user_id).first()
         if target_user and target_user.manager_id == current_user.id:
             return True
@@ -390,9 +436,10 @@ def require_team_access(target_user_id: UUID):
             ...
     """
     async def team_checker(
-        current_user = Depends(get_current_user_dependency),
+        request: Request,
         db: Session = Depends(get_db)
     ):
+        current_user = await get_current_user_dependency(request, db)
         if not check_team_access(current_user, target_user_id, db):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

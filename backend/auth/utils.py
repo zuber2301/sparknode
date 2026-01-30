@@ -43,7 +43,8 @@ def decode_token(token: str) -> TokenData:
         user_id: str = payload.get("sub")
         tenant_id: str = payload.get("tenant_id")
         email: str = payload.get("email")
-        role: str = payload.get("role")
+        org_role: str = payload.get("org_role") or payload.get("role")
+        department_id: str = payload.get("department_id")
         token_type: str = payload.get("type", "tenant")
         actual_user_id: str = payload.get("actual_user_id")
         effective_tenant_id: str = payload.get("effective_tenant_id")
@@ -57,7 +58,7 @@ def decode_token(token: str) -> TokenData:
             user_id=UUID(user_id),
             tenant_id=UUID(tenant_id) if tenant_id else None,
             email=email,
-            role=role,
+            org_role=org_role,
             token_type=token_type,
             actual_user_id=UUID(actual_user_id) if actual_user_id else None,
             effective_tenant_id=UUID(effective_tenant_id) if effective_tenant_id else None
@@ -75,8 +76,16 @@ async def get_current_user(
     db: Session = Depends(get_db)
 ) -> User:
     token_data = decode_token(token)
+    
+    # Platform Admins now link to a global User record
     if token_data.token_type == "system":
-        admin = db.query(SystemAdmin).filter(SystemAdmin.id == token_data.user_id).first()
+        admin_id = token_data.user_id
+        # First check if this is a SystemAdmin record
+        admin = db.query(SystemAdmin).filter(SystemAdmin.admin_id == admin_id).first()
+        if not admin:
+            # Maybe the sub was the user_id
+            admin = db.query(SystemAdmin).filter(SystemAdmin.user_id == admin_id).first()
+            
         if admin is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -84,31 +93,25 @@ async def get_current_user(
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
+        user = admin.user
         effective_tenant_id = token_data.effective_tenant_id
+        
+        # If no effective tenant, they are in "Global Mode" (God mode)
         if effective_tenant_id is None:
-            placeholder_user = User(
-                id=admin.id,
-                tenant_id=UUID(int=0),
-                email=admin.email,
-                password_hash=admin.password_hash,
-                first_name="Platform",
-                last_name="Admin",
-                role="platform_admin",
-                status="active",
-            )
             set_tenant_context(
                 TenantContext(
                     tenant_id=UUID(int=0),
-                    user_id=admin.id,
-                    role=placeholder_user.role,
+                    user_id=user.id,
+                    org_role="platform_admin",
                     is_platform_admin=True,
                     global_access=True,
-                    actual_user_id=admin.id,
+                    actual_user_id=user.id,
                     is_impersonating=False
                 )
             )
-            return placeholder_user
+            return user
 
+        # Impersonation mode
         tenant = db.query(Tenant).filter(Tenant.id == effective_tenant_id).first()
         if tenant is None:
             raise HTTPException(
@@ -116,24 +119,14 @@ async def get_current_user(
                 detail="Tenant not found"
             )
 
-        user = User(
-            id=admin.id,
-            tenant_id=effective_tenant_id,
-            email=admin.email,
-            password_hash=admin.password_hash,
-            first_name="Perksu",
-            last_name="Admin",
-            role="platform_admin",
-            status="active"
-        )
         set_tenant_context(
             TenantContext(
                 tenant_id=effective_tenant_id,
-                user_id=admin.id,
-                role=user.role,
+                user_id=user.id,
+                org_role="platform_admin",
                 is_platform_admin=True,
                 global_access=False,
-                actual_user_id=admin.id,
+                actual_user_id=user.id,
                 is_impersonating=True
             )
         )
@@ -146,6 +139,22 @@ async def get_current_user(
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Check if this user is a platform admin even if they didn't log in via platform portal
+    is_platform = user.is_platform_admin
+    
+    set_tenant_context(
+        TenantContext(
+            tenant_id=user.tenant_id,
+            user_id=user.id,
+            org_role=user.org_role,
+            is_platform_admin=is_platform,
+            global_access=is_platform and user.tenant_id == UUID(int=0),
+            actual_user_id=user.id,
+            is_impersonating=False
+        )
+    )
+
     if (user.status or '').lower() != 'active':
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -153,12 +162,12 @@ async def get_current_user(
         )
 
     tenant_id = token_data.tenant_id or user.tenant_id
-    is_platform_user = RolePermissions.is_platform_level(user.role)
+    is_platform_user = RolePermissions.is_platform_level(user.org_role)
     set_tenant_context(
         TenantContext(
             tenant_id=tenant_id,
             user_id=user.id,
-            role=user.role,
+            org_role=user.org_role,
             is_platform_admin=is_platform_user,
             global_access=is_platform_user,
             actual_user_id=user.id,
@@ -172,7 +181,7 @@ async def get_current_user(
 def require_role(*allowed_roles):
     """Dependency to check if user has required role"""
     async def role_checker(current_user: User = Depends(get_current_user)):
-        if current_user.role not in allowed_roles:
+        if current_user.org_role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Access denied. Required roles: {', '.join(allowed_roles)}"
@@ -183,7 +192,7 @@ def require_role(*allowed_roles):
 
 # Role-based dependencies for convenience
 async def get_hr_admin(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.role not in ['tenant_admin', 'platform_admin', 'hr_admin']:
+    if current_user.org_role not in ['tenant_admin', 'platform_admin', 'hr_admin']:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="HR Admin access required"
@@ -192,7 +201,7 @@ async def get_hr_admin(current_user: User = Depends(get_current_user)) -> User:
 
 
 async def get_manager_or_above(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.role not in ['tenant_lead', 'tenant_admin', 'platform_admin', 'manager', 'hr_admin']:
+    if current_user.org_role not in ['tenant_lead', 'tenant_admin', 'platform_admin', 'manager', 'hr_admin']:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Manager access required"

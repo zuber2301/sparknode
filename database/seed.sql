@@ -1,5 +1,7 @@
--- SparkNode seed data (idempotent)
--- Safe to re-run; uses ON CONFLICT DO NOTHING
+-- Create the Root Tenant for Platform Admin isolation
+INSERT INTO tenants (id, name, slug, status, subscription_tier, subscription_status) 
+VALUES ('00000000-0000-0000-0000-000000000000', 'root_tenant_sparknode', 'admin', 'active', 'enterprise', 'active')
+ON CONFLICT (id) DO NOTHING;
 
 -- Schema patches (idempotent)
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS slug VARCHAR(255);
@@ -25,11 +27,19 @@ BEGIN
      END LOOP;
      EXECUTE 'ALTER TABLE users ADD CONSTRAINT users_status_check CHECK (status IN (''PENDING_INVITE'', ''ACTIVE'', ''DEACTIVATED'', ''pending_invite'', ''active'', ''deactivated''))';
 END $$;
+
+-- Drop old System Admins if it has email column (legacy)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='system_admins' AND column_name='email') THEN
+        DROP TABLE system_admins CASCADE;
+    END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS system_admins (
-     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-     email VARCHAR(255) NOT NULL UNIQUE,
-     password_hash VARCHAR(255) NOT NULL,
-     is_super_admin BOOLEAN DEFAULT FALSE,
+     admin_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+     user_id UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+     access_level VARCHAR(20) DEFAULT 'PLATFORM_ADMIN',
      mfa_enabled BOOLEAN DEFAULT TRUE,
      last_login_at TIMESTAMP WITH TIME ZONE,
      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

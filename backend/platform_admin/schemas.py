@@ -236,6 +236,7 @@ class PlatformAuditEntry(BaseModel):
     """Platform-level audit log entry."""
     id: UUID
     actor_id: Optional[UUID]
+    actor_type: Optional[str] = "user"
     actor_email: Optional[str]
     action: str
     entity_type: Optional[str]

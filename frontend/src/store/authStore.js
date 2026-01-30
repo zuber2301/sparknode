@@ -78,7 +78,7 @@ export const useAuthStore = create(
 
       setPersonaRole: (role) => {
         const { user } = get()
-        const actualRole = normalizeRole(user?.role)
+        const actualRole = normalizeRole(user?.org_role)
         if (actualRole !== 'platform_admin') return
         set({ personaRole: role })
       },
@@ -89,7 +89,7 @@ export const useAuthStore = create(
 
       getEffectiveRole: () => {
         const { user, personaRole } = get()
-        const actualRole = normalizeRole(user?.role)
+        const actualRole = normalizeRole(user?.org_role)
         if (actualRole === 'platform_admin' && personaRole) {
           return personaRole
         }
@@ -123,7 +123,7 @@ export const useAuthStore = create(
       // Platform Admin (actual user role)
       isPlatformOwnerUser: () => {
         const { user } = get()
-        return normalizeRole(user?.role) === 'platform_admin'
+        return normalizeRole(user?.org_role) === 'platform_admin'
       },
 
       // Tenant Admin check (includes Platform Admin)

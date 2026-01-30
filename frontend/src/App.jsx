@@ -11,6 +11,7 @@ import Budgets from './pages/Budgets'
 import Users from './pages/Users'
 import Audit from './pages/Audit'
 import Profile from './pages/Profile'
+import SpendAnalysis from './pages/SpendAnalysis'
 import PlatformTenants from './pages/PlatformTenants'
 
 function PrivateRoute({ children }) {
@@ -34,6 +35,7 @@ function App() {
         <Route path="redeem" element={<Redeem />} />
         <Route path="wallet" element={<Wallet />} />
         <Route path="budgets" element={<Budgets />} />
+        <Route path="spend-analysis" element={<SpendAnalysis />} />
         <Route path="users" element={<Users />} />
         <Route path="audit" element={<Audit />} />
         <Route path="profile" element={<Profile />} />

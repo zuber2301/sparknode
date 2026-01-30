@@ -9,6 +9,7 @@ from .tenant import (
 )
 from .rbac import (
     UserRole,
+    AllowedDepartment,
     Permission,
     RolePermissions,
     require_permission,
@@ -32,6 +33,7 @@ __all__ = [
     "get_scoped_db",
     "append_impersonation_metadata",
     "UserRole",
+    "AllowedDepartment",
     "Permission",
     "RolePermissions",
     "require_permission",

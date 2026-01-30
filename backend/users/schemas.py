@@ -14,11 +14,13 @@ class UserBase(BaseModel):
     personal_email: Optional[EmailStr] = None
     first_name: str
     last_name: str
-    role: Literal['tenant_admin', 'tenant_lead', 'corporate_user']
+    org_role: Literal['tenant_admin', 'tenant_lead', 'corporate_user']
     phone_number: Optional[str] = None
     mobile_number: Optional[str] = None
     department_id: Optional[UUID] = None
     manager_id: Optional[UUID] = None
+    date_of_birth: Optional[date] = None
+    hire_date: Optional[date] = None
 
     @field_validator("phone_number")
     @classmethod
@@ -53,7 +55,7 @@ class UserUpdate(BaseModel):
     personal_email: Optional[EmailStr] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    role: Optional[Literal['tenant_admin', 'tenant_lead', 'corporate_user']] = None
+    org_role: Optional[Literal['tenant_admin', 'tenant_lead', 'corporate_user']] = None
     phone_number: Optional[str] = None
     mobile_number: Optional[str] = None
     department_id: Optional[UUID] = None
@@ -104,7 +106,7 @@ class UserResponse(BaseModel):
     personal_email: Optional[str] = None
     first_name: str
     last_name: str
-    role: str
+    org_role: str
     phone_number: Optional[str] = None
     mobile_number: Optional[str] = None
     department_id: Optional[UUID] = None
@@ -126,7 +128,7 @@ class UserListResponse(BaseModel):
     personal_email: Optional[str] = None
     first_name: str
     last_name: str
-    role: str
+    org_role: str
     phone_number: Optional[str] = None
     mobile_number: Optional[str] = None
     department_id: Optional[UUID] = None
@@ -238,6 +240,7 @@ class StagingRowUpdate(BaseModel):
     personal_email: Optional[EmailStr] = None
     department_name: Optional[str] = None
     role: Optional[str] = None
+    org_role: Optional[str] = None
     manager_email: Optional[EmailStr] = None
     phone_number: Optional[str] = None
     mobile_number: Optional[str] = None

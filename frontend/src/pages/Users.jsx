@@ -10,6 +10,7 @@ import {
   HiOutlineUpload,
   HiOutlineCheckCircle,
   HiOutlineXCircle,
+  HiOutlineExclamationCircle,
   HiOutlineRefresh,
   HiOutlineBan
 } from 'react-icons/hi'
@@ -29,7 +30,7 @@ export default function Users() {
     corporate_email: '',
     personal_email: '',
     department_name: '',
-    role: '',
+    org_role: '',
     manager_email: '',
     phone_number: '',
     mobile_number: '',
@@ -161,12 +162,17 @@ export default function Users() {
     e.preventDefault()
     const formData = new FormData(e.target)
     createMutation.mutate({
-      email: formData.get('email'),
+      email: formData.get('corporate_email'),
+      corporate_email: formData.get('corporate_email'),
+      personal_email: formData.get('personal_email'),
+      mobile_number: formData.get('mobile_number'),
       password: formData.get('password'),
       first_name: formData.get('first_name'),
       last_name: formData.get('last_name'),
-      role: formData.get('role'),
+      org_role: formData.get('org_role'),
       department_id: formData.get('department_id') || null,
+      date_of_birth: formData.get('date_of_birth') || null,
+      hire_date: formData.get('hire_date') || null,
     })
   }
 
@@ -416,7 +422,7 @@ export default function Users() {
                           <p className="font-medium text-gray-900">
                             {user.first_name} {user.last_name}
                           </p>
-                          <p className="text-sm text-gray-500">{user.role?.replace('_', ' ')}</p>
+                          <p className="text-sm text-gray-500">{user.org_role?.replace('_', ' ')}</p>
                         </div>
                       </div>
                     </td>
@@ -463,8 +469,8 @@ export default function Users() {
                       )}
                     </td>
                     <td className="px-4 py-4">
-                      <span className={`badge ${getRoleColor(user.role)}`}>
-                        {getRoleLabel(user.role)}
+                      <span className={`badge ${getRoleColor(user.org_role)}`}>
+                        {getRoleLabel(user.org_role)}
                       </span>
                     </td>
                     <td className="px-4 py-4 text-gray-600">
@@ -495,58 +501,95 @@ export default function Users() {
       {/* Create User Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full">
-            <h2 className="text-xl font-semibold mb-4">Add New User</h2>
+          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">New Employee Setup</h2>
+              <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600">
+                <span className="text-2xl">×</span>
+              </button>
+            </div>
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="label">First Name</label>
-                  <input name="first_name" className="input" required />
+                  <input name="first_name" className="input" placeholder="John" required />
                 </div>
                 <div>
                   <label className="label">Last Name</label>
-                  <input name="last_name" className="input" required />
+                  <input name="last_name" className="input" placeholder="Doe" required />
                 </div>
               </div>
-              <div>
-                <label className="label">Email</label>
-                <input name="email" type="email" className="input" required />
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Work Email</label>
+                  <input name="corporate_email" type="email" className="input" placeholder="john@perksu.com" required />
+                  {/* Keep email hidden or same as corporate_email for legacy compatibility if needed, 
+                      but for now we map corporate_email as the primary identifier if email is not provided separately */}
+                  <input name="email" type="hidden" value={stagingForm.corporate_email} />
+                </div>
+                <div>
+                  <label className="label">Personal Email</label>
+                  <input name="personal_email" type="email" className="input" placeholder="personal@email.com" />
+                </div>
               </div>
-              <div>
-                <label className="label">Password</label>
-                <input name="password" type="password" className="input" required />
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Mobile Number</label>
+                  <input name="mobile_number" className="input" placeholder="+91 XXXXX XXXXX" />
+                </div>
+                <div>
+                  <label className="label">Org Role</label>
+                  <select name="org_role" className="input" required>
+                    <option value="corporate_user">Employee</option>
+                    <option value="tenant_lead">Manager / Team Lead</option>
+                    <option value="tenant_admin">HR / Admin</option>
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="label">Role</label>
-                <select name="role" className="input" required>
-                  <option value="corporate_user">Corporate User</option>
-                  <option value="tenant_lead">Tenant Lead</option>
-                  <option value="tenant_admin">Tenant Admin</option>
-                </select>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Department</label>
+                  <select name="department_id" className="input">
+                    <option value="">Select department</option>
+                    {departments?.data?.map((dept) => (
+                      <option key={dept.id} value={dept.id}>{dept.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Initial Password</label>
+                  <input name="password" type="password" className="input" placeholder="••••••••" required />
+                </div>
               </div>
-              <div>
-                <label className="label">Department</label>
-                <select name="department_id" className="input">
-                  <option value="">Select department</option>
-                  {departments?.data?.map((dept) => (
-                    <option key={dept.id} value={dept.id}>{dept.name}</option>
-                  ))}
-                </select>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label text-[10px] uppercase font-bold text-gray-400">Date of Birth</label>
+                  <input name="date_of_birth" type="date" className="input" />
+                </div>
+                <div>
+                  <label className="label text-[10px] uppercase font-bold text-gray-400">Hire Date</label>
+                  <input name="hire_date" type="date" className="input" />
+                </div>
               </div>
-              <div className="flex gap-3 pt-4">
+
+              <div className="flex gap-4 pt-6">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="btn-secondary flex-1"
+                  className="btn-secondary flex-1 py-3 text-lg font-semibold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={createMutation.isPending}
-                  className="btn-primary flex-1"
+                  className="btn-primary flex-1 py-3 text-lg font-semibold bg-indigo-600 hover:bg-indigo-700"
                 >
-                  {createMutation.isPending ? 'Creating...' : 'Create'}
+                  {createMutation.isPending ? 'Processing...' : 'Create & Send Invite'}
                 </button>
               </div>
             </form>
@@ -569,14 +612,14 @@ export default function Users() {
             </div>
 
             <div className="mb-4">
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <span className={bulkStep >= 1 ? 'text-sparknode-purple font-medium' : ''}>Upload</span>
-                <span className={bulkStep >= 2 ? 'text-sparknode-purple font-medium' : ''}>Validate</span>
-                <span className={bulkStep >= 3 ? 'text-sparknode-purple font-medium' : ''}>Complete</span>
+              <div className="flex items-center justify-between text-[10px] font-bold tracking-wider text-gray-400">
+                <span className={bulkStep >= 1 ? 'text-indigo-600' : ''}>UPLOAD</span>
+                <span className={bulkStep >= 2 ? 'text-indigo-600' : ''}>PREVIEW</span>
+                <span className={bulkStep >= 3 ? 'text-indigo-600' : ''}>COMPLETE</span>
               </div>
-              <div className="mt-2 h-1.5 w-full rounded-full bg-gray-100">
+              <div className="mt-2 h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
                 <div
-                  className="h-1.5 rounded-full bg-sparknode-purple transition-all"
+                  className="h-full bg-indigo-600 transition-all duration-500 ease-out"
                   style={{ width: `${(bulkStep / 3) * 100}%` }}
                 />
               </div>
@@ -647,50 +690,75 @@ export default function Users() {
 
             {bulkStep === 2 && (
               <div className="space-y-4">
-                <div className="flex items-center gap-3 text-sm text-gray-600">
-                  <span>Total: {stagingRows.length}</span>
-                  <span>Errors: {stagingRows.filter((r) => r.status === 'error').length}</span>
+                {/* Stats row */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
+                    <div className="text-[10px] font-bold text-blue-500 uppercase tracking-tight">Ready to Import</div>
+                    <div className="text-xl font-bold text-blue-700">{stagingRows.filter((r) => !r.errors?.length).length}</div>
+                  </div>
+                  <div className="bg-orange-50 border border-orange-100 rounded-xl p-3">
+                    <div className="text-[10px] font-bold text-orange-500 uppercase tracking-tight">Errors Detected</div>
+                    <div className="text-xl font-bold text-orange-700">{stagingRows.filter((r) => r.errors?.length > 0).length}</div>
+                  </div>
+                  <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
+                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Total Rows</div>
+                    <div className="text-xl font-bold text-gray-700">{stagingRows.length}</div>
+                  </div>
                 </div>
-                <div className="max-h-80 overflow-y-auto border rounded-lg">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50">
+
+                <div className="max-h-80 overflow-y-auto border border-gray-100 rounded-xl overflow-hidden">
+                  <table className="w-full text-sm border-collapse">
+                    <thead className="bg-gray-50 sticky top-0 z-10">
                       <tr>
-                        <th className="px-3 py-2 text-left">First Name</th>
-                        <th className="px-3 py-2 text-left">Last Name</th>
-                        <th className="px-3 py-2 text-left">Email</th>
-                        <th className="px-3 py-2 text-left">Role</th>
-                        <th className="px-3 py-2 text-left">Errors</th>
-                        <th className="px-3 py-2 text-left">Action</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">Recipient</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">Attributes</th>
+                        <th className="px-4 py-3 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">Status</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-gray-100">
                       {stagingRows.map((row) => (
-                        <tr key={row.id} className="border-t">
-                          <td className="px-3 py-2">{row.first_name}</td>
-                          <td className="px-3 py-2">{row.last_name}</td>
-                          <td className="px-3 py-2">{row.email}</td>
-                          <td className="px-3 py-2 text-xs font-mono">{row.role || '-'}</td>
-                          <td className="px-3 py-2">
+                        <tr key={row.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3">
+                            <div className="font-semibold text-gray-900">{row.first_name} {row.last_name}</div>
+                            <div className="text-[11px] text-gray-500 flex flex-col mt-0.5">
+                              <span>Work: {row.corporate_email || row.email}</span>
+                              {row.personal_email && <span>Personal: {row.personal_email}</span>}
+                              {row.mobile_number && <span>Mobile: {row.mobile_number}</span>}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-1">
+                              <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[10px] font-bold uppercase whitespace-nowrap">
+                                {row.org_role?.replace('_', ' ') || 'EMPLOYEE'}
+                              </span>
+                              {row.department_name && (
+                                <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-bold uppercase whitespace-nowrap">
+                                  {row.department_name}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
                             {row.errors?.length ? (
-                              <div className="flex items-center gap-2 text-red-600">
-                                <HiOutlineXCircle className="w-4 h-4" />
-                                {row.errors.join(', ')}
+                              <div className="flex items-start gap-2 text-red-600">
+                                <HiOutlineExclamationCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                <div className="text-[11px] font-medium leading-relaxed">
+                                  {row.errors.map((err, idx) => (
+                                    <div key={idx}>{err}</div>
+                                  ))}
+                                  <button 
+                                    className="mt-1 text-indigo-600 hover:text-indigo-800 font-bold uppercase cursor-pointer block"
+                                    onClick={() => startEditStagingRow(row)}
+                                  >
+                                    Edit Row
+                                  </button>
+                                </div>
                               </div>
                             ) : (
                               <div className="flex items-center gap-2 text-green-600">
-                                <HiOutlineCheckCircle className="w-4 h-4" />
-                                Ready
+                                <HiOutlineCheckCircle className="w-4 h-4 flex-shrink-0" />
+                                <span className="text-[11px] font-bold uppercase">Ready</span>
                               </div>
-                            )}
-                          </td>
-                          <td className="px-3 py-2">
-                            {row.errors?.length > 0 && (
-                              <button
-                                className="btn-secondary"
-                                onClick={() => startEditStagingRow(row)}
-                              >
-                                Edit
-                              </button>
                             )}
                           </td>
                         </tr>
@@ -741,9 +809,9 @@ export default function Users() {
                       />
                       <input
                         className="input"
-                        placeholder="Role"
-                        value={stagingForm.role}
-                        onChange={(e) => setStagingForm({ ...stagingForm, role: e.target.value })}
+                        placeholder="Org Role"
+                        value={stagingForm.org_role}
+                        onChange={(e) => setStagingForm({ ...stagingForm, org_role: e.target.value })}
                       />
                       <input
                         className="input"
@@ -781,28 +849,32 @@ export default function Users() {
                         Cancel
                       </button>
                       <button
-                        className="btn-primary"
+                        className="btn-primary bg-indigo-600"
                         onClick={saveStagingRow}
                         disabled={stagingUpdateMutation.isPending}
                       >
-                        {stagingUpdateMutation.isPending ? 'Saving...' : 'Save'}
+                        {stagingUpdateMutation.isPending ? 'Saving...' : 'Save Changes'}
                       </button>
                     </div>
                   </div>
                 )}
-                <div className="flex gap-3 pt-4">
+                <div className="flex gap-4 pt-4">
                   <button
-                    className="btn-secondary flex-1"
-                    onClick={() => setBulkStep(1)}
+                    className="flex-1 py-3 px-4 rounded-xl border-2 border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-xs hover:bg-slate-50 transition-colors"
+                    onClick={() => {
+                      setBulkFile(null)
+                      setBulkStep(1)
+                      setStagingRows([])
+                    }}
                   >
-                    Back
+                    Discard & Retry
                   </button>
                   <button
-                    className="btn-primary flex-1"
+                    className="flex-[2] py-3 px-4 rounded-xl bg-indigo-600 text-white font-bold uppercase tracking-wider text-xs hover:bg-indigo-700 transition-shadow disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-200"
                     onClick={handleBulkConfirm}
-                    disabled={bulkConfirmMutation.isPending}
+                    disabled={bulkConfirmMutation.isPending || stagingRows.filter(r => !r.errors?.length).length === 0}
                   >
-                    {bulkConfirmMutation.isPending ? 'Provisioning...' : 'Confirm & Provision'}
+                    {bulkConfirmMutation.isPending ? 'Provisioning...' : `Provision ${stagingRows.filter(r => !r.errors?.length).length} Users`}
                   </button>
                 </div>
               </div>

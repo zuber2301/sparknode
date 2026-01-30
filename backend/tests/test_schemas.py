@@ -43,10 +43,10 @@ class TestUserSchemas:
             password="password123",
             first_name="New",
             last_name="User",
-            role="employee"
+            org_role="corporate_user"
         )
         assert data.email == "newuser@test.com"
-        assert data.role == "employee"
+        assert data.org_role == "corporate_user"
     
     def test_user_create_invalid_role(self):
         """Test user creation with invalid role"""
@@ -56,7 +56,7 @@ class TestUserSchemas:
                 password="password123",
                 first_name="New",
                 last_name="User",
-                role="invalid_role"
+                org_role="invalid_role"
             )
     
     def test_user_update_partial(self):

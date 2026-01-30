@@ -47,7 +47,7 @@ class TenantContext:
         self,
         tenant_id: UUID,
         user_id: UUID,
-        role: str,
+        org_role: str,
         is_platform_admin: bool = False,
         global_access: bool = False,
         actual_user_id: Optional[UUID] = None,
@@ -55,7 +55,7 @@ class TenantContext:
     ):
         self.tenant_id = tenant_id
         self.user_id = user_id
-        self.role = role
+        self.org_role = org_role
         self.is_platform_admin = is_platform_admin
         self.global_access = global_access
         self.actual_user_id = actual_user_id

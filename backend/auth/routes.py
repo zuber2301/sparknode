@@ -34,53 +34,108 @@ async def login(
     db: Session = Depends(get_db)
 ):
     """Authenticate user and return JWT token"""
+    # 1. Try to find in User table
     user = db.query(User).filter(
         (User.corporate_email == login_data.email) | (User.email == login_data.email)
     ).first()
     
-    if not user or not verify_password(login_data.password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
+    if user:
+        if not verify_password(login_data.password, user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        if (user.status or '').lower() != 'active':
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User account is not active"
+            )
+        
+        access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
+        
+        # If user is a system admin, return system token and role
+        if user.system_admin:
+            access_token = create_access_token(
+                data={
+                    "sub": str(user.system_admin.admin_id),
+                    "user_id": str(user.id),
+                    "email": user.email,
+                    "org_role": "platform_admin",
+                    "type": "system"
+                },
+                expires_delta=access_token_expires
+            )
+            return LoginResponse(
+                access_token=access_token,
+                token_type="bearer",
+                user=UserResponse(
+                    id=user.id,
+                    tenant_id=user.tenant_id,
+                    email=user.email,
+                    first_name=user.first_name,
+                    last_name=user.last_name,
+                    org_role="platform_admin",
+                    role="platform_admin",
+                    phone_number=user.phone_number,
+                    mobile_number=user.mobile_number,
+                    corporate_email=user.corporate_email,
+                    personal_email=user.personal_email,
+                    department_id=user.department_id,
+                    manager_id=user.manager_id,
+                    avatar_url=user.avatar_url,
+                    date_of_birth=user.date_of_birth,
+                    hire_date=user.hire_date,
+                    status=user.status,
+                    created_at=user.created_at,
+                    is_platform_admin=True
+                )
+            )
+
+        # Regular tenant user login
+        access_token = create_access_token(
+            data={
+                "sub": str(user.id),
+                "tenant_id": str(user.tenant_id),
+                "email": user.corporate_email or user.email,
+                "org_role": user.org_role,
+                "type": "tenant"
+            },
+            expires_delta=access_token_expires
         )
-    
-    if (user.status or '').lower() != 'active':
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is not active"
+        
+        return LoginResponse(
+            access_token=access_token,
+            token_type="bearer",
+            user=UserResponse(
+                id=user.id,
+                tenant_id=user.tenant_id,
+                email=user.email,
+                first_name=user.first_name,
+                last_name=user.last_name,
+                org_role=user.org_role,
+                role=user.org_role,
+                phone_number=user.phone_number,
+                mobile_number=user.mobile_number,
+                corporate_email=user.corporate_email,
+                personal_email=user.personal_email,
+                department_id=user.department_id,
+                manager_id=user.manager_id,
+                avatar_url=user.avatar_url,
+                date_of_birth=user.date_of_birth,
+                hire_date=user.hire_date,
+                status=user.status,
+                created_at=user.created_at,
+                is_platform_admin=user.is_platform_admin
+            )
         )
-    
-    access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
-    access_token = create_access_token(
-        data={
-            "sub": str(user.id),
-            "tenant_id": str(user.tenant_id),
-            "email": user.corporate_email or user.email,
-            "role": user.role,
-            "type": "tenant"
-        },
-        expires_delta=access_token_expires
-    )
-    
-    return LoginResponse(
-        access_token=access_token,
-        token_type="bearer",
-        user=UserResponse(
-            id=user.id,
-            tenant_id=user.tenant_id,
-            email=user.email,
-            first_name=user.first_name,
-            last_name=user.last_name,
-            role=user.role,
-            phone_number=user.phone_number,
-            mobile_number=user.mobile_number,
-            corporate_email=user.corporate_email,
-            personal_email=user.personal_email,
-            department_id=user.department_id,
-            avatar_url=user.avatar_url,
-            status=user.status
-        )
+
+    # 3. Not found
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Incorrect email or password",
+        headers={"WWW-Authenticate": "Bearer"},
     )
 
 
@@ -90,24 +145,27 @@ async def system_login(
     db: Session = Depends(get_db)
 ):
     """Authenticate platform admin and return JWT token"""
-    admin = db.query(SystemAdmin).filter(SystemAdmin.email == login_data.email).first()
+    user = db.query(User).filter(
+        (User.corporate_email == login_data.email) | (User.email == login_data.email)
+    ).first()
 
-    if not admin or not verify_password(login_data.password, admin.password_hash):
+    if not user or not user.system_admin or not verify_password(login_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    admin.last_login_at = datetime.utcnow()
+    user.system_admin.last_login_at = datetime.utcnow()
     db.commit()
 
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     access_token = create_access_token(
         data={
-            "sub": str(admin.id),
-            "email": admin.email,
-            "role": "platform_admin",
+            "sub": str(user.system_admin.admin_id),
+            "user_id": str(user.id),
+            "email": user.email,
+            "org_role": "platform_admin",
             "type": "system"
         },
         expires_delta=access_token_expires
@@ -116,14 +174,7 @@ async def system_login(
     return SystemAdminLoginResponse(
         access_token=access_token,
         token_type="bearer",
-        admin=SystemAdminResponse(
-            id=admin.id,
-            email=admin.email,
-            role="platform_admin",
-            is_super_admin=admin.is_super_admin,
-            mfa_enabled=admin.mfa_enabled,
-            last_login_at=admin.last_login_at
-        )
+        admin=SystemAdminResponse.model_validate(user.system_admin)
     )
 
 
@@ -156,7 +207,7 @@ async def login_for_access_token(
             "sub": str(user.id),
             "tenant_id": str(user.tenant_id),
             "email": user.corporate_email or user.email,
-            "role": user.role,
+            "org_role": user.org_role,
             "type": "tenant"
         },
         expires_delta=access_token_expires
@@ -176,7 +227,8 @@ async def get_current_user_info(
         email=current_user.email,
         first_name=current_user.first_name,
         last_name=current_user.last_name,
-        role=current_user.role,
+        org_role=current_user.org_role,
+        role=current_user.org_role,
         phone_number=current_user.phone_number,
         mobile_number=current_user.mobile_number,
         corporate_email=current_user.corporate_email,
@@ -194,7 +246,7 @@ async def impersonate_tenant(
     db: Session = Depends(get_db)
 ):
     """Issue a temporary session token for a platform admin to act on behalf of a tenant."""
-    if current_user.role != "platform_admin":
+    if current_user.org_role != "platform_admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Platform admin access required")
 
     tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
@@ -206,7 +258,7 @@ async def impersonate_tenant(
         data={
             "sub": str(current_user.id),
             "email": current_user.email,
-            "role": "platform_admin",
+            "org_role": "platform_admin",
             "type": "system",
             "actual_user_id": str(current_user.id),
             "effective_tenant_id": str(tenant.id)

@@ -105,6 +105,8 @@ export const budgetsAPI = {
   update: (id, data) => api.put(`/budgets/${id}`, data),
   allocate: (id, data) => api.post(`/budgets/${id}/allocate`, data),
   getDepartmentBudgets: (id) => api.get(`/budgets/${id}/departments`),
+  getLeadBudgets: (id) => api.get(`/budgets/${id}/leads`),
+  allocateLeadBudget: (data) => api.post('/budgets/leads/allocate', data),
   activate: (id) => api.put(`/budgets/${id}/activate`),
   getUtilization: (id) => api.get(`/budgets/${id}/utilization`),
 }
@@ -266,6 +268,7 @@ export const analyticsAPI = {
   getDashboard: (params) => api.get('/analytics/dashboard', { params }),
   getInsights: (params) => api.get('/analytics/insights', { params }),
   getBenchmark: () => api.get('/analytics/benchmark'),
+  getSpendAnalysis: (params) => api.get('/analytics/spend-analysis', { params }),
   
   // Specific metrics
   getEngagementMetrics: (params) => api.get('/analytics/engagement', { params }),

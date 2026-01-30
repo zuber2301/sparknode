@@ -67,19 +67,19 @@ class TestJWTTokens:
             "sub": "770e8400-e29b-41d4-a716-446655440001",
             "tenant_id": "550e8400-e29b-41d4-a716-446655440000",
             "email": "test@test.com",
-            "role": "employee"
+            "org_role": "corporate_user"
         }
         token = create_access_token(data)
         decoded = decode_token(token)
         assert decoded.email == "test@test.com"
-        assert decoded.role == "employee"
+        assert decoded.org_role == "corporate_user"
     
     def test_token_contains_expiration(self):
         """Test that token has expiration claim"""
         from jose import jwt
         from config import settings
         
-        data = {"sub": "user-id", "email": "test@test.com", "role": "employee"}
+        data = {"sub": "user-id", "email": "test@test.com", "org_role": "corporate_user"}
         token = create_access_token(data)
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         assert "exp" in payload

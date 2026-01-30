@@ -118,7 +118,7 @@ async def create_recognition(
     
     # Check if manager and has budget (for managers giving points)
     dept_budget = None
-    if recognition_data.points > 0 and current_user.role in ['manager', 'hr_admin']:
+    if recognition_data.points > 0 and current_user.org_role in ['manager', 'hr_admin', 'tenant_lead']:
         # Find active budget and department budget
         from models import Budget
         active_budget = db.query(Budget).filter(

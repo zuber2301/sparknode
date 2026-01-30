@@ -262,3 +262,37 @@ class InsightsResponse(BaseModel):
     insights: List[InsightItem]
     roi_metrics: ROIMetrics
     generated_at: datetime
+
+
+# =====================================================
+# SPEND ANALYSIS
+# =====================================================
+
+class BurnRatePoint(BaseModel):
+    """Data point for burn rate velocity chart."""
+    date: str
+    points: Decimal
+
+
+class DepartmentSpend(BaseModel):
+    """Data for departmental heatmap (tree map)."""
+    department_name: str
+    points_spent: Decimal
+    percentage: float
+
+
+class AwardTier(BaseModel):
+    """Data for award tier distribution bar chart."""
+    tier_name: str
+    count: int
+    points: Decimal
+
+
+class SpendAnalysisResponse(BaseModel):
+    """Comprehensive spend analysis response."""
+    burn_rate_velocity: List[BurnRatePoint]
+    department_heatmap: List[DepartmentSpend]
+    award_tier_distribution: List[AwardTier]
+    total_spent: Decimal
+    period_start: date
+    period_end: date

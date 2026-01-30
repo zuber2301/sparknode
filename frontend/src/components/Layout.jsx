@@ -10,6 +10,7 @@ import {
   HiOutlineNewspaper,
   HiOutlineCash,
   HiOutlineChartBar,
+  HiOutlineTrendingUp,
   HiOutlineUsers,
   HiOutlineClipboardList,
   HiOutlineOfficeBuilding,
@@ -32,6 +33,7 @@ const navigation = [
 const adminNavigation = [
   { name: 'Tenants', href: '/platform/tenants', icon: HiOutlineOfficeBuilding, roles: ['platform_admin'] },
   { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
+  { name: 'Spend Analysis', href: '/spend-analysis', icon: HiOutlineTrendingUp, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
   { name: 'Users', href: '/users', icon: HiOutlineUsers, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
   { name: 'Audit Log', href: '/audit', icon: HiOutlineClipboardList, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
 ]
@@ -50,6 +52,7 @@ export default function Layout() {
     setPersonaRole,
     clearPersonaRole,
     isPlatformOwnerUser,
+    isPlatformOwner,
   } = useAuthStore()
   const navigate = useNavigate()
 
@@ -183,7 +186,7 @@ export default function Layout() {
               </>
             )}
 
-            {isPlatformUser && (
+            {isPlatformOwner() && (
               <div className="pt-4">
                 <div className="px-4 pb-2">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">

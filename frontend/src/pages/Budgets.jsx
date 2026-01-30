@@ -26,13 +26,21 @@ export default function Budgets() {
   const { data: budgets, isLoading: isLoadingBudgets } = useQuery({
     queryKey: ['budgets'],
     queryFn: () => budgetsAPI.getAll(),
-    enabled: activeTab === 'budgets',
+    enabled: true,
   })
 
   const { data: tenantLeads, isLoading: isLoadingLeads } = useQuery({
-    queryKey: ['users', { role: 'tenant_lead' }],
-    queryFn: () => usersAPI.getAll({ role: 'tenant_lead' }),
+    queryKey: ['users', { org_role: 'tenant_lead' }],
+    queryFn: () => usersAPI.getAll({ org_role: 'tenant_lead' }),
     enabled: activeTab === 'leads',
+  })
+
+  const activeBudget = budgets?.data?.find(b => b.status === 'active')
+
+  const { data: leadBudgets, isLoading: isLoadingLeadBudgets } = useQuery({
+    queryKey: ['leadBudgets', activeBudget?.id],
+    queryFn: () => budgetsAPI.getLeadBudgets(activeBudget.id),
+    enabled: !!activeBudget && activeTab === 'leads',
   })
 
   const { data: departments } = useQuery({
@@ -72,10 +80,10 @@ export default function Budgets() {
   })
 
   const leadAllocateMutation = useMutation({
-    mutationFn: (data) => walletsAPI.allocatePoints(data),
+    mutationFn: (data) => budgetsAPI.allocateLeadBudget(data),
     onSuccess: () => {
       toast.success('Points allocated to Lead')
-      queryClient.invalidateQueries(['users', { role: 'tenant_lead' }])
+      queryClient.invalidateQueries(['leadBudgets'])
       setShowLeadAllocateModal(false)
       setSelectedLead(null)
     },
@@ -103,6 +111,7 @@ export default function Budgets() {
       fiscal_year: parseInt(formData.get('fiscal_year')),
       fiscal_quarter: formData.get('fiscal_quarter') ? parseInt(formData.get('fiscal_quarter')) : null,
       total_points: parseFloat(formData.get('total_points')),
+      expiry_date: formData.get('expiry_date'),
     })
   }
 
@@ -138,7 +147,7 @@ export default function Budgets() {
     const formData = new FormData(e.target)
     leadAllocateMutation.mutate({
       user_id: selectedLead.id,
-      points: parseFloat(formData.get('points')),
+      total_points: parseFloat(formData.get('points')),
       description: formData.get('description'),
     })
   }
@@ -230,6 +239,8 @@ export default function Budgets() {
                       </div>
                       <p className="text-sm text-gray-500 mt-1">
                         FY {budget.fiscal_year} {budget.fiscal_quarter && `Q${budget.fiscal_quarter}`}
+                        {budget.expiry_date && !isNaN(new Date(budget.expiry_date).getTime()) && 
+                          ` • Burn-by: ${format(new Date(budget.expiry_date), 'MMM d, yyyy')}`}
                       </p>
                     </div>
                     <div className="flex gap-2">
@@ -279,12 +290,12 @@ export default function Budgets() {
                       <div
                         className="h-full bg-gradient-to-r from-sparknode-purple to-sparknode-blue"
                         style={{
-                          width: `${(budget.allocated_points / budget.total_points) * 100}%`,
+                          width: `${(Number(budget.allocated_points) / Number(budget.total_points)) * 100}%`,
                         }}
                       />
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
-                      {((budget.allocated_points / budget.total_points) * 100).toFixed(1)}% allocated
+                      {((Number(budget.allocated_points) / Number(budget.total_points)) * 100).toFixed(1)}% allocated
                     </p>
                   </div>
                 </div>
@@ -326,31 +337,55 @@ export default function Budgets() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lead Name</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Allocated</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Used %</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Remaining</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {tenantLeads.data.map((lead) => (
-                      <tr key={lead.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-4">
-                          <div className="font-medium text-gray-900">{lead.first_name} {lead.last_name}</div>
-                        </td>
-                        <td className="px-4 py-4 text-sm text-gray-500">{lead.email}</td>
-                        <td className="px-4 py-4 text-right">
-                          <button
-                            onClick={() => {
-                              setSelectedLead(lead)
-                              setShowLeadAllocateModal(true)
-                            }}
-                            className="btn-secondary text-sm flex items-center gap-2 ml-auto"
-                          >
-                            <HiOutlineCurrencyDollar className="w-4 h-4" />
-                            Allocate Points
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {tenantLeads.data.map((lead) => {
+                      const budget = leadBudgets?.data?.find(lb => lb.user_id === lead.id)
+                      return (
+                        <tr key={lead.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-4">
+                            <div className="font-medium text-gray-900">{lead.first_name} {lead.last_name}</div>
+                            <div className="text-xs text-gray-500">{lead.email}</div>
+                          </td>
+                          <td className="px-4 py-4 text-sm font-medium">
+                            {budget ? Number(budget.total_points).toLocaleString() : '—'}
+                          </td>
+                          <td className="px-4 py-4">
+                            {budget ? (
+                              <div className="w-24">
+                                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                  <div 
+                                    className="h-full bg-sparknode-purple" 
+                                    style={{ width: `${Number(budget.usage_percentage)}%` }} 
+                                  />
+                                </div>
+                                <span className="text-[10px] text-gray-500">{Number(budget.usage_percentage).toFixed(1)}% used</span>
+                              </div>
+                            ) : '—'}
+                          </td>
+                          <td className="px-4 py-4 text-sm text-green-600 font-medium">
+                            {budget ? Number(budget.remaining_points).toLocaleString() : '—'}
+                          </td>
+                          <td className="px-4 py-4 text-right">
+                            <button
+                              onClick={() => {
+                                setSelectedLead(lead)
+                                setShowLeadAllocateModal(true)
+                              }}
+                              className="btn-secondary text-sm flex items-center gap-2 ml-auto"
+                            >
+                              <HiOutlineCurrencyDollar className="w-4 h-4" />
+                              {budget ? 'Update Points' : 'Allocate Points'}
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -403,6 +438,15 @@ export default function Budgets() {
                   className="input"
                   required
                   placeholder="100000"
+                />
+              </div>
+              <div>
+                <label className="label">Expiry Date (Burn-by date)</label>
+                <input
+                  name="expiry_date"
+                  type="date"
+                  className="input"
+                  required
                 />
               </div>
               <div className="flex gap-3 pt-4">

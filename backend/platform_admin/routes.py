@@ -18,7 +18,8 @@ from decimal import Decimal
 
 from database import get_db
 from models import (
-    Tenant, User, Department, Budget, Recognition, Redemption, Wallet, AuditLog, MasterBudgetLedger
+    Tenant, User, Department, Budget, Recognition, Redemption, Wallet, AuditLog, MasterBudgetLedger,
+    ActorType, SystemAdmin
 )
 from auth.utils import get_password_hash
 from core import append_impersonation_metadata
@@ -134,18 +135,6 @@ async def create_tenant(
         db.add(tenant)
         db.flush()
         
-        # Initialize master budget ledger
-        ledger_entry = MasterBudgetLedger(
-            tenant_id=tenant.id,
-            transaction_type="credit",
-            source="provisioning",
-            points=starting_balance,
-            balance_after=starting_balance,
-            description="Initial master budget allocation",
-            created_by=current_user.id
-        )
-        db.add(ledger_entry)
-        
         # Create default HR department
         hr_dept = Department(
             tenant_id=tenant.id,
@@ -178,11 +167,26 @@ async def create_tenant(
             lifetime_spent=0
         )
         db.add(wallet)
+        db.flush()
+
+        # Initialize master budget ledger
+        ledger_entry = MasterBudgetLedger(
+            tenant_id=tenant.id,
+            transaction_type="credit",
+            source="provisioning",
+            points=starting_balance,
+            balance_after=starting_balance,
+            description="Initial master budget allocation",
+            created_by=current_user.id,
+            created_by_type=ActorType.SYSTEM_ADMIN
+        )
+        db.add(ledger_entry)
         
         # Audit log
         audit = AuditLog(
             tenant_id=tenant.id,
             actor_id=current_user.id,
+            actor_type=ActorType.SYSTEM_ADMIN,
             action="tenant_created",
             entity_type="tenant",
             entity_id=tenant.id,
@@ -334,6 +338,7 @@ async def update_tenant(
     audit = AuditLog(
         tenant_id=tenant.id,
         actor_id=current_user.id,
+        actor_type=ActorType.SYSTEM_ADMIN,
         action="tenant_updated",
         entity_type="tenant",
         entity_id=tenant.id,
@@ -398,6 +403,7 @@ async def update_subscription(
     audit = AuditLog(
         tenant_id=tenant.id,
         actor_id=current_user.id,
+        actor_type=ActorType.SYSTEM_ADMIN,
         action="subscription_updated",
         entity_type="tenant",
         entity_id=tenant.id,
@@ -458,6 +464,7 @@ async def suspend_tenant(
     audit = AuditLog(
         tenant_id=tenant.id,
         actor_id=current_user.id,
+        actor_type=ActorType.SYSTEM_ADMIN,
         action="tenant_suspended",
         entity_type="tenant",
         entity_id=tenant.id,
@@ -487,6 +494,7 @@ async def activate_tenant(
     audit = AuditLog(
         tenant_id=tenant.id,
         actor_id=current_user.id,
+        actor_type=ActorType.SYSTEM_ADMIN,
         action="tenant_activated",
         entity_type="tenant",
         entity_id=tenant.id,
@@ -529,6 +537,7 @@ async def update_tenant_feature_flags(
     audit = AuditLog(
         tenant_id=tenant.id,
         actor_id=current_user.id,
+        actor_type=ActorType.SYSTEM_ADMIN,
         action="tenant_feature_flags_updated",
         entity_type="tenant",
         entity_id=tenant.id,
@@ -633,13 +642,22 @@ async def get_platform_audit_logs(
     
     entries = []
     for log in logs:
-        actor = db.query(User).filter(User.id == log.actor_id).first() if log.actor_id else None
+        actor_email = None
+        if log.actor_id:
+            if log.actor_type == ActorType.SYSTEM_ADMIN:
+                admin = db.query(SystemAdmin).filter(SystemAdmin.id == log.actor_id).first()
+                actor_email = admin.email if admin else "system"
+            else:
+                user = db.query(User).filter(User.id == log.actor_id).first()
+                actor_email = user.email if user else None
+        
         tenant = db.query(Tenant).filter(Tenant.id == log.tenant_id).first() if log.tenant_id else None
         
         entries.append(PlatformAuditEntry(
             id=log.id,
             actor_id=log.actor_id,
-            actor_email=actor.email if actor else None,
+            actor_type=log.actor_type.value if hasattr(log.actor_type, 'value') else str(log.actor_type),
+            actor_email=actor_email,
             action=log.action,
             entity_type=log.entity_type,
             entity_id=log.entity_id,

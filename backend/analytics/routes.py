@@ -29,7 +29,8 @@ from analytics.schemas import (
     DepartmentMetrics, LeaderboardEntry, CultureHeatmap, CultureHeatmapCell,
     RecognitionTrend, BadgeDistribution, AnalyticsQueryParams,
     PlatformMetricsResponse, TenantSummary, BenchmarkResponse, TenantBenchmark,
-    ROIMetrics, InsightItem, InsightsResponse
+    ROIMetrics, InsightItem, InsightsResponse, SpendAnalysisResponse,
+    BurnRatePoint, DepartmentSpend, AwardTier
 )
 
 router = APIRouter()
@@ -776,4 +777,98 @@ async def get_tenant_benchmark(
         period_end=period_end,
         benchmarks=benchmarks,
         computed_at=datetime.utcnow()
+    )
+
+
+@router.get("/spend-analysis", response_model=SpendAnalysisResponse)
+async def get_spend_analysis(
+    period_type: str = Query(default="monthly", regex="^(daily|weekly|monthly|quarterly|yearly)$"),
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    current_user: User = Depends(get_tenant_admin),
+    db: Session = Depends(get_db)
+):
+    """Get detailed spend analysis for current tenant (Tenant Admin only)"""
+    period_start, period_end = get_period_dates(period_type, start_date, end_date)
+    tenant_id = current_user.tenant_id
+
+    # 1. Burn Rate Velocity (Line Chart)
+    # Group points by day
+    daily_spend = db.query(
+        func.date(Recognition.created_at).label('date'),
+        func.sum(Recognition.points).label('points')
+    ).filter(
+        Recognition.tenant_id == tenant_id,
+        Recognition.status == 'active',
+        func.date(Recognition.created_at) >= period_start,
+        func.date(Recognition.created_at) <= period_end
+    ).group_by(func.date(Recognition.created_at)).order_by(func.date(Recognition.created_at)).all()
+
+    burn_rate_velocity = [
+        BurnRatePoint(date=str(row.date), points=Decimal(str(row.points)))
+        for row in daily_spend
+    ]
+
+    # 2. Departmental Heatmap (Tree Map)
+    dept_spend = db.query(
+        Department.name,
+        func.sum(Recognition.points).label('points')
+    ).join(
+        User, Recognition.from_user_id == User.id
+    ).join(
+        Department, User.department_id == Department.id
+    ).filter(
+        Recognition.tenant_id == tenant_id,
+        Recognition.status == 'active',
+        func.date(Recognition.created_at) >= period_start,
+        func.date(Recognition.created_at) <= period_end
+    ).group_by(Department.name).all()
+
+    total_points_spent = sum(row.points for row in dept_spend) if dept_spend else Decimal("0")
+    
+    department_heatmap = [
+        DepartmentSpend(
+            department_name=row.name,
+            points_spent=Decimal(str(row.points)),
+            percentage=round(float(row.points / total_points_spent * 100), 2) if total_points_spent > 0 else 0
+        )
+        for row in dept_spend
+    ]
+
+    # 3. Award Tier Distribution (Bar Chart)
+    # Tiers: Small (<100), Medium (100-500), Large (501-2000), Executive (>2000)
+    tiers = [
+        ("Small (<100)", 0, 99),
+        ("Medium (100-500)", 100, 500),
+        ("Large (501-2000)", 501, 2000),
+        ("Executive (>2000)", 2001, 99999999)
+    ]
+    
+    award_tier_distribution = []
+    for (name, min_p, max_p) in tiers:
+        res = db.query(
+            func.count(Recognition.id).label('count'),
+            func.sum(Recognition.points).label('points')
+        ).filter(
+            Recognition.tenant_id == tenant_id,
+            Recognition.status == 'active',
+            Recognition.points >= min_p,
+            Recognition.points <= max_p,
+            func.date(Recognition.created_at) >= period_start,
+            func.date(Recognition.created_at) <= period_end
+        ).first()
+        
+        award_tier_distribution.append(AwardTier(
+            tier_name=name,
+            count=res.count or 0,
+            points=Decimal(str(res.points or 0))
+        ))
+
+    return SpendAnalysisResponse(
+        burn_rate_velocity=burn_rate_velocity,
+        department_heatmap=department_heatmap,
+        award_tier_distribution=award_tier_distribution,
+        total_spent=total_points_spent,
+        period_start=period_start,
+        period_end=period_end
     )

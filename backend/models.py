@@ -28,6 +28,20 @@ class SubscriptionTier(str, enum.Enum):
 class EventStatus(str, enum.Enum):
     DRAFT = "draft"
     PUBLISHED = "published"
+
+
+class ActorType(str, enum.Enum):
+    USER = "user"
+    SYSTEM_ADMIN = "system_admin"
+
+
+class AllowedDepartment(str, enum.Enum):
+    HR = "Human Resource (HR)"
+    IT = "Techology (IT)"
+    SALES_MARKETING = "Sale & Marketting"
+    BU1 = "Business Unit -1"
+    BU2 = "Business Unit-2"
+    BU3 = "Business Unit-3"
     ONGOING = "ongoing"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
@@ -156,6 +170,13 @@ class Department(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
+    __table_args__ = (
+        CheckConstraint(
+            name.in_([dept.value for dept in AllowedDepartment]),
+            name='check_allowed_department_names'
+        ),
+    )
+    
     # Relationships
     tenant = relationship("Tenant", back_populates="departments")
     users = relationship("User", back_populates="department")
@@ -173,7 +194,7 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
-    role = Column(String(50), nullable=False)
+    org_role = Column(String(50), nullable=False)
     department_id = Column(UUID(as_uuid=True), ForeignKey("departments.id"))
     manager_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     avatar_url = Column(String(500))
@@ -193,23 +214,40 @@ class User(Base):
     wallet = relationship("Wallet", back_populates="user", uselist=False)
     recognitions_given = relationship("Recognition", foreign_keys="Recognition.from_user_id", back_populates="from_user")
     recognitions_received = relationship("Recognition", foreign_keys="Recognition.to_user_id", back_populates="to_user")
+    lead_budgets = relationship("LeadBudget", back_populates="user")
+    system_admin = relationship("SystemAdmin", back_populates="user", uselist=False)
     
+    @property
+    def is_platform_admin(self):
+        """Check if user has platform-level privileges"""
+        return self.system_admin is not None or self.org_role == "platform_admin"
+
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
+
+    @property
+    def role(self):
+        return self.org_role
+
+    @role.setter
+    def role(self, value):
+        self.org_role = value
 
 
 class SystemAdmin(Base):
     __tablename__ = "system_admins"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    email = Column(String(255), nullable=False, unique=True)
-    password_hash = Column(String(255), nullable=False)
-    is_super_admin = Column(Boolean, default=False)
+    admin_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    access_level = Column(String(20), default='PLATFORM_ADMIN')
     mfa_enabled = Column(Boolean, default=True)
     last_login_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationship back to User
+    user = relationship("User", back_populates="system_admin")
 
 
 class OtpToken(Base):
@@ -235,7 +273,7 @@ class UserUploadStaging(Base):
     full_name = Column(String(255), nullable=False)
     email = Column(String(255), nullable=False)
     department_name = Column(String(255))
-    role = Column(String(50))
+    org_role = Column(String(50))
     manager_email = Column(String(255))
     first_name = Column(String(100))
     last_name = Column(String(100))
@@ -252,6 +290,14 @@ class UserUploadStaging(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+    @property
+    def role(self):
+        return self.org_role
+
+    @role.setter
+    def role(self, value):
+        self.org_role = value
+
 
 class Budget(Base):
     __tablename__ = "budgets"
@@ -264,6 +310,7 @@ class Budget(Base):
     total_points = Column(Numeric(15, 2), nullable=False, default=0)
     allocated_points = Column(Numeric(15, 2), nullable=False, default=0)
     status = Column(String(50), default='active')
+    expiry_date = Column(Date)
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -287,16 +334,73 @@ class DepartmentBudget(Base):
     allocated_points = Column(Numeric(15, 2), nullable=False, default=0)
     spent_points = Column(Numeric(15, 2), nullable=False, default=0)
     monthly_cap = Column(Numeric(15, 2))
+    expiry_date = Column(Date)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # Relationships
     budget = relationship("Budget", back_populates="department_budgets")
     department = relationship("Department", back_populates="department_budgets")
+    lead_budgets = relationship("LeadBudget", back_populates="department_budget")
     
     @property
     def remaining_points(self):
         return float(self.allocated_points) - float(self.spent_points)
+
+
+class LeadBudget(Base):
+    """
+    Budget allocation for individual Tenant Leads or Managers.
+    Allows tracking how points from a department budget are sliced for specific leads.
+    """
+    __tablename__ = "lead_budgets"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    department_budget_id = Column(UUID(as_uuid=True), ForeignKey("department_budgets.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    
+    total_points = Column(Numeric(15, 2), nullable=False, default=0)
+    spent_points = Column(Numeric(15, 2), nullable=False, default=0)
+    
+    status = Column(String(50), default='active')
+    expiry_date = Column(Date)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    department_budget = relationship("DepartmentBudget", back_populates="lead_budgets")
+    user = relationship("User", back_populates="lead_budgets")
+    recognitions_given = relationship("Recognition", back_populates="lead_budget")
+
+    @property
+    def remaining_points(self):
+        return float(self.total_points) - float(self.spent_points)
+
+    @property
+    def usage_percentage(self):
+        """Returns how much of the budget has been used in %"""
+        if float(self.total_points) == 0:
+            return 0
+        return (float(self.spent_points) / float(self.total_points)) * 100
+
+    @property
+    def remaining_percentage(self):
+        """Returns how much of the budget is remaining in %"""
+        if float(self.total_points) == 0:
+            return 0
+        return (self.remaining_points / float(self.total_points)) * 100
+
+    @property
+    def user_name(self):
+        return f"{self.user.first_name} {self.user.last_name}" if self.user else "Unknown"
+
+    @property
+    def remaining_percentage(self):
+        """Returns how much of the budget is left in %"""
+        if float(self.allocated_points) == 0:
+            return 0
+        return (self.remaining_points / float(self.allocated_points)) * 100
 
 
 class Wallet(Base):
@@ -348,7 +452,8 @@ class MasterBudgetLedger(Base):
     reference_type = Column(String(50))
     reference_id = Column(UUID(as_uuid=True))
     description = Column(Text)
-    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_by = Column(UUID(as_uuid=True))
+    created_by_type = Column(SQLEnum(ActorType), default=ActorType.USER)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     tenant = relationship("Tenant", back_populates="master_budget_ledger")
@@ -383,6 +488,7 @@ class Recognition(Base):
     visibility = Column(String(20), default='public')  # public/private/department
     status = Column(String(50), default='active')  # pending/active/rejected/revoked
     department_budget_id = Column(UUID(as_uuid=True), ForeignKey("department_budgets.id"))
+    lead_budget_id = Column(UUID(as_uuid=True), ForeignKey("lead_budgets.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
@@ -392,6 +498,7 @@ class Recognition(Base):
     badge = relationship("Badge", back_populates="recognitions")
     comments = relationship("RecognitionComment", back_populates="recognition")
     reactions = relationship("RecognitionReaction", back_populates="recognition")
+    lead_budget = relationship("LeadBudget", back_populates="recognitions_given")
 
 
 class RecognitionComment(Base):
@@ -518,7 +625,8 @@ class AuditLog(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"))
-    actor_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    actor_id = Column(UUID(as_uuid=True))
+    actor_type = Column(SQLEnum(ActorType), default=ActorType.USER)
     action = Column(String(100), nullable=False)
     entity_type = Column(String(100))
     entity_id = Column(UUID(as_uuid=True))

@@ -1,0 +1,56 @@
+                                        Table "public.users"
+       Column       |           Type           | Collation | Nullable |           Default           
+--------------------+--------------------------+-----------+----------+-----------------------------
+ id                 | uuid                     |           | not null | uuid_generate_v4()
+ tenant_id          | uuid                     |           | not null | 
+ email              | character varying(255)   |           | not null | 
+ password_hash      | character varying(255)   |           | not null | 
+ first_name         | character varying(100)   |           | not null | 
+ last_name          | character varying(100)   |           | not null | 
+ org_role           | character varying(50)    |           | not null | 
+ department_id      | uuid                     |           |          | 
+ manager_id         | uuid                     |           |          | 
+ avatar_url         | character varying(500)   |           |          | 
+ date_of_birth      | date                     |           |          | 
+ hire_date          | date                     |           |          | 
+ status             | character varying(50)    |           |          | 'active'::character varying
+ created_at         | timestamp with time zone |           |          | now()
+ updated_at         | timestamp with time zone |           |          | now()
+ is_super_admin     | boolean                  |           |          | false
+ corporate_email    | character varying(255)   |           |          | 
+ personal_email     | character varying(255)   |           |          | 
+ mobile_number      | character varying(20)    |           |          | 
+ invitation_sent_at | timestamp with time zone |           |          | 
+ phone_number       | character varying(20)    |           |          | 
+Indexes:
+    "users_pkey" PRIMARY KEY, btree (id)
+    "idx_users_tenant_corporate_email" UNIQUE, btree (tenant_id, corporate_email)
+    "users_tenant_id_email_key" UNIQUE CONSTRAINT, btree (tenant_id, email)
+Check constraints:
+    "users_role_check" CHECK (org_role::text = ANY (ARRAY['platform_owner'::character varying, 'platform_admin'::character varying, 'tenant_admin'::character varying, 'hr_admin'::character varying, 'tenant_lead'::character varying, 'manager'::character varying, 'corporate_user'::character varying, 'employee'::character varying]::text[]))
+    "users_status_check" CHECK (status::text = ANY (ARRAY['PENDING_INVITE'::character varying, 'ACTIVE'::character varying, 'DEACTIVATED'::character varying, 'pending_invite'::character varying, 'active'::character varying, 'deactivated'::character varying]::text[]))
+Foreign-key constraints:
+    "users_department_id_fkey" FOREIGN KEY (department_id) REFERENCES departments(id)
+    "users_manager_id_fkey" FOREIGN KEY (manager_id) REFERENCES users(id)
+    "users_tenant_id_fkey" FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
+Referenced by:
+    TABLE "budgets" CONSTRAINT "budgets_created_by_fkey" FOREIGN KEY (created_by) REFERENCES users(id)
+    TABLE "event_participants" CONSTRAINT "event_participants_approved_by_fkey" FOREIGN KEY (approved_by) REFERENCES users(id)
+    TABLE "event_participants" CONSTRAINT "event_participants_checked_in_by_fkey" FOREIGN KEY (checked_in_by) REFERENCES users(id)
+    TABLE "event_participants" CONSTRAINT "event_participants_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    TABLE "events" CONSTRAINT "events_created_by_fkey" FOREIGN KEY (created_by) REFERENCES users(id)
+    TABLE "feed" CONSTRAINT "feed_actor_id_fkey" FOREIGN KEY (actor_id) REFERENCES users(id)
+    TABLE "feed" CONSTRAINT "feed_target_id_fkey" FOREIGN KEY (target_id) REFERENCES users(id)
+    TABLE "gift_allocations" CONSTRAINT "gift_allocations_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    TABLE "gift_allocations" CONSTRAINT "gift_allocations_verified_by_fkey" FOREIGN KEY (verified_by) REFERENCES users(id)
+    TABLE "notifications" CONSTRAINT "notifications_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    TABLE "otp_tokens" CONSTRAINT "otp_tokens_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    TABLE "recognition_comments" CONSTRAINT "recognition_comments_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id)
+    TABLE "recognition_reactions" CONSTRAINT "recognition_reactions_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id)
+    TABLE "recognitions" CONSTRAINT "recognitions_from_user_id_fkey" FOREIGN KEY (from_user_id) REFERENCES users(id)
+    TABLE "recognitions" CONSTRAINT "recognitions_to_user_id_fkey" FOREIGN KEY (to_user_id) REFERENCES users(id)
+    TABLE "redemptions" CONSTRAINT "redemptions_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id)
+    TABLE "users" CONSTRAINT "users_manager_id_fkey" FOREIGN KEY (manager_id) REFERENCES users(id)
+    TABLE "wallet_ledger" CONSTRAINT "wallet_ledger_created_by_fkey" FOREIGN KEY (created_by) REFERENCES users(id)
+    TABLE "wallets" CONSTRAINT "wallets_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+

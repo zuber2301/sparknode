@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, date
 from uuid import UUID
 
 
@@ -13,7 +13,7 @@ class TokenData(BaseModel):
     user_id: Optional[UUID] = None
     tenant_id: Optional[UUID] = None
     email: Optional[str] = None
-    role: Optional[str] = None
+    org_role: Optional[str] = None
     token_type: Optional[str] = None
     actual_user_id: Optional[UUID] = None
     effective_tenant_id: Optional[UUID] = None
@@ -28,19 +28,29 @@ class UserResponse(BaseModel):
     id: UUID
     tenant_id: Optional[UUID] = None
     email: str
-    first_name: str
-    last_name: str
-    role: str
-    phone_number: Optional[str] = None
-    mobile_number: Optional[str] = None
     corporate_email: Optional[str] = None
     personal_email: Optional[str] = None
+    first_name: str
+    last_name: str
+    org_role: str
+    role: Optional[str] = None
+    phone_number: Optional[str] = None
+    mobile_number: Optional[str] = None
     department_id: Optional[UUID] = None
+    manager_id: Optional[UUID] = None
     avatar_url: Optional[str] = None
+    date_of_birth: Optional[date] = None
+    hire_date: Optional[date] = None
     status: str
+    is_platform_admin: bool = False
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
+    @property
+    def effective_role(self):
+        return self.org_role
 
 
 class LoginResponse(BaseModel):
@@ -50,10 +60,9 @@ class LoginResponse(BaseModel):
 
 
 class SystemAdminResponse(BaseModel):
-    id: UUID
-    email: str
-    role: str
-    is_super_admin: bool
+    admin_id: UUID
+    user_id: UUID
+    access_level: str
     mfa_enabled: bool
     last_login_at: Optional[datetime] = None
 

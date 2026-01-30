@@ -44,7 +44,7 @@ CREATE TABLE tenants (
 CREATE TABLE departments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL CHECK (name IN ('Human Resource (HR)', 'Techology (IT)', 'Sale & Marketting', 'Business Unit -1', 'Business Unit-2', 'Business Unit-3')),
     parent_id UUID REFERENCES departments(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -61,7 +61,7 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
-    role VARCHAR(50) NOT NULL CHECK (role IN ('tenant_admin', 'hr_admin', 'tenant_lead', 'manager', 'corporate_user', 'employee')),
+    org_role VARCHAR(50) NOT NULL CHECK (org_role IN ('tenant_admin', 'hr_admin', 'tenant_lead', 'manager', 'corporate_user', 'employee')),
     department_id UUID REFERENCES departments(id),
     manager_id UUID REFERENCES users(id),
     avatar_url VARCHAR(500),
@@ -80,10 +80,9 @@ CREATE TABLE users (
 
 -- System Admins (Platform Admins)
 CREATE TABLE system_admins (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    email VARCHAR(255) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    is_super_admin BOOLEAN DEFAULT FALSE,
+    admin_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    access_level VARCHAR(20) DEFAULT 'PLATFORM_ADMIN',
     mfa_enabled BOOLEAN DEFAULT TRUE,
     last_login_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -113,7 +112,7 @@ CREATE TABLE user_upload_staging (
     full_name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL,
     department_name VARCHAR(255),
-    role VARCHAR(50),
+    org_role VARCHAR(50),
     manager_email VARCHAR(255),
     first_name VARCHAR(100),
     last_name VARCHAR(100),
@@ -142,6 +141,7 @@ CREATE TABLE budgets (
     allocated_points DECIMAL(15, 2) NOT NULL DEFAULT 0,
     remaining_points DECIMAL(15, 2) GENERATED ALWAYS AS (total_points - allocated_points) STORED,
     status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('draft', 'active', 'closed')),
+    expiry_date DATE,
     created_by UUID REFERENCES users(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -157,9 +157,26 @@ CREATE TABLE department_budgets (
     spent_points DECIMAL(15, 2) NOT NULL DEFAULT 0,
     remaining_points DECIMAL(15, 2) GENERATED ALWAYS AS (allocated_points - spent_points) STORED,
     monthly_cap DECIMAL(15, 2),
+    expiry_date DATE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(budget_id, department_id)
+);
+
+-- Lead Budgets (Allocation for individual Managers/Leads)
+CREATE TABLE lead_budgets (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    department_budget_id UUID NOT NULL REFERENCES department_budgets(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    total_points DECIMAL(15, 2) NOT NULL DEFAULT 0,
+    spent_points DECIMAL(15, 2) NOT NULL DEFAULT 0,
+    remaining_points DECIMAL(15, 2) GENERATED ALWAYS AS (total_points - spent_points) STORED,
+    status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'closed')),
+    expiry_date DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(department_budget_id, user_id)
 );
 
 -- =====================================================
@@ -191,7 +208,7 @@ CREATE TABLE wallet_ledger (
     reference_type VARCHAR(50),
     reference_id UUID,
     description TEXT,
-    created_by UUID REFERENCES users(id),
+    created_by UUID,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -206,8 +223,7 @@ CREATE TABLE master_budget_ledger (
     reference_type VARCHAR(50),
     reference_id UUID,
     description TEXT,
-    created_by UUID REFERENCES users(id),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_by UUID REFERENCES users(id),    created_by_type VARCHAR(20) DEFAULT 'user',    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Create index for ledger queries
@@ -242,6 +258,7 @@ CREATE TABLE recognitions (
     visibility VARCHAR(20) DEFAULT 'public' CHECK (visibility IN ('public', 'private', 'department')),
     status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('pending', 'active', 'rejected', 'revoked')),
     department_budget_id UUID REFERENCES department_budgets(id),
+    lead_budget_id UUID REFERENCES lead_budgets(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -351,7 +368,8 @@ CREATE TABLE redemptions (
 CREATE TABLE audit_log (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID REFERENCES tenants(id),
-    actor_id UUID REFERENCES users(id),
+    actor_id UUID,
+    actor_type VARCHAR(20) DEFAULT 'user',
     action VARCHAR(100) NOT NULL,
     entity_type VARCHAR(100),
     entity_id UUID,
@@ -743,16 +761,21 @@ INSERT INTO wallets (tenant_id, user_id, balance, lifetime_earned, lifetime_spen
 ('550e8400-e29b-41d4-a716-446655440000', '770e8400-e29b-41d4-a716-446655440005', 850, 1200, 350);
 
 -- Create demo budget
-INSERT INTO budgets (id, tenant_id, name, fiscal_year, total_points, allocated_points, status, created_by) VALUES
-('880e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440000', 'FY 2026 Q1 Budget', 2026, 100000, 25000, 'active', '770e8400-e29b-41d4-a716-446655440001');
+INSERT INTO budgets (id, tenant_id, name, fiscal_year, total_points, allocated_points, status, expiry_date, created_by) VALUES
+('880e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440000', 'FY 2026 Q1 Budget', 2026, 100000, 25000, 'active', '2026-03-31', '770e8400-e29b-41d4-a716-446655440001');
 
 -- Create department budgets
-INSERT INTO department_budgets (tenant_id, budget_id, department_id, allocated_points, spent_points, monthly_cap) VALUES
-('550e8400-e29b-41d4-a716-446655440000', '880e8400-e29b-41d4-a716-446655440001', '660e8400-e29b-41d4-a716-446655440001', 10000, 2500, 5000),
-('550e8400-e29b-41d4-a716-446655440000', '880e8400-e29b-41d4-a716-446655440001', '660e8400-e29b-41d4-a716-446655440002', 5000, 1000, 2500),
-('550e8400-e29b-41d4-a716-446655440000', '880e8400-e29b-41d4-a716-446655440001', '660e8400-e29b-41d4-a716-446655440003', 6000, 1500, 3000),
-('550e8400-e29b-41d4-a716-446655440000', '880e8400-e29b-41d4-a716-446655440001', '660e8400-e29b-41d4-a716-446655440004', 2000, 500, 1000),
-('550e8400-e29b-41d4-a716-446655440000', '880e8400-e29b-41d4-a716-446655440001', '660e8400-e29b-41d4-a716-446655440005', 2000, 500, 1000);
+INSERT INTO department_budgets (tenant_id, budget_id, department_id, allocated_points, spent_points, monthly_cap, expiry_date) VALUES
+('550e8400-e29b-41d4-a716-446655440000', '880e8400-e29b-41d4-a716-446655440001', '660e8400-e29b-41d4-a716-446655440001', 10000, 2500, 5000, '2026-03-31'),
+('550e8400-e29b-41d4-a716-446655440000', '880e8400-e29b-41d4-a716-446655440001', '660e8400-e29b-41d4-a716-446655440002', 5000, 1000, 2500, '2026-03-31'),
+('550e8400-e29b-41d4-a716-446655440000', '880e8400-e29b-41d4-a716-446655440001', '660e8400-e29b-41d4-a716-446655440003', 6000, 1500, 3000, '2026-03-31'),
+('550e8400-e29b-41d4-a716-446655440000', '880e8400-e29b-41d4-a716-446655440001', '660e8400-e29b-41d4-a716-446655440004', 2000, 500, 1000, '2026-03-31'),
+('550e8400-e29b-41d4-a716-446655440000', '880e8400-e29b-41d4-a716-446655440001', '660e8400-e29b-41d4-a716-446655440005', 2000, 500, 1000, '2026-03-31');
+
+-- Create lead budgets
+INSERT INTO lead_budgets (tenant_id, department_budget_id, user_id, allocated_points, spent_points, status, expiry_date) VALUES
+('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM department_budgets WHERE department_id = '660e8400-e29b-41d4-a716-446655440001' LIMIT 1), '770e8400-e29b-41d4-a716-446655440002', 2000, 500, 'active', '2026-03-31'),
+('550e8400-e29b-41d4-a716-446655440000', (SELECT id FROM department_budgets WHERE department_id = '660e8400-e29b-41d4-a716-446655440003' LIMIT 1), '770e8400-e29b-41d4-a716-446655440005', 1000, 200, 'active', '2026-03-31');
 
 -- Enable vouchers for demo tenant
 INSERT INTO tenant_vouchers (tenant_id, voucher_id, is_active)

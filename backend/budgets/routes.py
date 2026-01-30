@@ -5,12 +5,14 @@ from uuid import UUID
 from decimal import Decimal
 
 from database import get_db
-from core import append_impersonation_metadata
-from models import Budget, DepartmentBudget, User, AuditLog
+from core import append_impersonation_metadata, get_tenant_admin
+from models import Budget, DepartmentBudget, LeadBudget, User, AuditLog, ActorType
 from auth.utils import get_current_user, get_hr_admin
+from sqlalchemy import func
 from budgets.schemas import (
     BudgetCreate, BudgetUpdate, BudgetResponse,
     DepartmentBudgetCreate, DepartmentBudgetUpdate, DepartmentBudgetResponse,
+    LeadBudgetCreate, LeadBudgetResponse, LeadBudgetAllocateRequest,
     BudgetAllocationRequest
 )
 
@@ -47,6 +49,7 @@ async def get_budgets(
             "allocated_points": budget.allocated_points,
             "remaining_points": Decimal(str(budget.total_points)) - Decimal(str(budget.allocated_points)),
             "status": budget.status,
+            "expiry_date": budget.expiry_date,
             "created_by": budget.created_by,
             "created_at": budget.created_at
         }
@@ -70,6 +73,7 @@ async def create_budget(
         total_points=budget_data.total_points,
         allocated_points=0,
         status='draft',
+        expiry_date=budget_data.expiry_date,
         created_by=current_user.id
     )
     db.add(budget)
@@ -323,3 +327,99 @@ async def activate_budget(
     db.commit()
     
     return {"message": "Budget activated successfully"}
+
+
+@router.get("/{budget_id}/leads", response_model=List[LeadBudgetResponse])
+async def get_lead_budgets(
+    budget_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all lead sub-budgets for a master budget"""
+    # Find all department budgets for this budget
+    dept_budgets = db.query(DepartmentBudget).filter(DepartmentBudget.budget_id == budget_id).all()
+    dept_budget_ids = [db.id for db in dept_budgets]
+    
+    if not dept_budget_ids:
+        return []
+        
+    lead_budgets = db.query(LeadBudget).filter(LeadBudget.department_budget_id.in_(dept_budget_ids)).all()
+    return lead_budgets
+
+
+@router.post("/leads/allocate", response_model=LeadBudgetResponse)
+async def allocate_lead_budget(
+    request: LeadBudgetAllocateRequest,
+    current_user: User = Depends(get_hr_admin),
+    db: Session = Depends(get_db)
+):
+    """Allocate budget points to a Lead from their department's budget"""
+    # 1. Find the target lead user
+    lead_user = db.query(User).filter(User.id == request.user_id).first()
+    if not lead_user or not lead_user.department_id:
+        raise HTTPException(status_code=404, detail="Lead user not found or has no department")
+    
+    # 2. Find the active budget for the tenant
+    active_budget = db.query(Budget).filter(
+        Budget.tenant_id == current_user.tenant_id,
+        Budget.status == 'active'
+    ).first()
+    if not active_budget:
+        raise HTTPException(status_code=400, detail="No active budget found for this tenant")
+        
+    # 3. Find the department budget
+    dept_budget = db.query(DepartmentBudget).filter(
+        DepartmentBudget.budget_id == active_budget.id,
+        DepartmentBudget.department_id == lead_user.department_id
+    ).first()
+    
+    if not dept_budget:
+        raise HTTPException(status_code=400, detail="No budget allocated to this department yet")
+                
+    # 4. Check total already sub-allocated to leads in this department
+    sum_leads = db.query(func.sum(LeadBudget.total_points)).filter(
+        LeadBudget.department_budget_id == dept_budget.id
+    ).scalar() or 0
+    
+    lead_budget = db.query(LeadBudget).filter(
+        LeadBudget.department_budget_id == dept_budget.id,
+        LeadBudget.user_id == lead_user.id
+    ).first()
+    
+    existing_lead_points = lead_budget.total_points if lead_budget else 0
+    
+    if sum_leads - existing_lead_points + request.total_points > dept_budget.total_points:
+         raise HTTPException(status_code=400, detail=f"Exceeds department total budget. Available for sub-allocation: {float(dept_budget.total_points) - (float(sum_leads) - float(existing_lead_points))}")
+
+    # 5. Create or Update Lead Budget
+    if lead_budget:
+        lead_budget.total_points = request.total_points
+    else:
+        lead_budget = LeadBudget(
+            tenant_id=current_user.tenant_id,
+            department_budget_id=dept_budget.id,
+            user_id=lead_user.id,
+            total_points=request.total_points,
+            spent_points=0,
+            status='active'
+        )
+        db.add(lead_budget)
+    
+    # Audit log
+    audit = AuditLog(
+        tenant_id=current_user.tenant_id,
+        actor_id=current_user.id,
+        action="lead_budget_allocated",
+        entity_type="lead_budget",
+        entity_id=lead_budget.id,
+        new_values=append_impersonation_metadata({
+            "user_id": str(request.user_id),
+            "points": float(request.total_points),
+            "description": request.description
+        })
+    )
+    db.add(audit)
+        
+    db.commit()
+    db.refresh(lead_budget)
+    return lead_budget

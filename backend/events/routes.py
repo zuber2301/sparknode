@@ -450,7 +450,7 @@ async def get_participants(
     )
     
     # If not admin, only show direct reports
-    if not RolePermissions.is_tenant_admin_level(current_user.role):
+    if not RolePermissions.is_tenant_admin_level(current_user.org_role):
         report_ids = [u.id for u in db.query(User.id).filter(User.manager_id == current_user.id).all()]
         report_ids.append(current_user.id)
         query = query.filter(EventParticipant.user_id.in_(report_ids))
@@ -504,7 +504,7 @@ async def approve_participant(
         raise HTTPException(status_code=404, detail="Participant not found")
     
     # Verify access for non-admins
-    if not RolePermissions.is_tenant_admin_level(current_user.role):
+    if not RolePermissions.is_tenant_admin_level(current_user.org_role):
         user = db.query(User).filter(User.id == participant.user_id).first()
         if user and user.manager_id != current_user.id:
             raise HTTPException(status_code=403, detail="Can only approve your direct reports")
