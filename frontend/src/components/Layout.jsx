@@ -19,11 +19,13 @@ import {
   HiOutlineUser,
   HiOutlineMenu,
   HiOutlineX,
-  HiOutlineSelector
+  HiOutlineSelector,
+  HiOutlineCalendar,
 } from 'react-icons/hi'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
+  { name: 'Events', href: '/events/browse', icon: HiOutlineCalendar },
   { name: 'Feed', href: '/feed', icon: HiOutlineNewspaper },
   { name: 'Recognize', href: '/recognize', icon: HiOutlineSparkles },
   { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
@@ -31,6 +33,7 @@ const navigation = [
 ]
 
 const adminNavigation = [
+  { name: 'Events', href: '/events', icon: HiOutlineCalendar, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
   { name: 'Tenants', href: '/platform/tenants', icon: HiOutlineOfficeBuilding, roles: ['platform_admin'] },
   { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
   { name: 'Spend Analysis', href: '/spend-analysis', icon: HiOutlineTrendingUp, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },

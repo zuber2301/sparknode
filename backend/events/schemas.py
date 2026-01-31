@@ -1,14 +1,12 @@
 """
-Event & Logistics Schemas
-
-Pydantic models for event management, registration, and gift distribution.
+Event Management Schemas for SparkNode Events Hub.
+Includes request/response models for events, activities, nominations, teams, gifts, and metrics.
 """
 
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
-from uuid import UUID
 from datetime import datetime
-from decimal import Decimal
+from uuid import UUID
 
 
 # =====================================================
@@ -16,74 +14,102 @@ from decimal import Decimal
 # =====================================================
 
 class EventBase(BaseModel):
-    name: str = Field(..., min_length=1, max_length=255)
+    """Base event fields."""
+    title: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
-    event_type: str = Field(default="mixed", pattern="^(recognition|logistics|mixed)$")
-    start_date: datetime
-    end_date: datetime
-    registration_deadline: Optional[datetime] = None
+    type: str = Field(..., description="Event type: annual_day, gift_distribution, sports_day, custom")
+    
+    start_datetime: datetime
+    end_datetime: datetime
+    
+    venue: Optional[str] = None
     location: Optional[str] = None
-    is_virtual: bool = False
-    virtual_link: Optional[str] = None
-    max_participants: Optional[int] = None
-    banner_image_url: Optional[str] = None
-    theme_color: Optional[str] = None
-    settings: Optional[Dict[str, Any]] = {}
+    format: str = Field(default='onsite', description="onsite, virtual, hybrid")
+    
+    banner_url: Optional[str] = None
+    color_code: Optional[str] = Field(default='#3B82F6')
+    
+    status: str = Field(default='draft', description="draft, published, ongoing, closed, archived")
+    visibility: str = Field(default='all_employees')
+    visible_to_departments: List[UUID] = Field(default_factory=list)
+    
+    nomination_start: Optional[datetime] = None
+    nomination_end: Optional[datetime] = None
+    who_can_nominate: str = Field(default='all_employees')
+    max_activities_per_person: int = Field(default=5)
+    
+    planned_budget: float = Field(default=0)
+    currency: str = Field(default='USD')
 
 
 class EventCreate(EventBase):
+    """Request to create a new event."""
     pass
 
 
 class EventUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    """Request to update an event (all fields optional)."""
+    title: Optional[str] = None
     description: Optional[str] = None
-    event_type: Optional[str] = None
-    start_date: Optional[datetime] = None
-    end_date: Optional[datetime] = None
-    registration_deadline: Optional[datetime] = None
+    type: Optional[str] = None
+    
+    start_datetime: Optional[datetime] = None
+    end_datetime: Optional[datetime] = None
+    
+    venue: Optional[str] = None
     location: Optional[str] = None
-    is_virtual: Optional[bool] = None
-    virtual_link: Optional[str] = None
-    max_participants: Optional[int] = None
+    format: Optional[str] = None
+    
+    banner_url: Optional[str] = None
+    color_code: Optional[str] = None
+    
     status: Optional[str] = None
-    banner_image_url: Optional[str] = None
-    theme_color: Optional[str] = None
-    settings: Optional[Dict[str, Any]] = None
+    visibility: Optional[str] = None
+    visible_to_departments: Optional[List[UUID]] = None
+    
+    nomination_start: Optional[datetime] = None
+    nomination_end: Optional[datetime] = None
+    who_can_nominate: Optional[str] = None
+    max_activities_per_person: Optional[int] = None
+    
+    planned_budget: Optional[float] = None
+    currency: Optional[str] = None
 
 
-class EventResponse(BaseModel):
+class EventDetailResponse(EventBase):
+    """Full event details including metrics."""
     id: UUID
     tenant_id: UUID
-    name: str
-    description: Optional[str]
-    event_type: str
-    start_date: datetime
-    end_date: datetime
-    registration_deadline: Optional[datetime]
-    location: Optional[str]
-    is_virtual: bool
-    virtual_link: Optional[str]
-    max_participants: Optional[int]
-    status: str
-    banner_image_url: Optional[str]
-    theme_color: Optional[str]
-    settings: Dict[str, Any]
-    created_by: Optional[UUID]
-    created_at: datetime
+    created_by: Optional[UUID] = None
     
-    # Computed fields
-    participant_count: Optional[int] = 0
-    is_registration_open: Optional[bool] = False
+    created_at: datetime
+    updated_at: datetime
+    
+    # Aggregated counts
+    activity_count: int = 0
+    nomination_count: int = 0
     
     class Config:
         from_attributes = True
 
 
-class EventDetailResponse(EventResponse):
-    activities: List["EventActivityResponse"] = []
-    event_budget: Optional["EventBudgetResponse"] = None
-    creator_name: Optional[str] = None
+class EventListResponse(BaseModel):
+    """Condensed event info for lists."""
+    id: UUID
+    title: str
+    type: str
+    start_datetime: datetime
+    end_datetime: datetime
+    status: str
+    format: str
+    
+    activity_count: int = 0
+    nomination_count: int = 0
+    banner_url: Optional[str] = None
+    color_code: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
 
 
 # =====================================================
@@ -91,242 +117,348 @@ class EventDetailResponse(EventResponse):
 # =====================================================
 
 class EventActivityBase(BaseModel):
+    """Base activity fields."""
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
-    activity_type: str = Field(default="general", pattern="^(performance|gifting|workshop|networking|general)$")
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    max_capacity: Optional[int] = None
-    location: Optional[str] = None
-    participation_points: Decimal = Field(default=Decimal("0"))
-    settings: Optional[Dict[str, Any]] = {}
+    category: str = Field(..., description="solo, group, other")
+    
+    max_participants: Optional[int] = None
+    max_teams: Optional[int] = None
+    min_team_size: int = Field(default=1)
+    max_team_size: Optional[int] = None
+    
+    nomination_start: Optional[datetime] = None
+    nomination_end: Optional[datetime] = None
+    activity_start: Optional[datetime] = None
+    activity_end: Optional[datetime] = None
+    
+    requires_approval: bool = Field(default=False)
+    allow_multiple_teams: bool = Field(default=False)
+    rules_text: Optional[str] = None
+    
+    sequence: Optional[int] = None
 
 
 class EventActivityCreate(EventActivityBase):
+    """Request to create activity."""
     pass
 
 
 class EventActivityUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    """Request to update activity."""
+    name: Optional[str] = None
     description: Optional[str] = None
-    activity_type: Optional[str] = None
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    max_capacity: Optional[int] = None
-    location: Optional[str] = None
-    participation_points: Optional[Decimal] = None
-    settings: Optional[Dict[str, Any]] = None
+    category: Optional[str] = None
+    
+    max_participants: Optional[int] = None
+    max_teams: Optional[int] = None
+    min_team_size: Optional[int] = None
+    max_team_size: Optional[int] = None
+    
+    nomination_start: Optional[datetime] = None
+    nomination_end: Optional[datetime] = None
+    activity_start: Optional[datetime] = None
+    activity_end: Optional[datetime] = None
+    
+    requires_approval: Optional[bool] = None
+    allow_multiple_teams: Optional[bool] = None
+    rules_text: Optional[str] = None
+    
+    sequence: Optional[int] = None
 
 
-class EventActivityResponse(BaseModel):
+class EventActivityResponse(EventActivityBase):
+    """Activity details with counts."""
     id: UUID
     event_id: UUID
-    name: str
-    description: Optional[str]
-    activity_type: str
-    start_time: Optional[datetime]
-    end_time: Optional[datetime]
-    max_capacity: Optional[int]
-    current_count: int
-    location: Optional[str]
-    participation_points: Decimal
-    settings: Dict[str, Any]
+    tenant_id: UUID
     
-    # Computed fields
-    available_spots: Optional[int] = None
-    is_full: bool = False
+    created_at: datetime
+    updated_at: datetime
+    
+    nomination_count: int = 0
+    approved_count: int = 0
+    waitlisted_count: int = 0
+    team_count: int = 0
     
     class Config:
         from_attributes = True
 
 
 # =====================================================
-# EVENT PARTICIPANT SCHEMAS
+# EVENT NOMINATION SCHEMAS
 # =====================================================
 
-class EventRegistrationRequest(BaseModel):
-    activity_ids: Optional[List[UUID]] = []
-    custom_field_responses: Optional[Dict[str, Any]] = {}
+class EventNominationBase(BaseModel):
+    """Base nomination fields."""
+    status: str = Field(default='pending', description="pending, approved, rejected, waitlisted")
+    performance_title: Optional[str] = None
+    notes: Optional[str] = None
+    preferred_slot: Optional[str] = None
 
 
-class EventParticipantResponse(BaseModel):
+class EventNominationCreate(BaseModel):
+    """Request to create nomination."""
+    activity_id: UUID
+    nominee_user_id: UUID
+    team_id: Optional[UUID] = None  # For group activities
+    
+    performance_title: Optional[str] = None
+    notes: Optional[str] = None
+    preferred_slot: Optional[str] = None
+
+
+class EventNominationUpdate(BaseModel):
+    """Request to update nomination status (admin)."""
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class EventNominationResponse(EventNominationBase):
+    """Nomination details."""
     id: UUID
     event_id: UUID
-    user_id: UUID
-    status: str
-    approved_by: Optional[UUID]
-    approved_at: Optional[datetime]
-    rejection_reason: Optional[str]
-    checked_in_at: Optional[datetime]
-    custom_field_responses: Dict[str, Any]
-    registered_at: datetime
+    activity_id: UUID
+    tenant_id: UUID
     
-    # User info
-    user_name: Optional[str] = None
-    user_email: Optional[str] = None
-    user_department: Optional[str] = None
+    nominee_user_id: UUID
+    team_id: Optional[UUID] = None
     
-    # Activity participations
-    activities: List["ActivityParticipantResponse"] = []
+    created_by: Optional[UUID] = None
+    created_at: datetime
+    updated_at: datetime
+    
+    reviewed_by: Optional[UUID] = None
+    reviewed_at: Optional[datetime] = None
     
     class Config:
         from_attributes = True
 
 
-class ActivityParticipantResponse(BaseModel):
+# =====================================================
+# EVENT TEAM SCHEMAS
+# =====================================================
+
+class EventTeamBase(BaseModel):
+    """Base team fields."""
+    team_name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    captain_user_id: UUID
+    status: str = Field(default='forming')
+
+
+class EventTeamCreate(BaseModel):
+    """Request to create team."""
+    activity_id: UUID
+    team_name: str
+    description: Optional[str] = None
+    captain_user_id: UUID
+    member_user_ids: List[UUID] = Field(default_factory=list)  # Initial members
+
+
+class EventTeamResponse(EventTeamBase):
+    """Team details."""
     id: UUID
     activity_id: UUID
-    activity_name: Optional[str] = None
-    status: str
-    checked_in_at: Optional[datetime]
-    points_awarded: Decimal
+    tenant_id: UUID
+    
+    created_at: datetime
+    updated_at: datetime
+    
+    member_count: int = 0
     
     class Config:
         from_attributes = True
 
 
-class ParticipantApprovalRequest(BaseModel):
-    status: str = Field(..., pattern="^(approved|rejected)$")
-    rejection_reason: Optional[str] = None
+class EventTeamMemberResponse(BaseModel):
+    """Team member details."""
+    id: UUID
+    team_id: UUID
+    user_id: UUID
+    role: str  # member, captain
+    status: str  # active, inactive, left
+    
+    joined_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+# =====================================================
+# EVENT GIFT SCHEMAS
+# =====================================================
+
+class EventGiftBatchBase(BaseModel):
+    """Base gift batch fields."""
+    gift_name: str = Field(..., min_length=1, max_length=255)
+    gift_type: str = Field(..., description="hamper, voucher, swag, merchandise, other")
+    description: Optional[str] = None
+    
+    quantity: int = Field(..., gt=0)
+    unit_value: float = Field(..., gt=0)
+    
+    eligible_criteria: Dict[str, Any] = Field(default_factory=dict)
+    distribution_start: Optional[datetime] = None
+    distribution_end: Optional[datetime] = None
+    distribution_locations: List[str] = Field(default_factory=list)
+
+
+class EventGiftBatchCreate(EventGiftBatchBase):
+    """Request to create gift batch."""
+    pass
+
+
+class EventGiftBatchUpdate(BaseModel):
+    """Request to update gift batch."""
+    gift_name: Optional[str] = None
+    gift_type: Optional[str] = None
+    description: Optional[str] = None
+    quantity: Optional[int] = None
+    unit_value: Optional[float] = None
+    eligible_criteria: Optional[Dict[str, Any]] = None
+    distribution_start: Optional[datetime] = None
+    distribution_end: Optional[datetime] = None
+    distribution_locations: Optional[List[str]] = None
+
+
+class EventGiftBatchResponse(EventGiftBatchBase):
+    """Gift batch details."""
+    id: UUID
+    event_id: UUID
+    tenant_id: UUID
+    
+    created_at: datetime
+    updated_at: datetime
+    
+    issued_count: int = 0
+    redeemed_count: int = 0
+    
+    class Config:
+        from_attributes = True
+
+
+class EventGiftRedemptionResponse(BaseModel):
+    """Gift redemption tracking."""
+    id: UUID
+    gift_batch_id: UUID
+    event_id: UUID
+    user_id: UUID
+    
+    status: str  # not_issued, issued, redeemed, expired
+    qr_token_expires_at: Optional[datetime] = None
+    
+    redeemed_at: Optional[datetime] = None
+    redeemed_location: Optional[str] = None
+    redeemed_by: Optional[UUID] = None
+    
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class GiftRedemptionRequest(BaseModel):
+    """Request to redeem a gift (scanner)."""
+    qr_token: str = Field(..., description="QR token from employee")
+    location: str = Field(..., description="Distribution location")
+    staff_user_id: UUID = Field(..., description="Staff scanning the code")
 
 
 # =====================================================
 # EVENT BUDGET SCHEMAS
 # =====================================================
 
-class EventBudgetCreate(BaseModel):
-    total_budget: Decimal = Field(..., ge=0)
-    breakdown: Optional[Dict[str, Decimal]] = {}
-
-
 class EventBudgetUpdate(BaseModel):
-    total_budget: Optional[Decimal] = Field(None, ge=0)
-    breakdown: Optional[Dict[str, Decimal]] = None
+    """Request to update event budget."""
+    planned_budget: Optional[float] = None
+    actual_spend: Optional[float] = None
+    committed_spend: Optional[float] = None
+    budget_breakdown: Optional[Dict[str, Any]] = None
 
 
 class EventBudgetResponse(BaseModel):
+    """Budget details."""
     id: UUID
     event_id: UUID
-    total_budget: Decimal
-    allocated_amount: Decimal
-    spent_amount: Decimal
-    remaining_budget: Decimal
-    breakdown: Dict[str, Any]
+    tenant_id: UUID
+    
+    planned_budget: float
+    actual_spend: float
+    committed_spend: float
+    
+    budget_breakdown: Dict[str, Any]
+    
     created_at: datetime
+    updated_at: datetime
     
     class Config:
         from_attributes = True
 
 
 # =====================================================
-# GIFT ITEM SCHEMAS
+# EVENT METRICS SCHEMAS
 # =====================================================
 
-class GiftItemCreate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = None
-    image_url: Optional[str] = None
-    total_quantity: int = Field(..., ge=0)
-    unit_value: Decimal = Field(default=Decimal("0"), ge=0)
-    points_value: Decimal = Field(default=Decimal("0"), ge=0)
-
-
-class GiftItemUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = None
-    image_url: Optional[str] = None
-    total_quantity: Optional[int] = Field(None, ge=0)
-    unit_value: Optional[Decimal] = None
-    points_value: Optional[Decimal] = None
-
-
-class GiftItemResponse(BaseModel):
+class EventMetricsResponse(BaseModel):
+    """Event metrics and analytics."""
     id: UUID
-    activity_id: UUID
+    event_id: UUID
+    tenant_id: UUID
+    
+    # Participation
+    total_invited: int = 0
+    total_registered: int = 0
+    total_participated: int = 0
+    no_shows: int = 0
+    
+    # Gift Collection
+    gifts_eligible: int = 0
+    gifts_issued: int = 0
+    gifts_redeemed: int = 0
+    
+    # Breakdown
+    activity_metrics: Dict[str, Any] = {}
+    department_metrics: Dict[str, Any] = {}
+    
+    computed_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+# =====================================================
+# TEMPLATE SCHEMAS
+# =====================================================
+
+class EventTemplate(BaseModel):
+    """Event template for quick creation."""
+    id: str  # e.g., "annual_day", "gift_distribution", "sports_day"
     name: str
-    description: Optional[str]
-    image_url: Optional[str]
-    total_quantity: int
-    allocated_quantity: int
-    distributed_quantity: int
-    available_quantity: int
-    unit_value: Decimal
-    points_value: Decimal
-    created_at: datetime
-    
-    class Config:
-        from_attributes = True
+    description: str
+    icon: str  # Icon name or emoji
+    preset_activities: List[Dict[str, Any]]  # Activities to pre-populate
+    rules: Dict[str, Any]  # Default rules and constraints
+
+
+class EventTemplateGalleryResponse(BaseModel):
+    """List of available templates."""
+    templates: List[EventTemplate]
 
 
 # =====================================================
-# GIFT ALLOCATION SCHEMAS
+# BULK OPERATIONS
 # =====================================================
 
-class GiftAllocationCreate(BaseModel):
-    user_id: UUID
-    quantity: int = Field(default=1, ge=1)
-    expires_at: Optional[datetime] = None
+class BulkNominationApprovalRequest(BaseModel):
+    """Bulk approve/reject nominations."""
+    nomination_ids: List[UUID]
+    status: str  # approved, rejected, waitlisted
+    reason: Optional[str] = None
 
 
-class GiftAllocationResponse(BaseModel):
-    id: UUID
-    gift_item_id: UUID
-    user_id: UUID
-    quantity: int
-    status: str
-    picked_up_at: Optional[datetime]
-    allocated_at: datetime
-    expires_at: Optional[datetime]
-    
-    # Related info
-    gift_item_name: Optional[str] = None
-    user_name: Optional[str] = None
-    
-    class Config:
-        from_attributes = True
-
-
-class GiftPickupVerification(BaseModel):
-    qr_token: str
-
-
-class GiftPickupResponse(BaseModel):
-    success: bool
-    message: str
-    allocation_id: Optional[UUID] = None
-    user_name: Optional[str] = None
-    gift_item_name: Optional[str] = None
-    quantity: Optional[int] = None
-
-
-# =====================================================
-# QR CODE SCHEMAS
-# =====================================================
-
-class QRCodeRequest(BaseModel):
-    event_id: UUID
-    activity_id: Optional[UUID] = None
-
-
-class QRCodeResponse(BaseModel):
-    qr_data: str
-    expires_at: datetime
-
-
-class CheckInRequest(BaseModel):
-    qr_token: str
-    activity_id: Optional[UUID] = None
-
-
-class CheckInResponse(BaseModel):
-    success: bool
-    message: str
-    user_name: Optional[str] = None
-    event_name: Optional[str] = None
-    activity_name: Optional[str] = None
-    checked_in_at: Optional[datetime] = None
-
-
-# Update forward references
-EventDetailResponse.model_rebuild()
-EventParticipantResponse.model_rebuild()
+class GenerateGiftQRCodesRequest(BaseModel):
+    """Generate QR codes for gift batch."""
+    gift_batch_id: UUID
+    eligible_user_ids: Optional[List[UUID]] = None  # If None, auto-determine from criteria

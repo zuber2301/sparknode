@@ -668,428 +668,349 @@ class Notification(Base):
 
 
 # =====================================================
-# EVENTS & LOGISTICS MODULE
+
+# =====================================================
+# EVENTS & ACTIVITIES (Phase 1: Events Hub)
 # =====================================================
 
 class Event(Base):
     """
-    Tenant-specific events (Hackathons, Annual Day, Sales Kickoff, etc.)
-    
-    Features:
-    - Custom event wizards per tenant culture
-    - Modular sub-activities (Performance vs Gifting tracks)
-    - Separate event budgets outside recurring recognition pool
-    - Approval workflows for localized governance
+    Event entity for tenant-hosted events (Annual Day, Sports Day, Gift Campaigns, etc.)
+    Each event belongs to a tenant and can have multiple activities and nominations.
     """
     __tablename__ = "events"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
     
-    # Basic Info
-    name = Column(String(255), nullable=False)
+    # Event Details
+    title = Column(String(255), nullable=False)
     description = Column(Text)
-    event_type = Column(String(50), default='mixed')  # recognition, logistics, mixed
+    type = Column(String(50), nullable=False)  # annual_day, gift_distribution, sports_day, custom
     
-    # Scheduling
-    start_date = Column(DateTime(timezone=True), nullable=False)
-    end_date = Column(DateTime(timezone=True), nullable=False)
-    registration_deadline = Column(DateTime(timezone=True))
+    # Timeline
+    start_datetime = Column(DateTime(timezone=True), nullable=False)
+    end_datetime = Column(DateTime(timezone=True), nullable=False)
     
-    # Location
-    location = Column(String(500))
-    is_virtual = Column(Boolean, default=False)
-    virtual_link = Column(String(500))
+    # Venue & Format
+    venue = Column(String(500))  # "Online", "Office Building A", "Hybrid"
+    location = Column(String(500))  # Geographic location if applicable
+    format = Column(String(50), default='onsite')  # onsite, virtual, hybrid
     
-    # Capacity & Status
-    max_participants = Column(Integer)
-    status = Column(String(50), default='draft')  # draft, published, ongoing, completed, cancelled
+    # Event Status & Visibility
+    status = Column(String(50), default='draft')  # draft, published, ongoing, closed, archived
+    visibility = Column(String(50), default='all_employees')  # all_employees, specific_departments, specific_locations
+    visible_to_departments = Column(JSONB, default=[])  # Array of department IDs if visibility is filtered
     
-    # Visual & Branding
-    banner_image_url = Column(String(500))
-    theme_color = Column(String(20))
+    # Event Banner & Branding
+    banner_url = Column(String(500))  # Event banner image
+    color_code = Column(String(20), default='#3B82F6')  # Primary event color
     
-    # Settings
-    settings = Column(JSONB, default={})
-    # settings structure:
-    # {
-    #   "require_manager_approval": true,
-    #   "allow_plus_one": false,
-    #   "notify_on_registration": true,
-    #   "enable_waitlist": true,
-    #   "qr_checkin_enabled": true,
-    #   "gift_pickup_enabled": true,
-    #   "custom_fields": [{"name": "T-Shirt Size", "type": "select", "options": ["S", "M", "L", "XL"]}]
-    # }
+    # Nomination & Registration Rules
+    nomination_start = Column(DateTime(timezone=True))
+    nomination_end = Column(DateTime(timezone=True))
+    who_can_nominate = Column(String(50), default='all_employees')  # all_employees, managers_only, specific_departments
+    max_activities_per_person = Column(Integer, default=5)  # Limit per employee
     
-    # Audit
+    # Budget & Tracking
+    planned_budget = Column(Numeric(15, 2), default=0)
+    currency = Column(String(10), default='USD')
+    
+    # Metadata
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # Relationships
-    tenant = relationship("Tenant", back_populates="events")
-    creator = relationship("User", foreign_keys=[created_by])
     activities = relationship("EventActivity", back_populates="event", cascade="all, delete-orphan")
-    participants = relationship("EventParticipant", back_populates="event", cascade="all, delete-orphan")
-    event_budget = relationship("EventBudget", back_populates="event", uselist=False, cascade="all, delete-orphan")
-    
-    @property
-    def is_registration_open(self):
-        from datetime import datetime
-        now = datetime.utcnow()
-        if self.registration_deadline:
-            return self.status == 'published' and now < self.registration_deadline
-        return self.status == 'published' and now < self.start_date
+    nominations = relationship("EventNomination", back_populates="event", cascade="all, delete-orphan")
+    gift_batches = relationship("EventGiftBatch", back_populates="event", cascade="all, delete-orphan")
+    budget = relationship("EventBudget", back_populates="event", uselist=False, cascade="all, delete-orphan")
+    metrics = relationship("EventMetrics", back_populates="event", uselist=False, cascade="all, delete-orphan")
 
 
 class EventActivity(Base):
     """
-    Sub-activities within an event (Performance tracks, Gifting sessions, etc.)
-    
-    Features:
-    - Custom capacity limits per activity
-    - Activity-specific budgets
-    - Separate approval workflows
+    Activities within an event (e.g., Singing, Dancing, Cricket, Gift Pickup).
+    Can be solo or group with nomination/registration constraints.
     """
     __tablename__ = "event_activities"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
     event_id = Column(UUID(as_uuid=True), ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
     
-    # Basic Info
-    name = Column(String(255), nullable=False)
+    # Activity Details
+    name = Column(String(255), nullable=False)  # "Singing", "Cricket", "Gift Pickup"
     description = Column(Text)
-    activity_type = Column(String(50), default='general')  # performance, gifting, workshop, networking, general
+    category = Column(String(50), nullable=False)  # solo, group, other
     
-    # Scheduling
-    start_time = Column(DateTime(timezone=True))
-    end_time = Column(DateTime(timezone=True))
+    # Capacity & Limits
+    max_participants = Column(Integer)  # Max solo participants
+    max_teams = Column(Integer)  # Max groups (if group activity)
+    min_team_size = Column(Integer, default=1)
+    max_team_size = Column(Integer)
     
-    # Capacity
-    max_capacity = Column(Integer)
-    current_count = Column(Integer, default=0)
+    # Timeline
+    nomination_start = Column(DateTime(timezone=True))
+    nomination_end = Column(DateTime(timezone=True))
+    activity_start = Column(DateTime(timezone=True))  # When activity happens
+    activity_end = Column(DateTime(timezone=True))
     
-    # Location
-    location = Column(String(500))
+    # Rules & Settings
+    requires_approval = Column(Boolean, default=False)  # Requires admin approval
+    allow_multiple_teams = Column(Boolean, default=False)  # Can one person join multiple teams?
+    rules_text = Column(Text)  # Custom rules or instructions
     
-    # Points/Rewards
-    participation_points = Column(Numeric(15, 2), default=0)  # Points for participation
-    
-    # Settings
-    settings = Column(JSONB, default={})
-    
-    # Timestamps
+    # Metadata
+    sequence = Column(Integer)  # Order in event agenda
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # Relationships
     event = relationship("Event", back_populates="activities")
-    participants = relationship("ActivityParticipant", back_populates="activity", cascade="all, delete-orphan")
-    gift_items = relationship("EventGiftItem", back_populates="activity", cascade="all, delete-orphan")
-    
-    @property
-    def is_full(self):
-        if self.max_capacity is None:
-            return False
-        return self.current_count >= self.max_capacity
-    
-    @property
-    def available_spots(self):
-        if self.max_capacity is None:
-            return None
-        return max(0, self.max_capacity - self.current_count)
+    nominations = relationship("EventNomination", back_populates="activity", cascade="all, delete-orphan")
+    teams = relationship("EventTeam", back_populates="activity", cascade="all, delete-orphan")
 
 
-class EventParticipant(Base):
+class EventNomination(Base):
     """
-    Event registration and participation tracking.
-    
-    Features:
-    - Manager approval workflow
-    - Check-in tracking with QR verification
-    - Custom field responses
+    Self-nomination or registration for an activity.
+    Solo: user nominates directly. Group: user nominates themselves for team.
     """
-    __tablename__ = "event_participants"
+    __tablename__ = "event_nominations"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
     event_id = Column(UUID(as_uuid=True), ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    activity_id = Column(UUID(as_uuid=True), ForeignKey("event_activities.id", ondelete="CASCADE"), nullable=False)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
     
-    # Status
-    status = Column(String(50), default='pending')  # pending, approved, rejected, checked_in, completed
+    # Nominee Info
+    nominee_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    team_id = Column(UUID(as_uuid=True), ForeignKey("event_teams.id"), nullable=True)  # NULL for solo activities
     
-    # Approval
-    approved_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
-    approved_at = Column(DateTime(timezone=True))
-    rejection_reason = Column(Text)
+    # Submission & Status
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))  # User who created nomination (may diff for approvals)
+    status = Column(String(50), default='pending')  # pending, approved, rejected, waitlisted
     
-    # Check-in
-    checked_in_at = Column(DateTime(timezone=True))
-    checked_in_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    # Performance Details (for performances)
+    performance_title = Column(String(255))  # E.g., "Solo Dancing - Kathak"
+    notes = Column(Text)  # Additional info from nominee
+    preferred_slot = Column(String(100))  # E.g., "Slot 1 (10am-11am)"
     
-    # Custom Fields
-    custom_field_responses = Column(JSONB, default={})
+    # Tracking
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    reviewed_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))  # Admin who approved/rejected
+    reviewed_at = Column(DateTime(timezone=True))
     
-    # Timestamps
-    registered_at = Column(DateTime(timezone=True), server_default=func.now())
+    # Relationships
+    event = relationship("Event", back_populates="nominations")
+    activity = relationship("EventActivity", back_populates="nominations")
+
+
+class EventTeam(Base):
+    """
+    Team for group activities (team sports, group performances, etc.)
+    """
+    __tablename__ = "event_teams"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    activity_id = Column(UUID(as_uuid=True), ForeignKey("event_activities.id", ondelete="CASCADE"), nullable=False)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    
+    # Team Details
+    team_name = Column(String(255), nullable=False)
+    description = Column(Text)
+    
+    # Leadership
+    captain_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    
+    # Team Status
+    status = Column(String(50), default='forming')  # forming, complete, approved, rejected
+    
+    # Metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # Relationships
-    event = relationship("Event", back_populates="participants")
-    user = relationship("User", foreign_keys=[user_id])
-    approver = relationship("User", foreign_keys=[approved_by])
-    activity_participations = relationship("ActivityParticipant", back_populates="event_participant", cascade="all, delete-orphan")
+    activity = relationship("EventActivity", back_populates="teams")
+    members = relationship("EventTeamMember", back_populates="team", cascade="all, delete-orphan")
 
 
-class ActivityParticipant(Base):
+class EventTeamMember(Base):
     """
-    Participation tracking for specific event activities.
+    Members of a team for group activities.
     """
-    __tablename__ = "activity_participants"
+    __tablename__ = "event_team_members"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
-    activity_id = Column(UUID(as_uuid=True), ForeignKey("event_activities.id", ondelete="CASCADE"), nullable=False)
-    event_participant_id = Column(UUID(as_uuid=True), ForeignKey("event_participants.id", ondelete="CASCADE"), nullable=False)
+    team_id = Column(UUID(as_uuid=True), ForeignKey("event_teams.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    
+    # Member Role
+    role = Column(String(50), default='member')  # member, captain
     
     # Status
-    status = Column(String(50), default='registered')  # registered, attended, no_show
+    status = Column(String(50), default='active')  # active, inactive, left
     
-    # Check-in
-    checked_in_at = Column(DateTime(timezone=True))
-    
-    # Points awarded
-    points_awarded = Column(Numeric(15, 2), default=0)
-    
-    # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    # Metadata
+    joined_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships
-    activity = relationship("EventActivity", back_populates="participants")
-    event_participant = relationship("EventParticipant", back_populates="activity_participations")
+    team = relationship("EventTeam", back_populates="members")
+
+
+class EventGiftBatch(Base):
+    """
+    Batch of gifts for an event (e.g., "Diwali Hampers 2026" with 500 units).
+    Tracks planned gifts before individual redemption tracking.
+    """
+    __tablename__ = "event_gift_batches"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_id = Column(UUID(as_uuid=True), ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    
+    # Gift Type & Quantity
+    gift_name = Column(String(255), nullable=False)  # E.g., "Diwali Hamper", "Sports Kit"
+    gift_type = Column(String(50), nullable=False)  # hamper, voucher, swag, merchandise, other
+    description = Column(Text)
+    
+    quantity = Column(Integer, nullable=False)  # Total units available
+    unit_value = Column(Numeric(10, 2), nullable=False)  # Cost per unit
+    
+    # Eligibility & Distribution
+    eligible_criteria = Column(JSONB, default={})  # {departments: [], locations: [], roles: []}
+    distribution_start = Column(DateTime(timezone=True))
+    distribution_end = Column(DateTime(timezone=True))
+    distribution_locations = Column(JSONB, default=[])  # Array of location names
+    
+    # Metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    event = relationship("Event", back_populates="gift_batches")
+    redemptions = relationship("EventGiftRedemption", back_populates="gift_batch", cascade="all, delete-orphan")
+
+
+class EventGiftRedemption(Base):
+    """
+    Per-employee gift redemption tracking with QR codes.
+    One row per eligible employee for each gift batch.
+    """
+    __tablename__ = "event_gift_redemptions"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    gift_batch_id = Column(UUID(as_uuid=True), ForeignKey("event_gift_batches.id", ondelete="CASCADE"), nullable=False)
+    event_id = Column(UUID(as_uuid=True), ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    
+    # Recipient
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    
+    # QR Token (unique, signed, time-bounded)
+    qr_token = Column(String(500), unique=True, nullable=False)  # Encoded, signed JWT or similar
+    qr_token_expires_at = Column(DateTime(timezone=True))
+    
+    # Redemption Status
+    status = Column(String(50), default='not_issued')  # not_issued, issued, redeemed, expired
+    
+    # Redemption Details
+    redeemed_at = Column(DateTime(timezone=True))
+    redeemed_location = Column(String(255))  # Location where gift was collected
+    redeemed_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))  # Staff member who scanned
+    
+    # Audit
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    gift_batch = relationship("EventGiftBatch", back_populates="redemptions")
 
 
 class EventBudget(Base):
     """
-    Separate event-specific budget outside the recurring recognition pool.
-    
-    Features:
-    - One-time funding for logistics events
-    - Isolated from main tenant budget
-    - Track gifts, prizes, and participation rewards
+    Budget tracking for an event.
+    Breakdown of planned vs actual spend by category.
     """
     __tablename__ = "event_budgets"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
-    event_id = Column(UUID(as_uuid=True), ForeignKey("events.id", ondelete="CASCADE"), nullable=False, unique=True)
+    event_id = Column(UUID(as_uuid=True), ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
     
-    # Budget amounts
-    total_budget = Column(Numeric(15, 2), nullable=False, default=0)
-    allocated_amount = Column(Numeric(15, 2), nullable=False, default=0)
-    spent_amount = Column(Numeric(15, 2), nullable=False, default=0)
+    # Overall Budget
+    planned_budget = Column(Numeric(15, 2), nullable=False)
+    actual_spend = Column(Numeric(15, 2), default=0)
+    committed_spend = Column(Numeric(15, 2), default=0)  # Reserved but not yet spent
     
-    # Budget breakdown
-    breakdown = Column(JSONB, default={})
-    # breakdown structure:
+    # Breakdown by Category (JSONB for flexibility)
+    budget_breakdown = Column(JSONB, default={})
     # {
-    #   "gifts": 50000,
-    #   "prizes": 20000,
-    #   "participation_rewards": 10000,
-    #   "miscellaneous": 5000
+    #   "venue": {planned: 10000, actual: 9500, committed: 0},
+    #   "gifts": {planned: 50000, actual: 49000, committed: 0},
+    #   "catering": {planned: 20000, actual: 0, committed: 20000},
+    #   "logistics": {planned: 5000, actual: 0, committed: 0}
     # }
     
-    # Timestamps
+    # Metadata
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # Relationships
-    event = relationship("Event", back_populates="event_budget")
-    
-    @property
-    def remaining_budget(self):
-        return float(self.total_budget) - float(self.spent_amount)
+    event = relationship("Event", back_populates="budget")
 
 
-class EventGiftItem(Base):
+class EventMetrics(Base):
     """
-    Gift items available for an event activity (for logistics events).
+    Aggregated metrics for an event (participation, attendance, gift collection rates).
+    Can be computed in real-time or cached periodically.
     """
-    __tablename__ = "event_gift_items"
+    __tablename__ = "event_metrics"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
-    activity_id = Column(UUID(as_uuid=True), ForeignKey("event_activities.id", ondelete="CASCADE"), nullable=False)
+    event_id = Column(UUID(as_uuid=True), ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
     
-    # Gift details
-    name = Column(String(255), nullable=False)
-    description = Column(Text)
-    image_url = Column(String(500))
+    # Participation Metrics
+    total_invited = Column(Integer, default=0)  # Eligible employees
+    total_registered = Column(Integer, default=0)  # Those who nominated
+    total_participated = Column(Integer, default=0)  # Those who actually participated (check-in)
+    no_shows = Column(Integer, default=0)
     
-    # Inventory
-    total_quantity = Column(Integer, nullable=False, default=0)
-    allocated_quantity = Column(Integer, nullable=False, default=0)
-    distributed_quantity = Column(Integer, nullable=False, default=0)
-    
-    # Value
-    unit_value = Column(Numeric(15, 2), default=0)
-    points_value = Column(Numeric(15, 2), default=0)
-    
-    # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
-    # Relationships
-    activity = relationship("EventActivity", back_populates="gift_items")
-    allocations = relationship("GiftAllocation", back_populates="gift_item", cascade="all, delete-orphan")
-    
-    @property
-    def available_quantity(self):
-        return self.total_quantity - self.allocated_quantity
-
-
-class GiftAllocation(Base):
-    """
-    Gift allocations to employees for pickup at events.
-    """
-    __tablename__ = "gift_allocations"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
-    gift_item_id = Column(UUID(as_uuid=True), ForeignKey("event_gift_items.id", ondelete="CASCADE"), nullable=False)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    
-    # Allocation details
-    quantity = Column(Integer, nullable=False, default=1)
-    
-    # Pickup status
-    status = Column(String(50), default='pending')  # pending, ready, picked_up, expired
-    picked_up_at = Column(DateTime(timezone=True))
-    verified_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
-    
-    # QR Code token hash (for verification)
-    qr_token_hash = Column(String(255))
-    
-    # Timestamps
-    allocated_at = Column(DateTime(timezone=True), server_default=func.now())
-    expires_at = Column(DateTime(timezone=True))
-    
-    # Relationships
-    gift_item = relationship("EventGiftItem", back_populates="allocations")
-    user = relationship("User", foreign_keys=[user_id])
-    verifier = relationship("User", foreign_keys=[verified_by])
-
-
-# =====================================================
-# PLATFORM ANALYTICS & METRICS
-# =====================================================
-
-class TenantAnalytics(Base):
-    """
-    Pre-computed analytics metrics for tenant dashboards.
-    Updated periodically for performance.
-    """
-    __tablename__ = "tenant_analytics"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
-    
-    # Time period
-    period_type = Column(String(20), nullable=False)  # daily, weekly, monthly, quarterly
-    period_start = Column(Date, nullable=False)
-    period_end = Column(Date, nullable=False)
-    
-    # Engagement Metrics
-    active_users = Column(Integer, default=0)
-    recognitions_given = Column(Integer, default=0)
-    recognitions_received = Column(Integer, default=0)
-    points_distributed = Column(Numeric(15, 2), default=0)
-    points_redeemed = Column(Numeric(15, 2), default=0)
-    
-    # Budget Metrics
-    budget_utilization_rate = Column(Numeric(5, 2), default=0)  # percentage
-    budget_burn_rate = Column(Numeric(15, 2), default=0)  # points per day
-    
-    # Engagement Scores
-    engagement_score = Column(Numeric(5, 2), default=0)  # 0-100
-    participation_rate = Column(Numeric(5, 2), default=0)  # percentage
-    
-    # Department breakdown
-    department_metrics = Column(JSONB, default={})
-    # department_metrics structure:
+    # Per-Activity Breakdown
+    activity_metrics = Column(JSONB, default={})
     # {
-    #   "dept_uuid": {
-    #     "recognitions": 50,
-    #     "points": 5000,
-    #     "active_users": 20,
-    #     "engagement_score": 75
+    #   "activity_id": {
+    #     "name": "Singing",
+    #     "nominations": 45,
+    #     "approved": 30,
+    #     "waitlisted": 10,
+    #     "rejected": 5
     #   }
     # }
     
-    # Top performers
-    top_recognizers = Column(JSONB, default=[])  # [{user_id, count, points}]
-    top_recipients = Column(JSONB, default=[])  # [{user_id, count, points}]
+    # Gift Collection Metrics
+    gifts_eligible = Column(Integer, default=0)
+    gifts_issued = Column(Integer, default=0)
+    gifts_redeemed = Column(Integer, default=0)
     
-    # Computed at
-    computed_at = Column(DateTime(timezone=True), server_default=func.now())
-    
-    class Meta:
-        unique_together = ['tenant_id', 'period_type', 'period_start']
-
-
-class PlatformMetrics(Base):
-    """
-    Platform-wide metrics for Platform Admin dashboard.
-    Aggregated across all tenants without exposing individual data.
-    """
-    __tablename__ = "platform_metrics"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    
-    # Time period
-    period_type = Column(String(20), nullable=False)
-    period_start = Column(Date, nullable=False)
-    period_end = Column(Date, nullable=False)
-    
-    # Tenant Metrics
-    total_tenants = Column(Integer, default=0)
-    active_tenants = Column(Integer, default=0)
-    new_tenants = Column(Integer, default=0)
-    churned_tenants = Column(Integer, default=0)
-    
-    # User Metrics
-    total_users = Column(Integer, default=0)
-    active_users = Column(Integer, default=0)
-    new_users = Column(Integer, default=0)
-    
-    # Transaction Metrics
-    total_recognitions = Column(Integer, default=0)
-    total_points_distributed = Column(Numeric(15, 2), default=0)
-    total_redemptions = Column(Integer, default=0)
-    total_redemption_value = Column(Numeric(15, 2), default=0)
-    
-    # Revenue Metrics (if applicable)
-    mrr = Column(Numeric(15, 2), default=0)  # Monthly Recurring Revenue
-    arr = Column(Numeric(15, 2), default=0)  # Annual Recurring Revenue
-    
-    # Tier breakdown
-    tier_breakdown = Column(JSONB, default={})
-    # tier_breakdown structure:
+    # Department/Location Breakdown
+    department_metrics = Column(JSONB, default={})
     # {
-    #   "free": 10,
-    #   "starter": 25,
-    #   "professional": 15,
-    #   "enterprise": 5
+    #   "dept_id": {
+    #     "participated": 50,
+    #     "gifts_collected": 48
+    #   }
     # }
     
-    # Top performing tenants (anonymized for benchmarking)
-    tenant_benchmarks = Column(JSONB, default=[])
-    # tenant_benchmarks structure:
-    # [{tenant_id, engagement_score, user_count}]
+    # Last Computed
+    computed_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
-    # Computed at
-    computed_at = Column(DateTime(timezone=True), server_default=func.now())
+    # Relationships
+    event = relationship("Event", back_populates="metrics")
+
 

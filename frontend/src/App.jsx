@@ -13,6 +13,16 @@ import Audit from './pages/Audit'
 import Profile from './pages/Profile'
 import SpendAnalysis from './pages/SpendAnalysis'
 import PlatformTenants from './pages/PlatformTenants'
+import Events from './pages/Events'
+import EventCreateWizard from './pages/EventCreateWizard'
+import EventDetail from './pages/EventDetail'
+import EmployeeEvents from './pages/EmployeeEvents'
+import { useParams } from 'react-router-dom'
+
+function EventCreateWizardEdit() {
+  const { eventId } = useParams()
+  return <EventCreateWizard editingEventId={eventId} />
+}
 
 function PrivateRoute({ children }) {
   const { isAuthenticated } = useAuthStore()
@@ -34,11 +44,16 @@ function App() {
         <Route path="recognize" element={<Recognize />} />
         <Route path="redeem" element={<Redeem />} />
         <Route path="wallet" element={<Wallet />} />
+        <Route path="events/browse" element={<EmployeeEvents />} />
         <Route path="budgets" element={<Budgets />} />
         <Route path="spend-analysis" element={<SpendAnalysis />} />
         <Route path="users" element={<Users />} />
         <Route path="audit" element={<Audit />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="events" element={<Events />} />
+        <Route path="events/create" element={<EventCreateWizard />} />
+        <Route path="events/:eventId" element={<EventDetail />} />
+        <Route path="events/:eventId/edit" element={<EventCreateWizardEdit />} />
         <Route path="platform/tenants" element={<PlatformTenants />} />
       </Route>
     </Routes>
