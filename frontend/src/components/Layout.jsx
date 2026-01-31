@@ -21,16 +21,22 @@ function LayoutContent() {
       <TopHeader />
 
       {/* Main content area - two column split layout */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left Column - Main Content */}
-        <div className={`flex flex-col flex-1 overflow-auto transition-all duration-300 ${isOpen ? 'lg:max-w-2xl xl:max-w-4xl' : 'w-full'}`}>
-          <main className="flex-1 p-4 sm:p-6 lg:p-8 w-full">
+      <div className="flex flex-1 overflow-hidden gap-px bg-gray-200">
+        {/* Left Column - Copilot (hidden on small screens) */}
+        {isOpen && (
+          <>
+            <RightSideCopilot />
+            {/* Divider */}
+            <div className="w-px bg-gray-300" />
+          </>
+        )}
+
+        {/* Right Column - Main Content */}
+        <div className={`flex flex-col flex-1 overflow-auto transition-all duration-300 ${isOpen ? '' : 'w-full'}`}>
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 w-full bg-white">
             <Outlet />
           </main>
         </div>
-
-        {/* Right Column - Copilot (hidden on small screens) */}
-        {isOpen && <RightSideCopilot />}
       </div>
     </div>
   )
