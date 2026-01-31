@@ -160,7 +160,7 @@ function LayoutContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div 
@@ -169,12 +169,15 @@ function LayoutContent() {
         />
       )}
 
-      {/* Sidebar */}
-      <aside className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out
-        lg:translate-x-0
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
+      {/* Main layout wrapper - flex row for sidebar + content + copilot */}
+      <div className="flex flex-1">
+        {/* Sidebar */}
+        <aside className={`
+          fixed inset-y-0 left-0 z-50 w-64 max-w-xs bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out
+          lg:translate-x-0 lg:static lg:w-64 lg:h-auto
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          overflow-y-auto
+        `}>
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
@@ -283,39 +286,38 @@ function LayoutContent() {
         </div>
       </aside>
 
-      {/* Main content */}
-      <div className={`lg:pl-64 flex flex-col transition-all duration-300 ${isOpen ? 'pr-80' : ''}`}>
+      {/* Main content - Left side with responsive width for split-screen */}
+      <div className={`flex flex-col min-h-screen transition-all duration-300 ${isOpen ? 'flex-1 max-w-4xl' : 'flex-1'}`}>
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 bg-white border-b border-gray-200 lg:px-8 shadow-sm">
-          <div className="flex items-center gap-3">
+        <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-3 sm:px-4 lg:px-8 bg-white border-b border-gray-200 shadow-sm gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
-              className="lg:hidden p-2 rounded-lg hover:bg-gray-100"
+              className="lg:hidden p-2 rounded-lg hover:bg-gray-100 flex-shrink-0"
               onClick={() => setSidebarOpen(true)}
             >
-              <HiOutlineMenu className="w-6 h-6" />
+              <HiOutlineMenu className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
             {/* Mobile Logo */}
-            <div className="lg:hidden flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">SN</span>
+            <div className="lg:hidden flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-lg flex items-center justify-center flex-shrink-0">
+                <span className="text-white font-bold text-xs sm:text-sm">SN</span>
               </div>
-              <span className="text-lg font-bold bg-gradient-to-r from-sparknode-purple to-sparknode-blue bg-clip-text text-transparent">
+              <span className="text-base sm:text-lg font-bold bg-gradient-to-r from-sparknode-purple to-sparknode-blue bg-clip-text text-transparent truncate">
                 SparkNode
               </span>
             </div>
           </div>
 
-          <div className="flex-1" />
+          <div className="flex-1 min-w-0" />
 
-          <div className="flex items-center gap-4">
-            <div className="px-3 py-2 border border-gray-200 rounded-lg text-xs text-gray-600 leading-tight">
-              <div className="font-semibold uppercase tracking-wide text-[10px] text-gray-400">{contextTitle}</div>
-              <div className="text-sm font-medium text-gray-900">{contextName}</div>
-              <div className="text-[11px] text-gray-500 truncate max-w-[180px]">{contextName === 'All Tenants' ? 'All Tenant' : contextId}</div>
+          <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 flex-shrink-0">
+            <div className="hidden sm:flex items-center px-2 sm:px-3 py-2 border border-gray-200 rounded-lg text-xs text-gray-600 leading-tight bg-gray-50 min-w-0 max-w-xs">
+              <div className="font-semibold uppercase tracking-wide text-[10px] text-gray-400 flex-shrink-0">{contextTitle}</div>
+              <div className="hidden lg:block text-sm font-medium text-gray-900 ml-2 truncate">{contextName}</div>
             </div>
             {/* Notifications */}
-            <button className="relative p-2 rounded-lg hover:bg-gray-100">
-              <HiOutlineBell className="w-6 h-6 text-gray-600" />
+            <button className="relative p-2 rounded-lg hover:bg-gray-100 flex-shrink-0 transition-colors">
+              <HiOutlineBell className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
               {notificationCount?.data?.unread > 0 && (
                 <span className="absolute top-1 right-1 w-4 h-4 text-xs font-medium text-white bg-red-500 rounded-full flex items-center justify-center">
                   {notificationCount.data.unread > 9 ? '9+' : notificationCount.data.unread}
@@ -327,15 +329,15 @@ function LayoutContent() {
             <div className="relative" ref={profileRef}>
               <button
                 onClick={() => setProfileOpen(!profileOpen)}
-                className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100"
+                className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
               >
-                <HiOutlineUser className="w-6 h-6 text-gray-600" />
-                <span className="hidden sm:inline text-sm text-gray-700 font-medium">
+                <HiOutlineUser className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
+                <span className="hidden sm:inline text-xs sm:text-sm text-gray-700 font-medium truncate max-w-xs">
                   {user?.first_name} {user?.last_name}
                 </span>
               </button>
               {profileOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50">
+                <div className="absolute right-0 mt-2 w-48 sm:w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-50 animate-in fade-in zoom-in-95 origin-top-right">
                   <div className="px-4 py-3 border-b border-gray-100">
                     {tenantContext?.tenant_name && (
                       <>
@@ -420,13 +422,14 @@ function LayoutContent() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-4 lg:p-6">
+        <main className="flex-1 p-3 sm:p-4 lg:p-6 w-full overflow-x-hidden">
           <Outlet />
         </main>
       </div>
 
-      {/* Right-Side Copilot */}
+      {/* Right-Side Copilot - Persistent split-screen */}
       {isOpen && <RightSideCopilot />}
+      </div>
     </div>
   )
 }

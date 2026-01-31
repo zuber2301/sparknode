@@ -64,17 +64,17 @@ export default function FeedCard({ item }) {
 
   return (
     <div className="card">
-      <div className="flex items-start space-x-4">
-        <div className="w-10 h-10 bg-sparknode-purple rounded-full flex items-center justify-center text-white font-medium">
+      <div className="flex items-start gap-3 sm:gap-4">
+        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-sparknode-purple rounded-full flex items-center justify-center text-white font-medium text-xs sm:text-sm flex-shrink-0">
           {getInitials(item.actor_name)}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
             {getEventIcon()}
-            <p className="text-sm text-gray-900">
+            <p className="text-xs sm:text-sm text-gray-900">
               <span className="font-medium">{item.actor_name}</span>
-              {' recognized '}
-              <span className="font-medium">{item.target_name}</span>
+              <span className="hidden sm:inline">{' recognized '}</span>
+              <span className="block sm:inline"><span className="font-medium">{item.target_name}</span></span>
             </p>
           </div>
           <p className="text-xs text-gray-500 mt-1">
@@ -84,77 +84,77 @@ export default function FeedCard({ item }) {
       </div>
 
       {item.metadata?.message && (
-        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-          <p className="text-gray-700">{item.metadata.message}</p>
+        <div className="mt-3 sm:mt-4 p-3 sm:p-4 bg-gray-50 rounded-lg">
+          <p className="text-xs sm:text-sm text-gray-700">{item.metadata.message}</p>
           {item.metadata?.badge_name && (
-            <div className="mt-2 inline-flex items-center space-x-1 px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">
+            <div className="mt-2 inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">
               {item.metadata.badge_icon && !item.metadata.badge_icon.startsWith('/') ? (
-                <span className="text-lg">{item.metadata.badge_icon}</span>
+                <span className="text-sm sm:text-base">{item.metadata.badge_icon}</span>
               ) : (
-                <span className="text-lg">🏆</span>
+                <span className="text-sm sm:text-base">🏆</span>
               )}
-              <span>{item.metadata.badge_name}</span>
+              <span className="text-xs sm:text-sm">{item.metadata.badge_name}</span>
             </div>
           )}
           {item.metadata?.points && (
-            <span className="ml-2 inline-flex items-center px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
+            <span className="ml-2 inline-flex items-center gap-1 px-2 sm:px-2.5 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
               +{item.metadata.points} points
             </span>
           )}
         </div>
       )}
 
-      <div className="mt-4 flex items-center space-x-4 border-t pt-4">
+      <div className="mt-3 sm:mt-4 flex items-center gap-3 sm:gap-4 border-t pt-3 sm:pt-4">
         <button
           onClick={() => handleReaction('like')}
-          className={`flex items-center space-x-1 text-sm ${
+          className={`flex items-center gap-1 text-xs sm:text-sm flex-shrink-0 ${
             item.metadata?.liked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
           }`}
           disabled={reactionMutation.isPending}
         >
           {item.metadata?.liked ? (
-            <HiHeart className="w-5 h-5" />
+            <HiHeart className="w-4 h-4 sm:w-5 sm:h-5" />
           ) : (
-            <HiOutlineHeart className="w-5 h-5" />
+            <HiOutlineHeart className="w-4 h-4 sm:w-5 sm:h-5" />
           )}
-          <span>{item.metadata?.like_count || 0}</span>
+          <span className="hidden sm:inline">{item.metadata?.like_count || 0}</span>
         </button>
 
         <button
           onClick={() => setShowComments(!showComments)}
-          className="flex items-center space-x-1 text-sm text-gray-500 hover:text-sparknode-purple"
+          className="flex items-center gap-1 text-xs sm:text-sm text-gray-500 hover:text-sparknode-purple flex-shrink-0"
         >
-          <HiOutlineChat className="w-5 h-5" />
-          <span>{item.metadata?.comment_count || 0}</span>
+          <HiOutlineChat className="w-4 h-4 sm:w-5 sm:h-5" />
+          <span className="hidden sm:inline">{item.metadata?.comment_count || 0}</span>
         </button>
       </div>
 
       {showComments && (
-        <div className="mt-4 border-t pt-4">
+        <div className="mt-3 sm:mt-4 border-t pt-3 sm:pt-4">
           {item.metadata?.comments?.map((c, idx) => (
-            <div key={idx} className="flex items-start space-x-3 mb-3">
-              <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-xs font-medium">
+            <div key={idx} className="flex items-start gap-2 sm:gap-3 mb-2 sm:mb-3">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-200 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0">
                 {getInitials(c.user_name)}
               </div>
-              <div className="flex-1 bg-gray-50 rounded-lg p-2">
+              <div className="flex-1 bg-gray-50 rounded-lg p-2 sm:p-3 min-w-0">
                 <p className="text-xs font-medium text-gray-900">{c.user_name}</p>
-                <p className="text-sm text-gray-700">{c.content}</p>
+                <p className="text-xs sm:text-sm text-gray-700 mt-1">{c.content}</p>
               </div>
             </div>
           ))}
 
-          <form onSubmit={handleComment} className="flex items-center space-x-2">
+          <form onSubmit={handleComment} className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-3 sm:mt-4">
             <input
               type="text"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="Add a comment..."
-              className="input-field flex-1"
+              className="input text-xs sm:text-sm flex-1"
             />
             <button
               type="submit"
               disabled={!comment.trim() || commentMutation.isPending}
-              className="btn-primary"
+              className="btn-primary text-xs sm:text-sm whitespace-nowrap"
             >
               Post
             </button>

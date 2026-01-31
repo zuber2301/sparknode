@@ -37,9 +37,9 @@ export default function RightSideCopilot() {
   }
 
   return (
-    <div className="fixed right-0 top-0 h-screen w-80 bg-white border-l border-gray-200 flex flex-col shadow-lg z-40 transform transition-transform duration-300 ease-in-out">
+    <div className="hidden lg:flex lg:w-80 bg-white border-l border-gray-200 flex-col shadow-lg">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-sparknode-purple/5 to-sparknode-blue/5">
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-sparknode-purple/5 to-sparknode-blue/5 flex-shrink-0">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-sparknode-purple to-sparknode-blue flex items-center justify-center">
             <HiOutlineSparkles className="w-4 h-4 text-white" />
