@@ -77,7 +77,6 @@ CREATE TABLE IF NOT EXISTS user_upload_staging (
 );
 CREATE INDEX IF NOT EXISTS idx_user_upload_staging_batch ON user_upload_staging(batch_id);
 
-UPDATE users SET corporate_email = email WHERE corporate_email IS NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_tenant_corporate_email ON users(tenant_id, corporate_email);
 
 -- Tenants
@@ -111,81 +110,52 @@ VALUES
 ('110e8400-e29b-41d4-a716-446655441012', '100e8400-e29b-41d4-a716-446655440012', 'Techology (IT)')
 ON CONFLICT (tenant_id, name) DO NOTHING;
 
--- System admins (password is 'jspark123')
+-- =====================================================
+-- BOOTSTRAP: Only 4 Seeded Accounts (all @sparknode.io)
+-- Password: jspark123
 -- Hash: $2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u
-INSERT INTO system_admins (id, email, password_hash, is_super_admin, mfa_enabled)
-VALUES
-('220e8400-e29b-41d4-a716-446655440000', 'admin@sparknode.io', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', TRUE, TRUE)
-ON CONFLICT (email) DO NOTHING;
+-- =====================================================
 
--- Root tenant users (password is 'jspark123' for all)
--- Hash: $2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u
+-- Platform Admin: super_user@sparknode.io (uses hr_admin org_role + system_admins table)
 INSERT INTO users (id, tenant_id, corporate_email, password_hash, first_name, last_name, org_role, department_id, is_super_admin)
 VALUES
-('120e8400-e29b-41d4-a716-446655440001', '100e8400-e29b-41d4-a716-446655440000', 'tenant_admin@jspark.com', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Tenant', 'Admin', 'tenant_admin', '110e8400-e29b-41d4-a716-446655440000', FALSE),
-('120e8400-e29b-41d4-a716-446655440002', '100e8400-e29b-41d4-a716-446655440000', 'tenant_lead@jspark.com', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Tenant', 'Lead', 'tenant_lead', '110e8400-e29b-41d4-a716-446655440000', FALSE),
-('120e8400-e29b-41d4-a716-446655440003', '100e8400-e29b-41d4-a716-446655440000', 'user@jspark.com', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Corporate', 'User', 'corporate_user', '110e8400-e29b-41d4-a716-446655440000', FALSE)
-ON CONFLICT (tenant_id, email) DO NOTHING;
+('220e8400-e29b-41d4-a716-446655440000', '00000000-0000-0000-0000-000000000000', 'super_user@sparknode.io', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Platform', 'Admin', 'hr_admin', '010e8400-e29b-41d4-a716-446655440000', TRUE)
+ON CONFLICT (tenant_id, corporate_email) DO NOTHING;
 
--- Bulk users per tenant (40 users each)
-INSERT INTO users (id, tenant_id, corporate_email, password_hash, first_name, last_name, org_role, department_id)
-SELECT uuid_generate_v4(), '100e8400-e29b-41d4-a716-446655440010',
-       'user' || gs || '@triton.com',
-       '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u',
-       'Triton', 'User' || gs,
-       CASE WHEN gs = 1 THEN 'tenant_admin'
-            WHEN gs IN (2,3) THEN 'tenant_lead'
-            ELSE 'corporate_user' END,
-       '110e8400-e29b-41d4-a716-446655440010'
-FROM generate_series(1, 40) AS gs
-ON CONFLICT (tenant_id, email) DO NOTHING;
-
-INSERT INTO users (id, tenant_id, corporate_email, password_hash, first_name, last_name, org_role, department_id)
-SELECT uuid_generate_v4(), '100e8400-e29b-41d4-a716-446655440011',
-       'user' || gs || '@uniplane.com',
-       '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u',
-       'Uniplane', 'User' || gs,
-       CASE WHEN gs = 1 THEN 'tenant_admin'
-            WHEN gs IN (2,3) THEN 'tenant_lead'
-            ELSE 'corporate_user' END,
-       '110e8400-e29b-41d4-a716-446655440011'
-FROM generate_series(1, 40) AS gs
-ON CONFLICT (tenant_id, email) DO NOTHING;
-
-INSERT INTO users (id, tenant_id, corporate_email, password_hash, first_name, last_name, org_role, department_id)
-SELECT uuid_generate_v4(), '100e8400-e29b-41d4-a716-446655440012',
-       'user' || gs || '@zebra.com',
-       '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u',
-       'Zebra', 'User' || gs,
-       CASE WHEN gs = 1 THEN 'tenant_admin'
-            WHEN gs IN (2,3) THEN 'tenant_lead'
-            ELSE 'corporate_user' END,
-       '110e8400-e29b-41d4-a716-446655440012'
-FROM generate_series(1, 40) AS gs
-ON CONFLICT (tenant_id, email) DO NOTHING;
-
-INSERT INTO users (id, tenant_id, corporate_email, password_hash, first_name, last_name, org_role, department_id)
-SELECT uuid_generate_v4(), '100e8400-e29b-41d4-a716-446655440000',
-       'jspark.user' || gs || '@jspark.com',
-       '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u',
-       'jSpark', 'User' || gs,
-       CASE WHEN gs = 1 THEN 'tenant_admin'
-            WHEN gs IN (2,3) THEN 'tenant_lead'
-            ELSE 'corporate_user' END,
-       '110e8400-e29b-41d4-a716-446655440000'
-FROM generate_series(1, 36) AS gs
-ON CONFLICT (tenant_id, email) DO NOTHING;
-
--- Wallets for seeded users
-INSERT INTO wallets (tenant_id, user_id, balance, lifetime_earned, lifetime_spent)
-SELECT u.tenant_id, u.id, 0, 0, 0
-FROM users u
-LEFT JOIN wallets w ON w.user_id = u.id
-WHERE u.tenant_id IN (
-    '100e8400-e29b-41d4-a716-446655440000',
-    '100e8400-e29b-41d4-a716-446655440010',
-    '100e8400-e29b-41d4-a716-446655440011',
-    '100e8400-e29b-41d4-a716-446655440012'
-)
-AND w.user_id IS NULL
+-- Link Platform Admin to SystemAdmin table
+INSERT INTO system_admins (user_id, access_level, mfa_enabled)
+VALUES ('220e8400-e29b-41d4-a716-446655440000', 'PLATFORM_ADMIN', TRUE)
 ON CONFLICT (user_id) DO NOTHING;
+
+-- Tenant Admin: tenant_admin@sparknode.io
+INSERT INTO users (id, tenant_id, corporate_email, password_hash, first_name, last_name, org_role, department_id)
+VALUES
+('220e8400-e29b-41d4-a716-446655440001', '100e8400-e29b-41d4-a716-446655440000', 'tenant_admin@sparknode.io', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Tenant', 'Admin', 'tenant_admin', '110e8400-e29b-41d4-a716-446655440000')
+ON CONFLICT (tenant_id, corporate_email) DO NOTHING;
+
+-- Tenant Lead: tenant_lead@sparknode.io
+INSERT INTO users (id, tenant_id, corporate_email, password_hash, first_name, last_name, org_role, department_id)
+VALUES
+('220e8400-e29b-41d4-a716-446655440002', '100e8400-e29b-41d4-a716-446655440000', 'tenant_lead@sparknode.io', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Tenant', 'Lead', 'tenant_lead', '110e8400-e29b-41d4-a716-446655440000')
+ON CONFLICT (tenant_id, corporate_email) DO NOTHING;
+
+-- Tenant User (Corporate User): user@sparknode.io
+INSERT INTO users (id, tenant_id, corporate_email, password_hash, first_name, last_name, org_role, department_id)
+VALUES
+('220e8400-e29b-41d4-a716-446655440003', '100e8400-e29b-41d4-a716-446655440000', 'user@sparknode.io', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Corporate', 'User', 'corporate_user', '110e8400-e29b-41d4-a716-446655440000')
+ON CONFLICT (tenant_id, corporate_email) DO NOTHING;
+
+-- Wallets for the 4 seeded users only
+INSERT INTO wallets (id, tenant_id, user_id, balance, lifetime_earned, lifetime_spent)
+VALUES
+(uuid_generate_v4(), '00000000-0000-0000-0000-000000000000', '220e8400-e29b-41d4-a716-446655440000', 0, 0, 0),
+(uuid_generate_v4(), '100e8400-e29b-41d4-a716-446655440000', '220e8400-e29b-41d4-a716-446655440001', 0, 0, 0),
+(uuid_generate_v4(), '100e8400-e29b-41d4-a716-446655440000', '220e8400-e29b-41d4-a716-446655440002', 0, 0, 0),
+(uuid_generate_v4(), '100e8400-e29b-41d4-a716-446655440000', '220e8400-e29b-41d4-a716-446655440003', 0, 0, 0)
+ON CONFLICT (user_id) DO NOTHING;
+
+-- Clean up: Delete all users NOT matching @sparknode.io domain
+DELETE FROM users WHERE corporate_email NOT LIKE '%@sparknode.io';
+
+-- Clean up: Delete all system_admins not linked to @sparknode.io users
+DELETE FROM system_admins WHERE user_id NOT IN (SELECT id FROM users WHERE corporate_email LIKE '%@sparknode.io');
