@@ -1,21 +1,38 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
+import logging
 from core.security import get_current_user
 from models import User
+from copilot.llm_service import LLMService
+
+# Setup logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/copilot", tags=["Copilot"])
+
+# Initialize LLM service (optional, falls back to keyword matching if not available)
+llm_service = None
+if LLMService.is_llm_configured():
+    try:
+        llm_service = LLMService()
+        logger.info("LLM service initialized successfully")
+    except Exception as e:
+        logger.warning(f"LLM service initialization failed: {str(e)}. Using keyword matching.")
 
 
 class CopilotMessageRequest(BaseModel):
     message: str
     context: Optional[Dict[str, Any]] = None
+    conversation_history: Optional[List[Dict[str, str]]] = None
 
 
 class CopilotMessageResponse(BaseModel):
     response: str
     timestamp: datetime
+    model: Optional[str] = None  # 'gpt-4', 'gpt-3.5-turbo', or 'keyword-matching'
+    tokens: Optional[Dict[str, int]] = None  # Token usage if using LLM
 
 
 @router.post("/chat", response_model=CopilotMessageResponse)
@@ -24,13 +41,15 @@ async def chat(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Handle copilot chat requests.
+    Handle copilot chat requests with LLM or keyword-based fallback.
     
     The copilot can help users understand:
     - Recognition events and trends
     - Budget allocation and spending
     - User achievements and statistics
     - Contextual information based on current page
+    
+    Uses GPT-4 if OpenAI API is configured, falls back to keyword matching.
     """
     if not request.message or not request.message.strip():
         raise HTTPException(status_code=400, detail="Message is required")
@@ -39,15 +58,51 @@ async def chat(
         user_message = request.message.strip()
         context = request.context or {}
         
-        # Generate response based on message and context
-        response_text = generate_copilot_response(user_message, context, current_user)
+        # Try LLM if available
+        model_used = "keyword-matching"
+        tokens = None
+        
+        if llm_service and llm_service.is_available:
+            try:
+                llm_response = await llm_service.get_response(
+                    message=user_message,
+                    user=current_user,
+                    context=context,
+                    conversation_history=request.conversation_history,
+                    max_tokens=500,
+                )
+                response_text = llm_response["response"]
+                model_used = llm_response["model"]
+                tokens = llm_response["tokens"]
+                
+                logger.info(
+                    f"LLM response generated for user {current_user.id} "
+                    f"(tokens: {tokens['total']})"
+                )
+            
+            except Exception as e:
+                logger.warning(
+                    f"LLM request failed: {str(e)}. "
+                    f"Falling back to keyword matching."
+                )
+                response_text = generate_copilot_response(
+                    user_message, context, current_user
+                )
+        else:
+            # Use keyword-based response
+            response_text = generate_copilot_response(
+                user_message, context, current_user
+            )
         
         return CopilotMessageResponse(
             response=response_text,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
+            model=model_used,
+            tokens=tokens,
         )
     
     except Exception as e:
+        logger.error(f"Copilot error: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to process copilot request")
 
 
@@ -124,3 +179,50 @@ def generate_copilot_response(message: str, context: Dict[str, Any], user: User)
             "I can assist with recognition trends, budgets, user achievements, redemptions, and more. "
             "Try asking me about something you see on the screen, or let me know what interests you!"
         )
+
+
+@router.get("/status")
+async def get_status(current_user: User = Depends(get_current_user)):
+    """
+    Get copilot service status and LLM availability.
+    """
+    return {
+        "status": "operational",
+        "llm_available": llm_service is not None and llm_service.is_available,
+        "model": "gpt-4" if (llm_service and llm_service.is_available) else "keyword-matching",
+        "version": "0.5",
+    }
+
+
+@router.post("/validate-llm")
+async def validate_llm(current_user: User = Depends(get_current_user)):
+    """
+    Validate OpenAI API key and LLM connectivity (admin only).
+    """
+    if not llm_service:
+        return {
+            "valid": False,
+            "message": "LLM service not initialized",
+            "error": "OPENAI_API_KEY not configured",
+        }
+    
+    try:
+        is_valid = llm_service.validate_api_key()
+        if is_valid:
+            return {
+                "valid": True,
+                "message": "OpenAI API key is valid",
+                "model": "gpt-4",
+            }
+        else:
+            return {
+                "valid": False,
+                "message": "OpenAI API key validation failed",
+                "error": "Invalid or expired API key",
+            }
+    except Exception as e:
+        return {
+            "valid": False,
+            "message": "Failed to validate API key",
+            "error": str(e),
+        }
