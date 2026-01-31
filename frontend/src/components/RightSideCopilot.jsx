@@ -37,7 +37,7 @@ export default function RightSideCopilot() {
   }
 
   return (
-    <div className="hidden lg:flex lg:w-80 bg-white border-l border-gray-200 flex-col shadow-lg">
+    <div className="hidden lg:flex lg:w-80 bg-white border-l border-gray-200 flex-col shadow-lg h-[calc(100vh-3.5rem)]">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-sparknode-purple/5 to-sparknode-blue/5 flex-shrink-0">
         <div className="flex items-center gap-2">
