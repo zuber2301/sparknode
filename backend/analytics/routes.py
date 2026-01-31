@@ -32,34 +32,20 @@ from analytics.schemas import (
     ROIMetrics, InsightItem, InsightsResponse, SpendAnalysisResponse,
     BurnRatePoint, DepartmentSpend, AwardTier
 )
+from analytics.helpers import (
+    get_period_dates,
+    calculate_engagement_metrics,
+    calculate_budget_metrics,
+    calculate_redemption_metrics,
+    calculate_department_metrics,
+    get_leaderboard,
+    calculate_daily_trends,
+    calculate_culture_heatmap,
+    calculate_badge_distribution,
+    get_points_distributed_in_period
+)
 
 router = APIRouter()
-
-
-def get_period_dates(period_type: str, start_date: Optional[date] = None, end_date: Optional[date] = None):
-    """Calculate period start and end dates based on period type."""
-    today = date.today()
-    
-    if start_date and end_date:
-        return start_date, end_date
-    
-    if period_type == "daily":
-        return today, today
-    elif period_type == "weekly":
-        start = today - timedelta(days=today.weekday())
-        return start, today
-    elif period_type == "monthly":
-        start = today.replace(day=1)
-        return start, today
-    elif period_type == "quarterly":
-        quarter_month = ((today.month - 1) // 3) * 3 + 1
-        start = today.replace(month=quarter_month, day=1)
-        return start, today
-    elif period_type == "yearly":
-        start = today.replace(month=1, day=1)
-        return start, today
-    else:
-        return today - timedelta(days=30), today
 
 
 # =====================================================
@@ -80,295 +66,31 @@ async def get_tenant_analytics(
     period_start, period_end = get_period_dates(period_type, start_date, end_date)
     tenant_id = current_user.tenant_id
     
-    # Get total users
-    total_users = db.query(User).filter(
-        User.tenant_id == tenant_id,
-        func.lower(User.status) == 'active'
-    ).count()
+    # Calculate all metrics using helper functions
+    engagement = calculate_engagement_metrics(db, tenant_id, period_start, period_end)
+    budget = calculate_budget_metrics(db, tenant_id, period_start, period_end)
+    redemption = calculate_redemption_metrics(db, tenant_id, period_start, period_end)
+    department_metrics = calculate_department_metrics(db, tenant_id, period_start, period_end)
     
-    # Get active users (who gave or received recognition in period)
-    active_user_ids = db.query(Recognition.from_user_id).filter(
-        Recognition.tenant_id == tenant_id,
-        func.date(Recognition.created_at) >= period_start,
-        func.date(Recognition.created_at) <= period_end
-    ).union(
-        db.query(Recognition.to_user_id).filter(
-            Recognition.tenant_id == tenant_id,
-            func.date(Recognition.created_at) >= period_start,
-            func.date(Recognition.created_at) <= period_end
-        )
-    ).distinct().all()
-    active_users = len(active_user_ids)
+    # Get leaderboards
+    top_recognizers = get_leaderboard(db, tenant_id, period_start, period_end, 'givers')
+    top_recipients = get_leaderboard(db, tenant_id, period_start, period_end, 'recipients')
     
-    # Get recognition counts
-    recognitions = db.query(Recognition).filter(
-        Recognition.tenant_id == tenant_id,
-        func.date(Recognition.created_at) >= period_start,
-        func.date(Recognition.created_at) <= period_end,
-        Recognition.status == 'active'
-    ).all()
-    
-    recognitions_count = len(recognitions)
-    points_distributed = sum(r.points for r in recognitions)
-    
-    # Engagement metrics
-    participation_rate = (active_users / total_users * 100) if total_users > 0 else 0
-    avg_recognitions = recognitions_count / active_users if active_users > 0 else 0
-    engagement_score = min(100, (participation_rate * 0.4) + (avg_recognitions * 10 * 0.6))
-    
-    engagement = EngagementMetrics(
-        active_users=active_users,
-        total_users=total_users,
-        participation_rate=round(participation_rate, 2),
-        recognitions_given=recognitions_count,
-        recognitions_received=recognitions_count,  # Same count, different perspective
-        avg_recognitions_per_user=round(avg_recognitions, 2),
-        engagement_score=round(engagement_score, 2)
-    )
-    
-    # Budget metrics
-    active_budget = db.query(Budget).filter(
-        Budget.tenant_id == tenant_id,
-        Budget.status == 'active'
-    ).first()
-    
-    budget = BudgetMetrics()
-    if active_budget:
-        total_budget = Decimal(str(active_budget.total_points))
-        allocated = Decimal(str(active_budget.allocated_points))
-        
-        # Calculate spent from department budgets
-        dept_budgets = db.query(DepartmentBudget).filter(
-            DepartmentBudget.budget_id == active_budget.id
-        ).all()
-        spent = sum(Decimal(str(db.spent_points)) for db in dept_budgets)
-        
-        days_elapsed = (period_end - period_start).days or 1
-        burn_rate = spent / days_elapsed if days_elapsed > 0 else Decimal("0")
-        
-        remaining = allocated - spent
-        utilization = (spent / allocated * 100) if allocated > 0 else 0
-        
-        # Project exhaustion date
-        exhaustion_date = None
-        if burn_rate > 0 and remaining > 0:
-            days_remaining = int(remaining / burn_rate)
-            exhaustion_date = date.today() + timedelta(days=days_remaining)
-        
-        budget = BudgetMetrics(
-            total_budget=total_budget,
-            allocated_budget=allocated,
-            spent_budget=spent,
-            remaining_budget=remaining,
-            utilization_rate=round(float(utilization), 2),
-            burn_rate=round(burn_rate, 2),
-            projected_exhaustion_date=exhaustion_date
-        )
-    
-    # Redemption metrics
-    redemptions = db.query(Redemption).filter(
-        Redemption.tenant_id == tenant_id,
-        func.date(Redemption.created_at) >= period_start,
-        func.date(Redemption.created_at) <= period_end
-    ).all()
-    
-    total_points_redeemed = sum(Decimal(str(r.points_used)) for r in redemptions)
-    
-    redemption = RedemptionMetrics(
-        total_redemptions=len(redemptions),
-        total_points_redeemed=total_points_redeemed,
-        avg_redemption_value=total_points_redeemed / len(redemptions) if redemptions else Decimal("0")
-    )
-    
-    # Department metrics
-    departments = db.query(Department).filter(
-        Department.tenant_id == tenant_id
-    ).all()
-    
-    department_metrics = []
-    for dept in departments:
-        dept_users = db.query(User).filter(
-            User.department_id == dept.id,
-            func.lower(User.status) == 'active'
-        ).all()
-        dept_user_ids = [u.id for u in dept_users]
-        
-        dept_recognitions = db.query(Recognition).filter(
-            Recognition.tenant_id == tenant_id,
-            func.date(Recognition.created_at) >= period_start,
-            func.date(Recognition.created_at) <= period_end,
-            or_(
-                Recognition.from_user_id.in_(dept_user_ids),
-                Recognition.to_user_id.in_(dept_user_ids)
-            )
-        ).all()
-        
-        given = len([r for r in dept_recognitions if r.from_user_id in dept_user_ids])
-        received = len([r for r in dept_recognitions if r.to_user_id in dept_user_ids])
-        
-        dept_active = len(set(
-            [r.from_user_id for r in dept_recognitions if r.from_user_id in dept_user_ids] +
-            [r.to_user_id for r in dept_recognitions if r.to_user_id in dept_user_ids]
-        ))
-        
-        dept_engagement = 0
-        if len(dept_users) > 0:
-            dept_participation = dept_active / len(dept_users) * 100
-            dept_avg = (given + received) / dept_active if dept_active > 0 else 0
-            dept_engagement = min(100, (dept_participation * 0.4) + (dept_avg * 10 * 0.6))
-        
-        department_metrics.append(DepartmentMetrics(
-            department_id=dept.id,
-            department_name=dept.name,
-            active_users=dept_active,
-            total_users=len(dept_users),
-            recognitions_given=given,
-            recognitions_received=received,
-            points_distributed=sum(r.points for r in dept_recognitions if r.from_user_id in dept_user_ids),
-            engagement_score=round(dept_engagement, 2)
-        ))
-    
-    # Top recognizers leaderboard
-    top_recognizers_query = db.query(
-        Recognition.from_user_id,
-        func.count(Recognition.id).label('count'),
-        func.sum(Recognition.points).label('points')
-    ).filter(
-        Recognition.tenant_id == tenant_id,
-        func.date(Recognition.created_at) >= period_start,
-        func.date(Recognition.created_at) <= period_end,
-        Recognition.status == 'active'
-    ).group_by(Recognition.from_user_id).order_by(func.count(Recognition.id).desc()).limit(10).all()
-    
-    top_recognizers = []
-    for i, (user_id, count, points) in enumerate(top_recognizers_query, 1):
-        user = db.query(User).filter(User.id == user_id).first()
-        if user:
-            dept = db.query(Department).filter(Department.id == user.department_id).first()
-            top_recognizers.append(LeaderboardEntry(
-                rank=i,
-                user_id=user_id,
-                user_name=f"{user.first_name} {user.last_name}",
-                department_name=dept.name if dept else None,
-                avatar_url=user.avatar_url,
-                count=count,
-                points=points or Decimal("0")
-            ))
-    
-    # Top recipients leaderboard
-    top_recipients_query = db.query(
-        Recognition.to_user_id,
-        func.count(Recognition.id).label('count'),
-        func.sum(Recognition.points).label('points')
-    ).filter(
-        Recognition.tenant_id == tenant_id,
-        func.date(Recognition.created_at) >= period_start,
-        func.date(Recognition.created_at) <= period_end,
-        Recognition.status == 'active'
-    ).group_by(Recognition.to_user_id).order_by(func.count(Recognition.id).desc()).limit(10).all()
-    
-    top_recipients = []
-    for i, (user_id, count, points) in enumerate(top_recipients_query, 1):
-        user = db.query(User).filter(User.id == user_id).first()
-        if user:
-            dept = db.query(Department).filter(Department.id == user.department_id).first()
-            top_recipients.append(LeaderboardEntry(
-                rank=i,
-                user_id=user_id,
-                user_name=f"{user.first_name} {user.last_name}",
-                department_name=dept.name if dept else None,
-                avatar_url=user.avatar_url,
-                count=count,
-                points=points or Decimal("0")
-            ))
-    
-    # Daily trends
+    # Calculate trends if requested
     daily_trends = []
     if include_trends:
-        current_date = period_start
-        while current_date <= period_end:
-            day_recognitions = db.query(Recognition).filter(
-                Recognition.tenant_id == tenant_id,
-                func.date(Recognition.created_at) == current_date,
-                Recognition.status == 'active'
-            ).all()
-            
-            day_active = len(set(
-                [r.from_user_id for r in day_recognitions] +
-                [r.to_user_id for r in day_recognitions]
-            ))
-            
-            daily_trends.append(RecognitionTrend(
-                date=current_date,
-                recognitions_count=len(day_recognitions),
-                points_distributed=sum(r.points for r in day_recognitions),
-                active_users=day_active
-            ))
-            current_date += timedelta(days=1)
+        daily_trends = calculate_daily_trends(db, tenant_id, period_start, period_end)
     
-    # Culture heatmap
+    # Calculate culture heatmap if requested
     culture_heatmap = None
-    if include_heatmap and len(departments) > 1:
-        dept_names = [d.name for d in departments]
-        matrix = []
-        
-        for from_dept in departments:
-            row = []
-            from_user_ids = [u.id for u in db.query(User).filter(User.department_id == from_dept.id).all()]
-            
-            for to_dept in departments:
-                to_user_ids = [u.id for u in db.query(User).filter(User.department_id == to_dept.id).all()]
-                
-                cross_recognitions = db.query(Recognition).filter(
-                    Recognition.tenant_id == tenant_id,
-                    func.date(Recognition.created_at) >= period_start,
-                    func.date(Recognition.created_at) <= period_end,
-                    Recognition.from_user_id.in_(from_user_ids),
-                    Recognition.to_user_id.in_(to_user_ids),
-                    Recognition.status == 'active'
-                ).all()
-                
-                count = len(cross_recognitions)
-                points = sum(r.points for r in cross_recognitions)
-                
-                row.append(CultureHeatmapCell(
-                    from_department=from_dept.name,
-                    to_department=to_dept.name,
-                    recognition_count=count,
-                    points_total=points,
-                    intensity=min(1.0, count / 10) if count > 0 else 0
-                ))
-            matrix.append(row)
-        
-        culture_heatmap = CultureHeatmap(
-            departments=dept_names,
-            matrix=matrix
+    if include_heatmap:
+        departments = db.query(Department).filter(Department.tenant_id == tenant_id).all()
+        culture_heatmap = calculate_culture_heatmap(
+            db, tenant_id, departments, period_start, period_end
         )
     
-    # Badge distribution
-    badge_counts = db.query(
-        Recognition.badge_id,
-        func.count(Recognition.id).label('count')
-    ).filter(
-        Recognition.tenant_id == tenant_id,
-        func.date(Recognition.created_at) >= period_start,
-        func.date(Recognition.created_at) <= period_end,
-        Recognition.badge_id.isnot(None),
-        Recognition.status == 'active'
-    ).group_by(Recognition.badge_id).all()
-    
-    total_with_badges = sum(c for _, c in badge_counts)
-    badge_distribution = []
-    for badge_id, count in badge_counts:
-        badge = db.query(Badge).filter(Badge.id == badge_id).first()
-        if badge:
-            badge_distribution.append(BadgeDistribution(
-                badge_id=badge_id,
-                badge_name=badge.name,
-                badge_icon=badge.icon_url,
-                count=count,
-                percentage=round(count / total_with_badges * 100, 2) if total_with_badges > 0 else 0
-            ))
+    # Get badge distribution
+    badge_distribution = calculate_badge_distribution(db, tenant_id, period_start, period_end)
     
     return TenantAnalyticsResponse(
         tenant_id=tenant_id,

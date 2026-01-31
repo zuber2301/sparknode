@@ -26,16 +26,39 @@ export default function Profile() {
     return roles[role] || (role ? role.replace('_', ' ') : 'Employee');
   };
 
+  const formatLocalPart = (local) => {
+    if (!local) return ''
+    return local
+      .split(/[_\.\-]+/)
+      .filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ')
+  }
+
+  const getDisplayName = () => {
+    if (user?.first_name) return user.first_name
+    const local = user?.email?.split('@')[0]
+    return formatLocalPart(local) || 'User'
+  }
+
+  const getInitials = () => {
+    if (user?.first_name || user?.last_name) {
+      const a = user?.first_name?.[0] || ''
+      const b = user?.last_name?.[0] || ''
+      return (a + b).toUpperCase()
+    }
+    const parts = getDisplayName().split(' ').filter(Boolean)
+    return (parts[0]?.[0] || 'U') + (parts[1]?.[0] || '')
+  }
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Profile Header */}
       <div className="card text-center">
         <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-r from-sparknode-purple to-sparknode-blue flex items-center justify-center text-white text-3xl font-bold mb-4">
-          {user?.first_name?.[0]}{user?.last_name?.[0]}
+          {getInitials()}
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          {user?.first_name} {user?.last_name}
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-900">{getDisplayName()}</h1>
         <p className="text-gray-500">{getRoleDisplayName(user?.org_role)}</p>
       </div>
 

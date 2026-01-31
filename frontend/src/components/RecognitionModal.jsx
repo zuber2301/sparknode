@@ -74,10 +74,12 @@ export default function RecognitionModal({ isOpen, onClose }) {
     })
   }
 
-  const filteredUsers = users?.filter(u => 
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || []
+  const filteredUsers = users?.filter(u => {
+    const fullName = `${u.first_name || ''} ${u.last_name || ''}`.toLowerCase()
+    const email = (u.corporate_email || u.email || '').toLowerCase()
+    return fullName.includes(searchTerm.toLowerCase()) ||
+      email.includes(searchTerm.toLowerCase())
+  }) || []
 
   const selectedUser = users?.find(u => u.id === recipient)
 
@@ -113,11 +115,11 @@ export default function RecognitionModal({ isOpen, onClose }) {
                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-sparknode-purple rounded-full flex items-center justify-center text-white text-sm font-medium">
-                      {selectedUser.name.charAt(0)}
+                      {(selectedUser.first_name || 'U').charAt(0)}
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">{selectedUser.name}</p>
-                      <p className="text-xs text-gray-500">{selectedUser.email}</p>
+                      <p className="font-medium text-gray-900">{selectedUser.first_name} {selectedUser.last_name}</p>
+                      <p className="text-xs text-gray-500">{selectedUser.corporate_email || selectedUser.email}</p>
                     </div>
                   </div>
                   <button
@@ -155,11 +157,11 @@ export default function RecognitionModal({ isOpen, onClose }) {
                           className="w-full flex items-center space-x-3 p-3 hover:bg-gray-50 text-left"
                         >
                           <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-sm font-medium">
-                            {user.name.charAt(0)}
+                            {(user.first_name || 'U').charAt(0)}
                           </div>
                           <div>
-                            <p className="font-medium text-gray-900">{user.name}</p>
-                            <p className="text-xs text-gray-500">{user.email}</p>
+                            <p className="font-medium text-gray-900">{user.first_name} {user.last_name}</p>
+                            <p className="text-xs text-gray-500">{user.corporate_email || user.email}</p>
                           </div>
                         </button>
                       ))}

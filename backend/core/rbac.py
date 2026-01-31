@@ -243,16 +243,7 @@ async def get_current_user_dependency(request: Request, db: Session = Depends(ge
     from importlib import import_module
 
     auth_utils = import_module("auth.utils")
-    # debug prints to observe what's being returned (will appear in container logs)
-    try:
-        print("[rbac] auth_utils.get_current_user:", auth_utils.get_current_user)
-    except Exception:
-        print("[rbac] auth_utils.get_current_user: <unavailable>")
     result = await auth_utils.get_current_user(token=token, db=db)
-    try:
-        print("[rbac] get_current_user returned type:", type(result))
-    except Exception:
-        pass
     return result
 
 
@@ -342,10 +333,6 @@ def require_minimum_role(minimum_role: UserRole):
 async def get_platform_admin(request: Request, db: Session = Depends(get_db)):
     """Dependency that requires Platform Admin role."""
     current_user = await get_current_user_dependency(request, db)
-    try:
-        print("[rbac] get_platform_admin current_user type:", type(current_user), "value:", getattr(current_user, 'id', '<no-id>'))
-    except Exception:
-        print("[rbac] get_platform_admin current_user debug failed")
     
     if not current_user.is_platform_admin:
         raise HTTPException(

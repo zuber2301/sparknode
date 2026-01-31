@@ -8,258 +8,259 @@
    - lg: 1024px
    - xl: 1280px
    - 2xl: 1536px
-*/
+
+   NOTE: This file is imported after index.css which contains the @tailwind 
+   directives. All @apply rules work because Tailwind processes them together.
+   ============================================================================ */
 
 /* ============================================================================
    FLUID TYPOGRAPHY - Scales with viewport
    ============================================================================ */
 
-@layer utilities {
-  /* Responsive text sizes */
-  .text-fluid-h1 {
-    @apply text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-tight;
-  }
+/* Responsive text sizes */
+.text-fluid-h1 {
+  @apply text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-tight;
+}
 
-  .text-fluid-h2 {
-    @apply text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold leading-snug;
-  }
+.text-fluid-h2 {
+  @apply text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold leading-snug;
+}
 
-  .text-fluid-h3 {
-    @apply text-lg sm:text-xl md:text-2xl lg:text-3xl font-semibold;
-  }
+.text-fluid-h3 {
+  @apply text-lg sm:text-xl md:text-2xl lg:text-3xl font-semibold;
+}
 
-  .text-fluid-body {
-    @apply text-sm sm:text-base md:text-base lg:text-lg;
-  }
+.text-fluid-body {
+  @apply text-sm sm:text-base md:text-base lg:text-lg;
+}
 
-  .text-fluid-sm {
-    @apply text-xs sm:text-xs md:text-sm lg:text-sm;
-  }
+.text-fluid-sm {
+  @apply text-xs sm:text-xs md:text-sm lg:text-sm;
+}
 
-  /* ============================================================================
-     RESPONSIVE PADDING & MARGINS - Scales with screen size
-     ============================================================================ */
+/* ============================================================================
+   RESPONSIVE PADDING & MARGINS - Scales with screen size
+   ============================================================================ */
 
-  .px-fluid {
-    @apply px-3 sm:px-4 md:px-6 lg:px-8;
-  }
+.px-fluid {
+  @apply px-3 sm:px-4 md:px-6 lg:px-8;
+}
 
-  .py-fluid {
-    @apply py-3 sm:py-4 md:py-6 lg:py-8;
-  }
+.py-fluid {
+  @apply py-3 sm:py-4 md:py-6 lg:py-8;
+}
 
-  .p-fluid {
-    @apply p-3 sm:p-4 md:p-6 lg:p-8;
-  }
+.p-fluid {
+  @apply p-3 sm:p-4 md:p-6 lg:p-8;
+}
 
-  .gap-fluid {
-    @apply gap-2 sm:gap-3 md:gap-4 lg:gap-6;
-  }
+.gap-fluid {
+  @apply gap-2 sm:gap-3 md:gap-4 lg:gap-6;
+}
 
-  /* ============================================================================
-     RESPONSIVE GRID HELPERS
-     ============================================================================ */
+/* ============================================================================
+   RESPONSIVE GRID HELPERS
+   ============================================================================ */
 
-  /* 2-column on mobile, 3 on tablet, 4 on desktop */
-  .grid-responsive {
-    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6;
-  }
+/* 2-column on mobile, 3 on tablet, 4 on desktop */
+.grid-responsive {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6;
+}
 
-  /* 1 column on mobile, 2 on tablet, 3 on desktop */
-  .grid-responsive-md {
-    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6;
-  }
+/* 1 column on mobile, 2 on tablet, 3 on desktop */
+.grid-responsive-md {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6;
+}
 
-  /* 2 columns on mobile, 2-3 on tablet, 4 on desktop */
-  .grid-responsive-lg {
-    @apply grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6;
-  }
+/* 2 columns on mobile, 2-3 on tablet, 4 on desktop */
+.grid-responsive-lg {
+  @apply grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6;
+}
 
-  /* ============================================================================
-     RESPONSIVE CONTAINER - Prevents content from being too wide
-     ============================================================================ */
+/* ============================================================================
+   RESPONSIVE CONTAINER - Prevents content from being too wide
+   ============================================================================ */
 
-  .container-fluid {
-    @apply w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8;
-  }
+.container-fluid {
+  @apply w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8;
+}
 
-  .container-tight {
-    @apply w-full max-w-6xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8;
-  }
+.container-tight {
+  @apply w-full max-w-6xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8;
+}
 
-  .container-compact {
-    @apply w-full max-w-4xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8;
-  }
+.container-compact {
+  @apply w-full max-w-4xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8;
+}
 
-  /* ============================================================================
-     RESPONSIVE FLEX - Common patterns
-     ============================================================================ */
+/* ============================================================================
+   RESPONSIVE FLEX - Common patterns
+   ============================================================================ */
 
-  /* Stack on mobile, row on tablet+ */
-  .flex-responsive {
-    @apply flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4;
-  }
+/* Stack on mobile, row on tablet+ */
+.flex-responsive {
+  @apply flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4;
+}
 
-  /* Space between items */
-  .flex-between {
-    @apply flex items-center justify-between gap-2 sm:gap-4;
-  }
+/* Space between items */
+.flex-between {
+  @apply flex items-center justify-between gap-2 sm:gap-4;
+}
 
-  /* Center flex container */
-  .flex-center {
-    @apply flex items-center justify-center;
-  }
+/* Center flex container */
+.flex-center {
+  @apply flex items-center justify-center;
+}
 
-  /* ============================================================================
-     RESPONSIVE VISIBILITY
-     ============================================================================ */
+/* ============================================================================
+   RESPONSIVE VISIBILITY
+   ============================================================================ */
 
-  .hide-mobile {
-    @apply hidden sm:block;
-  }
+.hide-mobile {
+  @apply hidden sm:block;
+}
 
-  .show-mobile {
-    @apply block sm:hidden;
-  }
+.show-mobile {
+  @apply block sm:hidden;
+}
 
-  .hide-tablet {
-    @apply hidden md:block;
-  }
+.hide-tablet {
+  @apply hidden md:block;
+}
 
-  .show-tablet {
-    @apply block md:hidden;
-  }
+.show-tablet {
+  @apply block md:hidden;
+}
 
-  .hide-desktop {
-    @apply hidden lg:block;
-  }
+.hide-desktop {
+  @apply hidden lg:block;
+}
 
-  .show-desktop {
-    @apply block lg:hidden;
-  }
+.show-desktop {
+  @apply block lg:hidden;
+}
 
-  /* ============================================================================
-     RESPONSIVE WIDTH CONSTRAINTS - No fixed widths
-     ============================================================================ */
+/* ============================================================================
+   RESPONSIVE WIDTH CONSTRAINTS - No fixed widths
+   ============================================================================ */
 
-  .w-full-responsive {
-    @apply w-full min-w-0; /* Prevents overflow */
-  }
+.w-full-responsive {
+  @apply w-full min-w-0; /* Prevents overflow */
+}
 
-  .max-w-responsive {
-    @apply max-w-full sm:max-w-sm md:max-w-md lg:max-w-lg;
-  }
+.max-w-responsive {
+  @apply max-w-full sm:max-w-sm md:max-w-md lg:max-w-lg;
+}
 
-  /* ============================================================================
-     RESPONSIVE OVERFLOW & TRUNCATE
-     ============================================================================ */
+/* ============================================================================
+   RESPONSIVE OVERFLOW & TRUNCATE
+   ============================================================================ */
 
-  .truncate-responsive {
-    @apply truncate sm:line-clamp-2 lg:truncate;
-  }
+.truncate-responsive {
+  @apply truncate sm:line-clamp-2 lg:truncate;
+}
 
-  .no-scroll-mobile {
-    @apply overflow-x-hidden sm:overflow-x-auto;
-  }
+.no-scroll-mobile {
+  @apply overflow-x-hidden sm:overflow-x-auto;
+}
 
-  /* ============================================================================
-     RESPONSIVE BORDERS & DIVIDERS
-     ============================================================================ */
+/* ============================================================================
+   RESPONSIVE BORDERS & DIVIDERS
+   ============================================================================ */
 
-  .border-responsive {
-    @apply border-t sm:border-t-0 sm:border-l border-gray-200;
-  }
+.border-responsive {
+  @apply border-t sm:border-t-0 sm:border-l border-gray-200;
+}
 
-  /* ============================================================================
-     RESPONSIVE CARD LAYOUT
-     ============================================================================ */
+/* ============================================================================
+   RESPONSIVE CARD LAYOUT
+   ============================================================================ */
 
-  .card-responsive {
-    @apply bg-white rounded-lg sm:rounded-xl border border-gray-200 p-4 sm:p-6 lg:p-8 shadow-sm hover:shadow-md transition-shadow;
-  }
+.card-responsive {
+  @apply bg-white rounded-lg sm:rounded-xl border border-gray-200 p-4 sm:p-6 lg:p-8 shadow-sm hover:shadow-md transition-shadow;
+}
 
-  /* ============================================================================
-     RESPONSIVE TABLE FIX - For better mobile experience
-     ============================================================================ */
+/* ============================================================================
+   RESPONSIVE TABLE FIX - For better mobile experience
+   ============================================================================ */
 
-  .table-responsive {
-    @apply w-full overflow-x-auto -mx-3 sm:-mx-4 md:mx-0;
-  }
+.table-responsive {
+  @apply w-full overflow-x-auto -mx-3 sm:-mx-4 md:mx-0;
+}
 
-  .table-responsive table {
-    @apply min-w-full;
-  }
+.table-responsive table {
+  @apply min-w-full;
+}
 
-  /* ============================================================================
-     RESPONSIVE BUTTON SIZES
-     ============================================================================ */
+/* ============================================================================
+   RESPONSIVE BUTTON SIZES
+   ============================================================================ */
 
-  .btn-responsive {
-    @apply px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium rounded-lg transition-all;
-  }
+.btn-responsive {
+  @apply px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium rounded-lg transition-all;
+}
 
-  .btn-responsive-lg {
-    @apply px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base font-medium rounded-lg transition-all;
-  }
+.btn-responsive-lg {
+  @apply px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base font-medium rounded-lg transition-all;
+}
 
-  /* ============================================================================
-     RESPONSIVE INPUT SIZES
-     ============================================================================ */
+/* ============================================================================
+   RESPONSIVE INPUT SIZES
+   ============================================================================ */
 
-  .input-responsive {
-    @apply w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sparknode-purple focus:border-transparent;
-  }
+.input-responsive {
+  @apply w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sparknode-purple focus:border-transparent;
+}
 
-  /* ============================================================================
-     RESPONSIVE MODAL/DIALOG
-     ============================================================================ */
+/* ============================================================================
+   RESPONSIVE MODAL/DIALOG
+   ============================================================================ */
 
-  .modal-responsive {
-    @apply fixed inset-0 flex items-center justify-center p-4 sm:p-6 z-50;
-  }
+.modal-responsive {
+  @apply fixed inset-0 flex items-center justify-center p-4 sm:p-6 z-50;
+}
 
-  .modal-content-responsive {
-    @apply bg-white rounded-lg sm:rounded-xl shadow-lg w-full max-w-sm sm:max-w-md lg:max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6 lg:p-8;
-  }
+.modal-content-responsive {
+  @apply bg-white rounded-lg sm:rounded-xl shadow-lg w-full max-w-sm sm:max-w-md lg:max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6 lg:p-8;
+}
 
-  /* ============================================================================
-     RESPONSIVE SIDEBAR
-     ============================================================================ */
+/* ============================================================================
+   RESPONSIVE SIDEBAR
+   ============================================================================ */
 
-  .sidebar-responsive {
-    @apply fixed inset-y-0 left-0 z-50 w-64 max-w-xs bg-white border-r border-gray-200 transform transition-transform duration-300 lg:translate-x-0 lg:static overflow-y-auto;
-  }
+.sidebar-responsive {
+  @apply fixed inset-y-0 left-0 z-50 w-64 max-w-xs bg-white border-r border-gray-200 transform transition-transform duration-300 lg:translate-x-0 lg:static overflow-y-auto;
+}
 
-  /* ============================================================================
-     RESPONSIVE HEADER/NAVIGATION
-     ============================================================================ */
+/* ============================================================================
+   RESPONSIVE HEADER/NAVIGATION
+   ============================================================================ */
 
-  .header-responsive {
-    @apply sticky top-0 z-30 flex items-center justify-between h-14 sm:h-16 px-3 sm:px-4 lg:px-8 bg-white border-b border-gray-200 shadow-sm gap-2 sm:gap-4;
-  }
+.header-responsive {
+  @apply sticky top-0 z-30 flex items-center justify-between h-14 sm:h-16 px-3 sm:px-4 lg:px-8 bg-white border-b border-gray-200 shadow-sm gap-2 sm:gap-4;
+}
 
-  .nav-item-responsive {
-    @apply flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium rounded-lg transition-colors;
-  }
+.nav-item-responsive {
+  @apply flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium rounded-lg transition-colors;
+}
 
-  /* ============================================================================
-     VIEWPORT UNITS - Use carefully!
-     ============================================================================ */
+/* ============================================================================
+   VIEWPORT UNITS - Use carefully!
+   ============================================================================ */
 
-  /* 100% viewport width - use for full-width sections */
-  .vw-full {
-    width: 100vw;
-    margin-left: calc(-50vw + 50%);
-  }
+/* 100% viewport width - use for full-width sections */
+.vw-full {
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+}
 
-  /* For responsive images - maintain aspect ratio */
-  .aspect-video-responsive {
-    @apply w-full aspect-video object-cover;
-  }
+/* For responsive images - maintain aspect ratio */
+.aspect-video-responsive {
+  @apply w-full aspect-video object-cover;
+}
 
-  .aspect-square-responsive {
-    @apply w-full aspect-square object-cover;
-  }
+.aspect-square-responsive {
+  @apply w-full aspect-square object-cover;
 }
 
 /* ============================================================================

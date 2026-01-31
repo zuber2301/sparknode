@@ -80,7 +80,6 @@ async def login(
                     role="platform_admin",
                     phone_number=user.phone_number,
                     mobile_number=user.mobile_number,
-                    corporate_corporate_email=user.corporate_email,
                     personal_email=user.personal_email,
                     department_id=user.department_id,
                     manager_id=user.manager_id,
@@ -123,7 +122,6 @@ async def login(
                 role=user.org_role,
                 phone_number=user.phone_number,
                 mobile_number=user.mobile_number,
-                corporate_corporate_email=user.corporate_email,
                 personal_email=user.personal_email,
                 department_id=user.department_id,
                 manager_id=user.manager_id,
@@ -190,7 +188,7 @@ async def login_for_access_token(
 ):
     """OAuth2 compatible token endpoint"""
     user = db.query(User).filter(
-        (User.corporate_email == form_data.username) | (User.email == form_data.username)
+        (User.corporate_email == form_data.username) | (User.personal_email == form_data.username)
     ).first()
     
     if not user or not verify_password(form_data.password, user.password_hash):

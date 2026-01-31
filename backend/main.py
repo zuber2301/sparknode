@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+import logging
 
 from config import settings
 from database import engine, Base
@@ -24,10 +25,10 @@ from copilot.routes import router as copilot_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    print("Starting SparkNode Multi-Tenant API...")
+    logging.info("Starting SparkNode Multi-Tenant API...")
     yield
     # Shutdown
-    print("Shutting down SparkNode API...")
+    logging.info("Shutting down SparkNode API...")
 
 
 app = FastAPI(

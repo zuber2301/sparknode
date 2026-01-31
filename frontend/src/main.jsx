@@ -6,6 +6,7 @@ import { Toaster } from 'react-hot-toast'
 import App from './App'
 import { TenantProvider } from './context/TenantContext'
 import './index.css'
+import './styles/responsive.css'
 
 const queryClient = new QueryClient({
   defaultOptions: {

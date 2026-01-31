@@ -656,7 +656,7 @@ async def get_platform_audit_logs(
                 actor_email = admin.email if admin else "system"
             else:
                 user = db.query(User).filter(User.id == log.actor_id).first()
-                actor_email = user.email if user else None
+                actor_email = user.corporate_email if user else None
         
         tenant = db.query(Tenant).filter(Tenant.id == log.tenant_id).first() if log.tenant_id else None
         
