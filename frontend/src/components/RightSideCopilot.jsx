@@ -153,11 +153,6 @@ export default function RightSideCopilot() {
             Send
           </button>
         </form>
-
-        {/* Help text */}
-        <p className="text-xs text-gray-500 mt-3 text-center">
-          I can help you understand your data and provide insights about recognition events.
-        </p>
       </div>
     </div>
   )
