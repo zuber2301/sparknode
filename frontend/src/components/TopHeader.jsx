@@ -43,6 +43,7 @@ export default function TopHeader() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [tenantSelectorOpen, setTenantSelectorOpen] = useState(false)
+  const [personaExpandOpen, setPersonaExpandOpen] = useState(false)
   const [tenantSearch, setTenantSearch] = useState('')
   const profileRef = useRef(null)
 
@@ -321,42 +322,56 @@ export default function TopHeader() {
                       Profile
                     </NavLink>
 
-                    {/* Switch Person / Persona Manager */}
+                    {/* Switch Persona / Persona Manager */}
                     <div className="border-t border-gray-100 my-2 pt-2">
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 py-1 mb-1">
-                        Switch Person
-                      </p>
-                      <div className="space-y-1">
-                        {[
-                          { value: 'tenant_admin', label: 'Tenant Admin' },
-                          { value: 'tenant_lead', label: 'Tenant Leader' },
-                          { value: 'corporate_user', label: 'Corporate User' },
-                        ].map((persona) => (
+                      <button
+                        onClick={() => setPersonaExpandOpen(!personaExpandOpen)}
+                        className="w-full text-left px-3 py-1 mb-1 flex items-center justify-between"
+                      >
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                          Switch Persona
+                        </p>
+                        <HiOutlineChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${personaExpandOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      {personaExpandOpen && (
+                        <div className="space-y-1">
+                          {[
+                            { value: 'tenant_admin', label: 'Tenant Admin' },
+                            { value: 'tenant_lead', label: 'Tenant Leader' },
+                            { value: 'corporate_user', label: 'Corporate User' },
+                          ].map((persona) => (
+                            <button
+                              key={persona.value}
+                              onClick={() => {
+                                setPersonaRole(persona.value)
+                                setProfileOpen(false)
+                                setPersonaExpandOpen(false)
+                              }}
+                              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                effectiveRole === persona.value
+                                  ? 'bg-sparknode-purple text-white'
+                                  : 'text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              {persona.label}
+                            </button>
+                          ))}
                           <button
-                            key={persona.value}
                             onClick={() => {
-                              setPersonaRole(persona.value)
+                              clearPersonaRole()
                               setProfileOpen(false)
+                              setPersonaExpandOpen(false)
                             }}
                             className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                              effectiveRole === persona.value
+                              effectiveRole === 'corporate_user' || (effectiveRole && !['tenant_admin', 'tenant_lead', 'corporate_user'].includes(effectiveRole))
                                 ? 'bg-sparknode-purple text-white'
                                 : 'text-gray-700 hover:bg-gray-50'
                             }`}
                           >
-                            {persona.label}
+                            Platform Admin
                           </button>
-                        ))}
-                        <button
-                          onClick={() => {
-                            clearPersonaRole()
-                            setProfileOpen(false)
-                          }}
-                          className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors font-medium"
-                        >
-                          Default Role
-                        </button>
-                      </div>
+                        </div>
+                      )}
                     </div>
 
                     <button
