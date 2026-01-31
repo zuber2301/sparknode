@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { budgetsAPI, tenantsAPI, usersAPI, walletsAPI } from '../lib/api'
+import { budgetsAPI, tenantsAPI, usersAPI, walletsAPI, analyticsAPI } from '../lib/api'
 import { useAuthStore } from '../store/authStore'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
@@ -10,16 +10,18 @@ import {
   HiOutlineChartBar, 
   HiOutlineCheck,
   HiOutlineUsers,
-  HiOutlineCurrencyDollar
+  HiOutlineCurrencyDollar,
+  HiOutlineTrendingUp
 } from 'react-icons/hi'
 
 export default function Budgets() {
-  const [activeTab, setActiveTab] = useState('budgets') // 'budgets' or 'leads'
+  const [activeTab, setActiveTab] = useState('budgets') // 'budgets', 'leads', or 'spend-analysis'
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showAllocateModal, setShowAllocateModal] = useState(false)
   const [showLeadAllocateModal, setShowLeadAllocateModal] = useState(false)
   const [selectedBudget, setSelectedBudget] = useState(null)
   const [selectedLead, setSelectedLead] = useState(null)
+  const [spendAnalysisPeriod, setSpendAnalysisPeriod] = useState('monthly')
   const queryClient = useQueryClient()
   const { isHRAdmin } = useAuthStore()
 
@@ -33,6 +35,12 @@ export default function Budgets() {
     queryKey: ['users', { org_role: 'tenant_lead' }],
     queryFn: () => usersAPI.getAll({ org_role: 'tenant_lead' }),
     enabled: activeTab === 'leads',
+  })
+
+  const { data: spendAnalysis, isLoading: isLoadingSpendAnalysis } = useQuery({
+    queryKey: ['spend-analysis', spendAnalysisPeriod],
+    queryFn: () => analyticsAPI.getSpendAnalysis({ period_type: spendAnalysisPeriod }),
+    enabled: activeTab === 'spend-analysis',
   })
 
   const activeBudget = budgets?.data?.find(b => b.status === 'active')
@@ -212,6 +220,19 @@ export default function Budgets() {
           <div className="flex items-center gap-2">
             <HiOutlineUsers className="w-5 h-5" />
             Lead Allocations
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab('spend-analysis')}
+          className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'spend-analysis'
+              ? 'border-sparknode-purple text-sparknode-purple'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <HiOutlineTrendingUp className="w-5 h-5" />
+            Spend Analysis
           </div>
         </button>
       </div>
@@ -395,6 +416,41 @@ export default function Budgets() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {activeTab === 'spend-analysis' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Spend Analysis</h2>
+              <p className="text-sm text-gray-500">Insights into your point distribution and budget health</p>
+            </div>
+            <select 
+              value={spendAnalysisPeriod} 
+              onChange={(e) => setSpendAnalysisPeriod(e.target.value)}
+              className="input w-40"
+            >
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="quarterly">Quarterly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </div>
+
+          {isLoadingSpendAnalysis ? (
+            <div className="space-y-6">
+              <div className="h-10 w-48 bg-gray-200 animate-pulse rounded-lg" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="h-80 bg-gray-100 animate-pulse rounded-xl" />
+                <div className="h-80 bg-gray-100 animate-pulse rounded-xl" />
+              </div>
+            </div>
+          ) : (
+            <div className="card">
+              <p className="text-gray-600">Spend analysis data will be displayed here.</p>
+            </div>
+          )}
         </div>
       )}
 

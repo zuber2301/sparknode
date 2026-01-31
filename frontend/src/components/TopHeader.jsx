@@ -35,7 +35,6 @@ const adminNavigation = [
   { name: 'Events', href: '/events', icon: HiOutlineNewspaper, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
   { name: 'Tenants', href: '/platform/tenants', icon: HiOutlineOfficeBuilding, roles: ['platform_admin'] },
   { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
-  { name: 'Spend Analysis', href: '/spend-analysis', icon: HiOutlineTrendingUp, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
   { name: 'Users', href: '/users', icon: HiOutlineUsers, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
   { name: 'Audit Log', href: '/audit', icon: HiOutlineClipboardList, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
 ]
