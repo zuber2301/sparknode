@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from 'react'
 import { useCopilot } from '../context/copilotContext'
+import { useAuthStore } from '../store/authStore'
 import {
   HiOutlineTrash,
   HiOutlinePaperAirplane,
@@ -13,6 +14,7 @@ export default function RightSideCopilot() {
     sendMessage,
     clearMessages,
   } = useCopilot()
+  const { user } = useAuthStore()
   const [inputValue, setInputValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
   const messagesEndRef = useRef(null)
@@ -61,7 +63,14 @@ export default function RightSideCopilot() {
         scrollbarWidth: 'thin',
         scrollbarColor: '#9ca3af #f3f4f6'
       }}>
-        {messages.map((message) => (
+        {messages.map((message) => {
+          const timeStr = message.timestamp.toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+          const displayName = message.type === 'user' ? (user?.first_name || 'You') : 'SparkNode Copilot'
+          
+          return (
           <div
             key={message.id}
             className={`flex ${
@@ -75,22 +84,16 @@ export default function RightSideCopilot() {
                   : 'bg-white border border-gray-200 text-gray-900 rounded-bl-none'
               }`}
             >
-              <p className="leading-relaxed">{message.content}</p>
-              <p
-                className={`text-xs mt-1 ${
+              <p className="leading-relaxed">
+                <span className="font-semibold">{displayName}:</span> {message.content} <span className={`text-xs ml-1 ${
                   message.type === 'user'
                     ? 'text-purple-200'
                     : 'text-gray-500'
-                }`}
-              >
-                {message.timestamp.toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
+                }`}>[{timeStr}]</span>
               </p>
             </div>
           </div>
-        ))}
+        )})}
 
         {isLoading && (
           <div className="flex justify-start">
