@@ -34,17 +34,17 @@ export default function Dashboard() {
 
   if (isPlatformUser) {
     return (
-      <div className="space-y-4 sm:space-y-6 lg:space-y-8">
-        <div className="bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-lg sm:rounded-xl lg:rounded-2xl p-4 sm:p-6 lg:p-8 text-white">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">
+      <div className="space-y-3 sm:space-y-4 lg:space-y-5">
+        <div className="bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-xl p-3 sm:p-4 lg:p-5 text-white">
+          <h1 className="text-lg sm:text-xl lg:text-2xl font-bold mb-0.5">
             {tenantContext?.tenant_name || 'All Tenants'} Dashboard
           </h1>
-          <p className="text-sm sm:text-base text-white/80">
+          <p className="text-xs sm:text-sm text-white/80">
             Sparknode Admin view with context-aware tenant insights.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
           <div className="stat-card">
             <p className="text-xs sm:text-sm text-gray-500">Total Users</p>
             <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">{platformMetrics?.data?.total_users || 0}</p>
@@ -88,13 +88,13 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+    <div className="space-y-3 sm:space-y-4 lg:space-y-5">
       {/* Welcome header */}
-      <div className="bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-lg sm:rounded-xl lg:rounded-2xl p-4 sm:p-6 lg:p-8 text-white">
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">
+      <div className="bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-xl p-3 sm:p-4 lg:p-5 text-white">
+        <h1 className="text-lg sm:text-xl lg:text-2xl font-bold mb-0.5">
           Welcome back, {user?.first_name}! 👋
         </h1>
-        <p className="text-xs sm:text-sm lg:text-base text-white/80">
+        <p className="text-xs sm:text-sm text-white/80">
           Ready to recognize your colleagues today?
         </p>
       </div>

@@ -21,7 +21,7 @@ function LayoutContent() {
       <TopHeader />
 
       {/* Main content area - two column split layout */}
-      <div className="flex flex-1 overflow-hidden m-3 sm:m-4 lg:m-6 gap-3 sm:gap-4">
+      <div className="flex flex-1 overflow-hidden px-2 sm:px-3 lg:px-4 py-2 sm:py-3 gap-2 sm:gap-3">
         {/* Left Column - Copilot (hidden on small screens) */}
         {isOpen && (
           <>
@@ -33,7 +33,7 @@ function LayoutContent() {
 
         {/* Right Column - Main Content */}
         <div className={`flex flex-col flex-1 overflow-auto transition-all duration-300 ${isOpen ? '' : 'w-full'}`}>
-          <main className="flex-1 w-full bg-white rounded-lg sm:rounded-xl p-4 sm:p-6 lg:p-8">
+          <main className="flex-1 w-full bg-white rounded-xl shadow-sm p-4 sm:p-5 lg:p-6">
             <Outlet />
           </main>
         </div>
