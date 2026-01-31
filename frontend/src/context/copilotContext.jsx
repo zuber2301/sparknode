@@ -1,0 +1,101 @@
+import { createContext, useContext, useState, useCallback } from 'react'
+
+const CopilotContext = createContext(undefined)
+
+export function CopilotProvider({ children }) {
+  const [isOpen, setIsOpen] = useState(true)
+  const [messages, setMessages] = useState([
+    {
+      id: '1',
+      type: 'assistant',
+      content: 'Hello! I\'m your SparkNode Copilot. I can help you understand recognition events, answer questions about your data, and provide contextual assistance based on what you\'re viewing. What would you like to know?',
+      timestamp: new Date(),
+    },
+  ])
+  const [isLoading, setIsLoading] = useState(false)
+
+  const addMessage = useCallback((content, type = 'user') => {
+    const newMessage = {
+      id: Date.now().toString(),
+      type,
+      content,
+      timestamp: new Date(),
+    }
+    setMessages((prev) => [...prev, newMessage])
+    return newMessage
+  }, [])
+
+  const sendMessage = useCallback(async (userMessage, context = {}) => {
+    // Add user message
+    addMessage(userMessage, 'user')
+    setIsLoading(true)
+
+    try {
+      // TODO: Connect to actual API endpoint for AI responses
+      // For now, return a placeholder response
+      const response = await fetch('/api/copilot/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          context, // Pass contextual information (current page, visible data, etc.)
+        }),
+      }).then((res) => res.json())
+      
+      if (response.error) {
+        addMessage('Sorry, I encountered an error. Please try again.', 'assistant')
+      } else {
+        addMessage(response.response || response.message, 'assistant')
+      }
+    } catch (error) {
+      console.error('Copilot error:', error)
+      addMessage(
+        'I\'m having trouble connecting. Please try again in a moment.',
+        'assistant'
+      )
+    } finally {
+      setIsLoading(false)
+    }
+  }, [addMessage])
+
+  const clearMessages = useCallback(() => {
+    setMessages([
+      {
+        id: '1',
+        type: 'assistant',
+        content: 'Hello! I\'m your SparkNode Copilot. I can help you understand recognition events, answer questions about your data, and provide contextual assistance based on what you\'re viewing. What would you like to know?',
+        timestamp: new Date(),
+      },
+    ])
+  }, [])
+
+  const toggleOpen = useCallback(() => {
+    setIsOpen((prev) => !prev)
+  }, [])
+
+  return (
+    <CopilotContext.Provider
+      value={{
+        isOpen,
+        setIsOpen,
+        messages,
+        isLoading,
+        sendMessage,
+        clearMessages,
+        toggleOpen,
+      }}
+    >
+      {children}
+    </CopilotContext.Provider>
+  )
+}
+
+export function useCopilot() {
+  const context = useContext(CopilotContext)
+  if (!context) {
+    throw new Error('useCopilot must be used within CopilotProvider')
+  }
+  return context
+}

@@ -18,6 +18,7 @@ from audit.routes import router as audit_router
 from events.routes import router as events_router
 from analytics.routes import router as analytics_router
 from platform_admin.routes import router as platform_router
+from copilot.routes import router as copilot_router
 
 
 @asynccontextmanager
@@ -70,6 +71,7 @@ app.include_router(audit_router, prefix="/api/audit", tags=["Audit"])
 app.include_router(events_router, prefix="/api/events", tags=["Events & Logistics"])
 app.include_router(analytics_router, prefix="/api/analytics", tags=["Analytics"])
 app.include_router(platform_router, prefix="/api/platform", tags=["Platform Admin"])
+app.include_router(copilot_router, prefix="/api", tags=["AI Copilot"])
 
 
 @app.get("/")

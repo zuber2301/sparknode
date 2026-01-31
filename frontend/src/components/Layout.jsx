@@ -3,6 +3,8 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { useQuery } from '@tanstack/react-query'
 import { notificationsAPI, platformAPI, tenantsAPI } from '../lib/api'
+import { CopilotProvider, useCopilot } from '../context/copilotContext'
+import RightSideCopilot from './RightSideCopilot'
 import {
   HiOutlineHome,
   HiOutlineSparkles,
@@ -42,6 +44,15 @@ const adminNavigation = [
 ]
 
 export default function Layout() {
+  return (
+    <CopilotProvider>
+      <LayoutContent />
+    </CopilotProvider>
+  )
+}
+
+function LayoutContent() {
+  const { isOpen } = useCopilot()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [selectorOpen, setSelectorOpen] = useState(false)
   const [tenantSearch, setTenantSearch] = useState('')
@@ -116,21 +127,19 @@ export default function Layout() {
       tenant_lead: 'Tenant Leader',
       corporate_user: 'Corporate User',
       hr_admin: 'Tenant Admin',
-      manager: 'Tenant Leader',
-      employee: 'Corporate User',
     }
-    return roles[role] || role?.replace('_', ' ') || ''
+    return roles[role] || role
   }
 
+  const allTenants = tenantsResponse?.data
   useEffect(() => {
-    if (!isPlatformUser || !tenants.length) return
+    if (!isPlatformUser) return
     if (tenantContext?.tenant_id) return
-    const allTenants = tenants.find((tenant) => tenant.name === 'All Tenants')
     const fallback = allTenants || tenants[0]
     if (fallback) {
       updateTenantContext({ tenant_id: fallback.id, tenant_name: fallback.name })
     }
-  }, [isPlatformUser, tenantContext, tenants, updateTenantContext])
+  }, [isPlatformUser, tenantContext, tenants, updateTenantContext, allTenants])
 
   useEffect(() => {
     if (isPlatformUser) return
@@ -276,7 +285,7 @@ export default function Layout() {
       </aside>
 
       {/* Main content */}
-      <div className="lg:pl-64 flex flex-col">
+      <div className={`lg:pl-64 flex flex-col transition-all duration-300 ${isOpen ? 'pr-80' : ''}`}>
         {/* Top bar */}
         <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 bg-white border-b border-gray-200 lg:px-8 shadow-sm">
           <div className="flex items-center gap-3">
@@ -377,6 +386,9 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Right-Side Copilot */}
+      {isOpen && <RightSideCopilot />}
 
       {isPlatformUser && (
         <div className="fixed bottom-6 right-6 z-50">

@@ -17,6 +17,7 @@ An enterprise-grade employee rewards and recognition platform with multi-tenant 
 - **Rewards Marketplace**: Brand vouchers and gift cards redemption
 - **Social Feed**: Company-wide recognition feed with comments and reactions
 - **Audit Trail**: Complete logging of all administrative actions
+- **🤖 Right-Side Copilot**: AI-powered assistant for contextual help and insights (NEW in v0.4)
 
 ### User Roles
 - **Platform Admin**: Multi-tenant management (future feature)
@@ -196,6 +197,39 @@ docker-compose logs -f frontend
 # Rebuild after changes
 docker-compose up --build
 ```
+
+## 🤖 Right-Side Copilot (New in v0.4)
+
+SparkNode now includes an AI-powered Copilot assistant that provides contextual help directly in your workflow!
+
+### What It Does
+- **Persistent Panel**: Fixed right-side chat interface (300-400px)
+- **Contextual Intelligence**: Understands what page you're viewing
+- **Natural Conversation**: Ask follow-up questions naturally
+- **Zero Context-Switching**: Get help without leaving the current page
+
+### Example Interactions
+```
+Feed Page:
+"Tell me more about John's award" → Detailed info about the recognition
+
+Dashboard:
+"What caused the spike in recognitions?" → Analysis of trends
+
+Wallet:
+"Which reward has the best value?" → Point-to-value comparison
+```
+
+### Getting Started
+1. Open any page (Dashboard, Feed, Wallet, etc.)
+2. Look for the "SparkNode Copilot" panel on the right
+3. Click and ask your question
+4. Get contextual responses instantly
+
+For detailed documentation, see:
+- [Copilot Quick Start Guide](./COPILOT_QUICKSTART.md)
+- [Copilot Implementation Details](./COPILOT_IMPLEMENTATION.md)
+- [Copilot API Reference](./COPILOT_API_REFERENCE.md)
 
 ### Database Access
 
