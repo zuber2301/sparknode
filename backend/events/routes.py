@@ -126,6 +126,11 @@ async def create_event(
     """Create a new event (Tenant Admin only)."""
     # TODO: Check if user is Tenant Admin
     
+    # Convert visible_to_departments UUIDs to strings for JSON serialization
+    visible_departments = []
+    if event.visible_to_departments:
+        visible_departments = [str(dept_id) for dept_id in event.visible_to_departments]
+    
     new_event = Event(
         tenant_id=current_user.tenant_id,
         title=event.title,
@@ -140,7 +145,7 @@ async def create_event(
         color_code=event.color_code,
         status=event.status,
         visibility=event.visibility,
-        visible_to_departments=event.visible_to_departments,
+        visible_to_departments=visible_departments,
         nomination_start=event.nomination_start,
         nomination_end=event.nomination_end,
         who_can_nominate=event.who_can_nominate,

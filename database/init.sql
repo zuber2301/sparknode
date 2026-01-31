@@ -422,42 +422,52 @@ CREATE INDEX idx_notifications_user ON notifications(user_id, is_read, created_a
 CREATE TABLE events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
+    title VARCHAR(255) NOT NULL,
     description TEXT,
-    event_type VARCHAR(50) DEFAULT 'mixed' CHECK (event_type IN ('recognition', 'logistics', 'mixed')),
-    start_date TIMESTAMP WITH TIME ZONE NOT NULL,
-    end_date TIMESTAMP WITH TIME ZONE NOT NULL,
-    registration_deadline TIMESTAMP WITH TIME ZONE,
+    type VARCHAR(50) NOT NULL,
+    start_datetime TIMESTAMP WITH TIME ZONE NOT NULL,
+    end_datetime TIMESTAMP WITH TIME ZONE NOT NULL,
+    venue VARCHAR(500),
     location VARCHAR(500),
-    is_virtual BOOLEAN DEFAULT FALSE,
-    virtual_link VARCHAR(500),
-    max_participants INTEGER,
-    status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'ongoing', 'completed', 'cancelled')),
-    banner_image_url VARCHAR(500),
-    theme_color VARCHAR(20),
-    settings JSONB DEFAULT '{"require_manager_approval": true, "qr_checkin_enabled": true}',
+    format VARCHAR(50) DEFAULT 'onsite',
+    status VARCHAR(50) DEFAULT 'draft',
+    visibility VARCHAR(50) DEFAULT 'all_employees',
+    visible_to_departments JSONB DEFAULT '[]',
+    banner_url VARCHAR(500),
+    color_code VARCHAR(20) DEFAULT '#3B82F6',
+    nomination_start TIMESTAMP WITH TIME ZONE,
+    nomination_end TIMESTAMP WITH TIME ZONE,
+    who_can_nominate VARCHAR(50) DEFAULT 'all_employees',
+    max_activities_per_person INTEGER DEFAULT 5,
+    planned_budget DECIMAL(15, 2) DEFAULT 0,
+    currency VARCHAR(10) DEFAULT 'USD',
     created_by UUID REFERENCES users(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_events_tenant ON events(tenant_id, status, start_date);
+CREATE INDEX idx_events_tenant ON events(tenant_id, status, start_datetime);
 
 -- Event Activities
 CREATE TABLE event_activities (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    activity_type VARCHAR(50) DEFAULT 'general' CHECK (activity_type IN ('performance', 'gifting', 'workshop', 'networking', 'general')),
-    start_time TIMESTAMP WITH TIME ZONE,
-    end_time TIMESTAMP WITH TIME ZONE,
-    max_capacity INTEGER,
-    current_count INTEGER DEFAULT 0,
-    location VARCHAR(500),
-    participation_points DECIMAL(15, 2) DEFAULT 0,
-    settings JSONB DEFAULT '{}',
+    category VARCHAR(50) NOT NULL,
+    max_participants INTEGER,
+    max_teams INTEGER,
+    min_team_size INTEGER DEFAULT 1,
+    max_team_size INTEGER,
+    nomination_start TIMESTAMP WITH TIME ZONE,
+    nomination_end TIMESTAMP WITH TIME ZONE,
+    activity_start TIMESTAMP WITH TIME ZONE,
+    activity_end TIMESTAMP WITH TIME ZONE,
+    requires_approval BOOLEAN DEFAULT FALSE,
+    allow_multiple_teams BOOLEAN DEFAULT FALSE,
+    rules_text TEXT,
+    sequence INTEGER,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -497,49 +507,106 @@ CREATE TABLE activity_participants (
 -- Event Budgets
 CREATE TABLE event_budgets (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE UNIQUE,
-    total_budget DECIMAL(15, 2) NOT NULL DEFAULT 0,
-    allocated_amount DECIMAL(15, 2) NOT NULL DEFAULT 0,
-    spent_amount DECIMAL(15, 2) NOT NULL DEFAULT 0,
-    breakdown JSONB DEFAULT '{}',
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    planned_budget DECIMAL(15, 2) NOT NULL,
+    actual_spend DECIMAL(15, 2) DEFAULT 0,
+    committed_spend DECIMAL(15, 2) DEFAULT 0,
+    budget_breakdown JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Event Metrics
+CREATE TABLE event_metrics (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE UNIQUE,
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    total_invited INTEGER DEFAULT 0,
+    total_registered INTEGER DEFAULT 0,
+    total_participated INTEGER DEFAULT 0,
+    no_shows INTEGER DEFAULT 0,
+    activity_metrics JSONB DEFAULT '{}',
+    gifts_eligible INTEGER DEFAULT 0,
+    gifts_issued INTEGER DEFAULT 0,
+    gifts_redeemed INTEGER DEFAULT 0,
+    department_metrics JSONB DEFAULT '{}',
+    computed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Event Gift Items
-CREATE TABLE event_gift_items (
+CREATE TABLE event_gift_batches (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    activity_id UUID NOT NULL REFERENCES event_activities(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
+    gift_name VARCHAR(255) NOT NULL,
+    gift_type VARCHAR(50) NOT NULL,
     description TEXT,
-    image_url VARCHAR(500),
-    total_quantity INTEGER NOT NULL DEFAULT 0,
-    allocated_quantity INTEGER NOT NULL DEFAULT 0,
-    distributed_quantity INTEGER NOT NULL DEFAULT 0,
-    unit_value DECIMAL(15, 2) DEFAULT 0,
-    points_value DECIMAL(15, 2) DEFAULT 0,
+    quantity INTEGER NOT NULL,
+    unit_value DECIMAL(10, 2) NOT NULL,
+    eligible_criteria JSONB DEFAULT '{}',
+    distribution_start TIMESTAMP WITH TIME ZONE,
+    distribution_end TIMESTAMP WITH TIME ZONE,
+    distribution_locations JSONB DEFAULT '[]',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Gift Allocations
-CREATE TABLE gift_allocations (
+-- Event Gift Redemptions
+CREATE TABLE event_gift_redemptions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    gift_item_id UUID NOT NULL REFERENCES event_gift_items(id) ON DELETE CASCADE,
+    gift_batch_id UUID NOT NULL REFERENCES event_gift_batches(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    quantity INTEGER NOT NULL DEFAULT 1,
-    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'ready', 'picked_up', 'expired')),
-    picked_up_at TIMESTAMP WITH TIME ZONE,
-    verified_by UUID REFERENCES users(id),
-    qr_token_hash VARCHAR(255),
-    allocated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    expires_at TIMESTAMP WITH TIME ZONE
+    redemption_date TIMESTAMP WITH TIME ZONE,
+    location VARCHAR(500),
+    status VARCHAR(50) DEFAULT 'pending',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_gift_allocations_user ON gift_allocations(user_id, status);
+-- Event Teams (for group activities)
+CREATE TABLE event_teams (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    activity_id UUID NOT NULL REFERENCES event_activities(id) ON DELETE CASCADE,
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    team_name VARCHAR(255) NOT NULL,
+    leader_user_id UUID NOT NULL REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Event Team Members
+CREATE TABLE event_team_members (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    team_id UUID NOT NULL REFERENCES event_teams(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Event Nominations
+CREATE TABLE event_nominations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    activity_id UUID NOT NULL REFERENCES event_activities(id) ON DELETE CASCADE,
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    nominee_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    team_id UUID REFERENCES event_teams(id) ON DELETE SET NULL,
+    created_by UUID REFERENCES users(id),
+    status VARCHAR(50) DEFAULT 'pending',
+    performance_title VARCHAR(255),
+    notes TEXT,
+    preferred_slot VARCHAR(100),
+    reviewed_by UUID REFERENCES users(id),
+    reviewed_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
 -- =====================================================
 -- ANALYTICS TABLES
