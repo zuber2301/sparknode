@@ -20,6 +20,10 @@ import {
   HiOutlineMenu,
   HiOutlineX,
   HiOutlineChevronDown,
+  HiOutlineShoppingCart,
+  HiOutlineCog,
+  HiOutlineViewGrid,
+  HiOutlineCreditCard,
 } from 'react-icons/hi'
 
 const navigation = [
@@ -32,11 +36,14 @@ const navigation = [
 ]
 
 const adminNavigation = [
-  { name: 'Events', href: '/events', icon: HiOutlineNewspaper, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
   { name: 'Tenants', href: '/platform/tenants', icon: HiOutlineOfficeBuilding, roles: ['platform_admin'] },
   { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
   { name: 'Users', href: '/users', icon: HiOutlineUsers, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
   { name: 'Audit Log', href: '/audit', icon: HiOutlineClipboardList, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
+  { name: 'Marketplace', href: '/marketplace', icon: HiOutlineShoppingCart, roles: ['platform_admin'] },
+  { name: 'AI Settings', href: '/ai-settings', icon: HiOutlineCog, roles: ['platform_admin'] },
+  { name: 'Templates', href: '/templates', icon: HiOutlineViewGrid, roles: ['platform_admin'] },
+  { name: 'Billing', href: '/billing', icon: HiOutlineCreditCard, roles: ['platform_admin'] },
 ]
 
 export default function TopHeader() {
@@ -174,7 +181,7 @@ export default function TopHeader() {
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-1 flex-1">
-            {navigation.map((item) => (
+            {!isPlatformUser && navigation.map((item) => (
               <NavLink
                 key={item.name}
                 to={item.href}
@@ -395,7 +402,7 @@ export default function TopHeader() {
       {/* Mobile Navigation Menu */}
       {mobileNavOpen && (
         <div className="lg:hidden border-t border-gray-200 bg-gray-50 px-4 sm:px-6 py-4 space-y-2 max-h-96 overflow-y-auto">
-          {navigation.map((item) => (
+          {!isPlatformUser && navigation.map((item) => (
             <NavLink
               key={item.name}
               to={item.href}

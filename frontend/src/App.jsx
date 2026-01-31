@@ -17,6 +17,10 @@ import Events from './pages/Events'
 import EventCreateWizard from './pages/EventCreateWizard'
 import EventDetail from './pages/EventDetail'
 import EmployeeEvents from './pages/EmployeeEvents'
+import Marketplace from './pages/Marketplace'
+import AISettings from './pages/AISettings'
+import Templates from './pages/Templates'
+import Billing from './pages/Billing'
 import { useParams } from 'react-router-dom'
 
 function EventCreateWizardEdit() {
@@ -55,6 +59,10 @@ function App() {
         <Route path="events/:eventId" element={<EventDetail />} />
         <Route path="events/:eventId/edit" element={<EventCreateWizardEdit />} />
         <Route path="platform/tenants" element={<PlatformTenants />} />
+        <Route path="marketplace" element={<Marketplace />} />
+        <Route path="ai-settings" element={<AISettings />} />
+        <Route path="templates" element={<Templates />} />
+        <Route path="billing" element={<Billing />} />
       </Route>
     </Routes>
   )
