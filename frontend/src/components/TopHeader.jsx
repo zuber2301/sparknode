@@ -260,8 +260,8 @@ export default function TopHeader() {
                 <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-50 animate-in fade-in zoom-in-95 origin-top-right">
                   {/* Tenant Context in dropdown for mobile */}
                   {isPlatformOwner() && (
-                    <div className="px-4 py-3 border-b border-gray-100">
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                    <div className="px-4 py-2 border-b border-gray-100">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
                         Tenant Context
                       </p>
                       <button
@@ -302,7 +302,7 @@ export default function TopHeader() {
                   )}
 
                   {/* User Info */}
-                  <div className="px-4 py-3 border-b border-gray-100">
+                  <div className="px-4 py-2 border-b border-gray-100">
                     <p className="text-sm font-medium text-gray-900">
                       {user?.first_name} {user?.last_name}
                     </p>
@@ -312,21 +312,21 @@ export default function TopHeader() {
                   </div>
 
                   {/* Menu Items */}
-                  <div className="p-2 space-y-1">
+                  <div className="p-1 space-y-0.5">
                     <NavLink
                       to="/profile"
                       onClick={() => setProfileOpen(false)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                       <HiOutlineUser className="w-4 h-4" />
                       Profile
                     </NavLink>
 
                     {/* Switch Persona / Persona Manager */}
-                    <div className="border-t border-gray-100 my-2 pt-2">
+                    <div className="border-t border-gray-100 my-1 pt-1">
                       <button
                         onClick={() => setPersonaExpandOpen(!personaExpandOpen)}
-                        className="w-full text-left px-3 py-1 mb-1 flex items-center justify-between"
+                        className="w-full text-left px-3 py-1 mb-0.5 flex items-center justify-between"
                       >
                         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                           Switch Persona
@@ -334,7 +334,7 @@ export default function TopHeader() {
                         <HiOutlineChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${personaExpandOpen ? 'rotate-180' : ''}`} />
                       </button>
                       {personaExpandOpen && (
-                        <div className="space-y-1">
+                        <div className="space-y-0.5">
                           {[
                             { value: 'tenant_admin', label: 'Tenant Admin' },
                             { value: 'tenant_lead', label: 'Tenant Leader' },
@@ -347,7 +347,7 @@ export default function TopHeader() {
                                 setProfileOpen(false)
                                 setPersonaExpandOpen(false)
                               }}
-                              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              className={`w-full text-left px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                                 effectiveRole === persona.value
                                   ? 'bg-sparknode-purple text-white'
                                   : 'text-gray-700 hover:bg-gray-50'
@@ -362,7 +362,7 @@ export default function TopHeader() {
                               setProfileOpen(false)
                               setPersonaExpandOpen(false)
                             }}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            className={`w-full text-left px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                               effectiveRole === 'corporate_user' || (effectiveRole && !['tenant_admin', 'tenant_lead', 'corporate_user'].includes(effectiveRole))
                                 ? 'bg-sparknode-purple text-white'
                                 : 'text-gray-700 hover:bg-gray-50'
@@ -379,7 +379,7 @@ export default function TopHeader() {
                         handleLogout()
                         setProfileOpen(false)
                       }}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-red-600 hover:bg-red-50 transition-colors"
                     >
                       <HiOutlineLogout className="w-4 h-4" />
                       Logout
