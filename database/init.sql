@@ -17,8 +17,22 @@ CREATE TABLE tenants (
     domain VARCHAR(255) UNIQUE,
     logo_url VARCHAR(500),
     favicon_url VARCHAR(500),
-    primary_color VARCHAR(20) DEFAULT '#3B82F6',
-    branding_config JSONB DEFAULT '{}',
+    
+    -- Theme & Branding Config
+    theme_config JSONB DEFAULT '{"primary_color": "#3B82F6", "secondary_color": "#8B5CF6", "font_family": "Inter"}',
+    domain_whitelist JSONB DEFAULT '[]',
+    auth_method VARCHAR(50) DEFAULT 'PASSWORD_AND_OTP',
+    
+    -- Point Economy Config
+    currency_label VARCHAR(100) DEFAULT 'Points',
+    conversion_rate NUMERIC(10, 4) DEFAULT 1.0,
+    auto_refill_threshold NUMERIC(5, 2) DEFAULT 20.0,
+    
+    -- Recognition Laws Config
+    award_tiers JSONB DEFAULT '{"Gold": 5000, "Silver": 2500, "Bronze": 1000}',
+    peer_to_peer_enabled BOOLEAN DEFAULT TRUE,
+    expiry_policy VARCHAR(50) DEFAULT 'NEVER',
+    
     status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'suspended', 'trial')),
     
     -- Subscription & Billing
@@ -60,7 +74,7 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
-    org_role VARCHAR(50) NOT NULL CHECK (org_role IN ('tenant_admin', 'hr_admin', 'tenant_lead', 'manager', 'corporate_user', 'employee')),
+    org_role VARCHAR(50) NOT NULL CHECK (org_role IN ('platform_admin', 'tenant_admin', 'hr_admin', 'tenant_lead', 'manager', 'corporate_user', 'employee')),
     department_id UUID NOT NULL REFERENCES departments(id),
     manager_id UUID REFERENCES users(id),
     avatar_url VARCHAR(500),

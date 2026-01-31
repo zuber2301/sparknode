@@ -116,10 +116,10 @@ ON CONFLICT (tenant_id, name) DO NOTHING;
 -- Hash: $2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u
 -- =====================================================
 
--- Platform Admin: super_user@sparknode.io (uses hr_admin org_role + system_admins table)
+-- Platform Admin: super_user@sparknode.io (uses platform_admin org_role + system_admins table)
 INSERT INTO users (id, tenant_id, corporate_email, password_hash, first_name, last_name, org_role, department_id, is_super_admin)
 VALUES
-('220e8400-e29b-41d4-a716-446655440000', '00000000-0000-0000-0000-000000000000', 'super_user@sparknode.io', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Platform', 'Admin', 'hr_admin', '010e8400-e29b-41d4-a716-446655440000', TRUE)
+('220e8400-e29b-41d4-a716-446655440000', '00000000-0000-0000-0000-000000000000', 'super_user@sparknode.io', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Platform', 'Admin', 'platform_admin', '010e8400-e29b-41d4-a716-446655440000', TRUE)
 ON CONFLICT (tenant_id, corporate_email) DO NOTHING;
 
 -- Link Platform Admin to SystemAdmin table
