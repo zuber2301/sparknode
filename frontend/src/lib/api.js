@@ -27,18 +27,6 @@ api.interceptors.request.use(
       config.headers['X-Tenant-ID'] = tenantId
     }
     
-    // DEBUG: Log department requests
-    if (config.url.includes('departments')) {
-      console.log('[API] Departments request:', {
-        url: config.url,
-        user: state.user,
-        tenantContext: state.tenantContext,
-        tenantId: tenantId,
-        'X-Tenant-ID': config.headers['X-Tenant-ID'],
-        isSent: !!config.headers['X-Tenant-ID']
-      })
-    }
-    
     return config
   },
   (error) => Promise.reject(error)

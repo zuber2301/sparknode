@@ -24,6 +24,16 @@ from .security import (
     verify_qr_token,
     generate_secure_code,
 )
+from .wallet_service import (
+    WalletService,
+    credit_user_wallet,
+    debit_user_wallet,
+)
+from .audit_service import (
+    AuditService,
+    AuditActions,
+    log_audit,
+)
 
 __all__ = [
     "TenantContext",
@@ -45,4 +55,10 @@ __all__ = [
     "generate_qr_token",
     "verify_qr_token",
     "generate_secure_code",
+    "WalletService",
+    "credit_user_wallet",
+    "debit_user_wallet",
+    "AuditService",
+    "AuditActions",
+    "log_audit",
 ]

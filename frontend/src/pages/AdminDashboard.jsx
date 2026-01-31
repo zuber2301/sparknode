@@ -8,10 +8,14 @@ import {
   HiOutlineTrendingUp,
   HiOutlineCheckCircle,
   HiOutlineExclamationCircle,
+  HiOutlineBriefcase,
+  HiOutlineDocument,
+  HiOutlineCog,
 } from 'react-icons/hi'
 
 export default function AdminDashboard() {
   const { tenantContext } = useAuthStore()
+  const [activeTab, setActiveTab] = useState('overview')
 
   // Mock data for KPIs
   const kpis = [
@@ -105,293 +109,326 @@ export default function AdminDashboard() {
   const topTenants = tenantHealth.slice(0, 5)
   const bottomTenants = tenantHealth.slice(-5).reverse()
 
+  // Tab configuration
+  const tabs = [
+    {
+      id: 'overview',
+      label: 'Overview',
+      icon: HiOutlineChartBar,
+      description: 'A summary of company-wide engagement, active users, and remaining budget.'
+    },
+    {
+      id: 'directory',
+      label: 'Directory',
+      icon: HiOutlineUsers,
+      description: 'Manage employees, departments, and "Tenant Leads" (manager assignments).'
+    },
+    {
+      id: 'wallets',
+      label: 'Wallets & Budgets',
+      icon: HiOutlineCash,
+      description: 'Allocate points to different departments (Sales, IT, HR) from the Master Pool.'
+    },
+    {
+      id: 'redemption',
+      label: 'Redemption Desk',
+      icon: HiOutlineBriefcase,
+      description: 'Approval queue for physical merchandise and local vendor logs.'
+    },
+    {
+      id: 'templates',
+      label: 'Templates',
+      icon: HiOutlineDocument,
+      description: 'Customize the company\'s specific E-cards and award titles.'
+    },
+    {
+      id: 'reports',
+      label: 'Reports',
+      icon: HiOutlineCog,
+      description: 'Deep dive into "Who is recognizing whom" and tax/compliance exports.'
+    },
+  ]
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Platform Admin Dashboard</h1>
-        <p className="text-gray-600 mt-1">
-          {tenantContext?.tenant_name === 'All Tenants' 
-            ? 'Global economy and engagement metrics across all tenants'
-            : `Health metrics for ${tenantContext?.tenant_name}`}
-        </p>
-      </div>
-
-      {/* Key Performance Indicators */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.map((kpi, idx) => {
-          const Icon = kpi.icon
-          const colorClasses = {
-            purple: 'bg-purple-100',
-            green: 'bg-green-100',
-            blue: 'bg-blue-100',
-            orange: 'bg-orange-100',
-          }
-
-          return (
-            <div key={idx} className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">{kpi.label}</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">{kpi.value}</p>
-                  <p className="text-xs text-gray-500 mt-1">{kpi.unit}</p>
-                </div>
-                <div className={`w-12 h-12 rounded-lg ${colorClasses[kpi.color]} flex items-center justify-center`}>
-                  <Icon className={`w-6 h-6 text-${kpi.color}-600`} />
-                </div>
-              </div>
-              <div className={`mt-4 inline-flex items-center gap-1 text-sm font-medium ${kpi.trendUp ? 'text-green-600' : 'text-red-600'}`}>
-                {kpi.trendUp ? (
-                  <HiOutlineTrendingUp className="w-4 h-4" />
-                ) : (
-                  <HiOutlineTrendingUp className="w-4 h-4 transform rotate-180" />
-                )}
-                {kpi.trend}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Tenant Health Grid */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Top Performing Tenants */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-              <h2 className="text-lg font-semibold text-gray-900">Top 5 Most Active Tenants</h2>
-            </div>
-
-            <div className="divide-y divide-gray-200">
-              {topTenants.map((tenant) => (
-                <div key={tenant.id} className={`px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors ${getBalanceBg(tenant.balance)}`}>
-                  <div className="flex-1">
-                    <h3 className="font-medium text-gray-900">{tenant.name}</h3>
-                    <div className="flex items-center gap-4 mt-2">
-                      <div>
-                        <p className="text-xs text-gray-500">Utilization</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-blue-500" style={{ width: `${tenant.utilization}%` }} />
-                          </div>
-                          <span className="text-sm font-medium text-gray-900">{tenant.utilization}%</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-6 text-right ml-4">
-                    <div>
-                      <p className="text-xs text-gray-500">Master Balance</p>
-                      <p className={`text-lg font-bold mt-1 px-3 py-1 rounded-lg ${getBalanceColor(tenant.balance)}`}>
-                        {(tenant.balance / 1000).toFixed(0)}K pts
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Trend</p>
-                      <div className={`text-lg font-bold mt-1 flex items-center gap-1 ${tenant.trend > 0 ? 'text-green-600' : tenant.trend < 0 ? 'text-red-600' : 'text-gray-600'}`}>
-                        {tenant.trend > 0 ? '↑' : tenant.trend < 0 ? '↓' : '↔'} {Math.abs(tenant.trend)}%
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Bottom Performing Tenants */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-              <h2 className="text-lg font-semibold text-gray-900">Bottom 5 Least Active Tenants</h2>
-              <p className="text-sm text-gray-600 mt-1">Consider reaching out to re-engage</p>
-            </div>
-
-            <div className="divide-y divide-gray-200">
-              {bottomTenants.map((tenant) => (
-                <div key={tenant.id} className={`px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors ${getBalanceBg(tenant.balance)}`}>
-                  <div className="flex-1">
-                    <h3 className="font-medium text-gray-900">{tenant.name}</h3>
-                    <div className="flex items-center gap-4 mt-2">
-                      <div>
-                        <p className="text-xs text-gray-500">Utilization</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-red-500" style={{ width: `${tenant.utilization}%` }} />
-                          </div>
-                          <span className="text-sm font-medium text-gray-900">{tenant.utilization}%</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-6 text-right ml-4">
-                    <div>
-                      <p className="text-xs text-gray-500">Master Balance</p>
-                      <p className={`text-lg font-bold mt-1 px-3 py-1 rounded-lg ${getBalanceColor(tenant.balance)}`}>
-                        {(tenant.balance / 1000).toFixed(0)}K pts
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Trend</p>
-                      <div className={`text-lg font-bold mt-1 flex items-center gap-1 ${tenant.trend > 0 ? 'text-green-600' : tenant.trend < 0 ? 'text-red-600' : 'text-gray-600'}`}>
-                        {tenant.trend > 0 ? '↑' : tenant.trend < 0 ? '↓' : '↔'} {Math.abs(tenant.trend)}%
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+      <div className="bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-xl p-8 text-white">
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-4xl font-bold">Tenant Admin</h1>
+            <p className="text-white text-opacity-90 mt-2 max-w-2xl">
+              The HR/Company Owner - This role is responsible for the company's internal recognition culture and budget.
+            </p>
+            {tenantContext?.tenant_name && tenantContext.tenant_name !== 'All Tenants' && (
+              <p className="text-white text-opacity-80 mt-3 text-sm font-medium">
+                Managing: <span className="font-bold">{tenantContext.tenant_name}</span>
+              </p>
+            )}
           </div>
         </div>
+      </div>
 
-        {/* Right Sidebar */}
-        <div className="space-y-6">
-          {/* Redemption Analytics */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-              <h2 className="text-lg font-semibold text-gray-900">Top Vendors</h2>
-            </div>
-
-            <div className="p-6 space-y-4">
-              {topVendors.map((vendor) => (
-                <div key={vendor.rank}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-gray-900">{vendor.rank}.</span>
-                      <span className="font-medium text-gray-900">{vendor.name}</span>
-                    </div>
-                    <span className="text-sm font-semibold text-gray-900">{vendor.volume}</span>
-                  </div>
-                  <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full bg-gradient-to-r ${vendor.color}`}
-                      style={{ width: `${vendor.percentage}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">{vendor.percentage}% of total</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Fulfillment Queue */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <HiOutlineExclamationCircle className="w-5 h-5 text-orange-600" />
-                Fulfillment Queue
-              </h2>
-            </div>
-
-            <div className="p-6 space-y-3">
-              {fulfillmentQueue.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
-                  <div>
-                    <h3 className="font-medium text-gray-900">{item.item}</h3>
-                    <p className="text-sm text-gray-600 mt-1">{item.orders} orders</p>
-                  </div>
-                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-                    item.status === 'pending'
-                      ? 'bg-orange-100 text-orange-700'
-                      : 'bg-green-100 text-green-700'
-                  }`}>
-                    {item.status === 'pending' ? '⏳ Pending' : '✓ Shipped'}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
-              <button className="text-sm font-medium text-sparknode-purple hover:text-opacity-80">
-                View All Orders →
+      {/* Tabs Navigation */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="flex flex-wrap overflow-x-auto border-b border-gray-200">
+          {tabs.map((tab) => {
+            const Icon = tab.icon
+            const isActive = activeTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-6 py-4 font-medium transition-all whitespace-nowrap border-b-2 ${
+                  isActive
+                    ? 'text-sparknode-purple border-sparknode-purple'
+                    : 'text-gray-600 border-transparent hover:text-gray-900 hover:bg-gray-50'
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                <span>{tab.label}</span>
               </button>
-            </div>
-          </div>
+            )
+          })}
+        </div>
+
+        {/* Tab Description */}
+        <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
+          <p className="text-sm text-gray-600">
+            {tabs.find(t => t.id === activeTab)?.description}
+          </p>
         </div>
       </div>
 
-      {/* AI & Engagement Insights */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Common AI Queries */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <h2 className="text-lg font-semibold text-gray-900">Common AI Queries</h2>
-            <p className="text-sm text-gray-600 mt-1">What users ask Sparky most</p>
-          </div>
+      {/* Tab Content - Overview (shown when activeTab === 'overview') */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          {/* Key Performance Indicators */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {kpis.map((kpi, idx) => {
+              const Icon = kpi.icon
+              const colorClasses = {
+                purple: 'bg-purple-100',
+                green: 'bg-green-100',
+                blue: 'bg-blue-100',
+                orange: 'bg-orange-100',
+              }
 
-          <div className="p-6 space-y-3">
-            {commonQueries.map((q, idx) => (
-              <div key={idx}>
-                <div className="flex items-start justify-between mb-1">
-                  <p className="text-sm font-medium text-gray-900 flex-1 pr-2">{q.query}</p>
-                  <span className="text-xs font-semibold text-gray-500 flex-shrink-0">{q.count}</span>
-                </div>
-                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-sparknode-purple to-sparknode-blue"
-                    style={{ width: `${q.percentage}%` }}
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-1">{q.percentage}% of conversations</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Bot Success Rate */}
-        <div className="space-y-4">
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">AI Bot Metrics</h3>
-              <HiOutlineCheckCircle className="w-6 h-6 text-green-600" />
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-medium text-gray-700">Success Rate</p>
-                  <p className="text-2xl font-bold text-green-600">87%</p>
-                </div>
-                <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
-                  <div className="h-full w-87 bg-gradient-to-r from-green-400 to-green-600" style={{ width: '87%' }} />
-                </div>
-                <p className="text-xs text-gray-500 mt-2">Interactions that completed without escalation</p>
-              </div>
-
-              <div className="pt-4 border-t border-gray-200">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs text-gray-600">Total Conversations</p>
-                    <p className="text-2xl font-bold text-gray-900 mt-1">4,421</p>
+              return (
+                <div key={idx} className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">{kpi.label}</p>
+                      <p className="text-3xl font-bold text-gray-900 mt-2">{kpi.value}</p>
+                      <p className="text-xs text-gray-500 mt-1">{kpi.unit}</p>
+                    </div>
+                    <div className={`w-12 h-12 rounded-lg ${colorClasses[kpi.color]} flex items-center justify-center`}>
+                      <Icon className={`w-6 h-6 text-${kpi.color}-600`} />
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-600">Avg. Resolution Time</p>
-                    <p className="text-2xl font-bold text-gray-900 mt-1">1.2m</p>
+                  <div className={`mt-4 inline-flex items-center gap-1 text-sm font-medium ${kpi.trendUp ? 'text-green-600' : 'text-red-600'}`}>
+                    {kpi.trendUp ? (
+                      <HiOutlineTrendingUp className="w-4 h-4" />
+                    ) : (
+                      <HiOutlineTrendingUp className="w-4 h-4 transform rotate-180" />
+                    )}
+                    {kpi.trend}
                   </div>
                 </div>
-              </div>
-            </div>
+              )
+            })}
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">System Health Status</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 border border-green-200">
-                <span className="text-sm font-medium text-green-900">API Uptime</span>
-                <span className="text-sm font-bold text-green-600">99.9%</span>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Tenant Health Grid */}
+            <div className="lg:col-span-2 space-y-4">
+              {/* Top Performing Tenants */}
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                  <h2 className="text-lg font-semibold text-gray-900">Top 5 Most Active Users</h2>
+                </div>
+
+                <div className="divide-y divide-gray-200">
+                  {topTenants.map((tenant) => (
+                    <div key={tenant.id} className={`px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors ${getBalanceBg(tenant.balance)}`}>
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900">{tenant.name}</h3>
+                        <div className="flex items-center gap-4 mt-2">
+                          <div>
+                            <p className="text-xs text-gray-500">Engagement</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div className="h-full bg-blue-500" style={{ width: `${tenant.utilization}%` }} />
+                              </div>
+                              <span className="text-sm font-medium text-gray-900">{tenant.utilization}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-6 text-right ml-4">
+                        <div>
+                          <p className="text-xs text-gray-500">Points Balance</p>
+                          <p className={`text-lg font-bold mt-1 px-3 py-1 rounded-lg ${getBalanceColor(tenant.balance)}`}>
+                            {(tenant.balance / 1000).toFixed(0)}K pts
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">Trend</p>
+                          <div className={`text-lg font-bold mt-1 flex items-center gap-1 ${tenant.trend > 0 ? 'text-green-600' : tenant.trend < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                            {tenant.trend > 0 ? '↑' : tenant.trend < 0 ? '↓' : '↔'} {Math.abs(tenant.trend)}%
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 border border-green-200">
-                <span className="text-sm font-medium text-green-900">Database Status</span>
-                <span className="text-sm font-bold text-green-600">Healthy</span>
+
+              {/* Recent Recognition Activity */}
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                  <h2 className="text-lg font-semibold text-gray-900">Recent Recognition Activity</h2>
+                  <p className="text-sm text-gray-600 mt-1">Company culture in action</p>
+                </div>
+
+                <div className="divide-y divide-gray-200">
+                  {bottomTenants.slice(0, 3).map((tenant) => (
+                    <div key={tenant.id} className={`px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors`}>
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900">{tenant.name} recognized someone</h3>
+                        <p className="text-xs text-gray-500 mt-1">2 hours ago</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-sparknode-purple">+{tenant.utilization} pts</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="flex items-center justify-between p-3 rounded-lg bg-yellow-50 border border-yellow-200">
-                <span className="text-sm font-medium text-yellow-900">Cache Performance</span>
-                <span className="text-sm font-bold text-yellow-600">Optimizing</span>
+            </div>
+
+            {/* Right Sidebar */}
+            <div className="space-y-6">
+              {/* Budget Status */}
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                  <h2 className="text-lg font-semibold text-gray-900">Budget Overview</h2>
+                </div>
+
+                <div className="p-6 space-y-4">
+                  {topVendors.slice(0, 3).map((vendor) => (
+                    <div key={vendor.rank}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-gray-900">{vendor.rank}.</span>
+                          <span className="font-medium text-gray-900">{vendor.name}</span>
+                        </div>
+                        <span className="text-sm font-semibold text-gray-900">{vendor.volume}</span>
+                      </div>
+                      <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full bg-gradient-to-r ${vendor.color}`}
+                          style={{ width: `${vendor.percentage}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">{vendor.percentage}% of allocation</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pending Approvals */}
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                  <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <HiOutlineExclamationCircle className="w-5 h-5 text-orange-600" />
+                    Pending Approvals
+                  </h2>
+                </div>
+
+                <div className="p-6 space-y-3">
+                  {fulfillmentQueue.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                      <div>
+                        <h3 className="font-medium text-gray-900">{item.item}</h3>
+                        <p className="text-sm text-gray-600 mt-1">{item.orders} pending</p>
+                      </div>
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+                        item.status === 'pending'
+                          ? 'bg-orange-100 text-orange-700'
+                          : 'bg-green-100 text-green-700'
+                      }`}>
+                        {item.status === 'pending' ? '⏳ Review' : '✓ Done'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+                  <button className="text-sm font-medium text-sparknode-purple hover:text-opacity-80">
+                    View All →
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Directory Tab Content */}
+      {activeTab === 'directory' && (
+        <div className="bg-white rounded-xl border border-gray-200 p-8">
+          <div className="text-center py-12">
+            <HiOutlineUsers className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Directory Management</h3>
+            <p className="text-gray-600">Manage employees, departments, and assign Tenant Leads (manager assignments)</p>
+          </div>
+        </div>
+      )}
+
+      {/* Wallets & Budgets Tab Content */}
+      {activeTab === 'wallets' && (
+        <div className="bg-white rounded-xl border border-gray-200 p-8">
+          <div className="text-center py-12">
+            <HiOutlineCash className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Wallets & Budgets</h3>
+            <p className="text-gray-600">Allocate points to different departments (Sales, IT, HR) from the Master Pool</p>
+          </div>
+        </div>
+      )}
+
+      {/* Redemption Desk Tab Content */}
+      {activeTab === 'redemption' && (
+        <div className="bg-white rounded-xl border border-gray-200 p-8">
+          <div className="text-center py-12">
+            <HiOutlineBriefcase className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Redemption Desk</h3>
+            <p className="text-gray-600">Approval queue for physical merchandise and local vendor logs</p>
+          </div>
+        </div>
+      )}
+
+      {/* Templates Tab Content */}
+      {activeTab === 'templates' && (
+        <div className="bg-white rounded-xl border border-gray-200 p-8">
+          <div className="text-center py-12">
+            <HiOutlineDocument className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Recognition Templates</h3>
+            <p className="text-gray-600">Customize the company's specific E-cards and award titles</p>
+          </div>
+        </div>
+      )}
+
+      {/* Reports Tab Content */}
+      {activeTab === 'reports' && (
+        <div className="bg-white rounded-xl border border-gray-200 p-8">
+          <div className="text-center py-12">
+            <HiOutlineChartBar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Reports & Analytics</h3>
+            <p className="text-gray-600">Deep dive into "Who is recognizing whom" and tax/compliance exports</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

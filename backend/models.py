@@ -407,13 +407,6 @@ class LeadBudget(Base):
     def user_name(self):
         return f"{self.user.first_name} {self.user.last_name}" if self.user else "Unknown"
 
-    @property
-    def remaining_percentage(self):
-        """Returns how much of the budget is left in %"""
-        if float(self.allocated_points) == 0:
-            return 0
-        return (self.remaining_points / float(self.allocated_points)) * 100
-
 
 class Wallet(Base):
     __tablename__ = "wallets"

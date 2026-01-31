@@ -22,6 +22,11 @@ import Marketplace from './pages/Marketplace'
 import AISettings from './pages/AISettings'
 import Templates from './pages/Templates'
 import Billing from './pages/Billing'
+import TeamHub from './pages/TeamHub'
+import TeamDistribute from './pages/TeamDistribute'
+import TeamActivity from './pages/TeamActivity'
+import TeamApprovals from './pages/TeamApprovals'
+import TeamAnalytics from './pages/TeamAnalytics'
 import { useParams } from 'react-router-dom'
 
 function EventCreateWizardEdit() {
@@ -65,6 +70,11 @@ function App() {
         <Route path="ai-settings" element={<AISettings />} />
         <Route path="templates" element={<Templates />} />
         <Route path="billing" element={<Billing />} />
+        <Route path="team" element={<TeamHub />} />
+        <Route path="team/distribute" element={<TeamDistribute />} />
+        <Route path="team/activity" element={<TeamActivity />} />
+        <Route path="team/approvals" element={<TeamApprovals />} />
+        <Route path="team/analytics" element={<TeamAnalytics />} />
       </Route>
     </Routes>
   )

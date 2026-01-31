@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { useQuery } from '@tanstack/react-query'
-import { notificationsAPI, platformAPI, tenantsAPI } from '../lib/api'
+import { notificationsAPI, platformAPI, tenantsAPI, authAPI } from '../lib/api'
 import {
   HiOutlineHome,
   HiOutlineSparkles,
@@ -64,8 +64,22 @@ export default function TopHeader() {
     clearPersonaRole,
     isPlatformOwnerUser,
     isPlatformOwner,
+    updateUser,
   } = useAuthStore()
+  const { canGiveRecognition, canManageBudgets, canApproveTeamRecognitions, canViewAnalytics } = useAuthStore()
   const navigate = useNavigate()
+
+  // Fetch fresh user data on mount to ensure we have current first_name and last_name
+  const { data: currentUser } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: () => authAPI.me(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    onSuccess: (response) => {
+      if (response?.data?.id) {
+        updateUser(response.data)
+      }
+    },
+  })
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -123,6 +137,32 @@ export default function TopHeader() {
     return roles[role] || role
   }
 
+  // Format fallback display name from email local-part (e.g. super_user -> Super User)
+  const formatLocalPart = (local) => {
+    if (!local) return ''
+    return local
+      .split(/[_\.\-]+/) // split on underscore, dot, dash
+      .filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ')
+  }
+
+  const getDisplayName = () => {
+    if (user?.first_name) return user.first_name
+    const local = user?.email?.split('@')[0]
+    return formatLocalPart(local) || 'User'
+  }
+
+  const getInitials = () => {
+    if (user?.first_name || user?.last_name) {
+      const a = user?.first_name?.[0] || ''
+      const b = user?.last_name?.[0] || ''
+      return (a + b).toUpperCase()
+    }
+    const parts = getDisplayName().split(' ').filter(Boolean)
+    return (parts[0]?.[0] || 'U') + (parts[1]?.[0] || '')
+  }
+
   const canAccess = (roles) => {
     if (!roles) return true
     return roles.includes(effectiveRole)
@@ -153,6 +193,7 @@ export default function TopHeader() {
   }, [currentTenantResponse, isPlatformUser, tenantContext, updateTenantContext])
 
   return (
+    <>
     <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
       {/* Main header */}
       <div className="px-4 sm:px-6 lg:px-8">
@@ -228,8 +269,15 @@ export default function TopHeader() {
             {/* Tenant Context (Desktop only) */}
             {tenantContext?.tenant_name && (
               <div className="hidden sm:flex items-center px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 text-xs">
-                <span className="text-gray-500 uppercase tracking-wide font-semibold">{contextTitle}</span>
-                <span className="hidden lg:inline ml-2 text-sm font-medium text-gray-900">{contextName}</span>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-sparknode-purple to-sparknode-blue flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
+                    {getInitials()}
+                  </div>
+                  <div className="hidden lg:block text-left">
+                    <p className="text-sm font-medium text-gray-900 leading-tight">{getDisplayName()}</p>
+                    <p className="text-xs text-gray-500">{getRoleDisplayName(effectiveRole)}</p>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -250,12 +298,10 @@ export default function TopHeader() {
                 className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <div className="w-8 h-8 rounded-full bg-gradient-to-r from-sparknode-purple to-sparknode-blue flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
-                  {user?.first_name?.[0]}{user?.last_name?.[0]}
+                  {getInitials()}
                 </div>
                 <div className="hidden sm:block text-left min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {user?.first_name}
-                  </p>
+                  <p className="text-sm font-medium text-gray-900 truncate">{getDisplayName()}</p>
                   <p className="text-xs text-gray-500 truncate">
                     {getRoleDisplayName(effectiveRole)}
                   </p>
@@ -310,9 +356,7 @@ export default function TopHeader() {
 
                   {/* User Info */}
                   <div className="px-4 py-2 border-b border-gray-100">
-                    <p className="text-sm font-medium text-gray-900">
-                      {user?.first_name} {user?.last_name}
-                    </p>
+                    <p className="text-sm font-medium text-gray-900">{getDisplayName()}</p>
                     <p className="text-xs text-gray-500">
                       {getRoleDisplayName(effectiveRole)}
                     </p>
@@ -451,5 +495,6 @@ export default function TopHeader() {
         </div>
       )}
     </header>
+    </>
   )
 }

@@ -5,6 +5,7 @@ Provides intelligent, context-aware responses using GPT-4
 
 import os
 import json
+import logging
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import tiktoken
@@ -280,7 +281,7 @@ Page-Specific Context:
             )
             return response.choices[0].message.content is not None
         except Exception as e:
-            print(f"API key validation failed: {str(e)}")
+            logging.warning(f"API key validation failed: {str(e)}")
             return False
     
     @staticmethod
