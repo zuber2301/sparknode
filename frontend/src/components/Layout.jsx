@@ -23,7 +23,13 @@ function LayoutContent() {
       {/* Main content area - two column split layout */}
       <div className="flex flex-1 overflow-hidden m-3 sm:m-4 lg:m-6 gap-3 sm:gap-4">
         {/* Left Column - Copilot (hidden on small screens) */}
-        {isOpen && <RightSideCopilot />}
+        {isOpen && (
+          <>
+            <RightSideCopilot />
+            {/* Visual Divider */}
+            <div className="w-px bg-gradient-to-b from-transparent via-gray-300 to-transparent" />
+          </>
+        )}
 
         {/* Right Column - Main Content */}
         <div className={`flex flex-col flex-1 overflow-auto transition-all duration-300 ${isOpen ? '' : 'w-full'}`}>

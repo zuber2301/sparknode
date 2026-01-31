@@ -35,11 +35,11 @@ export default function Dashboard() {
   if (isPlatformUser) {
     return (
       <div className="space-y-4 sm:space-y-6 lg:space-y-8">
-        <div className="bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-xl p-3 sm:p-4 lg:p-5 text-white">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1">
+        <div className="bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-lg sm:rounded-xl lg:rounded-2xl p-4 sm:p-6 lg:p-8 text-white">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">
             {tenantContext?.tenant_name || 'All Tenants'} Dashboard
           </h1>
-          <p className="text-xs sm:text-sm text-white/80">
+          <p className="text-sm sm:text-base text-white/80">
             Sparknode Admin view with context-aware tenant insights.
           </p>
         </div>
@@ -90,11 +90,11 @@ export default function Dashboard() {
   return (
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">
       {/* Welcome header */}
-      <div className="bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-xl p-3 sm:p-4 lg:p-5 text-white">
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1">
+      <div className="bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-lg sm:rounded-xl lg:rounded-2xl p-4 sm:p-6 lg:p-8 text-white">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">
           Welcome back, {user?.first_name}! 👋
         </h1>
-        <p className="text-xs sm:text-sm text-white/80">
+        <p className="text-xs sm:text-sm lg:text-base text-white/80">
           Ready to recognize your colleagues today?
         </p>
       </div>
