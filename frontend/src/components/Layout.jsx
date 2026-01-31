@@ -21,19 +21,13 @@ function LayoutContent() {
       <TopHeader />
 
       {/* Main content area - two column split layout */}
-      <div className="flex flex-1 overflow-hidden gap-px bg-gray-200">
+      <div className="flex flex-1 overflow-hidden m-3 sm:m-4 lg:m-6 gap-3 sm:gap-4">
         {/* Left Column - Copilot (hidden on small screens) */}
-        {isOpen && (
-          <>
-            <RightSideCopilot />
-            {/* Divider */}
-            <div className="w-px bg-gray-300" />
-          </>
-        )}
+        {isOpen && <RightSideCopilot />}
 
         {/* Right Column - Main Content */}
         <div className={`flex flex-col flex-1 overflow-auto transition-all duration-300 ${isOpen ? '' : 'w-full'}`}>
-          <main className="flex-1 p-4 sm:p-6 lg:p-8 w-full bg-white">
+          <main className="flex-1 w-full bg-white rounded-lg sm:rounded-xl p-4 sm:p-6 lg:p-8">
             <Outlet />
           </main>
         </div>
