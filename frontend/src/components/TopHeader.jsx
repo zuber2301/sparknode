@@ -162,14 +162,14 @@ export default function TopHeader() {
                 <HiOutlineMenu className="w-6 h-6" />
               )}
             </button>
-            <div className="flex items-center gap-2">
+            <NavLink to="/dashboard" className="flex items-center gap-2 hover:opacity-75 transition-opacity">
               <div className="w-8 h-8 bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-lg flex items-center justify-center flex-shrink-0">
                 <span className="text-white font-bold text-sm">SN</span>
               </div>
               <span className="hidden sm:inline text-xl font-bold bg-gradient-to-r from-sparknode-purple to-sparknode-blue bg-clip-text text-transparent">
                 SparkNode
               </span>
-            </div>
+            </NavLink>
           </div>
 
           {/* Desktop Navigation */}
