@@ -727,6 +727,7 @@ class Event(Base):
     gift_batches = relationship("EventGiftBatch", back_populates="event", cascade="all, delete-orphan")
     budget = relationship("EventBudget", back_populates="event", uselist=False, cascade="all, delete-orphan")
     metrics = relationship("EventMetrics", back_populates="event", uselist=False, cascade="all, delete-orphan")
+    tenant = relationship("Tenant", back_populates="events")
 
 
 class EventActivity(Base):
