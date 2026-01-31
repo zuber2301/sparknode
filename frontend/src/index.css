@@ -73,4 +73,28 @@ body {
   .nav-link-active {
     @apply nav-link bg-gradient-to-r from-sparknode-purple/10 to-sparknode-blue/10 text-sparknode-purple font-medium;
   }
-}
+
+  /* Custom scrollbar for Copilot panel */
+  .scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #9ca3af #f3f4f6;
+  }
+
+  .scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .scrollbar::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-radius: 4px;
+  }
+
+  .scrollbar::-webkit-scrollbar-thumb {
+    background: #9ca3af;
+    border-radius: 4px;
+    border: 2px solid #f3f4f6;
+  }
+
+  .scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #6b7280;
+  }}

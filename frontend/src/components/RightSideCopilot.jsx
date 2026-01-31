@@ -1,8 +1,6 @@
 import { useRef, useEffect, useState } from 'react'
 import { useCopilot } from '../context/copilotContext'
 import {
-  HiOutlineChevronDown,
-  HiOutlineChevronUp,
   HiOutlineTrash,
   HiOutlinePaperAirplane,
   HiOutlineSparkles,
@@ -10,12 +8,10 @@ import {
 
 export default function RightSideCopilot() {
   const {
-    isOpen,
     messages,
     isLoading,
     sendMessage,
     clearMessages,
-    toggleOpen,
   } = useCopilot()
   const [inputValue, setInputValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
@@ -37,7 +33,7 @@ export default function RightSideCopilot() {
   }
 
   return (
-    <div className="hidden lg:flex lg:w-80 bg-white flex-col shadow-md h-auto max-h-[calc(100vh-7rem)] rounded-lg overflow-hidden">
+    <div className="lg:flex lg:w-96 bg-white flex-col shadow-md h-[calc(100vh-7rem)] rounded-lg overflow-hidden flex-shrink-0">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-sparknode-purple/5 to-sparknode-blue/5 flex-shrink-0">
         <div className="flex items-center gap-2">
@@ -57,21 +53,14 @@ export default function RightSideCopilot() {
           >
             <HiOutlineTrash className="w-4 h-4" />
           </button>
-          <button
-            onClick={toggleOpen}
-            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-600"
-          >
-            {isOpen ? (
-              <HiOutlineChevronDown className="w-4 h-4" />
-            ) : (
-              <HiOutlineChevronUp className="w-4 h-4" />
-            )}
-          </button>
         </div>
       </div>
 
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 scrollbar min-h-0" style={{
+        scrollbarWidth: 'thin',
+        scrollbarColor: '#9ca3af #f3f4f6'
+      }}>
         {messages.map((message) => (
           <div
             key={message.id}
