@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 import logging
-from core.security import get_current_user
+from auth.utils import get_current_user
 from models import User
 from copilot.llm_service import LLMService
 
