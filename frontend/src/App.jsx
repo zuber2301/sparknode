@@ -3,6 +3,7 @@ import { useAuthStore } from './store/authStore'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import AdminDashboard from './pages/AdminDashboard'
 import Feed from './pages/Feed'
 import Recognize from './pages/Recognize'
 import Redeem from './pages/Redeem'
@@ -44,6 +45,7 @@ function App() {
       }>
         <Route index element={<Navigate to="/dashboard" />} />
         <Route path="dashboard" element={<Dashboard />} />
+        <Route path="admin-dashboard" element={<AdminDashboard />} />
         <Route path="feed" element={<Feed />} />
         <Route path="recognize" element={<Recognize />} />
         <Route path="redeem" element={<Redeem />} />
