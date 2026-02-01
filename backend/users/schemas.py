@@ -172,9 +172,6 @@ class StagingRowResponse(BaseModel):
     class Config:
         from_attributes = True
 
-class Config:
-        from_attributes = True
-
 
 class BulkConfirmRequest(BaseModel):
     batch_id: UUID

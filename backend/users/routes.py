@@ -244,58 +244,64 @@ async def upload_bulk_users(
     current_user: User = Depends(get_hr_admin),
     db: Session = Depends(get_db)
 ):
-    content = await file.read()
-    if file.filename.endswith('.csv'):
-        df = pd.read_csv(io.BytesIO(content))
-    else:
-        df = pd.read_excel(io.BytesIO(content))
-    
-    if df.empty:
-        raise HTTPException(status_code=400, detail="File is empty")
-    
-    # Normalization
-    df.columns = [str(c).strip().lower().replace(' ', '_') for c in df.columns]
-    
-    batch_id = uuid4()
-    valid_rows = 0
-    
-    for _, row in df.iterrows():
-        raw_email = str(row.get('email', '')).strip()
-        raw_full_name = str(row.get('full_name', row.get('name', ''))).strip()
-        raw_dept = str(row.get('department', '')).strip()
-        raw_role = str(row.get('role', 'corporate_user')).strip()
-        raw_manager = str(row.get('manager_email', '')).strip()
-        raw_mobile = str(row.get('mobile_number', row.get('mobile', row.get('phone', '')))).strip()
-        personal_email = str(row.get('personal_email', '')).strip()
+    try:
+        content = await file.read()
+        if file.filename.endswith('.csv'):
+            df = pd.read_csv(io.BytesIO(content))
+        else:
+            df = pd.read_excel(io.BytesIO(content))
         
-        validation = validate_staging_row(
-            db, current_user.tenant_id, raw_email, raw_dept, raw_role, raw_manager,
-            full_name=raw_full_name, mobile_number=raw_mobile
-        )
+        if df.empty:
+            raise HTTPException(status_code=400, detail="File is empty")
         
-        if validation["is_valid"]:
-            valid_rows += 1
+        # Normalization
+        df.columns = [str(c).strip().lower().replace(' ', '_') for c in df.columns]
+        
+        batch_id = uuid4()
+        valid_rows = 0
+        
+        for _, row in df.iterrows():
+            raw_email = str(row.get('email', '')).strip()
+            raw_full_name = str(row.get('full_name', row.get('name', ''))).strip()
+            raw_dept = str(row.get('department', '')).strip()
+            raw_role = str(row.get('role', 'corporate_user')).strip()
+            raw_manager = str(row.get('manager_email', '')).strip()
+            raw_mobile = str(row.get('mobile_number', row.get('mobile', row.get('phone', '')))).strip()
+            personal_email = str(row.get('personal_email', '')).strip()
             
-        staging = UserUploadStaging(
-            tenant_id=current_user.tenant_id,
-            batch_id=batch_id,
-            raw_full_name=raw_full_name,
-            raw_email=raw_email,
-            raw_department=raw_dept,
-            raw_role=raw_role,
-            raw_mobile_phone=validation["cleaned_mobile"],
-            manager_email=raw_manager,
-            personal_email=personal_email,
-            department_id=validation["department_id"],
-            is_valid=validation["is_valid"],
-            validation_errors=validation["errors"],
-            status="valid" if validation["is_valid"] else "error"
-        )
-        db.add(staging)
-        db.flush() 
-    
-    db.commit()
-    return BulkUploadResponse(batch_id=batch_id, total_rows=len(df), valid_rows=valid_rows, error_rows=len(df)-valid_rows)
+            validation = validate_staging_row(
+                db, current_user.tenant_id, raw_email, raw_dept, raw_role, raw_manager,
+                full_name=raw_full_name, mobile_number=raw_mobile
+            )
+            
+            if validation["is_valid"]:
+                valid_rows += 1
+                
+            staging = UserUploadStaging(
+                tenant_id=current_user.tenant_id,
+                batch_id=batch_id,
+                raw_full_name=raw_full_name,
+                raw_email=raw_email,
+                raw_department=raw_dept,
+                raw_role=raw_role,
+                raw_mobile_phone=validation["cleaned_mobile"],
+                manager_email=raw_manager,
+                personal_email=personal_email,
+                department_id=validation["department_id"],
+                is_valid=validation["is_valid"],
+                validation_errors=validation["errors"],
+                status="valid" if validation["is_valid"] else "error"
+            )
+            db.add(staging)
+            db.flush() 
+        
+        db.commit()
+        return BulkUploadResponse(batch_id=batch_id, total_rows=len(df), valid_rows=valid_rows, error_rows=len(df)-valid_rows)
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 @router.get("/staging/{batch_id}", response_model=List[StagingRowResponse])
 async def get_staging(batch_id: UUID, current_user: User = Depends(get_hr_admin), db: Session = Depends(get_db)):

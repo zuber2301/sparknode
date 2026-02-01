@@ -79,7 +79,10 @@ carol@example.com,Carol Davis,Marketing,corporate_user"""
             headers={"Authorization": f"Bearer {tenant_admin_token}"}
         )
         
-        assert response.status_code in [200, 201, 400], f"Unexpected status: {response.status_code}"
+        if response.status_code != 200:
+            print(f"Error response: {response.text}")
+        
+        assert response.status_code in [200, 201, 400], f"Unexpected status: {response.status_code}\nResponse: {response.text}"
         data = response.json()
         print(f"✅ Bulk upload response: {data}")
 
