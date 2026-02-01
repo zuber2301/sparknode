@@ -21,8 +21,7 @@ export default function PlatformTenants() {
   
   // Filters
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [tierFilter, setTierFilter] = useState('')
+  const [hasSearched, setHasSearched] = useState(false)
   
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -53,13 +52,11 @@ export default function PlatformTenants() {
   })
 
   const { data: tenantsResponse, isLoading } = useQuery({
-    queryKey: ['platformTenants', { searchQuery, statusFilter, tierFilter }],
+    queryKey: ['platformTenants', { searchQuery }],
     queryFn: () => platformAPI.getTenants({
       search: searchQuery || undefined,
-      status: statusFilter || undefined,
-      subscription_tier: tierFilter || undefined,
     }),
-    enabled: isPlatformOwner(),
+    enabled: isPlatformOwner() && hasSearched,
   })
 
   const createMutation = useMutation({
@@ -241,32 +238,15 @@ export default function PlatformTenants() {
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              const v = e.target.value
+              setSearchQuery(v)
+              setHasSearched(Boolean(v && v.trim()))
+            }}
             className="input pl-12"
             placeholder="Search tenants by name or domain..."
           />
         </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="input lg:w-56"
-        >
-          <option value="">All Statuses</option>
-          <option value="active">Active</option>
-          <option value="trial">Trial</option>
-          <option value="suspended">Suspended</option>
-          <option value="inactive">Inactive</option>
-        </select>
-        <select
-          value={tierFilter}
-          onChange={(e) => setTierFilter(e.target.value)}
-          className="input lg:w-56"
-        >
-          <option value="">All Tiers</option>
-          {tiers.map((tier) => (
-            <option key={tier.tier} value={tier.tier}>{tier.name}</option>
-          ))}
-        </select>
       </div>
 
       {/* Master-Detail Layout */}
@@ -278,12 +258,17 @@ export default function PlatformTenants() {
             ))}
           </div>
         </div>
+      ) : !hasSearched ? (
+        <div className="card text-center py-12">
+          <HiOutlineSearch className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+          <p className="text-gray-500">Type a name or domain above to search tenants.</p>
+        </div>
       ) : (
         <div className="flex gap-6 min-h-[600px]">
           {/* Left: Tenant List (Compacted) */}
           <div className="w-full lg:w-96 card overflow-hidden flex flex-col">
             <div className="font-semibold text-gray-900 px-4 py-3 border-b border-gray-200">
-              Tenants ({tenants.length})
+              Tenants {hasSearched ? `(${tenants.length})` : ''}
             </div>
             <div className="flex-1 overflow-y-auto">
               {tenants.map((tenant) => (
