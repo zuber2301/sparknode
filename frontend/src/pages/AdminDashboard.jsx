@@ -14,8 +14,10 @@ import {
 } from 'react-icons/hi'
 
 export default function AdminDashboard() {
-  const { tenantContext } = useAuthStore()
+  const { tenantContext, getEffectiveRole } = useAuthStore()
   const [activeTab, setActiveTab] = useState('overview')
+  const effectiveRole = getEffectiveRole()
+  const isPlatformAdmin = effectiveRole === 'platform_admin'
 
   // Mock data for KPIs
   const kpis = [
@@ -152,12 +154,16 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-xl p-8 text-white">
+      <div className="bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-xl px-6 py-4 text-white">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-4xl font-bold">Tenant Admin</h1>
-            <p className="text-white text-opacity-90 mt-2 max-w-2xl">
-              The HR/Company Owner - This role is responsible for the company's internal recognition culture and budget.
+            <h1 className="text-2xl font-bold">
+              {isPlatformAdmin ? 'Platform Admin' : 'Tenant Admin'}
+            </h1>
+            <p className="text-white text-opacity-90 mt-1 max-w-2xl text-sm">
+              {isPlatformAdmin 
+                ? 'Global System Administrator - Overlook all organizations, infrastructure, and platform-wide metrics.'
+                : 'The HR/Company Owner - This role is responsible for the company\'s internal recognition culture and budget.'}
             </p>
             {tenantContext?.tenant_name && tenantContext.tenant_name !== 'All Tenants' && (
               <p className="text-white text-opacity-80 mt-3 text-sm font-medium">

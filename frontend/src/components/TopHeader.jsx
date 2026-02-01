@@ -198,7 +198,7 @@ export default function TopHeader() {
     <>
     <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
       {/* Main header */}
-      <div className="px-4 sm:px-6 lg:px-8">
+      <div className="px-2 lg:px-3">
         <div className="flex items-center justify-between h-16 gap-4">
           {/* Logo + Mobile Menu Button */}
           <div className="flex items-center gap-3 flex-shrink-0">

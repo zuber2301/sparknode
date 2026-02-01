@@ -259,7 +259,7 @@ export default function PlatformTenants() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="w-full px-2 lg:px-4 py-4 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -276,44 +276,44 @@ export default function PlatformTenants() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
           <div className="p-3 bg-blue-50 rounded-xl">
             <HiOutlineOfficeBuilding className="w-6 h-6 text-blue-600" />
           </div>
           <div>
-            <p className="text-sm text-gray-500 font-medium">Total Tenants</p>
-            <p className="text-2xl font-bold text-gray-900">{stats.totalTenants}</p>
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Total Tenants</p>
+            <p className="text-xl font-bold text-gray-900">{stats.totalTenants}</p>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
           <div className="p-3 bg-green-50 rounded-xl">
             <HiOutlineCheckCircle className="w-6 h-6 text-green-600" />
           </div>
           <div>
-            <p className="text-sm text-gray-500 font-medium">Active Orgs</p>
-            <p className="text-2xl font-bold text-gray-900">{stats.activeTenants}</p>
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Active Orgs</p>
+            <p className="text-xl font-bold text-gray-900">{stats.activeTenants}</p>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
           <div className="p-3 bg-purple-50 rounded-xl">
             <HiOutlinePlus className="w-6 h-6 text-purple-600" />
           </div>
           <div>
-            <p className="text-sm text-gray-500 font-medium">Enterprise Tier</p>
-            <p className="text-2xl font-bold text-gray-900">{stats.enterpriseTenants}</p>
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Enterprise Tier</p>
+            <p className="text-xl font-bold text-gray-900">{stats.enterpriseTenants}</p>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
           <div className="p-3 bg-indigo-50 rounded-xl">
             <HiOutlineCurrencyRupee className="w-6 h-6 text-indigo-600" />
           </div>
           <div>
-            <p className="text-sm text-gray-500 font-medium">Total Balance</p>
-            <p className="text-2xl font-bold text-gray-900">₹{stats.totalBalance.toLocaleString()}</p>
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Total Balance</p>
+            <p className="text-xl font-bold text-gray-900">₹{stats.totalBalance.toLocaleString()}</p>
           </div>
         </div>
       </div>
