@@ -224,24 +224,101 @@ export default function TopHeader() {
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-1 flex-1">
-            {!isPlatformUser && navigation.map((item) => (
-              <NavLink
-                key={item.name}
-                to={item.href}
-                className={({ isActive }) =>
-                  `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-sparknode-purple/10 text-sparknode-purple'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }`
-                }
-              >
-                <item.icon className="w-4 h-4" />
-                {item.name}
-              </NavLink>
-            ))}
+            {!isPlatformUser && effectiveRole === 'tenant_admin' ? (
+              <>
+                {/* Tenant Admin: Primary tabs */}
+                {[
+                  { name: 'Recognize', href: '/recognize', icon: HiOutlineSparkles },
+                  { name: 'Feed', href: '/feed', icon: HiOutlineNewspaper },
+                  { name: 'Wallet', href: '/wallet', icon: HiOutlineCash },
+                  { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
+                ].map((item) => (
+                  <NavLink
+                    key={item.name}
+                    to={item.href}
+                    className={({ isActive }) =>
+                      `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'bg-sparknode-purple/10 text-sparknode-purple'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      }`
+                    }
+                  >
+                    <item.icon className="w-4 h-4" />
+                    {item.name}
+                  </NavLink>
+                ))}
 
-            {adminNavigation.some((item) => canAccess(item.roles)) && (
+                {/* Admin Dropdown */}
+                <div className="relative group">
+                  <button className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors">
+                    <HiOutlineClipboardList className="w-4 h-4" />
+                    Admin
+                    <HiOutlineChevronDown className="w-4 h-4" />
+                  </button>
+                  <div className="absolute left-0 mt-0 w-48 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                    <NavLink
+                      to="/budgets"
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                          isActive
+                            ? 'bg-sparknode-purple/10 text-sparknode-purple'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`
+                      }
+                    >
+                      <HiOutlineChartBar className="w-4 h-4" />
+                      Budgets
+                    </NavLink>
+                    <NavLink
+                      to="/users"
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                          isActive
+                            ? 'bg-sparknode-purple/10 text-sparknode-purple'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`
+                      }
+                    >
+                      <HiOutlineUsers className="w-4 h-4" />
+                      Users
+                    </NavLink>
+                    <NavLink
+                      to="/audit"
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                          isActive
+                            ? 'bg-sparknode-purple/10 text-sparknode-purple'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`
+                      }
+                    >
+                      <HiOutlineClipboardList className="w-4 h-4" />
+                      Audit
+                    </NavLink>
+                  </div>
+                </div>
+              </>
+            ) : !isPlatformUser ? (
+              navigation.map((item) => (
+                <NavLink
+                  key={item.name}
+                  to={item.href}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-sparknode-purple/10 text-sparknode-purple'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`
+                  }
+                >
+                  <item.icon className="w-4 h-4" />
+                  {item.name}
+                </NavLink>
+              ))
+            ) : null}
+
+            {adminNavigation.some((item) => canAccess(item.roles)) && effectiveRole !== 'tenant_admin' && (
               <>
                 <div className="w-px h-6 bg-gray-200 mx-2" />
                 {adminNavigation.map((item) =>
@@ -268,21 +345,6 @@ export default function TopHeader() {
 
           {/* Right side actions */}
           <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
-            {/* Tenant Context (Desktop only) */}
-            {tenantContext?.tenant_name && (
-              <div className="hidden sm:flex items-center px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 text-xs">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-sparknode-purple to-sparknode-blue flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
-                    {getInitials()}
-                  </div>
-                  <div className="hidden lg:block text-left">
-                    <p className="text-sm font-medium text-gray-900 leading-tight">{getDisplayName()}</p>
-                    <p className="text-xs text-gray-500">{getRoleDisplayName(effectiveRole)}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Notifications */}
             <button className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors">
               <HiOutlineBell className="w-5 h-5 text-gray-600" />
