@@ -1,7 +1,17 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { HiOutlinePlus, HiOutlineSearch, HiOutlineOfficeBuilding, HiOutlineEye, HiOutlineChevronLeft, HiOutlineX } from 'react-icons/hi'
+import { 
+  HiOutlinePlus, 
+  HiOutlineSearch, 
+  HiOutlineOfficeBuilding, 
+  HiOutlineEye, 
+  HiOutlineChevronLeft, 
+  HiOutlineX,
+  HiOutlineCheckCircle,
+  HiOutlineShieldCheck,
+  HiOutlineCurrencyRupee
+} from 'react-icons/hi'
 import { platformAPI } from '../lib/api'
 import TenantCurrencySettings from '../components/TenantCurrencySettings'
 import { useAuthStore } from '../store/authStore'
@@ -22,6 +32,7 @@ export default function PlatformTenants() {
   // Filters
   const [searchQuery, setSearchQuery] = useState('')
   const [hasSearched, setHasSearched] = useState(false)
+  const [tierFilter, setTierFilter] = useState('')
   
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -51,12 +62,19 @@ export default function PlatformTenants() {
     queryFn: () => platformAPI.getSubscriptionTiers(),
   })
 
+  // Fetch all tenants by default for dashboard overview
   const { data: tenantsResponse, isLoading } = useQuery({
     queryKey: ['platformTenants', { searchQuery }],
     queryFn: () => platformAPI.getTenants({
       search: searchQuery || undefined,
     }),
-    enabled: isPlatformOwner() && hasSearched,
+    enabled: isPlatformOwner(),
+  })
+
+  const { data: metricsResponse } = useQuery({
+    queryKey: ['platformMetrics'],
+    queryFn: () => platformAPI.getMetrics(),
+    enabled: isPlatformOwner(),
   })
 
   const createMutation = useMutation({
@@ -119,8 +137,8 @@ export default function PlatformTenants() {
   })
 
   const tiers = useMemo(() => tiersResponse?.data?.tiers || [], [tiersResponse])
+  
   const tenants = useMemo(() => {
-    // The API returns the array directly, axios wraps it in response.data
     const data = Array.isArray(tenantsResponse?.data) 
       ? tenantsResponse.data 
       : Array.isArray(tenantsResponse) 
@@ -128,6 +146,32 @@ export default function PlatformTenants() {
         : []
     return data
   }, [tenantsResponse])
+
+  const stats = useMemo(() => {
+    const metrics = metricsResponse?.data || metricsResponse || {}
+    const totalTenants = metrics.total_tenants ?? tenants.length
+    const activeTenants = metrics.active_tenants ?? tenants.filter(t => t.status === 'active').length
+    const enterpriseTenants = metrics.tier_breakdown?.enterprise ?? tenants.filter(t => t.subscription_tier === 'enterprise').length
+    const totalBalance = tenants.reduce((acc, t) => acc + (Number(t.master_budget_balance) || 0), 0)
+
+    return {
+      totalTenants,
+      activeTenants,
+      enterpriseTenants,
+      totalBalance
+    }
+  }, [metricsResponse, tenants])
+
+  const { data: tenantsByTierResponse, isLoading: isTierLoading } = useQuery({
+    queryKey: ['platformTenantsByTier', tierFilter],
+    queryFn: () => platformAPI.getTenants({ subscription_tier: tierFilter }),
+    enabled: isPlatformOwner() && Boolean(tierFilter),
+  })
+
+  const tenantsByTier = useMemo(() => {
+    const data = Array.isArray(tenantsByTierResponse?.data) ? tenantsByTierResponse.data : Array.isArray(tenantsByTierResponse) ? tenantsByTierResponse : []
+    return data
+  }, [tenantsByTierResponse])
 
   const handleCreateTenant = (e) => {
     e.preventDefault()
@@ -215,389 +259,397 @@ export default function PlatformTenants() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tenant Manager</h1>
-          <p className="text-sm text-gray-500">Manage tenant properties, settings, and configurations.</p>
+          <h1 className="text-2xl font-bold text-gray-900">Tenant Dashboard</h1>
+          <p className="text-sm text-gray-500">Global oversight of all platform organizations</p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="btn-primary flex items-center gap-2"
+          className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2 transition-all shadow-sm"
         >
           <HiOutlinePlus className="w-5 h-5" />
-          New Tenant
+          Provision New Tenant
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col lg:flex-row gap-4">
-        <div className="flex-1 relative">
-          <HiOutlineSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => {
-              const v = e.target.value
-              setSearchQuery(v)
-              setHasSearched(Boolean(v && v.trim()))
-            }}
-            className="input pl-12"
-            placeholder="Search tenants by name or domain..."
-          />
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="p-3 bg-blue-50 rounded-xl">
+            <HiOutlineOfficeBuilding className="w-6 h-6 text-blue-600" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 font-medium">Total Tenants</p>
+            <p className="text-2xl font-bold text-gray-900">{stats.totalTenants}</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="p-3 bg-green-50 rounded-xl">
+            <HiOutlineCheckCircle className="w-6 h-6 text-green-600" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 font-medium">Active Orgs</p>
+            <p className="text-2xl font-bold text-gray-900">{stats.activeTenants}</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="p-3 bg-purple-50 rounded-xl">
+            <HiOutlinePlus className="w-6 h-6 text-purple-600" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 font-medium">Enterprise Tier</p>
+            <p className="text-2xl font-bold text-gray-900">{stats.enterpriseTenants}</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="p-3 bg-indigo-50 rounded-xl">
+            <HiOutlineCurrencyRupee className="w-6 h-6 text-indigo-600" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 font-medium">Total Balance</p>
+            <p className="text-2xl font-bold text-gray-900">₹{stats.totalBalance.toLocaleString()}</p>
+          </div>
         </div>
       </div>
 
-      {/* Master-Detail Layout */}
-      {isLoading ? (
-        <div className="card">
+      {/* Main Content Area */}
+      {isLoading || isTierLoading ? (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
           <div className="space-y-4">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse" />
+              <div key={i} className="h-16 bg-gray-50 rounded-xl animate-pulse" />
             ))}
           </div>
         </div>
-      ) : !hasSearched ? (
-        <div className="card text-center py-12">
-          <HiOutlineSearch className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-          <p className="text-gray-500">Type a name or domain above to search tenants.</p>
-        </div>
-      ) : (
-        <div className="flex gap-6 min-h-[600px]">
-          {/* Left: Tenant List (Compacted) */}
-          <div className="w-full lg:w-96 card overflow-hidden flex flex-col">
-            <div className="font-semibold text-gray-900 px-4 py-3 border-b border-gray-200">
-              Tenants {hasSearched ? `(${tenants.length})` : ''}
+      ) : selectedTenant ? (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="bg-gray-50/50 border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => setSelectedTenant(null)} 
+                className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+              >
+                <HiOutlineChevronLeft className="w-5 h-5 text-gray-400" />
+              </button>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">{selectedTenant.name}</h2>
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">{selectedTenant.subscription_tier} • {selectedTenant.status}</p>
+              </div>
             </div>
-            <div className="flex-1 overflow-y-auto">
-              {tenants.map((tenant) => (
+            <div className="flex bg-gray-100 p-1 rounded-xl">
+              {['overview', 'branding', 'security', 'economy', 'danger'].map((tab) => (
                 <button
-                  key={tenant.id}
-                  onClick={() => handleSelectTenant(tenant)}
-                  className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
-                    selectedTenant?.id === tenant.id ? 'bg-sparknode-purple/5 border-l-4 border-l-sparknode-purple' : ''
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-4 py-1.5 text-[10px] font-bold rounded-lg transition-all ${
+                    activeTab === tab 
+                      ? 'bg-white text-indigo-600 shadow-sm' 
+                      : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  <p className="font-medium text-gray-900 text-sm">{tenant.name}</p>
-                  <p className="text-xs text-gray-500">{tenant.domain || tenant.slug || '-'}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className={`inline-block px-2 py-1 text-xs font-medium rounded ${
-                      tenant.status === 'active' ? 'bg-green-100 text-green-700' : 
-                      tenant.status === 'suspended' ? 'bg-red-100 text-red-700' : 
-                      'bg-yellow-100 text-yellow-700'
-                    }`}>
-                      {tenant.status}
-                    </span>
-                    <span className="text-xs text-gray-500">{tenant.user_count ?? 0} users</span>
-                  </div>
+                  {tab === 'danger' ? 'GOVERNANCE' : tab.toUpperCase()}
                 </button>
               ))}
-              {tenants.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  No tenants found
-                </div>
-              )}
             </div>
           </div>
 
-          {/* Right: Tenant Detail Panel */}
-          {selectedTenant ? (
-            <div className="flex-1 card flex flex-col">
-              {/* Detail Header with Back Button */}
-              <div className="border-b border-gray-200 px-6 py-4 flex items-start justify-between">
-                <div className="flex items-start gap-3 flex-1">
-                  <button
-                    onClick={() => setSelectedTenant(null)}
-                    className="mt-1 p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
-                    title="Back to tenant list"
-                  >
-                    <HiOutlineChevronLeft className="w-5 h-5 text-gray-600" />
-                  </button>
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-900">{selectedTenant.name}</h2>
-                    <p className="text-sm text-gray-500 mt-1">{selectedTenant.domain || selectedTenant.slug || 'No domain'}</p>
+          <div className="p-8">
+            {activeTab === 'overview' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                  <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Subscription Summary</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-gray-50 rounded-2xl">
+                      <p className="text-xs text-gray-500 mb-1">Authorized Users</p>
+                      <p className="text-lg font-bold text-gray-900 font-mono">{selectedTenant.user_count || 0} / {selectedTenant.max_users}</p>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-2xl">
+                      <p className="text-xs text-gray-500 mb-1">Master Balance</p>
+                      <p className="text-lg font-bold text-gray-900">₹{Number(selectedTenant.master_budget_balance).toLocaleString()}</p>
+                    </div>
                   </div>
                 </div>
-                <button
-                  onClick={() => setSelectedTenant(null)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
-                  title="Close detail panel"
-                >
-                  <HiOutlineX className="w-5 h-5 text-gray-600" />
-                </button>
-              </div>
-
-              {/* Tabs */}
-              <div className="flex gap-1 border-b border-gray-200 px-6 overflow-x-auto">
-                {['overview', 'branding', 'security', 'economy', 'danger'].map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
-                      activeTab === tab
-                        ? 'border-sparknode-purple text-sparknode-purple'
-                        : 'border-transparent text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    {tab === 'overview' && 'Overview'}
-                    {tab === 'branding' && 'Identity & Branding'}
-                    {tab === 'security' && 'Access & Security'}
-                    {tab === 'economy' && 'Fiscal & Rules'}
-                    {tab === 'danger' && 'Danger Zone'}
-                  </button>
-                ))}
-              </div>
-
-              {/* Tab Content */}
-              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
-                {/* Overview Tab */}
-                {activeTab === 'overview' && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Status</p>
-                        <p className="text-lg font-bold text-gray-900 capitalize">{selectedTenant.status}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Subscription Tier</p>
-                        <p className="text-lg font-bold text-gray-900 capitalize">{selectedTenant.subscription_tier}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Active Users</p>
-                        <p className="text-lg font-bold text-gray-900">{selectedTenant.user_count ?? 0}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Master Budget</p>
-                        <p className="text-lg font-bold text-gray-900">${Number(selectedTenant.master_budget_balance || 0).toFixed(2)}</p>
-                      </div>
-                    </div>
+                <div className="space-y-6">
+                  <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Platform Identity</h3>
+                  <div className="p-4 bg-gray-50 rounded-2xl">
+                    <p className="text-xs text-gray-500 mb-1">Domain / Access Slug</p>
+                    <p className="text-sm font-bold text-gray-900 font-mono">{selectedTenant.domain || selectedTenant.slug}</p>
                   </div>
-                )}
+                </div>
+              </div>
+            )}
 
-                {/* Identity & Branding Tab */}
-                {activeTab === 'branding' && (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="label">Logo URL</label>
-                      <input type="url" className="input" placeholder="https://..." />
-                    </div>
-                    <div>
-                      <label className="label">Favicon URL</label>
-                      <input type="url" className="input" placeholder="https://..." />
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <label className="label">Primary Color</label>
-                        <div className="flex gap-2">
-                          <input
-                            type="color"
-                            value={editForm.theme_config.primary_color}
-                            onChange={(e) => setEditForm({
-                              ...editForm,
-                              theme_config: { ...editForm.theme_config, primary_color: e.target.value }
-                            })}
-                            className="w-12 h-10 rounded border border-gray-200"
-                          />
-                          <input
-                            type="text"
-                            value={editForm.theme_config.primary_color}
-                            className="input flex-1"
-                            readOnly
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="label">Secondary Color</label>
-                        <div className="flex gap-2">
-                          <input
-                            type="color"
-                            value={editForm.theme_config.secondary_color}
-                            onChange={(e) => setEditForm({
-                              ...editForm,
-                              theme_config: { ...editForm.theme_config, secondary_color: e.target.value }
-                            })}
-                            className="w-12 h-10 rounded border border-gray-200"
-                          />
-                          <input
-                            type="text"
-                            value={editForm.theme_config.secondary_color}
-                            className="input flex-1"
-                            readOnly
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="label">Font Family</label>
-                        <select
-                          value={editForm.theme_config.font_family}
-                          onChange={(e) => setEditForm({
-                            ...editForm,
-                            theme_config: { ...editForm.theme_config, font_family: e.target.value }
-                          })}
-                          className="input"
-                        >
-                          <option>Inter</option>
-                          <option>Helvetica</option>
-                          <option>Georgia</option>
-                          <option>Monospace</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Access & Security Tab */}
-                {activeTab === 'security' && (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="label">Authentication Method</label>
-                      <select
-                        value={editForm.auth_method}
-                        onChange={(e) => setEditForm({ ...editForm, auth_method: e.target.value })}
-                        className="input"
-                      >
-                        <option value="PASSWORD_AND_OTP">Password + OTP</option>
-                        <option value="OTP_ONLY">OTP Only</option>
-                        <option value="SSO_SAML">SSO/SAML</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="label">Domain Whitelist (comma-separated)</label>
-                      <textarea
-                        value={editForm.domain_whitelist.join('\n')}
+            {activeTab === 'branding' && (
+              <div className="space-y-6 max-w-2xl">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Primary Color</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={editForm.theme_config.primary_color}
                         onChange={(e) => setEditForm({
                           ...editForm,
-                          domain_whitelist: e.target.value.split('\n').filter(d => d.trim())
+                          theme_config: { ...editForm.theme_config, primary_color: e.target.value }
                         })}
-                        className="input min-h-[100px]"
-                        placeholder="@company.com&#10;@company-intl.io"
+                        className="w-12 h-10 rounded-lg border border-gray-200 cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={editForm.theme_config.primary_color}
+                        className="bg-gray-50 border-none rounded-lg text-sm font-mono w-full focus:ring-1 focus:ring-indigo-500"
+                        readOnly
                       />
                     </div>
                   </div>
-                )}
-
-                {/* Fiscal & Rules Tab */}
-                {activeTab === 'economy' && (
-                  <div className="space-y-4">
-                    {/* Tenant Currency Settings (Platform Admin only) */}
-                    {isPlatformOwner() && selectedTenant && (
-                      <div className="mb-4">
-                        <TenantCurrencySettings tenantId={selectedTenant.id} />
-                      </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="label">Currency Label</label>
-                        <input
-                          type="text"
-                          value={editForm.currency_label}
-                          onChange={(e) => setEditForm({ ...editForm, currency_label: e.target.value })}
-                          className="input"
-                          placeholder="Points"
-                        />
-                      </div>
-                      <div>
-                        <label className="label">Conversion Rate ($/unit)</label>
-                        <input
-                          type="number"
-                          value={editForm.conversion_rate}
-                          onChange={(e) => setEditForm({ ...editForm, conversion_rate: Number(e.target.value) })}
-                          className="input"
-                          step="0.01"
-                          min="0"
-                        />
-                      </div>
-                      <div>
-                        <label className="label">Auto-Refill Threshold (%)</label>
-                        <input
-                          type="number"
-                          value={editForm.auto_refill_threshold}
-                          onChange={(e) => setEditForm({ ...editForm, auto_refill_threshold: Number(e.target.value) })}
-                          className="input"
-                          step="1"
-                          min="0"
-                          max="100"
-                        />
-                      </div>
-                      <div>
-                        <label className="label">Expiry Policy</label>
-                        <select
-                          value={editForm.expiry_policy}
-                          onChange={(e) => setEditForm({ ...editForm, expiry_policy: e.target.value })}
-                          className="input"
-                        >
-                          <option value="NEVER">Never</option>
-                          <option value="90_DAYS">90 Days</option>
-                          <option value="1_YEAR">1 Year</option>
-                          <option value="CUSTOM">Custom</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="label flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={editForm.peer_to_peer_enabled}
-                          onChange={(e) => setEditForm({ ...editForm, peer_to_peer_enabled: e.target.checked })}
-                          className="rounded"
-                        />
-                        <span>Allow Peer-to-Peer Recognition</span>
-                      </label>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Secondary Color</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={editForm.theme_config.secondary_color}
+                        onChange={(e) => setEditForm({
+                          ...editForm,
+                          theme_config: { ...editForm.theme_config, secondary_color: e.target.value }
+                        })}
+                        className="w-12 h-10 rounded-lg border border-gray-200 cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={editForm.theme_config.secondary_color}
+                        className="bg-gray-50 border-none rounded-lg text-sm font-mono w-full focus:ring-1 focus:ring-indigo-500"
+                        readOnly
+                      />
                     </div>
                   </div>
-                )}
-
-                {/* Danger Zone Tab */}
-                {activeTab === 'danger' && (
-                  <div className="space-y-4 border-t border-red-200 pt-4">
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                      <h3 className="font-semibold text-red-900 mb-2">Suspend Tenant</h3>
-                      <p className="text-sm text-red-800 mb-4">Temporarily lock this tenant. Users cannot access the platform.</p>
-                      <button
-                        onClick={() => handleSuspend(selectedTenant)}
-                        className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-                      >
-                        {selectedTenant.status === 'suspended' ? 'Reactivate' : 'Suspend'} Tenant
-                      </button>
-                    </div>
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                      <h3 className="font-semibold text-red-900 mb-2">Manage Feature Flags</h3>
-                      <button
-                        onClick={() => {
-                          setFeatureFlagsValue(JSON.stringify(selectedTenant.feature_flags || {}, null, 2))
-                          setShowFlagsModal(true)
-                        }}
-                        className="bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-                      >
-                        Edit Feature Flags
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Save Button */}
-              {activeTab !== 'danger' && (
-                <div className="border-t border-gray-200 px-6 py-4 flex gap-3">
-                  <button
-                    onClick={handleSaveChanges}
-                    disabled={updateMutation.isPending}
-                    className="btn-primary"
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Font Family</label>
+                  <select
+                    value={editForm.theme_config.font_family}
+                    onChange={(e) => setEditForm({
+                      ...editForm,
+                      theme_config: { ...editForm.theme_config, font_family: e.target.value }
+                    })}
+                    className="w-full bg-gray-50 border-none rounded-lg text-sm focus:ring-1 focus:ring-indigo-500 py-3 px-4"
                   >
-                    {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+                    <option>Inter</option>
+                    <option>Plus Jakarta Sans</option>
+                    <option>Satoshi</option>
+                    <option>Monospace</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'security' && (
+              <div className="space-y-6 max-w-2xl">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Authentication Method</label>
+                  <select
+                    value={editForm.auth_method}
+                    onChange={(e) => setEditForm({ ...editForm, auth_method: e.target.value })}
+                    className="w-full bg-gray-50 border-none rounded-lg text-sm focus:ring-1 focus:ring-indigo-500 py-3 px-4"
+                  >
+                    <option value="PASSWORD_AND_OTP">Multi-Factor (Password + OTP)</option>
+                    <option value="OTP_ONLY">Passwordless (OTP Only)</option>
+                    <option value="SSO_SAML">Enterprise SSO (SAML/OIDC)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Domain Whitelist</label>
+                  <textarea
+                    value={editForm.domain_whitelist.join('\n')}
+                    onChange={(e) => setEditForm({
+                      ...editForm,
+                      domain_whitelist: e.target.value.split('\n').filter(d => d.trim())
+                    })}
+                    className="w-full bg-gray-50 border-none rounded-lg text-sm focus:ring-1 focus:ring-indigo-500 py-3 px-4 min-h-[120px] font-mono"
+                    placeholder="e.g. @company.com (one per line)"
+                  />
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'economy' && (
+              <div className="space-y-8 max-w-3xl">
+                <TenantCurrencySettings tenantId={selectedTenant.id} />
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Currency Display Name</label>
+                    <input
+                      type="text"
+                      value={editForm.currency_label}
+                      onChange={(e) => setEditForm({ ...editForm, currency_label: e.target.value })}
+                      className="w-full bg-gray-50 border-none rounded-lg text-sm focus:ring-1 focus:ring-indigo-500 py-3 px-4 font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Exchange Rate (INR/Point)</label>
+                    <input
+                      type="number"
+                      value={editForm.conversion_rate}
+                      onChange={(e) => setEditForm({ ...editForm, conversion_rate: Number(e.target.value) })}
+                      className="w-full bg-gray-50 border-none rounded-lg text-sm focus:ring-1 focus:ring-indigo-500 py-3 px-4 font-mono"
+                      step="0.01"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+                  <input
+                    type="checkbox"
+                    id="p2p"
+                    checked={editForm.peer_to_peer_enabled}
+                    onChange={(e) => setEditForm({ ...editForm, peer_to_peer_enabled: e.target.checked })}
+                    className="w-5 h-5 text-indigo-600 border-indigo-300 rounded focus:ring-indigo-500"
+                  />
+                  <label htmlFor="p2p" className="text-sm font-bold text-indigo-900">Enable Peer-to-Peer Recognition Economy</label>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'danger' && (
+              <div className="space-y-6 max-w-2xl">
+                <div className="bg-red-50 border border-red-100 rounded-2xl p-6">
+                  <h3 className="text-sm font-bold text-red-900 mb-2">Suspension Protocol</h3>
+                  <p className="text-xs text-red-600 mb-6">Restricts all user access and halts financial processing for this tenant.</p>
+                  <button
+                    onClick={() => handleSuspend(selectedTenant)}
+                    className="bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs uppercase tracking-widest transition-all"
+                  >
+                    {selectedTenant.status === 'suspended' ? 'Emergency Reactivate' : 'Initiate Suspension'}
                   </button>
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="flex-1 card flex items-center justify-center text-center">
-              <div>
-                <HiOutlineEye className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                <p className="text-gray-500">Select a tenant to view details</p>
+                <div className="bg-orange-50 border border-orange-100 rounded-2xl p-6">
+                  <h3 className="text-sm font-bold text-orange-900 mb-2">System overrides</h3>
+                  <p className="text-xs text-orange-600 mb-6">Modify low-level feature flags and experimental configurations.</p>
+                  <button
+                    onClick={() => {
+                      setFeatureFlagsValue(JSON.stringify(selectedTenant.feature_flags || {}, null, 2))
+                      setShowFlagsModal(true)
+                    }}
+                    className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs uppercase tracking-widest transition-all"
+                  >
+                    Manage Feature Flags
+                  </button>
+                </div>
               </div>
+            )}
+
+            {/* Save Actions */}
+            {activeTab !== 'danger' && (
+              <div className="mt-12 pt-8 border-t border-gray-100 flex justify-end gap-3">
+                <button
+                  onClick={() => setSelectedTenant(null)}
+                  className="px-6 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-widest hover:text-gray-700 transition-colors"
+                >
+                  Discard
+                </button>
+                <button
+                  onClick={handleSaveChanges}
+                  disabled={updateMutation.isPending}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-8 rounded-xl text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 disabled:opacity-50 transition-all"
+                >
+                  {updateMutation.isPending ? 'Propagating...' : 'Commit Changes'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3">
+            <HiOutlineSearch className="w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 bg-transparent border-none focus:ring-0 text-gray-900 placeholder-gray-400 text-sm"
+              placeholder="Search organizations by name, domain, or slug..."
+            />
+            <div className="h-6 w-px bg-gray-200 mx-2" />
+            <select
+              value={tierFilter}
+              onChange={(e) => setTierFilter(e.target.value)}
+              className="bg-transparent border-none rounded-lg text-[10px] font-bold text-gray-500 focus:ring-0 px-3 uppercase tracking-widest cursor-pointer"
+            >
+              <option value="">All Tiers</option>
+              {tiers.map((tier) => (
+                <option key={tier.tier} value={tier.tier}>{tier.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-100">
+                <thead className="bg-gray-50/50">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Organization</th>
+                    <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status</th>
+                    <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tier</th>
+                    <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Users</th>
+                    <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Balance</th>
+                    <th className="px-6 py-4 text-right text-[10px] font-bold text-gray-400 uppercase tracking-widest">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 bg-white">
+                  {(tierFilter ? tenantsByTier : tenants).map((tenant) => (
+                    <tr key={tenant.id} className="hover:bg-gray-50/50 transition-colors group">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold">
+                            {tenant.name.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="text-sm font-bold text-gray-900">{tenant.name}</div>
+                            <div className="text-xs text-gray-400">{tenant.domain || tenant.slug}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                          tenant.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                          {tenant.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm font-medium text-gray-600 uppercase italic text-[11px] font-bold">{tenant.subscription_tier}</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium font-mono">
+                        {tenant.user_count || 0} / {tenant.max_users}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                        ₹{Number(tenant.master_budget_balance).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <button
+                          onClick={() => handleSelectTenant(tenant)}
+                          className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                        >
+                          <HiOutlineEye className="w-5 h-5 transition-transform group-hover:scale-110" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {(tierFilter ? tenantsByTier : tenants).length === 0 && (
+                    <tr>
+                      <td colSpan="6" className="px-6 py-12 text-center text-gray-400 italic">
+                        No organizations found matching criteria
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
-          )}
+          </div>
         </div>
       )}
 
