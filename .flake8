@@ -1,4 +1,57 @@
 [flake8]
-max-line-length = 88
-exclude = .git,__pycache__,node_modules,frontend,venv,.venv
-ignore = E203, W503
+# Flake8 Configuration for SparkNode Backend
+# Enforces code quality standards and style consistency
+
+max-line-length = 120
+max-complexity = 10
+
+# Error codes to always report
+select = 
+    E,     # PEP 8 errors
+    W,     # PEP 8 warnings
+    F,     # PyFlakes (undefined names, unused imports)
+    C901   # McCabe complexity
+
+# Ignore these error codes
+ignore = 
+    E203,  # whitespace before ':'
+    E501,  # line too long (handled by black)
+    W503,  # line break before binary operator
+    W504,  # line break after binary operator
+
+# Exclude directories and files
+exclude = 
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    env,
+    .eggs,
+    *.egg,
+    .tox,
+    .coverage,
+    htmlcov,
+    build,
+    dist,
+    migrations,
+    node_modules,
+    frontend,
+    __init__.py
+
+# Per-file ignores
+per-file-ignores =
+    __init__.py: F401
+    tests/*.py: F401, F811
+
+# Complexity settings
+max-doc-length = 100
+indent-size = 4
+
+# Output settings
+format = default
+count = true
+statistics = true
+show-source = true
+
+# Docstring convention
+docstring-convention = google

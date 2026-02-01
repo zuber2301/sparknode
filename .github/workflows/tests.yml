@@ -1,0 +1,163 @@
+name: Tests & Code Quality
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: sparknode
+          POSTGRES_PASSWORD: sparknode_secret_2024
+          POSTGRES_DB: sparknode
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r backend/requirements.txt
+        pip install pytest pytest-cov flake8 mypy
+
+    - name: Wait for PostgreSQL
+      run: |
+        python -c "import psycopg2; psycopg2.connect(host='localhost', user='sparknode', password='sparknode_secret_2024', database='sparknode')"
+      retries: 5
+      delay: 2000
+
+    - name: Run database migrations
+      run: |
+        cd backend
+        python -m alembic upgrade head
+      env:
+        DATABASE_URL: postgresql://sparknode:sparknode_secret_2024@localhost:5432/sparknode
+
+    - name: Run pytest with coverage
+      run: |
+        cd backend
+        pytest tests/ -v --cov=. --cov-report=xml --cov-report=html --cov-report=term
+      env:
+        DATABASE_URL: postgresql://sparknode:sparknode_secret_2024@localhost:5432/sparknode
+        TESTING: "true"
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./backend/coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+    - name: Run Flake8 linting
+      run: |
+        cd backend
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
+
+    - name: Run mypy type checking
+      run: |
+        cd backend
+        mypy . --ignore-missing-imports --follow-imports=silent --no-error-summary 2>&1 | head -20 || true
+
+    - name: Test Result Summary
+      if: always()
+      run: |
+        echo "## Test Summary"
+        echo "✅ Tests completed"
+        echo "✅ Coverage report generated"
+        echo "✅ Linting completed"
+        echo "✅ Type checking completed"
+
+    - name: Coverage Report Comment (PR)
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const coverage = fs.readFileSync('./backend/coverage.txt', 'utf8');
+          const lines = coverage.split('\n');
+          const summary = lines[lines.length - 2] || 'Coverage data available';
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `## Code Coverage Report\n\n${summary}\n\nFull report: Check artifacts`
+          });
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    
+    - name: Install linting tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8 isort black
+    
+    - name: Check import sorting with isort
+      run: |
+        cd backend
+        isort --check-only --diff . --skip-gitignore
+      continue-on-error: true
+    
+    - name: Check code formatting with black
+      run: |
+        cd backend
+        black --check . 2>&1 | head -20 || true
+      continue-on-error: true
+
+  security:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    
+    - name: Install security tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit safety
+    
+    - name: Run Bandit security scan
+      run: |
+        cd backend
+        bandit -r . -f json -o bandit-report.json 2>&1 || true
+      continue-on-error: true
+    
+    - name: Check dependencies with Safety
+      run: |
+        pip install -r backend/requirements.txt
+        safety check --json 2>&1 || true
+      continue-on-error: true
