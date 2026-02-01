@@ -35,4 +35,18 @@ Thumbs.db
 # Test
 .pytest_cache/
 .coverage
+coverage.xml
+backend/coverage.xml
 htmlcov/
+
+# Type checkers and build artifacts
+.mypy_cache/
+.tox/
+.eggs/
+*.egg-info/
+pip-wheel-metadata/
+build/
+
+# Packaging
+dist/
+*.whl
