@@ -42,12 +42,13 @@ function PrivateRoute({ children }) {
 }
 
 function AdminRoute({ children }) {
-  const { isAuthenticated, userContext } = useAuthStore()
+  const { isAuthenticated, user, getEffectiveRole } = useAuthStore()
   if (!isAuthenticated) return <Navigate to="/login" />
   
-  const isAdmin = userContext?.org_role === 'tenant_admin' || 
-                  userContext?.org_role === 'hr_admin' ||
-                  userContext?.org_role === 'platform_admin'
+  const effectiveRole = getEffectiveRole()
+  const isAdmin = effectiveRole === 'tenant_admin' || 
+                  effectiveRole === 'hr_admin' ||
+                  effectiveRole === 'platform_admin'
   
   return isAdmin ? children : <Navigate to="/dashboard" />
 }

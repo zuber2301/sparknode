@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { HiOutlinePlus, HiOutlineSearch, HiOutlineOfficeBuilding, HiOutlineEye } from 'react-icons/hi'
+import { HiOutlinePlus, HiOutlineSearch, HiOutlineOfficeBuilding, HiOutlineEye, HiOutlineChevronLeft, HiOutlineX } from 'react-icons/hi'
 import { platformAPI } from '../lib/api'
 import TenantCurrencySettings from '../components/TenantCurrencySettings'
 import { useAuthStore } from '../store/authStore'
@@ -319,10 +319,28 @@ export default function PlatformTenants() {
           {/* Right: Tenant Detail Panel */}
           {selectedTenant ? (
             <div className="flex-1 card flex flex-col">
-              {/* Detail Header */}
-              <div className="border-b border-gray-200 px-6 py-4">
-                <h2 className="text-xl font-bold text-gray-900">{selectedTenant.name}</h2>
-                <p className="text-sm text-gray-500 mt-1">{selectedTenant.domain || selectedTenant.slug || 'No domain'}</p>
+              {/* Detail Header with Back Button */}
+              <div className="border-b border-gray-200 px-6 py-4 flex items-start justify-between">
+                <div className="flex items-start gap-3 flex-1">
+                  <button
+                    onClick={() => setSelectedTenant(null)}
+                    className="mt-1 p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
+                    title="Back to tenant list"
+                  >
+                    <HiOutlineChevronLeft className="w-5 h-5 text-gray-600" />
+                  </button>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">{selectedTenant.name}</h2>
+                    <p className="text-sm text-gray-500 mt-1">{selectedTenant.domain || selectedTenant.slug || 'No domain'}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedTenant(null)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
+                  title="Close detail panel"
+                >
+                  <HiOutlineX className="w-5 h-5 text-gray-600" />
+                </button>
               </div>
 
               {/* Tabs */}

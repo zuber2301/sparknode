@@ -313,57 +313,6 @@ export default function TopHeader() {
 
               {profileOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-50 animate-in fade-in zoom-in-95 origin-top-right">
-                  {/* Tenant Context in dropdown for mobile */}
-                  {isPlatformOwner() && (
-                    <div className="px-4 py-2 border-b border-gray-100">
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
-                        Tenant Context
-                      </p>
-                      <button
-                        onClick={() => setTenantSelectorOpen(!tenantSelectorOpen)}
-                        className="w-full text-left flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        <span className="text-sm font-medium text-gray-900">{contextName}</span>
-                        <HiOutlineChevronDown className={`w-4 h-4 transition-transform ${tenantSelectorOpen ? 'rotate-180' : ''}`} />
-                      </button>
-                      {tenantSelectorOpen && (
-                        <div className="mt-2 p-2 max-h-48 overflow-y-auto bg-gray-50 rounded-lg space-y-1">
-                          <input
-                            value={tenantSearch}
-                            onChange={(e) => setTenantSearch(e.target.value)}
-                            className="input text-sm w-full mb-2"
-                            placeholder="Search tenants..."
-                          />
-                          {filteredTenants.map((tenant) => (
-                            <button
-                              key={tenant.id}
-                              onClick={() => {
-                                updateTenantContext({ tenant_id: tenant.id, tenant_name: tenant.name })
-                                setTenantSelectorOpen(false)
-                                setTenantSearch('')
-                              }}
-                              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                                tenantContext?.tenant_id === tenant.id
-                                  ? 'bg-sparknode-purple/10 text-sparknode-purple font-medium'
-                                  : 'text-gray-700 hover:bg-white'
-                              }`}
-                            >
-                              {tenant.name}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* User Info */}
-                  <div className="px-4 py-2 border-b border-gray-100">
-                    <p className="text-sm font-medium text-gray-900">{getDisplayName()}</p>
-                    <p className="text-xs text-gray-500">
-                      {getRoleDisplayName(effectiveRole)}
-                    </p>
-                  </div>
-
                   {/* Menu Items */}
                   <div className="p-1 space-y-0.5">
                     <NavLink
