@@ -107,14 +107,17 @@ async def create_tenant(
     starting_balance = tenant_data.master_budget_balance or Decimal("0")
     
     try:
-        # Create tenant
+        # Create tenant with correct field names and structure
         tenant = Tenant(
             name=tenant_data.name,
             slug=tenant_data.slug,
             domain=tenant_data.domain,
             logo_url=tenant_data.logo_url,
-            primary_color=tenant_data.primary_color,
-            branding_config=tenant_data.branding_config or {},
+            theme_config={
+                "primary_color": "#3B82F6",
+                "secondary_color": "#8B5CF6",
+                "font_family": "Inter"
+            },
             status='active',
             subscription_tier=tenant_data.subscription_tier,
             subscription_status='active',
@@ -135,24 +138,24 @@ async def create_tenant(
         db.add(tenant)
         db.flush()
         
-        # Create default HR department
+        # Create default HR department with proper name from constraint
         hr_dept = Department(
             tenant_id=tenant.id,
-            name="Human Resources"
+            name="Human Resource (HR)"  # Must match constraint
         )
         db.add(hr_dept)
         db.flush()
         
-        # Create admin user
+        # Create admin user with correct field names (corporate_email, org_role)
         admin_user = User(
             tenant_id=tenant.id,
-            email=tenant_data.admin_email,
+            corporate_email=tenant_data.admin_email,
             password_hash=get_password_hash(tenant_data.admin_password),
             first_name=tenant_data.admin_first_name,
             last_name=tenant_data.admin_last_name,
-            role='tenant_admin',
+            org_role='tenant_admin',
             department_id=hr_dept.id,
-            status='active',
+            status='ACTIVE',
             is_super_admin=True
         )
         db.add(admin_user)
@@ -214,16 +217,23 @@ async def create_tenant(
         domain=tenant.domain,
         logo_url=tenant.logo_url,
         favicon_url=tenant.favicon_url,
-        primary_color=tenant.primary_color,
-        branding_config=tenant.branding_config or {},
-        feature_flags=tenant.feature_flags or {},
+        theme_config=tenant.theme_config or {},
+        domain_whitelist=tenant.domain_whitelist or [],
+        auth_method=tenant.auth_method or 'PASSWORD_AND_OTP',
         status=tenant.status,
+        currency_label=tenant.currency_label or 'Points',
+        conversion_rate=tenant.conversion_rate or Decimal('1.0'),
+        auto_refill_threshold=tenant.auto_refill_threshold or Decimal('20.0'),
+        award_tiers=tenant.award_tiers or {},
+        peer_to_peer_enabled=tenant.peer_to_peer_enabled or True,
+        expiry_policy=tenant.expiry_policy or 'NEVER',
         subscription_tier=tenant.subscription_tier,
         subscription_status=tenant.subscription_status,
         subscription_started_at=tenant.subscription_started_at,
         subscription_ends_at=tenant.subscription_ends_at,
         max_users=tenant.max_users or 50,
         master_budget_balance=Decimal(str(tenant.master_budget_balance or 0)),
+        feature_flags=tenant.feature_flags or {},
         settings=tenant.settings or {},
         catalog_settings=tenant.catalog_settings or {},
         branding=tenant.branding or {},
