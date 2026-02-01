@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { HiOutlinePlus, HiOutlineSearch, HiOutlineOfficeBuilding, HiOutlineEye } from 'react-icons/hi'
 import { platformAPI } from '../lib/api'
+import TenantCurrencySettings from '../components/TenantCurrencySettings'
 import { useAuthStore } from '../store/authStore'
 
 export default function PlatformTenants() {
@@ -476,6 +477,12 @@ export default function PlatformTenants() {
                 {/* Fiscal & Rules Tab */}
                 {activeTab === 'economy' && (
                   <div className="space-y-4">
+                    {/* Tenant Currency Settings (Platform Admin only) */}
+                    {isPlatformOwner() && selectedTenant && (
+                      <div className="mb-4">
+                        <TenantCurrencySettings tenantId={selectedTenant.id} />
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="label">Currency Label</label>

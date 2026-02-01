@@ -96,6 +96,11 @@ class Tenant(Base):
     conversion_rate = Column(Numeric(10, 4), default=1.0)  # $1 = X points (for invoicing)
     auto_refill_threshold = Column(Numeric(5, 2), default=20.0)  # Percentage to trigger notification
     
+    # Multi-Currency Support
+    base_currency = Column(String(3), default='USD')  # Base currency for all values (USD, INR, EUR, GBP, JPY)
+    display_currency = Column(String(3), default='USD')  # Display currency for UI (USD, INR, EUR, GBP, JPY)
+    fx_rate = Column(Numeric(10, 4), default=1.0)  # Exchange rate: 1 base_currency = fx_rate * display_currency
+    
     # Recognition Laws Config
     award_tiers = Column(JSONB, default=lambda: {
         "Gold": 5000,
@@ -1007,4 +1012,41 @@ class EventMetrics(Base):
     # Relationships
     event = relationship("Event", back_populates="metrics")
 
+
+class InvitationToken(Base):
+    """
+    Secure invitation tokens for inviting users to join a tenant organization.
+    
+    Used for the "Invite-Link" onboarding method where tenants send secure
+    join links to prospective employees.
+    
+    Tokens:
+    - Are cryptographically secure (secrets.token_urlsafe)
+    - Have configurable expiration (default 24 hours)
+    - Are email-specific and one-time use
+    - Can be invalidated/revoked by setting is_used
+    """
+    __tablename__ = "invitation_tokens"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    email = Column(String(255), nullable=False)  # Email address being invited
+    token = Column(String(500), nullable=False, unique=True)  # Secure token
+    
+    # Validity
+    is_used = Column(Boolean, default=False)  # Whether token has been consumed
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    
+    # Audit
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    used_at = Column(DateTime(timezone=True))  # When token was used
+    used_by_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))  # Who used it
+    
+    # Relationships
+    tenant = relationship("Tenant")
+    used_by_user = relationship("User")
+    
+    __table_args__ = (
+        CheckConstraint("expires_at > created_at", name="check_token_expiry_valid"),
+    )
 

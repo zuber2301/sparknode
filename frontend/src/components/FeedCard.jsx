@@ -1,14 +1,21 @@
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { formatDistanceToNow } from 'date-fns'
 import { HiOutlineHeart, HiHeart, HiOutlineChat, HiOutlineStar } from 'react-icons/hi'
 import toast from 'react-hot-toast'
-import { recognitionApi } from '../lib/api'
+import { recognitionApi, tenantsAPI } from '../lib/api'
+import { formatCurrency } from '../lib/currency'
 
 export default function FeedCard({ item }) {
   const [showComments, setShowComments] = useState(false)
   const [comment, setComment] = useState('')
   const queryClient = useQueryClient()
+
+  // Fetch tenant config for currency settings
+  const { data: tenantData } = useQuery({
+    queryKey: ['tenant', 'current'],
+    queryFn: () => tenantsAPI.getCurrentTenant()
+  })
 
   const reactionMutation = useMutation({
     mutationFn: (type) => recognitionApi.addReaction(item.recognition_id, type),
@@ -62,6 +69,13 @@ export default function FeedCard({ item }) {
       .toUpperCase() || '?'
   }
 
+  // Get currency display settings
+  const displayCurrency = tenantData?.display_currency || 'USD'
+  const fxRate = parseFloat(tenantData?.fx_rate) || 1.0
+  const formattedPoints = item.metadata?.points
+    ? formatCurrency(item.metadata.points, displayCurrency, fxRate)
+    : null
+
   return (
     <div className="card">
       <div className="flex items-start gap-3 sm:gap-4">
@@ -96,9 +110,9 @@ export default function FeedCard({ item }) {
               <span className="text-xs sm:text-sm">{item.metadata.badge_name}</span>
             </div>
           )}
-          {item.metadata?.points && (
+          {formattedPoints && (
             <span className="ml-2 inline-flex items-center gap-1 px-2 sm:px-2.5 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
-              +{item.metadata.points} points
+              +{formattedPoints}
             </span>
           )}
         </div>

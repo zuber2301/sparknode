@@ -17,10 +17,15 @@ from auth.schemas import (
     EmailOtpVerify,
     SmsOtpRequest,
     SmsOtpVerify,
-    OtpResponse
+    OtpResponse,
+    SignupRequest,
+    SignupResponse,
+    InvitationLinkRequest,
+    InvitationLinkResponse
 )
 from auth.utils import verify_password, create_access_token, get_current_user, validate_otp_contact
-from models import SystemAdmin, Tenant, OtpToken
+from auth.onboarding import resolve_tenant, validate_tenant_for_onboarding, generate_invitation_token
+from models import User, Tenant, OtpToken, InvitationToken, Department, Wallet
 from core.security import generate_verification_code, hash_token, verify_token_hash
 from core.notifications import send_email_otp, send_sms_otp, NotificationError
 from uuid import UUID
@@ -368,3 +373,261 @@ async def verify_sms_otp(
     token.used_at = datetime.utcnow()
     db.commit()
     return OtpResponse(success=True, message="OTP verified")
+
+# =====================================================
+# TENANT-USER MAPPING: ONBOARDING ENDPOINTS
+# =====================================================
+
+@router.post("/signup", response_model=SignupResponse)
+async def signup(
+    signup_data: SignupRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    User self-registration with automatic tenant resolution.
+    
+    Implements the "Hard Link" concept from the architecture spec:
+    1. Resolve tenant via domain-match or invitation token
+    2. Validate tenant eligibility
+    3. Create user with mandatory tenant_id
+    4. Initialize user wallet
+    5. Return JWT with tenant_id embedded
+    
+    Onboarding Methods:
+    - Domain-Match: Email domain automatically matched to tenant whitelist
+    - Invite-Link: Email validated against secure invitation token
+    
+    Request Examples:
+    
+    Domain-Match Registration:
+        POST /api/auth/signup
+        {
+            "email": "john@triton.com",
+            "password": "SecurePassword123!",
+            "first_name": "John",
+            "last_name": "Doe",
+            "mobile_number": "+1234567890"
+        }
+    
+    Invite-Link Registration:
+        POST /api/auth/signup
+        {
+            "email": "jane@example.com",
+            "password": "SecurePassword456!",
+            "first_name": "Jane",
+            "last_name": "Smith",
+            "invitation_token": "secure_token_from_join_link"
+        }
+    """
+    # Normalize email
+    email = signup_data.email.lower()
+    
+    # Check if user already exists
+    existing_user = db.query(User).filter(User.corporate_email == email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email already registered"
+        )
+    
+    # Step 1: Resolve tenant using one of the two methods
+    try:
+        tenant_id, resolution_method = resolve_tenant(
+            db=db,
+            email=email,
+            invitation_token=signup_data.invitation_token
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    
+    # If no tenant could be resolved
+    if not tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No associated organization found for this email. Please request an invitation from your organization or contact support."
+        )
+    
+    # Step 2: Validate tenant for onboarding
+    try:
+        validate_tenant_for_onboarding(db, tenant_id)
+    except HTTPException as e:
+        raise e
+    
+    # Fetch tenant details
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    
+    # Step 3: Find or create default department
+    # For new users via signup, assign to a default department
+    # (Usually determined by the tenant's HR admin or defaults to first available)
+    default_department = db.query(Department).filter(
+        Department.tenant_id == tenant_id
+    ).first()
+    
+    if not default_department:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Organization has no departments configured. Contact your administrator."
+        )
+    
+    # Step 4: Create user with tenant_id (the "Magic Link")
+    from auth.utils import get_password_hash
+    
+    user = User(
+        tenant_id=tenant_id,  # THE CRITICAL LINK
+        corporate_email=email,
+        personal_email=signup_data.personal_email or None,
+        password_hash=get_password_hash(signup_data.password),
+        first_name=signup_data.first_name,
+        last_name=signup_data.last_name,
+        org_role="corporate_user",  # Default role for self-registered users
+        department_id=default_department.id,
+        mobile_number=signup_data.mobile_number or None,
+        status="ACTIVE",  # Auto-approve signups
+        invitation_sent_at=None  # Not invited, self-registered
+    )
+    
+    db.add(user)
+    db.flush()  # Generate user ID without committing
+    
+    # Step 5: Initialize user wallet with 0 balance
+    wallet = Wallet(
+        tenant_id=tenant_id,
+        user_id=user.id,
+        balance=0
+    )
+    db.add(wallet)
+    db.commit()
+    db.refresh(user)
+    
+    # Mark invitation token as used if one was provided
+    if signup_data.invitation_token and resolution_method == "token":
+        invitation = db.query(InvitationToken).filter(
+            InvitationToken.token == signup_data.invitation_token,
+            InvitationToken.email == email
+        ).first()
+        if invitation:
+            invitation.is_used = True
+            invitation.used_at = datetime.utcnow()
+            invitation.used_by_user_id = user.id
+            db.commit()
+    
+    # Step 6: Generate JWT with tenant_id included (Security)
+    access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
+    access_token = create_access_token(
+        data={
+            "sub": str(user.id),
+            "tenant_id": str(tenant_id),  # Embed tenant_id in JWT
+            "email": user.corporate_email,
+            "org_role": user.org_role,
+            "type": "tenant"
+        },
+        expires_delta=access_token_expires
+    )
+    
+    return SignupResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=UserResponse(
+            id=user.id,
+            tenant_id=user.tenant_id,
+            corporate_email=user.corporate_email,
+            personal_email=user.personal_email,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            org_role=user.org_role,
+            role=user.org_role,
+            mobile_number=user.mobile_number,
+            department_id=user.department_id,
+            status=user.status,
+            created_at=user.created_at,
+            is_platform_admin=False
+        ),
+        tenant_name=tenant.name,
+        resolution_method=resolution_method
+    )
+
+
+@router.post("/invitations/generate", response_model=InvitationLinkResponse)
+async def generate_invitation_link(
+    invitation_data: InvitationLinkRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Generate a secure invitation link for inviting new users to the organization.
+    
+    Accessible by: Tenant Admin, HR Admin, or Platform Admin (when impersonating)
+    
+    The generated link should be sent to the invitee's email. When they visit
+    the link and sign up, the system will automatically assign them to your organization.
+    
+    Response:
+        - token: Secure token to embed in join URL
+        - join_url: Full URL for email invitation (e.g., app.sparknode.io/signup?token=XXX&email=YYY)
+        - expires_at: When the token expires
+        - tenant_id: Tenant ID for validation
+    
+    Note: The token is email-specific and one-time use only.
+    """
+    # Check authorization - only tenant admins and HR admins can generate invites
+    if current_user.org_role not in ["tenant_admin", "hr_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only HR Admin and Tenant Admin can generate invitation links"
+        )
+    
+    # Validate expiration hours
+    if invitation_data.expires_hours < 1 or invitation_data.expires_hours > 720:  # Max 30 days
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Expiration must be between 1 and 720 hours"
+        )
+    
+    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+    if not tenant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tenant not found"
+        )
+    
+    # Check if email is already registered
+    existing_user = db.query(User).filter(
+        User.corporate_email == invitation_data.email.lower()
+    ).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="User with this email is already registered"
+        )
+    
+    # Generate invitation token
+    try:
+        token = generate_invitation_token(
+            db=db,
+            tenant_id=current_user.tenant_id,
+            email=invitation_data.email.lower(),
+            expires_hours=invitation_data.expires_hours
+        )
+    except HTTPException as e:
+        raise e
+    
+    # Get expiration time
+    invitation = db.query(InvitationToken).filter(
+        InvitationToken.token == token
+    ).first()
+    
+    # Construct join URL
+    base_url = settings.frontend_url or "http://localhost:5173"
+    join_url = f"{base_url}/signup?token={token}&email={invitation_data.email}"
+    
+    return InvitationLinkResponse(
+        token=token,
+        email=invitation_data.email,
+        expires_at=invitation.expires_at,
+        join_url=join_url,
+        tenant_id=current_user.tenant_id,
+        tenant_name=tenant.name
+    )

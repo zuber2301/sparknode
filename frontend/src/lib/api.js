@@ -16,15 +16,25 @@ api.interceptors.request.use(
     const state = useAuthStore.getState()
     const token = state.token
     const tenantId = state.getTenantId()
-    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
-    
-    // Add tenant context header for explicit tenant isolation
-    // But only if it's a valid UUID (not the zero/null UUID)
-    if (tenantId && tenantId !== '00000000-0000-0000-0000-000000000000') {
-      config.headers['X-Tenant-ID'] = tenantId
+
+    // Allow callers to skip adding tenant header for platform-level APIs.
+    // If a request sets `X-Skip-Tenant` header or `config.skipTenant` we will not attach X-Tenant-ID.
+    const skipTenantHeader = config.headers && (config.headers['X-Skip-Tenant'] || config.headers['X-Skip-Tenant'] === '1')
+    const skipTenantFlag = config.skipTenant === true
+
+    if (!skipTenantHeader && !skipTenantFlag) {
+      // Add tenant context header for explicit tenant isolation, but only if it's a valid UUID
+      if (tenantId && tenantId !== '00000000-0000-0000-0000-000000000000') {
+        config.headers['X-Tenant-ID'] = tenantId
+      }
+    }
+
+    // Clean up the helper header so it's not sent to the backend
+    if (config.headers && config.headers['X-Skip-Tenant']) {
+      delete config.headers['X-Skip-Tenant']
     }
     
     return config
@@ -51,6 +61,16 @@ api.interceptors.response.use(
 // Auth API
 export const authAPI = {
   login: (email, password) => api.post('/auth/login', { email, password }),
+  signup: (email, password, first_name, last_name, personal_email, mobile_number, invitation_token) => 
+    api.post('/auth/signup', { 
+      email, 
+      password, 
+      first_name, 
+      last_name, 
+      personal_email, 
+      mobile_number, 
+      invitation_token 
+    }, { skipTenant: true }),
   me: () => api.get('/auth/me'),
   logout: () => api.post('/auth/logout'),
   refreshToken: () => api.post('/auth/refresh'),
@@ -58,6 +78,7 @@ export const authAPI = {
   verifyEmailOtp: (email, code, tenant_id) => api.post('/auth/otp/email/verify', { email, code, tenant_id }),
   requestSmsOtp: (mobile_number, tenant_id) => api.post('/auth/otp/sms/request', { mobile_number, tenant_id }),
   verifySmsOtp: (mobile_number, code, tenant_id) => api.post('/auth/otp/sms/verify', { mobile_number, code, tenant_id }),
+  generateInvitationLink: (email, expires_hours) => api.post('/auth/invitations/generate', { email, expires_hours }),
 }
 
 // Users API
@@ -185,12 +206,12 @@ export const auditAPI = {
 
 // Platform Admin API (Tenant Manager)
 export const platformAPI = {
-  getTenants: (params) => api.get('/platform/tenants', { params }),
-  getTenantById: (tenantId) => api.get(`/platform/tenants/${tenantId}`),
-  createTenant: (data) => api.post('/platform/tenants', data),
-  updateTenant: (tenantId, data) => api.put(`/platform/tenants/${tenantId}`, data),
-  suspendTenant: (tenantId, reason) => api.post(`/platform/tenants/${tenantId}/suspend`, null, { params: { reason } }),
-  activateTenant: (tenantId) => api.post(`/platform/tenants/${tenantId}/activate`),
+  getTenants: (params) => api.get('/platform/tenants', { params, headers: { 'X-Skip-Tenant': '1' } }),
+  getTenantById: (tenantId) => api.get(`/platform/tenants/${tenantId}`, { headers: { 'X-Skip-Tenant': '1' } }),
+  createTenant: (data) => api.post('/platform/tenants', data, { headers: { 'X-Skip-Tenant': '1' } }),
+  updateTenant: (tenantId, data) => api.put(`/platform/tenants/${tenantId}`, data, { headers: { 'X-Skip-Tenant': '1' } }),
+  suspendTenant: (tenantId, reason) => api.post(`/platform/tenants/${tenantId}/suspend`, null, { params: { reason }, headers: { 'X-Skip-Tenant': '1' } }),
+  activateTenant: (tenantId) => api.post(`/platform/tenants/${tenantId}/activate`, null, { headers: { 'X-Skip-Tenant': '1' } }),
   updateSubscription: (tenantId, data) => api.put(`/platform/tenants/${tenantId}/subscription`, data),
   getSubscriptionTiers: () => api.get('/platform/subscription-tiers'),
   getFeatureFlags: (tenantId) => api.get(`/platform/tenants/${tenantId}/feature_flags`),

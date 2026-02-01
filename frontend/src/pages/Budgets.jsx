@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { budgetsAPI, tenantsAPI, usersAPI, walletsAPI, analyticsAPI } from '../lib/api'
 import { useAuthStore } from '../store/authStore'
+import { formatCurrency } from '../lib/currency'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { 
@@ -24,6 +25,12 @@ export default function Budgets() {
   const [spendAnalysisPeriod, setSpendAnalysisPeriod] = useState('monthly')
   const queryClient = useQueryClient()
   const { isHRAdmin } = useAuthStore()
+
+  // Fetch tenant config for currency settings
+  const { data: tenantData } = useQuery({
+    queryKey: ['tenant', 'current'],
+    queryFn: () => tenantsAPI.getCurrentTenant()
+  })
 
   const { data: budgets, isLoading: isLoadingBudgets } = useQuery({
     queryKey: ['budgets'],
@@ -61,6 +68,13 @@ export default function Budgets() {
     queryFn: () => budgetsAPI.getDepartmentBudgets(selectedBudget.id),
     enabled: !!selectedBudget,
   })
+
+  // Helper to format budget values
+  const formatBudgetValue = (value) => {
+    const displayCurrency = tenantData?.display_currency || 'USD'
+    const fxRate = parseFloat(tenantData?.fx_rate) || 1.0
+    return formatCurrency(value, displayCurrency, fxRate)
+  }
 
   const createMutation = useMutation({
     mutationFn: (data) => budgetsAPI.create(data),
@@ -293,15 +307,15 @@ export default function Budgets() {
                   <div className="grid grid-cols-3 gap-4">
                     <div className="bg-gray-50 rounded-lg p-4">
                       <p className="text-sm text-gray-500">Total Budget</p>
-                      <p className="text-xl font-semibold text-gray-900">{budget.total_points}</p>
+                      <p className="text-xl font-semibold text-gray-900">{formatBudgetValue(budget.total_points)}</p>
                     </div>
                     <div className="bg-blue-50 rounded-lg p-4">
                       <p className="text-sm text-gray-500">Allocated</p>
-                      <p className="text-xl font-semibold text-blue-600">{budget.allocated_points}</p>
+                      <p className="text-xl font-semibold text-blue-600">{formatBudgetValue(budget.allocated_points)}</p>
                     </div>
                     <div className="bg-green-50 rounded-lg p-4">
                       <p className="text-sm text-gray-500">Remaining</p>
-                      <p className="text-xl font-semibold text-green-600">{budget.remaining_points}</p>
+                      <p className="text-xl font-semibold text-green-600">{formatBudgetValue(budget.remaining_points)}</p>
                     </div>
                   </div>
 

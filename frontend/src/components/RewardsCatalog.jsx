@@ -2,7 +2,14 @@ import { useState } from 'react'
 import { HiOutlineGift, HiOutlineSearch, HiOutlineFilter } from 'react-icons/hi'
 import { formatCurrency } from '../lib/currency'
 
-export default function RewardsCatalog({ vouchers, onRedeem, isRedeeming, walletBalance = 0 }) {
+export default function RewardsCatalog({ 
+  vouchers, 
+  onRedeem, 
+  isRedeeming, 
+  walletBalance = 0,
+  displayCurrency = 'USD',
+  fxRate = 1
+}) {
   const [search, setSearch] = useState('')
   const [selectedBrand, setSelectedBrand] = useState('')
   const [sortBy, setSortBy] = useState('points_asc')
@@ -77,71 +84,70 @@ export default function RewardsCatalog({ vouchers, onRedeem, isRedeeming, wallet
           {filteredVouchers.map(voucher => {
             // Check if brand_logo is an emoji (not a URL path)
             const isEmoji = voucher.brand_logo && !voucher.brand_logo.startsWith('/')
-            
+
             return (
-            <div key={voucher.id} className="card hover:shadow-lg transition">
-              {/* Brand Logo / Image */}
-              <div className="h-32 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center mb-4">
-                {voucher.brand_logo && isEmoji ? (
-                  <span className="text-6xl">{voucher.brand_logo}</span>
-                ) : voucher.brand_logo ? (
-                  <img 
-                    src={voucher.brand_logo} 
-                    alt={voucher.brand_name}
-                    className="h-16 object-contain"
-                    onError={(e) => {
-                      e.target.style.display = 'none'
-                      e.target.nextSibling?.classList.remove('hidden')
-                    }}
-                  />
-                ) : null}
-                {(!voucher.brand_logo || !isEmoji) && (
-                  <div className={`text-4xl font-bold text-gray-300 ${voucher.brand_logo && !isEmoji ? 'hidden' : ''}`}>
-                    {voucher.brand_name?.charAt(0)}
-                  </div>
-                )}
-              </div>
-
-              {/* Voucher Info */}
-              <div className="space-y-2">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs text-gray-500">{voucher.brand_name}</p>
-                    <h3 className="font-semibold text-gray-900">{voucher.name}</h3>
-                  </div>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-sparknode-purple/10 text-sparknode-purple">
-                    {formatCurrency(voucher.denomination || voucher.face_value)}
-                  </span>
+              <div key={voucher.id} className="card hover:shadow-lg transition">
+                {/* Brand Logo / Image */}
+                <div className="h-32 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center mb-4">
+                  {voucher.brand_logo && isEmoji ? (
+                    <span className="text-6xl">{voucher.brand_logo}</span>
+                  ) : voucher.brand_logo ? (
+                    <img
+                      src={voucher.brand_logo}
+                      alt={voucher.brand_name}
+                      className="h-16 object-contain"
+                      onError={(e) => {
+                        e.target.style.display = 'none'
+                        e.target.nextSibling?.classList.remove('hidden')
+                      }}
+                    />
+                  ) : null}
+                  {(!voucher.brand_logo || !isEmoji) && (
+                    <div className={`text-4xl font-bold text-gray-300 ${voucher.brand_logo && !isEmoji ? 'hidden' : ''}`}>
+                      {voucher.brand_name?.charAt(0)}
+                    </div>
+                  )}
                 </div>
 
-                {voucher.description && (
-                  <p className="text-sm text-gray-600 line-clamp-2">
-                    {voucher.description}
-                  </p>
-                )}
-
-                <div className="flex items-center justify-between pt-4 border-t">
-                  <div>
-                    <span className="text-2xl font-bold text-sparknode-purple">
-                      {voucher.points_cost}
+                {/* Voucher Info */}
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-xs text-gray-500">{voucher.brand_name}</p>
+                      <h3 className="font-semibold text-gray-900">{voucher.name}</h3>
+                    </div>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-sparknode-purple/10 text-sparknode-purple">
+                      {formatCurrency(voucher.denomination || voucher.face_value, displayCurrency, fxRate)}
                     </span>
-                    <span className="text-sm text-gray-500 ml-1">points</span>
                   </div>
 
-                  <button
-                    onClick={() => onRedeem(voucher)}
-                    disabled={isRedeeming || walletBalance < voucher.points_cost}
-                    className={`btn-primary text-sm ${
-                      walletBalance < voucher.points_cost 
-                        ? 'opacity-50 cursor-not-allowed' 
-                        : ''
-                    }`}
-                  >
-                    {walletBalance < voucher.points_cost ? 'Not Enough Points' : 'Redeem'}
-                  </button>
+                  {voucher.description && (
+                    <p className="text-sm text-gray-600 line-clamp-2">
+                      {voucher.description}
+                    </p>
+                  )}
+
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <div>
+                      <span className="text-2xl font-bold text-sparknode-purple">
+                        {formatCurrency(voucher.points_cost, displayCurrency, fxRate)}
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={() => onRedeem(voucher)}
+                      disabled={isRedeeming || walletBalance < voucher.points_cost}
+                      className={`btn-primary text-sm ${
+                        walletBalance < voucher.points_cost
+                          ? 'opacity-50 cursor-not-allowed'
+                          : ''
+                      }`}
+                    >
+                      {walletBalance < voucher.points_cost ? 'Not Enough Points' : 'Redeem'}
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
             )
           })}
         </div>

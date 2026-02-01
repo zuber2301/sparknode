@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
 import Layout from './components/Layout'
 import Login from './pages/Login'
+import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
 import AdminDashboard from './pages/AdminDashboard'
 import Feed from './pages/Feed'
@@ -27,6 +28,7 @@ import TeamDistribute from './pages/TeamDistribute'
 import TeamActivity from './pages/TeamActivity'
 import TeamApprovals from './pages/TeamApprovals'
 import TeamAnalytics from './pages/TeamAnalytics'
+import InviteUsers from './pages/admin/InviteUsers'
 import { useParams } from 'react-router-dom'
 
 function EventCreateWizardEdit() {
@@ -39,10 +41,22 @@ function PrivateRoute({ children }) {
   return isAuthenticated ? children : <Navigate to="/login" />
 }
 
+function AdminRoute({ children }) {
+  const { isAuthenticated, userContext } = useAuthStore()
+  if (!isAuthenticated) return <Navigate to="/login" />
+  
+  const isAdmin = userContext?.org_role === 'tenant_admin' || 
+                  userContext?.org_role === 'hr_admin' ||
+                  userContext?.org_role === 'platform_admin'
+  
+  return isAdmin ? children : <Navigate to="/dashboard" />
+}
+
 function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
       <Route path="/" element={
         <PrivateRoute>
           <Layout />
@@ -75,6 +89,11 @@ function App() {
         <Route path="team/activity" element={<TeamActivity />} />
         <Route path="team/approvals" element={<TeamApprovals />} />
         <Route path="team/analytics" element={<TeamAnalytics />} />
+        <Route path="admin/invite-users" element={
+          <AdminRoute>
+            <InviteUsers />
+          </AdminRoute>
+        } />
       </Route>
     </Routes>
   )

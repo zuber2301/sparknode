@@ -24,6 +24,7 @@ import {
   HiOutlineCog,
   HiOutlineViewGrid,
   HiOutlineCreditCard,
+  HiOutlineMailOpen,
 } from 'react-icons/hi'
 
 const navigation = [
@@ -39,6 +40,7 @@ const adminNavigation = [
   { name: 'Tenants', href: '/platform/tenants', icon: HiOutlineOfficeBuilding, roles: ['platform_admin'] },
   { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
   { name: 'Users', href: '/users', icon: HiOutlineUsers, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
+  { name: 'Invite Users', href: '/admin/invite-users', icon: HiOutlineMailOpen, roles: ['tenant_admin', 'hr_admin'] },
   { name: 'Audit Log', href: '/audit', icon: HiOutlineClipboardList, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
   { name: 'Marketplace', href: '/marketplace', icon: HiOutlineShoppingCart, roles: ['platform_admin'] },
   { name: 'AI Settings', href: '/ai-settings', icon: HiOutlineCog, roles: ['platform_admin'] },

@@ -101,3 +101,44 @@ class SmsOtpVerify(BaseModel):
 class OtpResponse(BaseModel):
     success: bool
     message: str
+
+class SignupRequest(BaseModel):
+    """
+    User self-registration request with tenant resolution.
+    
+    Supports two onboarding mechanisms:
+    1. Domain-based: Auto-enroll via email domain whitelist
+    2. Invitation token: Join via secure invite link
+    """
+    email: EmailStr
+    password: str
+    first_name: str
+    last_name: str
+    personal_email: Optional[EmailStr] = None
+    mobile_number: Optional[str] = None
+    invitation_token: Optional[str] = None  # For invite-link onboarding
+
+
+class SignupResponse(BaseModel):
+    """Successful signup response with auth token."""
+    access_token: str
+    token_type: str
+    user: UserResponse
+    tenant_name: str
+    resolution_method: str  # "domain", "token", or "none"
+
+
+class InvitationLinkRequest(BaseModel):
+    """Request to generate an invitation link for a specific email."""
+    email: EmailStr
+    expires_hours: int = 24
+
+
+class InvitationLinkResponse(BaseModel):
+    """Response containing the invitation link."""
+    token: str
+    email: str
+    expires_at: datetime
+    join_url: str  # Full URL for the join link
+    tenant_id: UUID
+    tenant_name: str
