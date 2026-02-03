@@ -12,7 +12,6 @@ import {
   HiOutlineShieldCheck,
   HiOutlineCurrencyRupee,
   HiOutlineDotsVertical,
-  HiOutlinePencil,
   HiOutlineLockClosed
 } from 'react-icons/hi'
 import ConfirmModal from '../components/ConfirmModal'
@@ -663,11 +662,7 @@ export default function PlatformTenants() {
 
                         {actionOpenFor === tenant.id && (
                           <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-lg shadow-lg z-50 p-1">
-                            <button onClick={() => { setActionOpenFor(null); handleSelectTenant(tenant); setActiveTab('overview'); window.scrollTo({ top: 0, behavior: 'smooth' }) }} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md">
-                              <HiOutlinePencil className="w-4 h-4 text-gray-400" />
-                              <span>Edit Settings</span>
-                            </button>
-
+                            
                             <button onClick={() => { setActionOpenFor(null); setBudgetTarget(tenant); setIsAddBudgetOpen(true) }} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md">
                               <HiOutlineCurrencyRupee className="w-4 h-4 text-gray-400" />
                               <span>Load Budget</span>

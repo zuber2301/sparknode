@@ -6,7 +6,7 @@ import ConfirmModal from '../components/ConfirmModal'
 import AddBudgetModal from '../components/AddBudgetModal'
 import { useAuthStore } from '../store/authStore'
 import { tenantsAPI, platformAPI } from '../lib/api'
-import { HiOutlinePlus, HiOutlineSearch, HiOutlineDotsVertical, HiOutlineChevronLeft, HiOutlineX, HiOutlineCheckCircle, HiOutlineShieldCheck, HiOutlineCurrencyRupee, HiOutlinePencil, HiOutlineLockClosed } from 'react-icons/hi'
+import { HiOutlinePlus, HiOutlineSearch, HiOutlineDotsVertical, HiOutlineChevronLeft, HiOutlineX, HiOutlineCheckCircle, HiOutlineShieldCheck, HiOutlineCurrencyRupee, HiOutlineLockClosed } from 'react-icons/hi'
 
 export default function TenantDashboard() {
   const { slug } = useParams()
@@ -71,7 +71,6 @@ export default function TenantDashboard() {
 
   const handleAction = (type, t) => {
     setActionOpenFor(null)
-    if (type === 'edit') return navigate(`/platform/tenants/${t.id}`)
 
     if (type === 'load') {
       setBudgetTarget(t)
@@ -218,10 +217,7 @@ export default function TenantDashboard() {
                       </button>
                       {actionOpenFor === t.id && (
                         <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-lg shadow-lg z-50 p-1">
-                          <button onClick={() => handleAction('edit', t)} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md">
-                            <HiOutlinePencil className="w-4 h-4 text-gray-400" />
-                            <span>Edit Settings</span>
-                          </button>
+
 
                           <button onClick={() => handleAction('load', t)} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md">
                             <HiOutlineCurrencyRupee className="w-4 h-4 text-gray-400" />

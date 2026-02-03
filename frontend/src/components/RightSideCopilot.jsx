@@ -31,7 +31,19 @@ export default function RightSideCopilot() {
 
     await sendMessage(inputValue.trim())
     setInputValue('')
-    inputRef.current?.focus()
+    // focus the textarea after send; use a small delay to ensure re-render and re-enable
+    setTimeout(() => {
+      try {
+        inputRef.current?.focus()
+        const el = inputRef.current
+        if (el && typeof el.setSelectionRange === 'function') {
+          const len = (el.value || '').length
+          el.setSelectionRange(len, len)
+        }
+      } catch (err) {
+        // ignore focus errors
+      }
+    }, 50)
   }
 
   return (
@@ -43,7 +55,7 @@ export default function RightSideCopilot() {
             <HiOutlineSparkles className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-gray-900">SparkNode Copilot</h3>
+            <h3 className="text-sm font-bold text-gray-900">SNPilot</h3>
             <p className="text-xs text-gray-500">AI Assistant</p>
           </div>
         </div>
@@ -68,7 +80,7 @@ export default function RightSideCopilot() {
             hour: '2-digit',
             minute: '2-digit',
           })
-          const displayName = message.type === 'user' ? (user?.first_name || 'You') : 'SparkNode Copilot'
+          const displayName = message.type === 'user' ? (user?.first_name || 'You') : 'SNPilot'
           
           return (
           <div

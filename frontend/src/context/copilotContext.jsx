@@ -8,7 +8,7 @@ export function CopilotProvider({ children }) {
     {
       id: '1',
       type: 'assistant',
-      content: 'Hey! I\'m your SparkNode Copilot.\nAsk me about events, data, or anything on screen.',
+      content: 'Hey! I\'m SNPilot.\nAsk me about events, data, or anything on screen.',
       timestamp: new Date(),
     },
   ])
@@ -65,7 +65,7 @@ export function CopilotProvider({ children }) {
       {
         id: '1',
         type: 'assistant',
-        content: 'Hey! I\'m your SparkNode Copilot.\nAsk me about events, data, or anything on screen.',
+        content: 'Hey! I\'m SNPilot.\nAsk me about events, data, or anything on screen.',
         timestamp: new Date(),
       },
     ])

@@ -178,12 +178,7 @@ export default function TenantCurrencySettings({ tenantId = null }) {
               </div>
             )}
 
-            <button
-              onClick={() => setIsEditing(true)}
-              className="mt-4 px-4 py-2 bg-sparknode-purple text-white rounded-lg hover:bg-sparknode-purple/90 transition"
-            >
-              Edit Settings
-            </button>
+            
           </div>
         )}
 
