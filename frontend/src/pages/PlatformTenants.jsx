@@ -18,6 +18,8 @@ import ConfirmModal from '../components/ConfirmModal'
 import AddBudgetModal from '../components/AddBudgetModal'
 import { platformAPI } from '../lib/api'
 import TenantCurrencySettings from '../components/TenantCurrencySettings'
+import OrganizationInfoCard from '../components/OrganizationInfoCard'
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
 import { useAuthStore } from '../store/authStore'
 
 export default function PlatformTenants() {
@@ -31,7 +33,7 @@ export default function PlatformTenants() {
   
   // Selected tenant & tabs
   const [selectedTenant, setSelectedTenant] = useState(null)
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = useState('identity')
   const [actionOpenFor, setActionOpenFor] = useState(null)
   const [isAddBudgetOpen, setIsAddBudgetOpen] = useState(false)
   const [budgetTarget, setBudgetTarget] = useState(null)
@@ -144,6 +146,27 @@ export default function PlatformTenants() {
     }
   })
 
+  const uploadLogoMutation = useMutation({
+    mutationFn: (file) => platformAPI.uploadLogo(selectedTenant.id, file),
+    onSuccess: (res) => {
+      toast.success('Logo uploaded')
+      const logoUrl = res.data?.logo_url || res.data?.url || null
+      setEditForm(prev => {
+        try {
+          if (prev.logoPreview && String(prev.logoPreview).startsWith('blob:')) {
+            URL.revokeObjectURL(prev.logoPreview)
+          }
+        } catch (e) {
+          // ignore
+        }
+        return { ...prev, logoPreview: logoUrl }
+      })
+      setSelectedTenant(prev => ({ ...prev, logo_url: logoUrl }))
+      queryClient.invalidateQueries(['platformTenants'])
+    },
+    onError: (err) => toast.error(err.response?.data?.detail || 'Failed to upload logo')
+  })
+
   const updateFlagsMutation = useMutation({
     mutationFn: ({ tenantId, payload }) => platformAPI.updateFeatureFlags(tenantId, payload),
     onSuccess: () => {
@@ -214,10 +237,18 @@ export default function PlatformTenants() {
     setSelectedTenant(tenant)
     setActiveTab('overview')
     setEditForm({
-      subscription_tier: tenant.subscription_tier || 'free',
+      name: tenant.name || '',
+      slug: tenant.slug || tenant.domain || '',
+      primary_contact_email: tenant.primary_contact_email || tenant.admin_email || '',
+      domain: tenant.domain || '',
+      subscription_tier: tenant.subscription_tier || 'trial',
       max_users: tenant.max_users || 50,
       master_budget_balance: tenant.master_budget_balance || 0,
-      currency_label: tenant.currency_label || 'Points',
+      currency_label: tenant.currency_label || tenant.currency || 'INR',
+      point_symbol: tenant.point_symbol || tenant.currency_symbol || '₹',
+      redemption_markup: tenant.redemption_markup || 0,
+      subscription_ends_at: tenant.subscription_ends_at || '',
+      status: tenant.status || 'active',
       conversion_rate: tenant.conversion_rate || 1.0,
       auto_refill_threshold: tenant.auto_refill_threshold || 20,
       peer_to_peer_enabled: tenant.peer_to_peer_enabled !== false,
@@ -229,7 +260,9 @@ export default function PlatformTenants() {
       },
       domain_whitelist: tenant.domain_whitelist || [],
       award_tiers: tenant.award_tiers || {},
-      expiry_policy: tenant.expiry_policy || 'NEVER'
+      expiry_policy: tenant.expiry_policy || 'NEVER',
+      logoPreview: tenant.logo_url || tenant.logo || null,
+      feature_flags: tenant.feature_flags || {}
     })
   }
 
@@ -285,6 +318,34 @@ export default function PlatformTenants() {
       updateFlagsMutation.mutate({ tenantId: selectedTenant.id, payload: { feature_flags: parsed } })
     } catch (error) {
       toast.error('Feature flags must be valid JSON')
+    }
+  }
+
+  // Budget activity for selected tenant (overview chart)
+  const { data: budgetActivityRespForSelected, isLoading: budgetLoadingForSelected } = useQuery({
+    queryKey: ['budgetActivity', selectedTenant?.id, 'monthly', 6],
+    queryFn: () => selectedTenant ? platformAPI.getBudgetActivity(selectedTenant.id, { period: 'monthly', intervals: 6 }).then(r => r.data) : Promise.resolve(null),
+    enabled: !!selectedTenant,
+  })
+
+  const chartDataForSelected = (budgetActivityRespForSelected && budgetActivityRespForSelected.data) ? budgetActivityRespForSelected.data.map(d => ({ period: d.period, credits: Number(d.credits), debits: Number(d.debits), net: Number(d.net) })) : []
+
+  const chartTotalsForSelected = useMemo(() => {
+    const credits = chartDataForSelected.reduce((s, d) => s + (d.credits || 0), 0)
+    const debits = chartDataForSelected.reduce((s, d) => s + (d.debits || 0), 0)
+    const net = credits - debits
+    return { credits, debits, net }
+  }, [chartDataForSelected])
+
+  const handleSaveBranding = async () => {
+    if (!selectedTenant) return
+    try {
+      if (editForm.logoFile) {
+        await uploadLogoMutation.mutateAsync(editForm.logoFile)
+      }
+      await updateMutation.mutateAsync({ tenantId: selectedTenant.id, payload: { theme_config: editForm.theme_config } })
+    } catch (err) {
+      // mutation onError handlers will show toast; swallow here
     }
   }
 
@@ -412,190 +473,246 @@ export default function PlatformTenants() {
           </div>
 
           <div className="p-8">
-            {activeTab === 'overview' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-6">
-                  <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Subscription Summary</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-gray-50 rounded-2xl">
-                      <p className="text-xs text-gray-500 mb-1">Authorized Users</p>
-                      <p className="text-lg font-bold text-gray-900 font-mono">{selectedTenant.user_count || 0} / {selectedTenant.max_users}</p>
-                    </div>
-                    <div className="p-4 bg-gray-50 rounded-2xl">
-                      <p className="text-xs text-gray-500 mb-1">Master Balance</p>
-                      <p className="text-lg font-bold text-gray-900">₹{Number(selectedTenant.master_budget_balance).toLocaleString()}</p>
-                    </div>
+            {activeTab === 'identity' && (
+              <form onSubmit={(e) => { e.preventDefault(); updateMutation.mutate({ tenantId: selectedTenant.id, payload: { name: editForm.name, slug: editForm.slug, primary_contact_email: editForm.primary_contact_email, domain: editForm.domain } }) }} className="space-y-6 max-w-3xl">
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Organization Name</label>
+                  <input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="w-full bg-gray-50 border-none rounded-lg text-sm focus:ring-1 focus:ring-indigo-500 py-3 px-4" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Tenant Slug</label>
+                    <input value={editForm.slug} readOnly className="w-full bg-gray-100 border-none rounded-lg text-sm py-3 px-4 font-mono" />
+                    <p className="text-xs text-gray-500 mt-1">Read-only after creation.</p>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Primary Contact Email</label>
+                    <input value={editForm.primary_contact_email} onChange={(e) => setEditForm({ ...editForm, primary_contact_email: e.target.value })} className="w-full bg-gray-50 border-none rounded-lg text-sm py-3 px-4" />
                   </div>
                 </div>
-                <div className="space-y-6">
-                  <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Platform Identity</h3>
-                  <div className="p-4 bg-gray-50 rounded-2xl">
-                    <p className="text-xs text-gray-500 mb-1">Domain / Access Slug</p>
-                    <p className="text-sm font-bold text-gray-900 font-mono">{selectedTenant.domain || selectedTenant.slug}</p>
+
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Company Domain</label>
+                  <input value={editForm.domain} onChange={(e) => setEditForm({ ...editForm, domain: e.target.value })} className="w-full bg-gray-50 border-none rounded-lg text-sm py-3 px-4" placeholder="example.com" />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <button type="button" onClick={() => setSelectedTenant(null)} className="px-6 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-widest hover:text-gray-700">Discard</button>
+                  <button type="submit" disabled={updateMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs uppercase tracking-widest">{updateMutation.isPending ? 'Saving...' : 'Save Identity'}</button>
+                </div>
+              </form>
+
+            )}
+
+            {activeTab === 'overview' && (
+              <div className="space-y-6 max-w-4xl">
+                <OrganizationInfoCard tenant={selectedTenant} />
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Total Budget Allocated</p>
+                    <p className="text-xl font-bold text-gray-900 mt-2">₹{Number(selectedTenant?.total_allocated || 0).toLocaleString()}</p>
+                  </div>
+                  <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Total Spent</p>
+                    <p className="text-xl font-bold text-gray-900 mt-2">₹{Number(selectedTenant?.total_spent || 0).toLocaleString()}</p>
+                  </div>
+                  <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Budget Remaining</p>
+                    <p className="text-xl font-bold text-gray-900 mt-2">₹{Number(selectedTenant?.master_budget_balance || 0).toLocaleString()}</p>
+                  </div>
+                  <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Total Users</p>
+                    <p className="text-xl font-bold text-gray-900 mt-2">{selectedTenant?.user_count || 0}</p>
+                  </div>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                  <h3 className="text-sm font-bold text-gray-800 mb-3">Burn Rate Trend</h3>
+                  <div style={{ width: '100%', height: 220 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartDataForSelected} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="period" tick={{ fontSize: 12 }} />
+                        <YAxis />
+                        <Tooltip />
+                        <Area type="monotone" dataKey="credits" stroke="#10b981" fill="#10b98133" name="Credits" />
+                        <Area type="monotone" dataKey="debits" stroke="#f97316" fill="#f9731633" name="Debits" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="mt-3 text-sm text-gray-500 flex items-center justify-center gap-8">
+                    <div><div className="text-xs text-gray-500">Credits</div><div className="font-bold text-gray-900">{chartTotalsForSelected.credits.toLocaleString()}</div></div>
+                    <div><div className="text-xs text-gray-500">Debits</div><div className="font-bold text-gray-900">{chartTotalsForSelected.debits.toLocaleString()}</div></div>
+                    <div><div className="text-xs text-gray-500">Net</div><div className="font-bold text-gray-900">{chartTotalsForSelected.net.toLocaleString()}</div></div>
                   </div>
                 </div>
               </div>
+            )}
+
+            {activeTab === 'economic' && (
+              <form onSubmit={(e) => { e.preventDefault(); updateMutation.mutate({ tenantId: selectedTenant.id, payload: { currency_label: editForm.currency_label, point_symbol: editForm.point_symbol, redemption_markup: editForm.redemption_markup } }) }} className="space-y-6 max-w-3xl">
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Tenant Currency</label>
+                    <select value={editForm.currency_label} onChange={(e) => setEditForm({ ...editForm, currency_label: e.target.value })} className="w-full bg-gray-50 border-none rounded-lg text-sm py-3 px-4">
+                      <option>INR</option>
+                      <option>USD</option>
+                      <option>EUR</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Point Symbol</label>
+                    <input value={editForm.point_symbol || '₹'} onChange={(e) => setEditForm({ ...editForm, point_symbol: e.target.value })} className="w-full bg-gray-50 border-none rounded-lg text-sm py-3 px-4" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Redemption Markup (%)</label>
+                  <input type="number" value={editForm.redemption_markup || 0} onChange={(e) => setEditForm({ ...editForm, redemption_markup: Number(e.target.value) })} className="w-40 bg-gray-50 border-none rounded-lg text-sm py-3 px-4" />
+                  <p className="text-xs text-gray-500 mt-2">Example: 10% means a ₹500 voucher costs 550 points.</p>
+                </div>
+
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-gray-500">Current Master Balance</p>
+                  <p className="text-lg font-bold text-gray-900">{Number(selectedTenant.master_budget_balance || 0).toLocaleString()}</p>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <button type="button" onClick={() => setSelectedTenant(null)} className="px-6 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-widest hover:text-gray-700">Discard</button>
+                  <button type="submit" disabled={updateMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs uppercase tracking-widest">{updateMutation.isPending ? 'Saving...' : 'Save Economic Config'}</button>
+                </div>
+              </form>
+
+            )}
+
+            {activeTab === 'tier' && (
+              <form onSubmit={(e) => { e.preventDefault(); updateMutation.mutate({ tenantId: selectedTenant.id, payload: { subscription_tier: editForm.subscription_tier, max_users: editForm.max_users, subscription_ends_at: editForm.subscription_ends_at, status: editForm.status } }) }} className="space-y-6 max-w-3xl">
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Subscription Tier</label>
+                  <select value={editForm.subscription_tier} onChange={(e) => setEditForm({ ...editForm, subscription_tier: e.target.value })} className="w-full bg-gray-50 border-none rounded-lg text-sm py-3 px-4">
+                    <option value="trial">Trial</option>
+                    <option value="professional">Professional</option>
+                    <option value="enterprise">Enterprise</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">User Seat Limit</label>
+                    <input type="number" value={editForm.max_users} onChange={(e) => setEditForm({ ...editForm, max_users: Number(e.target.value) })} className="w-full bg-gray-50 border-none rounded-lg text-sm py-3 px-4" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Subscription End Date</label>
+                    <input type="date" value={editForm.subscription_ends_at || ''} onChange={(e) => setEditForm({ ...editForm, subscription_ends_at: e.target.value })} className="w-full bg-gray-50 border-none rounded-lg text-sm py-3 px-4" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Account Status</label>
+                  <select value={editForm.status || selectedTenant.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} className="w-40 bg-gray-50 border-none rounded-lg text-sm py-3 px-4">
+                    <option value="active">Active</option>
+                    <option value="suspended">Suspended</option>
+                    <option value="maintenance">Maintenance</option>
+                  </select>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <button type="button" onClick={() => setSelectedTenant(null)} className="px-6 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-widest hover:text-gray-700">Discard</button>
+                  <button type="submit" disabled={updateMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs uppercase tracking-widest">{updateMutation.isPending ? 'Saving...' : 'Save Subscription'}</button>
+                </div>
+              </form>
+
             )}
 
             {activeTab === 'branding' && (
-              <div className="space-y-6 max-w-2xl">
+              <div className="space-y-6 max-w-3xl">
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Company Logo</label>
+                  <input type="file" accept="image/*" onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (!f) return
+                    setEditForm(prev => {
+                      try {
+                        if (prev.logoPreview && String(prev.logoPreview).startsWith('blob:')) {
+                          URL.revokeObjectURL(prev.logoPreview)
+                        }
+                      } catch (err) {
+                        // ignore
+                      }
+                      const newPreview = URL.createObjectURL(f)
+                      return { ...prev, logoFile: f, logoPreview: newPreview }
+                    })
+                  }} className="w-full" />
+                  {editForm.logoPreview && (<img src={editForm.logoPreview} alt="logo" className="h-12 mt-2" />)}
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Primary Color</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="color"
-                        value={editForm.theme_config.primary_color}
-                        onChange={(e) => setEditForm({
-                          ...editForm,
-                          theme_config: { ...editForm.theme_config, primary_color: e.target.value }
-                        })}
-                        className="w-12 h-10 rounded-lg border border-gray-200 cursor-pointer"
-                      />
-                      <input
-                        type="text"
-                        value={editForm.theme_config.primary_color}
-                        className="bg-gray-50 border-none rounded-lg text-sm font-mono w-full focus:ring-1 focus:ring-indigo-500"
-                        readOnly
-                      />
+                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Primary Brand Color</label>
+                    <input type="color" value={editForm.theme_config.primary_color} onChange={(e) => setEditForm({ ...editForm, theme_config: { ...editForm.theme_config, primary_color: e.target.value } })} className="w-12 h-10 rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Accent Color</label>
+                    <input type="color" value={editForm.theme_config.secondary_color} onChange={(e) => setEditForm({ ...editForm, theme_config: { ...editForm.theme_config, secondary_color: e.target.value } })} className="w-12 h-10 rounded-lg" />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <button type="button" onClick={() => setSelectedTenant(null)} className="px-6 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-widest hover:text-gray-700">Discard</button>
+                  <button type="button" onClick={handleSaveBranding} disabled={updateMutation.isPending || uploadLogoMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs uppercase tracking-widest">{(updateMutation.isPending || uploadLogoMutation.isPending) ? 'Saving...' : 'Save Branding'}</button>
+                </div>
+              </div>
+
+            )}
+
+            {activeTab === 'features' && (
+              <div className="space-y-6 max-w-3xl">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                    <div>
+                      <p className="text-sm font-medium">AI Copilot (Sparky)</p>
                     </div>
+                    <input type="checkbox" checked={!!editForm.feature_flags?.ai_copilot} onChange={(e) => setEditForm({ ...editForm, feature_flags: { ...editForm.feature_flags, ai_copilot: e.target.checked } })} />
                   </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Secondary Color</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="color"
-                        value={editForm.theme_config.secondary_color}
-                        onChange={(e) => setEditForm({
-                          ...editForm,
-                          theme_config: { ...editForm.theme_config, secondary_color: e.target.value }
-                        })}
-                        className="w-12 h-10 rounded-lg border border-gray-200 cursor-pointer"
-                      />
-                      <input
-                        type="text"
-                        value={editForm.theme_config.secondary_color}
-                        className="bg-gray-50 border-none rounded-lg text-sm font-mono w-full focus:ring-1 focus:ring-indigo-500"
-                        readOnly
-                      />
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                    <div>
+                      <p className="text-sm font-medium">Tango Card Marketplace</p>
                     </div>
+                    <input type="checkbox" checked={!!editForm.feature_flags?.tango_card} onChange={(e) => setEditForm({ ...editForm, feature_flags: { ...editForm.feature_flags, tango_card: e.target.checked } })} />
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                    <div>
+                      <p className="text-sm font-medium">Peer-to-Peer Recognition</p>
+                    </div>
+                    <input type="checkbox" checked={!!editForm.feature_flags?.peer_to_peer_recognition} onChange={(e) => setEditForm({ ...editForm, feature_flags: { ...editForm.feature_flags, peer_to_peer_recognition: e.target.checked } })} />
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                    <div>
+                      <p className="text-sm font-medium">Social Activity Feed</p>
+                    </div>
+                    <input type="checkbox" checked={!!editForm.feature_flags?.social_feed_enabled} onChange={(e) => setEditForm({ ...editForm, feature_flags: { ...editForm.feature_flags, social_feed_enabled: e.target.checked } })} />
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                    <div>
+                      <p className="text-sm font-medium">Manager Approval Workflow</p>
+                    </div>
+                    <input type="checkbox" checked={!!editForm.feature_flags?.recognition_approval_required} onChange={(e) => setEditForm({ ...editForm, feature_flags: { ...editForm.feature_flags, recognition_approval_required: e.target.checked } })} />
                   </div>
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Font Family</label>
-                  <select
-                    value={editForm.theme_config.font_family}
-                    onChange={(e) => setEditForm({
-                      ...editForm,
-                      theme_config: { ...editForm.theme_config, font_family: e.target.value }
-                    })}
-                    className="w-full bg-gray-50 border-none rounded-lg text-sm focus:ring-1 focus:ring-indigo-500 py-3 px-4"
-                  >
-                    <option>Inter</option>
-                    <option>Plus Jakarta Sans</option>
-                    <option>Satoshi</option>
-                    <option>Monospace</option>
-                  </select>
-                </div>
-              </div>
-            )}
 
-            {activeTab === 'security' && (
-              <div className="space-y-6 max-w-2xl">
-                <div>
-                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Authentication Method</label>
-                  <select
-                    value={editForm.auth_method}
-                    onChange={(e) => setEditForm({ ...editForm, auth_method: e.target.value })}
-                    className="w-full bg-gray-50 border-none rounded-lg text-sm focus:ring-1 focus:ring-indigo-500 py-3 px-4"
-                  >
-                    <option value="PASSWORD_AND_OTP">Multi-Factor (Password + OTP)</option>
-                    <option value="OTP_ONLY">Passwordless (OTP Only)</option>
-                    <option value="SSO_SAML">Enterprise SSO (SAML/OIDC)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Domain Whitelist</label>
-                  <textarea
-                    value={editForm.domain_whitelist.join('\n')}
-                    onChange={(e) => setEditForm({
-                      ...editForm,
-                      domain_whitelist: e.target.value.split('\n').filter(d => d.trim())
-                    })}
-                    className="w-full bg-gray-50 border-none rounded-lg text-sm focus:ring-1 focus:ring-indigo-500 py-3 px-4 min-h-[120px] font-mono"
-                    placeholder="e.g. @company.com (one per line)"
-                  />
+                <div className="flex justify-end gap-3 pt-4">
+                  <button type="button" onClick={() => setSelectedTenant(null)} className="px-6 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-widest hover:text-gray-700">Discard</button>
+                  <button type="button" onClick={() => updateFlagsMutation.mutate({ tenantId: selectedTenant.id, payload: { feature_flags: editForm.feature_flags || {} } })} disabled={updateFlagsMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs uppercase tracking-widest">{updateFlagsMutation.isPending ? 'Saving...' : 'Save Feature Toggles'}</button>
                 </div>
               </div>
-            )}
 
-            {activeTab === 'economy' && (
-              <div className="space-y-8 max-w-3xl">
-                <TenantCurrencySettings tenantId={selectedTenant.id} />
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Currency Display Name</label>
-                    <input
-                      type="text"
-                      value={editForm.currency_label}
-                      onChange={(e) => setEditForm({ ...editForm, currency_label: e.target.value })}
-                      className="w-full bg-gray-50 border-none rounded-lg text-sm focus:ring-1 focus:ring-indigo-500 py-3 px-4 font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Exchange Rate (INR/Point)</label>
-                    <input
-                      type="number"
-                      value={editForm.conversion_rate}
-                      onChange={(e) => setEditForm({ ...editForm, conversion_rate: Number(e.target.value) })}
-                      className="w-full bg-gray-50 border-none rounded-lg text-sm focus:ring-1 focus:ring-indigo-500 py-3 px-4 font-mono"
-                      step="0.01"
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
-                  <input
-                    type="checkbox"
-                    id="p2p"
-                    checked={editForm.peer_to_peer_enabled}
-                    onChange={(e) => setEditForm({ ...editForm, peer_to_peer_enabled: e.target.checked })}
-                    className="w-5 h-5 text-indigo-600 border-indigo-300 rounded focus:ring-indigo-500"
-                  />
-                  <label htmlFor="p2p" className="text-sm font-bold text-indigo-900">Enable Peer-to-Peer Recognition Economy</label>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'danger' && (
-              <div className="space-y-6 max-w-2xl">
-                <div className="bg-red-50 border border-red-100 rounded-2xl p-6">
-                  <h3 className="text-sm font-bold text-red-900 mb-2">Suspension Protocol</h3>
-                  <p className="text-xs text-red-600 mb-6">Restricts all user access and halts financial processing for this tenant.</p>
-                  <button
-                    onClick={() => handleSuspend(selectedTenant)}
-                    className="bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs uppercase tracking-widest transition-all"
-                  >
-                    {selectedTenant.status === 'suspended' ? 'Emergency Reactivate' : 'Initiate Suspension'}
-                  </button>
-                </div>
-                <div className="bg-orange-50 border border-orange-100 rounded-2xl p-6">
-                  <h3 className="text-sm font-bold text-orange-900 mb-2">System overrides</h3>
-                  <p className="text-xs text-orange-600 mb-6">Modify low-level feature flags and experimental configurations.</p>
-                  <button
-                    onClick={() => {
-                      setFeatureFlagsValue(JSON.stringify(selectedTenant.feature_flags || {}, null, 2))
-                      setShowFlagsModal(true)
-                    }}
-                    className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs uppercase tracking-widest transition-all"
-                  >
-                    Manage Feature Flags
-                  </button>
-                </div>
-              </div>
             )}
 
             {/* Save Actions */}
-            {activeTab !== 'danger' && (
+            {activeTab !== 'danger' && activeTab !== 'overview' && (
               <div className="mt-12 pt-8 border-t border-gray-100 flex justify-end gap-3">
                 <button
                   onClick={() => setSelectedTenant(null)}

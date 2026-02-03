@@ -211,6 +211,11 @@ export const platformAPI = {
   getTenantById: (tenantId) => api.get(`/platform/tenants/${tenantId}`, { headers: { 'X-Skip-Tenant': '1' } }),
   createTenant: (data) => api.post('/platform/tenants', data, { headers: { 'X-Skip-Tenant': '1' } }),
   updateTenant: (tenantId, data) => api.put(`/platform/tenants/${tenantId}`, data, { headers: { 'X-Skip-Tenant': '1' } }),
+  uploadLogo: (tenantId, file) => {
+    const formData = new FormData()
+    formData.append('logo', file)
+    return api.post(`/platform/tenants/${tenantId}/branding/logo`, formData, { headers: { 'Content-Type': 'multipart/form-data', 'X-Skip-Tenant': '1' } })
+  },
   suspendTenant: (tenantId, reason) => api.post(`/platform/tenants/${tenantId}/suspend`, null, { params: { reason }, headers: { 'X-Skip-Tenant': '1' } }),
   activateTenant: (tenantId) => api.post(`/platform/tenants/${tenantId}/activate`, null, { headers: { 'X-Skip-Tenant': '1' } }),
   updateSubscription: (tenantId, data) => api.put(`/platform/tenants/${tenantId}/subscription`, data),

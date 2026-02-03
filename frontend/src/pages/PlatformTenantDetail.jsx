@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { platformAPI } from '../lib/api'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts'
+import OrganizationInfoCard from '../components/OrganizationInfoCard'
 import AddBudgetModal from '../components/AddBudgetModal'
 
 export default function PlatformTenantDetail() {
@@ -74,6 +75,17 @@ export default function PlatformTenantDetail() {
   const totalSpent = tenantResp.total_spent ? Number(tenantResp.total_spent) : 0
   const budgetRemaining = Number(tenantResp.master_budget_balance || 0)
   const totalUsers = tenantResp.user_count || 0
+
+  // Role breakdown fallbacks (backend may provide these counts)
+  const managerCount = tenantResp.manager_count || tenantResp.managers_count || 0
+  const leadCount = tenantResp.lead_count || tenantResp.leads_count || 0
+  const employeeCount = tenantResp.employee_count || (totalUsers - managerCount - leadCount) || totalUsers
+
+  // Engagement metrics fallbacks
+  const recognitionsThisMonth = tenantResp.recent_recognitions_count || tenantResp.total_recognitions || 0
+  const redemptionsThisMonth = tenantResp.recent_redemptions_count || tenantResp.total_redemptions || '—'
+  const activeUsersThisWeek = tenantResp.active_user_count || 0
+  const avgPointsPerEmployee = totalUsers > 0 ? Math.round((Number(tenantResp.total_points_distributed || 0) || 0) / totalUsers) : 0
 
   // Budget Activity chart state
   const [budgetPeriod, setBudgetPeriod] = useState('monthly')
@@ -172,8 +184,31 @@ export default function PlatformTenantDetail() {
       </div>
 
       {/* Top Metric Cards (Overview) */}
-      {/* Overview metrics removed temporarily for debugging */}
-      <div className="bg-white p-4">Overview placeholder</div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <p className="text-[12px] text-gray-500 font-bold uppercase tracking-wider">Total Budget Allocated</p>
+          <p className="text-2xl font-bold text-gray-900 mt-3">₹{Number(totalAllocated || 0).toLocaleString()}</p>
+          <p className="text-xs text-gray-400 mt-2">Lifetime Allocations</p>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <p className="text-[12px] text-gray-500 font-bold uppercase tracking-wider">Total Spent</p>
+          <p className="text-2xl font-bold text-gray-900 mt-3">₹{Number(totalSpent || 0).toLocaleString()}</p>
+          <p className="text-xs text-gray-400 mt-2">Redeemed / Debited</p>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <p className="text-[12px] text-gray-500 font-bold uppercase tracking-wider">Budget Remaining</p>
+          <p className="text-2xl font-bold text-gray-900 mt-3">₹{Number(budgetRemaining || 0).toLocaleString()}</p>
+          <p className="text-xs text-gray-400 mt-2">Current Master Balance</p>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <p className="text-[12px] text-gray-500 font-bold uppercase tracking-wider">Total Users</p>
+          <p className="text-2xl font-bold text-gray-900 mt-3">{totalUsers}</p>
+          <p className="text-xs text-gray-400 mt-2">Managers / Leads / Employees: {managerCount} / {leadCount} / {employeeCount}</p>
+        </div>
+      </div>
 
       {/* Branding Tab */}
       {activeTab === 'branding' && (
@@ -276,6 +311,9 @@ export default function PlatformTenantDetail() {
       {activeTab === 'overview' && (
         <div className="bg-white rounded-2xl border p-6 shadow-sm">
           <h3 className="text-sm font-bold text-gray-800 mb-4">Burn Rate Trend (Last 30 Days)</h3>
+          <div className="mb-6">
+            <OrganizationInfoCard tenant={tenantResp} />
+          </div>
 <div>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -285,9 +323,46 @@ export default function PlatformTenantDetail() {
             <div className="text-sm text-gray-600">Showing last {intervals} {budgetPeriod === 'monthly' ? 'months' : 'quarters'}</div>
           </div>
 
-          <div className="h-48">Chart placeholder</div>
+          <div style={{ width: '100%', height: 220 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorCredits" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#34d399" stopOpacity={0.6}/>
+                    <stop offset="95%" stopColor="#34d399" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorDebits" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.6}/>
+                    <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="period" tick={{ fontSize: 12 }} />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Area type="monotone" dataKey="credits" stroke="#10b981" fillOpacity={1} fill="url(#colorCredits)" name="Credits" />
+                <Area type="monotone" dataKey="debits" stroke="#f97316" fillOpacity={1} fill="url(#colorDebits)" name="Debits" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
 
-          <div className="mt-3 text-center text-sm text-gray-500">Totals summary placeholder</div>
+          <div className="mt-3 text-center text-sm text-gray-500">
+            <div className="flex items-center justify-center gap-6">
+              <div>
+                <div className="text-xs text-gray-500">Credits</div>
+                <div className="font-bold text-gray-900">{chartTotals.credits.toLocaleString()}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500">Debits</div>
+                <div className="font-bold text-gray-900">{chartTotals.debits.toLocaleString()}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500">Net</div>
+                <div className="font-bold text-gray-900">{chartTotals.net.toLocaleString()}</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       )}
