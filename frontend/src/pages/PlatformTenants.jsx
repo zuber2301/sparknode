@@ -233,37 +233,77 @@ export default function PlatformTenants() {
     })
   }
 
-  const handleSelectTenant = (tenant) => {
-    setSelectedTenant(tenant)
-    setActiveTab('overview')
-    setEditForm({
-      name: tenant.name || '',
-      slug: tenant.slug || tenant.domain || '',
-      primary_contact_email: tenant.primary_contact_email || tenant.admin_email || '',
-      domain: tenant.domain || '',
-      subscription_tier: tenant.subscription_tier || 'trial',
-      max_users: tenant.max_users || 50,
-      master_budget_balance: tenant.master_budget_balance || 0,
-      currency_label: tenant.currency_label || tenant.currency || 'INR',
-      point_symbol: tenant.point_symbol || tenant.currency_symbol || '₹',
-      redemption_markup: tenant.redemption_markup || 0,
-      subscription_ends_at: tenant.subscription_ends_at || '',
-      status: tenant.status || 'active',
-      conversion_rate: tenant.conversion_rate || 1.0,
-      auto_refill_threshold: tenant.auto_refill_threshold || 20,
-      peer_to_peer_enabled: tenant.peer_to_peer_enabled !== false,
-      auth_method: tenant.auth_method || 'PASSWORD_AND_OTP',
-      theme_config: tenant.theme_config || {
-        primary_color: '#3B82F6',
-        secondary_color: '#8B5CF6',
-        font_family: 'Inter'
-      },
-      domain_whitelist: tenant.domain_whitelist || [],
-      award_tiers: tenant.award_tiers || {},
-      expiry_policy: tenant.expiry_policy || 'NEVER',
-      logoPreview: tenant.logo_url || tenant.logo || null,
-      feature_flags: tenant.feature_flags || {}
-    })
+  const handleSelectTenant = async (tenant) => {
+    // Fetch full tenant details from platform API to ensure fields like email are present
+    try {
+      const resp = await platformAPI.getTenantById(tenant.id)
+      const full = resp.data || resp
+      setSelectedTenant(full)
+      setActiveTab('overview')
+      setEditForm({
+        name: full.name || '',
+        slug: full.slug || full.domain || '',
+        primary_contact_email: full.primary_contact_email || full.admin_email || '',
+        domain: full.domain || '',
+        subscription_tier: full.subscription_tier || 'trial',
+        max_users: full.max_users || 50,
+        master_budget_balance: full.master_budget_balance || 0,
+        currency_label: full.currency_label || full.currency || 'INR',
+        point_symbol: full.point_symbol || full.currency_symbol || '₹',
+        redemption_markup: full.redemption_markup || 0,
+        subscription_ends_at: full.subscription_ends_at || '',
+        status: full.status || 'active',
+        conversion_rate: full.conversion_rate || 1.0,
+        auto_refill_threshold: full.auto_refill_threshold || 20,
+        peer_to_peer_enabled: full.peer_to_peer_enabled !== false,
+        auth_method: full.auth_method || 'PASSWORD_AND_OTP',
+        theme_config: full.theme_config || {
+          primary_color: '#3B82F6',
+          secondary_color: '#8B5CF6',
+          font_family: 'Inter'
+        },
+        domain_whitelist: full.domain_whitelist || [],
+        award_tiers: full.award_tiers || {},
+        expiry_policy: full.expiry_policy || 'NEVER',
+        logoPreview: full.logo_url || full.logo || null,
+        feature_flags: full.feature_flags || {}
+      })
+    } catch (err) {
+      // fallback to shallow tenant object if API fetch fails
+      setSelectedTenant(tenant)
+      setActiveTab('overview')
+      setEditForm(prev => ({ ...prev, name: tenant.name || prev.name }))
+    }
+
+    // If after selecting the tenant we still don't have a primary contact email,
+    // try to load tenant users and use the corporate_email of the first manager/admin user.
+    try {
+      const current = (await Promise.resolve()).then(() => selectedTenant) // no-op to satisfy linter
+    } catch (e) {
+      // noop
+    }
+    // Note: use a separate flow to fetch users if email missing on the selectedTenant object
+    (async () => {
+      const current = (selectedTenant && selectedTenant.id) ? selectedTenant : tenant
+      const missingEmail = !(current?.primary_contact_email || current?.admin_email)
+      if (missingEmail) {
+        try {
+          const usersResp = await platformAPI.getTenantUsers(current.id)
+          const users = (usersResp.data) ? usersResp.data : usersResp
+          if (Array.isArray(users) && users.length > 0) {
+            // Prefer roles that look like admin/manager/lead
+            const preferred = users.find(u => /admin|manager|lead|hr/i.test(u.org_role)) || users[0]
+            const email = preferred?.corporate_email || preferred?.personal_email || null
+            if (email) {
+              setSelectedTenant(prev => ({ ...prev, primary_contact_email: email }))
+              setEditForm(prev => ({ ...prev, primary_contact_email: email }))
+            }
+          }
+        } catch (err) {
+          // ignore user fetch failures
+        }
+      }
+    })()
   }
 
   const navigate = useNavigate()
@@ -510,43 +550,121 @@ export default function PlatformTenants() {
               <div className="space-y-6 max-w-4xl">
                 <OrganizationInfoCard tenant={selectedTenant} />
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Total Budget Allocated</p>
-                    <p className="text-xl font-bold text-gray-900 mt-2">₹{Number(selectedTenant?.total_allocated || 0).toLocaleString()}</p>
-                  </div>
-                  <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Total Spent</p>
-                    <p className="text-xl font-bold text-gray-900 mt-2">₹{Number(selectedTenant?.total_spent || 0).toLocaleString()}</p>
-                  </div>
-                  <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Budget Remaining</p>
-                    <p className="text-xl font-bold text-gray-900 mt-2">₹{Number(selectedTenant?.master_budget_balance || 0).toLocaleString()}</p>
-                  </div>
-                  <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Total Users</p>
-                    <p className="text-xl font-bold text-gray-900 mt-2">{selectedTenant?.user_count || 0}</p>
-                  </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { title: 'Total Budget Allocated', value: `₹${Number(selectedTenant?.total_allocated || 0).toLocaleString()}` , subtitle: 'Lifetime Allocations'},
+                    { title: 'Total Spent', value: `₹${Number(selectedTenant?.total_spent || 0).toLocaleString()}`, subtitle: 'Redeemed / Debited'},
+                    { title: 'Budget Remaining', value: `₹${Number(selectedTenant?.master_budget_balance || 0).toLocaleString()}`, subtitle: 'Current Master Balance'},
+                    { title: 'Total Users', value: `${selectedTenant?.user_count || 0}`, subtitle: 'Managers / Leads / Employees'},
+                  ].map((c) => (
+                    <div key={c.title} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+                      <div>
+                        <p className="text-[11px] text-gray-400 uppercase tracking-wider">{c.title}</p>
+                        <div className="mt-3 flex items-center gap-3">
+                          <p className="text-2xl font-extrabold text-gray-900 leading-none">{c.value}</p>
+                        </div>
+                      </div>
+                      <p className="mt-3 text-xs text-gray-500">{c.subtitle}</p>
+                    </div>
+                  ))}
                 </div>
 
                 <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                  <h3 className="text-sm font-bold text-gray-800 mb-3">Engagement Metrics</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      {(() => {
+                        const recognitionsThisMonth = selectedTenant?.recent_recognitions_count ?? selectedTenant?.total_recognitions ?? 0
+                        const redemptionsThisMonth = selectedTenant?.recent_redemptions_count ?? selectedTenant?.total_redemptions ?? 0
+                        const activeUsersThisWeek = selectedTenant?.active_user_count ?? 0
+                        const avgPointsPerEmployee = selectedTenant && selectedTenant.user_count ? Math.round((Number(selectedTenant.total_points_distributed || 0) || 0) / selectedTenant.user_count) : 0
+
+                        // try to find previous-period fields, otherwise null
+                        const recognitionsPrev = selectedTenant?.recent_recognitions_previous ?? selectedTenant?.recent_recognitions_prev ?? selectedTenant?.recent_recognitions_last_period ?? null
+                        const redemptionsPrev = selectedTenant?.recent_redemptions_previous ?? selectedTenant?.recent_redemptions_prev ?? selectedTenant?.recent_redemptions_last_period ?? null
+                        const activeUsersPrev = selectedTenant?.active_user_count_previous ?? selectedTenant?.active_user_count_prev ?? null
+
+                        const pct = (latest, prev) => {
+                          if (prev === null || prev === undefined || prev === 0) return null
+                          const change = ((latest - prev) / Math.abs(prev)) * 100
+                          return Math.round(change)
+                        }
+
+                        const cards = [
+                          { title: 'RECOGNITIONS THIS MONTH', value: recognitionsThisMonth || '—', prev: recognitionsPrev, svg: (
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2v4" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 7l2 2" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M19 7l-2 2" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M7 14l-2 2" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M17 14l2 2" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          )},
+                          { title: 'REDEMPTIONS THIS MONTH', value: redemptionsThisMonth || '—', prev: redemptionsPrev, svg: (
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 10V6a4 4 0 0 1 8 0v4" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          )},
+                          { title: 'ACTIVE USERS THIS WEEK', value: activeUsersThisWeek || '—', prev: activeUsersPrev, svg: (
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 11c1.657 0 3-1.567 3-3.5S17.657 4 16 4s-3 1.567-3 3.5S14.343 11 16 11zM8 11c1.657 0 3-1.567 3-3.5S9.657 4 8 4 5 5.567 5 7.5 6.343 11 8 11z" stroke="#6366f1" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 20c0-2.5 3-4 6-4s6 1.5 6 4" stroke="#6366f1" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M12 20c0-2.5 3-4 6-4s6 1.5 6 4" stroke="#6366f1" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          )},
+                          { title: 'AVG POINTS PER EMPLOYEE', value: `₹${avgPointsPerEmployee}`, prev: null, svg: (
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.62L12 2 9.19 8.62 2 9.24l5.46 4.73L5.82 21z" stroke="#f59e0b" strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          )}
+                        ]
+
+                        return cards.map((c) => {
+                          const change = pct(c.value === '—' ? 0 : Number(String(c.value).replace(/[^0-9.-]+/g, '')), c.prev)
+                          return (
+                            <div key={c.title} className="p-4 bg-gray-50 rounded-lg border border-gray-100 flex items-center gap-3 justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-md bg-white shadow-sm flex items-center justify-center">{c.svg}</div>
+                                <div>
+                                  <p className="text-xs text-gray-400 uppercase tracking-wider">{c.title}</p>
+                                  <p className="mt-2 text-sm font-semibold text-gray-900">{c.value}</p>
+                                </div>
+                              </div>
+                              <div>
+                                {change !== null ? (
+                                  <div className={`inline-flex items-center gap-1 text-sm font-semibold ${change > 0 ? 'text-green-600' : change < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                                    {change > 0 ? (
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 5v14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 12l7-7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                    ) : change < 0 ? (
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 19V5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M19 12l-7 7-7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                    ) : (
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>
+                                    )}
+                                    <span>{Math.abs(change)}%</span>
+                                  </div>
+                                ) : (
+                                  <div className="text-xs text-gray-400">—</div>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })
+                      })()}
+                    </div>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm mt-4">
                   <h3 className="text-sm font-bold text-gray-800 mb-3">Burn Rate Trend</h3>
-                  <div style={{ width: '100%', height: 220 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={chartDataForSelected} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="period" tick={{ fontSize: 12 }} />
-                        <YAxis />
-                        <Tooltip />
-                        <Area type="monotone" dataKey="credits" stroke="#10b981" fill="#10b98133" name="Credits" />
-                        <Area type="monotone" dataKey="debits" stroke="#f97316" fill="#f9731633" name="Debits" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div className="mt-3 text-sm text-gray-500 flex items-center justify-center gap-8">
-                    <div><div className="text-xs text-gray-500">Credits</div><div className="font-bold text-gray-900">{chartTotalsForSelected.credits.toLocaleString()}</div></div>
-                    <div><div className="text-xs text-gray-500">Debits</div><div className="font-bold text-gray-900">{chartTotalsForSelected.debits.toLocaleString()}</div></div>
-                    <div><div className="text-xs text-gray-500">Net</div><div className="font-bold text-gray-900">{chartTotalsForSelected.net.toLocaleString()}</div></div>
+                  <div>
+                    {chartDataForSelected && chartDataForSelected.length > 0 ? (
+                      <div style={{ width: '100%', height: 220 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={chartDataForSelected} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="period" tick={{ fontSize: 12 }} />
+                            <YAxis />
+                            <Tooltip />
+                            <Area type="monotone" dataKey="credits" stroke="#10b981" fill="#10b98133" name="Credits" />
+                            <Area type="monotone" dataKey="debits" stroke="#f97316" fill="#f9731633" name="Debits" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="h-48 border-2 border-dashed border-gray-200 rounded-lg flex items-center justify-center text-gray-400">
+                        <span>No budget activity yet</span>
+                      </div>
+                    )}
+
+                    <div className="mt-3 text-sm text-gray-500 flex items-center justify-center gap-8">
+                      <div><div className="text-xs text-gray-500">Credits</div><div className="font-bold text-gray-900">{chartTotalsForSelected.credits.toLocaleString()}</div></div>
+                      <div><div className="text-xs text-gray-500">Debits</div><div className="font-bold text-gray-900">{chartTotalsForSelected.debits.toLocaleString()}</div></div>
+                      <div><div className="text-xs text-gray-500">Net</div><div className="font-bold text-gray-900">{chartTotalsForSelected.net.toLocaleString()}</div></div>
+                    </div>
                   </div>
                 </div>
               </div>
