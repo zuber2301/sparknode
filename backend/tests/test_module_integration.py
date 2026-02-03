@@ -302,13 +302,13 @@ class TestAuditTrailFlow:
 class TestRBACIntegration:
     """Test Role-Based Access Control integration"""
     
-    def test_tenant_admin_permissions(self):
-        """Test Tenant Admin role has correct permissions"""
+    def test_tenant_manager_permissions(self):
+        """Test Tenant Manager role has correct permissions"""
         # Tenant admin should have these permissions
-        assert RolePermissions.has_permission('tenant_admin', Permission.MANAGE_USERS) is True
-        assert RolePermissions.has_permission('tenant_admin', Permission.ALLOCATE_POINTS) is True
-        assert RolePermissions.has_permission('tenant_admin', Permission.VIEW_TENANT_ANALYTICS) is True
-        assert RolePermissions.has_permission('tenant_admin', Permission.MANAGE_BUDGETS) is True
+        assert RolePermissions.has_permission('tenant_manager', Permission.MANAGE_USERS) is True
+        assert RolePermissions.has_permission('tenant_manager', Permission.ALLOCATE_POINTS) is True
+        assert RolePermissions.has_permission('tenant_manager', Permission.VIEW_TENANT_ANALYTICS) is True
+        assert RolePermissions.has_permission('tenant_manager', Permission.MANAGE_BUDGETS) is True
     
     def test_tenant_lead_permissions(self):
         """Test Tenant Lead role has correct permissions"""
@@ -426,11 +426,11 @@ class TestCombinedWorkflow:
         employee_id = uuid4()
         allocation_points = Decimal('200.00')
         
-        # Mock Tenant Admin user (has allocate_points permission)
+        # Mock Tenant Manager user (has allocate_points permission)
         admin_user = MagicMock()
         admin_user.id = hr_user_id
         admin_user.tenant_id = self.tenant_id
-        admin_user.org_role = 'tenant_admin'
+        admin_user.org_role = 'tenant_manager'
         
         # Mock employee wallet
         employee_wallet = MagicMock()

@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 /**
  * Invite Users Admin Component
  * 
- * Allows Tenant Admin and HR Admin to:
+ * Allows Tenant Manager and HR Admin to:
  * 1. Generate secure invite links for new users
  * 2. Batch generate for multiple emails
  * 3. Copy links for email templates

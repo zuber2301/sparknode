@@ -70,7 +70,7 @@ def setup_database():
     db.add(dept)
     db.commit()
     
-    # Create test tenant admin user with tenant_admin role
+    # Create test tenant admin user with tenant_manager role
     admin_user = User(
         id=ADMIN_USER_ID,
         tenant_id=tenant.id,
@@ -78,7 +78,7 @@ def setup_database():
         password_hash=get_password_hash("password123"),
         first_name="Test",
         last_name="Admin",
-        org_role="tenant_admin",
+        org_role="tenant_manager",
         department_id=dept.id,
         status="ACTIVE"
     )
@@ -105,7 +105,7 @@ def setup_database():
     Base.metadata.drop_all(bind=engine)
 
 
-def get_token(user_id: str, email: str, org_role: str = "tenant_admin", tenant_id: str = TENANT_ID):
+def get_token(user_id: str, email: str, org_role: str = "tenant_manager", tenant_id: str = TENANT_ID):
     """Helper function to create a JWT token for testing"""
     data = {
         "sub": user_id,
@@ -122,7 +122,7 @@ class TestEventCreation:
     
     def test_create_event_with_valid_token(self):
         """Test creating an event with valid authentication token"""
-        token = get_token(ADMIN_USER_ID, "admin@test.com", "tenant_admin")
+        token = get_token(ADMIN_USER_ID, "admin@test.com", "tenant_manager")
         
         event_data = {
             "title": "Annual Company Day",
@@ -233,7 +233,7 @@ class TestEventCreation:
             "sub": ADMIN_USER_ID,
             "tenant_id": TENANT_ID,
             "email": "admin@test.com",
-            "org_role": "tenant_admin",
+            "org_role": "tenant_manager",
             "type": "tenant"
         }
         # Create a token with very short expiration
@@ -276,7 +276,7 @@ class TestEventCreation:
     
     def test_create_event_with_regular_user_role(self):
         """Test creating event with regular user (corporate_user role) - should succeed based on current code"""
-        # Note: Current code has TODO comment about checking Tenant Admin role
+        # Note: Current code has TODO comment about checking Tenant Manager role
         # This test documents current behavior; should be updated when role check is implemented
         token = get_token(REGULAR_USER_ID, "user@test.com", "corporate_user")
         
@@ -314,7 +314,7 @@ class TestEventCreation:
     
     def test_create_event_creates_budget_and_metrics(self):
         """Test that event creation automatically creates associated budget and metrics records"""
-        token = get_token(ADMIN_USER_ID, "admin@test.com", "tenant_admin")
+        token = get_token(ADMIN_USER_ID, "admin@test.com", "tenant_manager")
         
         event_data = {
             "title": "Budget Test Event",
@@ -360,7 +360,7 @@ class TestEventCreation:
     
     def test_create_event_with_minimal_fields(self):
         """Test creating event with only required fields"""
-        token = get_token(ADMIN_USER_ID, "admin@test.com", "tenant_admin")
+        token = get_token(ADMIN_USER_ID, "admin@test.com", "tenant_manager")
         
         event_data = {
             "title": "Minimal Event",
@@ -382,7 +382,7 @@ class TestEventCreation:
     
     def test_create_event_sets_correct_tenant(self):
         """Test that created event belongs to current user's tenant"""
-        token = get_token(ADMIN_USER_ID, "admin@test.com", "tenant_admin")
+        token = get_token(ADMIN_USER_ID, "admin@test.com", "tenant_manager")
         
         event_data = {
             "title": "Tenant Test Event",
@@ -407,7 +407,7 @@ class TestEventList:
     
     def test_list_events_with_valid_token(self):
         """Test listing events with valid authentication"""
-        token = get_token(ADMIN_USER_ID, "admin@test.com", "tenant_admin")
+        token = get_token(ADMIN_USER_ID, "admin@test.com", "tenant_manager")
         
         # First create an event
         event_data = {
@@ -443,7 +443,7 @@ class TestEventList:
     
     def test_list_events_filters_by_tenant(self):
         """Test that users can only see events from their own tenant"""
-        token = get_token(ADMIN_USER_ID, "admin@test.com", "tenant_admin")
+        token = get_token(ADMIN_USER_ID, "admin@test.com", "tenant_manager")
         
         event_data = {
             "title": "Tenant-Specific Event",

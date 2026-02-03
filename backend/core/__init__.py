@@ -15,7 +15,7 @@ from .rbac import (
     require_permission,
     require_role,
     get_platform_admin,
-    get_tenant_admin,
+    get_tenant_manager,
     get_tenant_lead,
     get_corporate_user,
 )
@@ -49,7 +49,7 @@ __all__ = [
     "require_permission",
     "require_role",
     "get_platform_admin",
-    "get_tenant_admin",
+    "get_tenant_manager",
     "get_tenant_lead",
     "get_corporate_user",
     "generate_qr_token",

@@ -39,7 +39,7 @@ class CopilotMessageRequest(BaseModel):
         "timeframe": "Q1 2026",
         # etc.
     },
-    "user_role": "corporate_user|tenant_admin|hr_admin|platform_admin"
+    "user_role": "corporate_user|tenant_manager|hr_admin|platform_admin"
 }
 ```
 
@@ -113,7 +113,7 @@ curl -X POST http://localhost:8000/api/copilot/chat \
         "user_name": "John Smith",
         "recognition_id": "rec_456"
       },
-      "user_role": "tenant_admin"
+      "user_role": "tenant_manager"
     }
   }'
 ```

@@ -38,10 +38,10 @@ const navigation = [
 
 const adminNavigation = [
   { name: 'Tenants', href: '/platform/tenants', icon: HiOutlineOfficeBuilding, roles: ['platform_admin'] },
-  { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
-  { name: 'Users', href: '/users', icon: HiOutlineUsers, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
-  { name: 'Invite Users', href: '/admin/invite-users', icon: HiOutlineMailOpen, roles: ['tenant_admin', 'hr_admin'] },
-  { name: 'Audit Log', href: '/audit', icon: HiOutlineClipboardList, roles: ['tenant_admin', 'hr_admin', 'platform_admin'] },
+  { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar, roles: ['tenant_manager', 'hr_admin', 'platform_admin'] },
+  { name: 'Users', href: '/users', icon: HiOutlineUsers, roles: ['tenant_manager', 'hr_admin', 'platform_admin'] },
+  { name: 'Invite Users', href: '/admin/invite-users', icon: HiOutlineMailOpen, roles: ['tenant_manager', 'hr_admin'] },
+  { name: 'Audit Log', href: '/audit', icon: HiOutlineClipboardList, roles: ['tenant_manager', 'hr_admin', 'platform_admin'] },
   { name: 'Marketplace', href: '/marketplace', icon: HiOutlineShoppingCart, roles: ['platform_admin'] },
   { name: 'AI Settings', href: '/ai-settings', icon: HiOutlineCog, roles: ['platform_admin'] },
   { name: 'Templates', href: '/templates', icon: HiOutlineViewGrid, roles: ['platform_admin'] },
@@ -131,10 +131,10 @@ export default function TopHeader() {
   const getRoleDisplayName = (role) => {
     const roles = {
       platform_admin: 'Platform Admin',
-      tenant_admin: 'Tenant Admin',
+      tenant_manager: 'Tenant Manager',
       tenant_lead: 'Tenant Leader',
       corporate_user: 'Corporate User',
-      hr_admin: 'Tenant Admin',
+      hr_admin: 'Tenant Manager',
     }
     return roles[role] || role
   }
@@ -224,9 +224,9 @@ export default function TopHeader() {
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-1 flex-1">
-            {!isPlatformUser && effectiveRole === 'tenant_admin' ? (
+            {!isPlatformUser && effectiveRole === 'tenant_manager' ? (
               <>
-                {/* Tenant Admin: Primary tabs */}
+                {/* Tenant Manager: Primary tabs */}
                 {[
                   { name: 'Recognize', href: '/recognize', icon: HiOutlineSparkles },
                   { name: 'Feed', href: '/feed', icon: HiOutlineNewspaper },
@@ -318,7 +318,7 @@ export default function TopHeader() {
               ))
             ) : null}
 
-            {adminNavigation.some((item) => canAccess(item.roles)) && effectiveRole !== 'tenant_admin' && (
+            {adminNavigation.some((item) => canAccess(item.roles)) && effectiveRole !== 'tenant_manager' && (
               <>
                 <div className="w-px h-6 bg-gray-200 mx-2" />
                 {adminNavigation.map((item) =>
@@ -400,7 +400,7 @@ export default function TopHeader() {
                       {personaExpandOpen && (
                         <div className="space-y-0.5">
                           {[
-                            { value: 'tenant_admin', label: 'Tenant Admin' },
+                            { value: 'tenant_manager', label: 'Tenant Manager' },
                             { value: 'tenant_lead', label: 'Tenant Leader' },
                             { value: 'corporate_user', label: 'Corporate User' },
                           ].map((persona) => (
@@ -427,7 +427,7 @@ export default function TopHeader() {
                               setPersonaExpandOpen(false)
                             }}
                             className={`w-full text-left px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                              effectiveRole === 'corporate_user' || (effectiveRole && !['tenant_admin', 'tenant_lead', 'corporate_user'].includes(effectiveRole))
+                              effectiveRole === 'corporate_user' || (effectiveRole && !['tenant_manager', 'tenant_lead', 'corporate_user'].includes(effectiveRole))
                                 ? 'bg-sparknode-purple text-white'
                                 : 'text-gray-700 hover:bg-gray-50'
                             }`}

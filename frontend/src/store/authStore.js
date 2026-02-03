@@ -4,7 +4,8 @@ import { persist } from 'zustand/middleware'
 // Role hierarchy constants
 export const UserRole = {
   PLATFORM_ADMIN: 'platform_admin',
-  TENANT_ADMIN: 'tenant_admin',
+  TENANT_ADMIN: 'tenant_manager',
+  TENANT_MANAGER: 'tenant_manager',
   TENANT_LEAD: 'tenant_lead',
   CORPORATE_USER: 'corporate_user',
   // Legacy mappings
@@ -16,7 +17,7 @@ export const UserRole = {
 // Role hierarchy levels (higher = more permissions)
 const ROLE_HIERARCHY = {
   platform_admin: 100,
-  tenant_admin: 80,
+  tenant_manager: 80,
   hr_admin: 80, // Legacy alias
   tenant_lead: 60,
   manager: 60, // Legacy alias
@@ -27,7 +28,7 @@ const ROLE_HIERARCHY = {
 // Normalize legacy roles to new roles
 const normalizeRole = (role) => {
   const legacyMap = {
-    hr_admin: 'tenant_admin',
+    hr_admin: 'tenant_manager',
     manager: 'tenant_lead',
     employee: 'corporate_user',
   }
@@ -126,13 +127,13 @@ export const useAuthStore = create(
         return normalizeRole(user?.org_role) === 'platform_admin'
       },
 
-      // Tenant Admin check (includes Platform Admin)
+      // Tenant Manager check (includes Platform Admin)
       isTenantAdmin: () => {
         const { getEffectiveRole } = get()
-        return getEffectiveRole() === 'tenant_admin' || getEffectiveRole() === 'platform_admin'
+        return getEffectiveRole() === 'tenant_manager' || getEffectiveRole() === 'platform_admin'
       },
 
-      // Tenant Lead check (includes Tenant Admin and above)
+      // Tenant Lead check (includes Tenant Manager and above)
       isTenantLead: () => {
         const { getEffectiveRole, isTenantAdmin } = get()
         return isTenantAdmin() || getEffectiveRole() === 'tenant_lead'

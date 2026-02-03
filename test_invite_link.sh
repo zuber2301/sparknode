@@ -29,7 +29,7 @@ HR_ADMIN=$(docker-compose exec -T postgres psql -U sparknode sparknode -t -c \
 if [ -z "$HR_ADMIN" ]; then
   echo "❌ No HR admin found. Let me find any admin user..."
   HR_ADMIN=$(docker-compose exec -T postgres psql -U sparknode sparknode -t -c \
-    "SELECT corporate_email FROM users WHERE org_role IN ('tenant_admin', 'hr_admin') LIMIT 1;" 2>/dev/null | tr -d ' ' | head -1)
+    "SELECT corporate_email FROM users WHERE org_role IN ('tenant_manager', 'hr_admin') LIMIT 1;" 2>/dev/null | tr -d ' ' | head -1)
 fi
 
 if [ -z "$HR_ADMIN" ]; then

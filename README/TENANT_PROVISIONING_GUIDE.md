@@ -25,7 +25,7 @@ Valid Token + Required Role → Access Granted → Operation Executes
 ```
 - Roles for provisioning:
   - `platform_admin` - System-level tenant management
-  - `tenant_admin` - Tenant operations and user invitations
+  - `tenant_manager` - Tenant operations and user invitations
   - `hr_admin` - Bulk user uploads
   - `corporate_user` - Regular employees
 
@@ -50,7 +50,7 @@ HR admins send secure invite links via email. Users click the link and join the 
 
 ### Flow
 ```
-1. HR Admin logs in (tenant_admin or hr_admin role)
+1. HR Admin logs in (tenant_manager or hr_admin role)
 2. Generates invitation link with user's email
 3. Email sent to user with unique token
 4. User accepts invitation and creates account
@@ -235,7 +235,7 @@ curl -X POST http://localhost:7100/api/auth/login \
 # Get tenant admin token
 TOKEN=$(curl -s -X POST http://localhost:7100/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email": "tenant_admin@sparknode.io", "password": "jspark123"}' | jq -r '.access_token')
+  -d '{"email": "tenant_manager@sparknode.io", "password": "jspark123"}' | jq -r '.access_token')
 
 # Generate invite link
 curl -X POST http://localhost:7100/api/auth/invitations/generate \

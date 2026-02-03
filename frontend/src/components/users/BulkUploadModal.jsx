@@ -112,7 +112,7 @@ function UploadStep({ isUploading, onFileUpload, onDownloadTemplate }) {
         <h3 className="font-medium text-gray-900 mb-2">CSV Format Requirements</h3>
         <ul className="text-sm text-gray-600 space-y-1">
           <li>• Columns: full_name, email, department, role (optional), mobile_phone (optional), manager_email (optional)</li>
-          <li>• Role values: corporate_user, tenant_lead, tenant_admin</li>
+          <li>• Role values: corporate_user, tenant_lead, tenant_manager</li>
           <li>• First row should be headers</li>
         </ul>
         <button
@@ -278,7 +278,7 @@ function StagingRow({
             <option value="">Select...</option>
             <option value="corporate_user">Corporate User</option>
             <option value="tenant_lead">Tenant Lead</option>
-            <option value="tenant_admin">Tenant Admin</option>
+            <option value="tenant_manager">Tenant Manager</option>
           </select>
         </td>
         <td className="px-4 py-2"></td>

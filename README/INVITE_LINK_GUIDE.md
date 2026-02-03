@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Invite-Link Method allows Tenant Admins/HR Admins to generate secure, one-time-use join links for inviting new users to their organization. When a user clicks the link and signs up, they are automatically assigned to the correct tenant.
+The Invite-Link Method allows Tenant Managers/HR Admins to generate secure, one-time-use join links for inviting new users to their organization. When a user clicks the link and signs up, they are automatically assigned to the correct tenant.
 
 ---
 
@@ -11,7 +11,7 @@ The Invite-Link Method allows Tenant Admins/HR Admins to generate secure, one-ti
 ### How It Works
 
 ```
-Tenant Admin                            SparkNode Platform
+Tenant Manager                            SparkNode Platform
     │
     ├─ Clicks "Generate Invite"
     │
@@ -71,7 +71,7 @@ class InvitationToken(Base):
 
 **Location**: `backend/auth/routes.py:POST /api/auth/invitations/generate`
 
-**Authorization**: Requires `tenant_admin` or `hr_admin` role
+**Authorization**: Requires `tenant_manager` or `hr_admin` role
 
 **Request**:
 ```bash
@@ -104,7 +104,7 @@ curl -X POST http://localhost:7100/api/auth/invitations/generate \
 - `tenant_id`: For backend tracking
 
 **Validation:**
-- ✓ User must be tenant_admin or hr_admin
+- ✓ User must be tenant_manager or hr_admin
 - ✓ Email not already registered
 - ✓ Expiration between 1-720 hours
 - ✓ Tenant must be active/subscribed
@@ -690,7 +690,7 @@ CREATE TABLE invitation_tokens (
 - [ ] One-time use tracking prevents reuse
 - [ ] Expiration times are enforced
 - [ ] Audit trail captures who used token
-- [ ] Admin component has proper access control (tenant_admin/hr_admin only)
+- [ ] Admin component has proper access control (tenant_manager/hr_admin only)
 - [ ] Error messages are user-friendly
 - [ ] Email templates prepared for HR admins
 - [ ] Rate limiting on invite generation

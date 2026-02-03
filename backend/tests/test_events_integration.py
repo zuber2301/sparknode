@@ -20,7 +20,7 @@ DEPT_ID = "110e8400-e29b-41d4-a716-446655440000"  # HR department
 
 # Test account credentials
 SUPER_USER_EMAIL = "super_user@sparknode.io"
-ADMIN_USER_EMAIL = "tenant_admin@sparknode.io"
+ADMIN_USER_EMAIL = "tenant_manager@sparknode.io"
 REGULAR_USER_EMAIL = "user@sparknode.io"
 PASSWORD = "jspark123"
 

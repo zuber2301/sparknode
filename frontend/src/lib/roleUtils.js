@@ -13,8 +13,8 @@ export const ROLE_CONFIG = {
     badgeColor: 'purple',
     description: 'System-wide administrator'
   },
-  tenant_admin: {
-    label: 'Tenant Admin',
+  tenant_manager: {
+    label: 'Tenant Manager',
     color: 'bg-blue-100 text-blue-800',
     badgeColor: 'blue',
     description: 'Company administrator'
@@ -84,13 +84,13 @@ export function formatRoleString(role) {
 }
 
 /**
- * Check if a role is admin level (platform_admin or tenant_admin)
+ * Check if a role is admin level (platform_admin or tenant_manager)
  * @param {string} role - Role identifier
  * @returns {boolean}
  */
 export function isAdminRole(role) {
   if (!role) return false
-  const adminRoles = ['platform_admin', 'tenant_admin', 'hr_admin']
+  const adminRoles = ['platform_admin', 'tenant_manager', 'hr_admin']
   return adminRoles.includes(role.toLowerCase())
 }
 
@@ -101,7 +101,7 @@ export function isAdminRole(role) {
  */
 export function isLeadOrHigher(role) {
   if (!role) return false
-  const leadRoles = ['platform_admin', 'tenant_admin', 'hr_admin', 'tenant_lead', 'manager']
+  const leadRoles = ['platform_admin', 'tenant_manager', 'hr_admin', 'tenant_lead', 'manager']
   return leadRoles.includes(role.toLowerCase())
 }
 
@@ -114,7 +114,7 @@ export function getRoleLevel(role) {
   if (!role) return 0
   const levels = {
     platform_admin: 4,
-    tenant_admin: 3,
+    tenant_manager: 3,
     hr_admin: 3,
     tenant_lead: 2,
     manager: 2,

@@ -158,7 +158,7 @@ export default function AdminDashboard() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold">
-              {isPlatformAdmin ? 'Platform Admin' : 'Tenant Admin'}
+              {isPlatformAdmin ? 'Platform Admin' : 'Tenant Manager'}
             </h1>
             <p className="text-white text-opacity-90 mt-1 max-w-2xl text-sm">
               {isPlatformAdmin 

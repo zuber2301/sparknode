@@ -252,7 +252,7 @@ export default function Users() {
   const getRoleColor = (role) => {
     const colors = {
       platform_admin: 'bg-red-100 text-red-800',
-      tenant_admin: 'bg-purple-100 text-purple-800',
+      tenant_manager: 'bg-purple-100 text-purple-800',
       tenant_lead: 'bg-blue-100 text-blue-800',
       corporate_user: 'bg-green-100 text-green-800',
     }
@@ -269,7 +269,7 @@ export default function Users() {
 
   const getRoleLabel = (role) => {
     if (role === 'platform_admin') return 'Platform Admin'
-    if (role === 'tenant_admin') return 'Tenant Admin'
+    if (role === 'tenant_manager') return 'Tenant Manager'
     if (role === 'tenant_lead') return 'Tenant Leader'
     if (role === 'corporate_user') return 'Corporate User'
     return role?.replace('_', ' ')
@@ -627,7 +627,7 @@ export default function Users() {
                         <ul className="text-[10px] space-y-1 text-sparknode-purple/80">
                           <li>• Use our official CSV template for formatting</li>
                           <li>• Emails must be unique within your organization</li>
-                          <li>• Role must be 'corporate_user', 'tenant_lead' or 'tenant_admin'</li>
+                          <li>• Role must be 'corporate_user', 'tenant_lead' or 'tenant_manager'</li>
                           <li>• Mobile should follow international format if possible</li>
                         </ul>
                       </div>
@@ -869,7 +869,7 @@ export default function Users() {
                   <select name="org_role" className="input" defaultValue={selectedUser?.org_role || 'corporate_user'} required>
                     <option value="corporate_user">Employee</option>
                     <option value="tenant_lead">Manager</option>
-                    <option value="tenant_admin">Admin</option>
+                    <option value="tenant_manager">Admin</option>
                   </select>
                 </div>
               </div>

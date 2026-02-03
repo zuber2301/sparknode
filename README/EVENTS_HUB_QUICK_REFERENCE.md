@@ -44,7 +44,7 @@ Database:
 
 ## 🚀 Getting Started
 
-### For Tenant Admins
+### For Tenant Managers
 1. Navigate to **Events** in sidebar (admin section)
 2. Click **Create Event**
 3. Choose template or build from scratch
@@ -84,7 +84,7 @@ Database:
 
 | Role | Create | Edit | Delete | Approve | View Analytics |
 |------|--------|------|--------|---------|-----------------|
-| Tenant Admin | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Tenant Manager | ✅ | ✅ | ✅ | ✅ | ✅ |
 | HR Admin | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Corporate User | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Platform Admin | ✅ | ✅ | ✅ | ✅ | ✅ |

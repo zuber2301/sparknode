@@ -1,7 +1,7 @@
 # SparkNode Events Hub - Implementation Complete
 
 ## Project Overview
-The Events Hub is a comprehensive event management system enabling Tenant Admins to create, manage, and track company events with employee self-nomination, activity management, and analytics tracking.
+The Events Hub is a comprehensive event management system enabling Tenant Managers to create, manage, and track company events with employee self-nomination, activity management, and analytics tracking.
 
 ## Implementation Summary
 
@@ -133,7 +133,7 @@ All frontend components are fully implemented and integrated:
 - **Location**: [frontend/src/components/Layout.jsx](frontend/src/components/Layout.jsx)
 - **Changes**:
   - Added Events to main navigation (appears for all users)
-  - Added Events to admin navigation (Tenant Admin, HR Admin only)
+  - Added Events to admin navigation (Tenant Manager, HR Admin only)
   - Proper role-based visibility
 
 ## Architecture Highlights
@@ -145,7 +145,7 @@ All frontend components are fully implemented and integrated:
 
 ### Security
 - JWT authentication on all endpoints
-- Role-based access control (Tenant Admin, HR Admin)
+- Role-based access control (Tenant Manager, HR Admin)
 - Nomination window validation on client & server
 - Data isolation per tenant
 
@@ -244,7 +244,7 @@ Future enhancements could include:
 - **API Service Methods**: 11
 - **Total Lines of Code**: 3,000+
 - **Event Templates**: 5
-- **Supported Roles**: Tenant Admin, HR Admin, Corporate User, Platform Admin
+- **Supported Roles**: Tenant Manager, HR Admin, Corporate User, Platform Admin
 
 ---
 

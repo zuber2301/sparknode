@@ -13,11 +13,11 @@ from auth.utils import get_password_hash
 class TestUsersApiIntegration:
     """Integration tests for /users/* endpoints"""
     
-    def test_list_users_returns_current_tenant_only(self, client, tenant_admin_token, db_session, tenant):
+    def test_list_users_returns_current_tenant_only(self, client, tenant_manager_token, db_session, tenant):
         """Test listing users returns only current tenant's users"""
         response = client.get(
             "/users",
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         assert response.status_code == 200
@@ -32,11 +32,11 @@ class TestUsersApiIntegration:
             ).first()
             assert db_user is not None, "User should belong to current tenant"
     
-    def test_get_user_profile_returns_current_user(self, client, tenant_admin_token, admin_user):
+    def test_get_user_profile_returns_current_user(self, client, tenant_manager_token, admin_user):
         """Test profile endpoint returns current authenticated user"""
         response = client.get(
             "/users/profile",
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         assert response.status_code == 200
@@ -45,11 +45,11 @@ class TestUsersApiIntegration:
         assert profile['corporate_email'] == admin_user.corporate_email
         assert profile['id'] == str(admin_user.id)
     
-    def test_get_user_by_id_returns_full_details(self, client, tenant_admin_token, user_in_tenant, tenant):
+    def test_get_user_by_id_returns_full_details(self, client, tenant_manager_token, user_in_tenant, tenant):
         """Test get user by ID returns complete user details"""
         response = client.get(
             f"/users/{user_in_tenant['id']}",
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         assert response.status_code == 200
@@ -58,7 +58,7 @@ class TestUsersApiIntegration:
         assert user['corporate_email'] == user_in_tenant['corporate_email']
         assert user['first_name'] == user_in_tenant['first_name']
     
-    def test_get_user_cross_tenant_forbidden(self, client, tenant_admin_token, other_tenant, db_session):
+    def test_get_user_cross_tenant_forbidden(self, client, tenant_manager_token, other_tenant, db_session):
         """Test getting user from different tenant returns 403"""
         # Create user in other tenant
         other_user = User(
@@ -75,12 +75,12 @@ class TestUsersApiIntegration:
         
         response = client.get(
             f"/users/{other_user.id}",
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         assert response.status_code == 403
     
-    def test_create_user_successful(self, client, tenant_admin_token, tenant):
+    def test_create_user_successful(self, client, tenant_manager_token, tenant):
         """Test creating a new user via API"""
         user_data = {
             "corporate_email": "newuser@example.com",
@@ -94,7 +94,7 @@ class TestUsersApiIntegration:
         response = client.post(
             "/users",
             json=user_data,
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         assert response.status_code in [200, 201]
@@ -103,7 +103,7 @@ class TestUsersApiIntegration:
         assert created_user['corporate_email'] == user_data['corporate_email']
         assert created_user['first_name'] == user_data['first_name']
     
-    def test_create_duplicate_user_fails(self, client, tenant_admin_token, user_in_tenant):
+    def test_create_duplicate_user_fails(self, client, tenant_manager_token, user_in_tenant):
         """Test creating user with duplicate email fails"""
         user_data = {
             "corporate_email": user_in_tenant['corporate_email'],
@@ -116,12 +116,12 @@ class TestUsersApiIntegration:
         response = client.post(
             "/users",
             json=user_data,
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         assert response.status_code == 400
     
-    def test_update_user_fields(self, client, tenant_admin_token, user_in_tenant):
+    def test_update_user_fields(self, client, tenant_manager_token, user_in_tenant):
         """Test updating user fields"""
         update_data = {
             "first_name": "Updated",
@@ -131,7 +131,7 @@ class TestUsersApiIntegration:
         response = client.patch(
             f"/users/{user_in_tenant['id']}",
             json=update_data,
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         assert response.status_code == 200
@@ -140,13 +140,13 @@ class TestUsersApiIntegration:
         assert updated_user['first_name'] == "Updated"
         assert updated_user['last_name'] == "Name"
     
-    def test_delete_user_removes_from_database(self, client, tenant_admin_token, user_in_tenant, db_session):
+    def test_delete_user_removes_from_database(self, client, tenant_manager_token, user_in_tenant, db_session):
         """Test deleting user removes from database"""
         user_id = user_in_tenant['id']
         
         response = client.delete(
             f"/users/{user_id}",
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         assert response.status_code == 200
@@ -159,7 +159,7 @@ class TestUsersApiIntegration:
 class TestBulkUploadIntegration:
     """Integration tests for bulk upload feature"""
     
-    def test_bulk_upload_csv_file(self, client, tenant_admin_token, tenant_with_department):
+    def test_bulk_upload_csv_file(self, client, tenant_manager_token, tenant_with_department):
         """Test uploading a CSV file for bulk user import"""
         csv_content = """email,full_name,department,role
 john@example.com,John Doe,Engineering,corporate_user
@@ -172,7 +172,7 @@ jane@example.com,Jane Smith,Engineering,tenant_lead"""
         response = client.post(
             "/users/upload",
             files=files,
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         assert response.status_code in [200, 201]
@@ -181,7 +181,7 @@ jane@example.com,Jane Smith,Engineering,tenant_lead"""
         assert data['total_rows'] == 2
         assert 'batch_id' in data
     
-    def test_bulk_upload_xlsx_file(self, client, tenant_admin_token, tenant_with_department):
+    def test_bulk_upload_xlsx_file(self, client, tenant_manager_token, tenant_with_department):
         """Test uploading an XLSX file for bulk user import"""
         import openpyxl
         from io import BytesIO
@@ -204,14 +204,14 @@ jane@example.com,Jane Smith,Engineering,tenant_lead"""
         response = client.post(
             "/users/upload",
             files=files,
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         assert response.status_code in [200, 201]
         data = response.json()
         assert data['total_rows'] == 2
     
-    def test_bulk_upload_retrieves_staging_data(self, client, tenant_admin_token, db_session, tenant_with_department):
+    def test_bulk_upload_retrieves_staging_data(self, client, tenant_manager_token, db_session, tenant_with_department):
         """Test retrieving staged data after upload"""
         csv_content = """email,full_name,department,role
 john@example.com,John Doe,Engineering,corporate_user"""
@@ -224,7 +224,7 @@ john@example.com,John Doe,Engineering,corporate_user"""
         upload_response = client.post(
             "/users/upload",
             files=files,
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         batch_id = upload_response.json()['batch_id']
@@ -232,7 +232,7 @@ john@example.com,John Doe,Engineering,corporate_user"""
         # Retrieve staging data
         response = client.get(
             f"/users/staging/{batch_id}",
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         assert response.status_code == 200
@@ -241,7 +241,7 @@ john@example.com,John Doe,Engineering,corporate_user"""
         assert len(staging_rows) == 1
         assert staging_rows[0]['raw_email'] == "john@example.com"
     
-    def test_bulk_upload_confirm_creates_users(self, client, tenant_admin_token, db_session, tenant_with_department):
+    def test_bulk_upload_confirm_creates_users(self, client, tenant_manager_token, db_session, tenant_with_department):
         """Test confirming bulk upload creates users"""
         csv_content = """email,full_name,department,role
 john@example.com,John Doe,Engineering,corporate_user"""
@@ -254,7 +254,7 @@ john@example.com,John Doe,Engineering,corporate_user"""
         upload_response = client.post(
             "/users/upload",
             files=files,
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         batch_id = upload_response.json()['batch_id']
@@ -262,7 +262,7 @@ john@example.com,John Doe,Engineering,corporate_user"""
         # Confirm upload
         confirm_response = client.post(
             f"/users/staging/{batch_id}/confirm",
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         assert confirm_response.status_code in [200, 201]
@@ -275,7 +275,7 @@ john@example.com,John Doe,Engineering,corporate_user"""
         
         assert new_user is not None
     
-    def test_bulk_upload_error_rows_dont_create_users(self, client, tenant_admin_token, db_session, tenant_with_department):
+    def test_bulk_upload_error_rows_dont_create_users(self, client, tenant_manager_token, db_session, tenant_with_department):
         """Test error rows in bulk upload don't create users"""
         csv_content = """email,full_name,department,role
 invalid-email,John Doe,NonexistentDept,invalid_role"""
@@ -287,7 +287,7 @@ invalid-email,John Doe,NonexistentDept,invalid_role"""
         response = client.post(
             "/users/upload",
             files=files,
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         assert response.status_code in [200, 201]
@@ -318,7 +318,7 @@ john@example.com,John Doe,Engineering,corporate_user"""
 class TestUsersValidation:
     """Integration tests for user validation"""
     
-    def test_invalid_email_rejected(self, client, tenant_admin_token):
+    def test_invalid_email_rejected(self, client, tenant_manager_token):
         """Test invalid email format is rejected"""
         user_data = {
             "corporate_email": "not-an-email",
@@ -331,12 +331,12 @@ class TestUsersValidation:
         response = client.post(
             "/users",
             json=user_data,
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         assert response.status_code == 422  # Validation error
     
-    def test_missing_required_field_rejected(self, client, tenant_admin_token):
+    def test_missing_required_field_rejected(self, client, tenant_manager_token):
         """Test missing required fields are rejected"""
         user_data = {
             "corporate_email": "test@example.com",
@@ -349,12 +349,12 @@ class TestUsersValidation:
         response = client.post(
             "/users",
             json=user_data,
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         assert response.status_code == 422
     
-    def test_invalid_role_rejected(self, client, tenant_admin_token):
+    def test_invalid_role_rejected(self, client, tenant_manager_token):
         """Test invalid role is rejected"""
         user_data = {
             "corporate_email": "test@example.com",
@@ -367,7 +367,7 @@ class TestUsersValidation:
         response = client.post(
             "/users",
             json=user_data,
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         assert response.status_code == 422

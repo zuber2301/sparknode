@@ -120,7 +120,7 @@ tests/test_tenant_provisioning_core.py::TestProvisioningDataModel::test_10_user_
 - Role-based authorization enforced
 - Multiple provisioning roles supported:
   - `platform_admin` - Provision new tenants
-  - `tenant_admin` - Manage tenant operations
+  - `tenant_manager` - Manage tenant operations
   - `hr_admin` - Upload employees
   - `corporate_user` - Regular employees
 

@@ -117,7 +117,7 @@ export default function UserFormModal({
             >
               <option value="corporate_user">Corporate User</option>
               <option value="tenant_lead">Tenant Leader</option>
-              <option value="tenant_admin">Tenant Admin</option>
+              <option value="tenant_manager">Tenant Manager</option>
             </select>
           </div>
 

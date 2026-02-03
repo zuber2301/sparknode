@@ -143,11 +143,11 @@ class TestPasswordGeneration:
 class TestUsersApiIntegration:
     """Integration tests for /users/* endpoints"""
     
-    def test_list_users_returns_current_tenant_only(self, client, tenant_admin_token, db_session, tenant):
+    def test_list_users_returns_current_tenant_only(self, client, tenant_manager_token, db_session, tenant):
         """Test listing users returns only current tenant's users"""
         response = client.get(
             "/users",
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         assert response.status_code == 200
@@ -206,7 +206,7 @@ class TestBulkImportRegressions:
 class TestE2EUserOnboarding:
     """E2E tests for complete user onboarding workflow"""
     
-    def test_e2e_tenant_admin_invites_bulk_users(self, client, tenant_admin_token, db_session, tenant_with_department):
+    def test_e2e_tenant_manager_invites_bulk_users(self, client, tenant_manager_token, db_session, tenant_with_department):
         """
         E2E: Tenant admin uploads CSV → Validates data → Confirms import → Users exist
         """
@@ -218,7 +218,7 @@ john@example.com,John Doe,Engineering,corporate_user"""
         upload_response = client.post(
             "/users/upload",
             files=files,
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         assert upload_response.status_code in [200, 201]
         batch_id = upload_response.json()['batch_id']
@@ -226,14 +226,14 @@ john@example.com,John Doe,Engineering,corporate_user"""
         # Step 2: Review staging data
         staging_response = client.get(
             f"/users/staging/{batch_id}",
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         assert staging_response.status_code == 200
         
         # Step 3: Confirm import
         confirm_response = client.post(
             f"/users/staging/{batch_id}/confirm",
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         assert confirm_response.status_code in [200, 201]
 ```
@@ -273,14 +273,14 @@ def tenant(db_session):
     return tenant
 
 @pytest.fixture
-def tenant_admin_token(db_session, tenant):
+def tenant_manager_token(db_session, tenant):
     """Create and return admin token for tenant"""
     admin = User(
         tenant_id=tenant.id,
         corporate_email="admin@example.com",
         first_name="Admin",
         last_name="User",
-        org_role="tenant_admin",
+        org_role="tenant_manager",
         password_hash=get_password_hash("password"),
         status="ACTIVE"
     )
@@ -329,7 +329,7 @@ def test_user_creation(db_session, tenant):
 
 ### Querying Committed Data
 ```python
-def test_bulk_upload_persists_data(client, tenant_admin_token, db_session, tenant):
+def test_bulk_upload_persists_data(client, tenant_manager_token, db_session, tenant):
     """Verify data persists through API calls"""
     # Make API call
     response = client.post("/users/upload", ...)
@@ -381,7 +381,7 @@ jobs:
 
 ### Testing Validation Errors
 ```python
-def test_invalid_email_rejected(self, client, tenant_admin_token):
+def test_invalid_email_rejected(self, client, tenant_manager_token):
     """Test invalid email format is rejected"""
     user_data = {
         "corporate_email": "not-an-email",
@@ -407,7 +407,7 @@ def test_non_admin_cannot_upload_bulk_users(self, client, corporate_user_token):
 
 ### Testing Pagination
 ```python
-def test_list_users_pagination(self, client, tenant_admin_token):
+def test_list_users_pagination(self, client, tenant_manager_token):
     """Test pagination works correctly"""
     response = client.get("/users?skip=0&limit=10", ...)
     assert response.status_code == 200
@@ -417,7 +417,7 @@ def test_list_users_pagination(self, client, tenant_admin_token):
 
 ### Testing Soft Deletes
 ```python
-def test_delete_user_soft_deletes(self, client, tenant_admin_token, user_in_tenant, db_session):
+def test_delete_user_soft_deletes(self, client, tenant_manager_token, user_in_tenant, db_session):
     """Test user deletion is soft delete"""
     response = client.delete(f"/users/{user_in_tenant['id']}", ...)
     assert response.status_code == 200

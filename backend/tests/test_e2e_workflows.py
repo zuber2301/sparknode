@@ -13,7 +13,7 @@ from datetime import datetime
 class TestE2EUserOnboarding:
     """E2E tests for complete user onboarding workflow"""
     
-    def test_e2e_tenant_admin_invites_bulk_users(self, client, tenant_admin_token, db_session, tenant_with_department):
+    def test_e2e_tenant_manager_invites_bulk_users(self, client, tenant_manager_token, db_session, tenant_with_department):
         """
         E2E: Tenant admin uploads CSV → Validates data → Confirms import → Users exist
         """
@@ -27,7 +27,7 @@ bob@example.com,Bob Wilson,Engineering,corporate_user"""
         upload_response = client.post(
             "/users/upload",
             files=files,
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         assert upload_response.status_code in [200, 201]
         batch_id = upload_response.json()['batch_id']
@@ -35,7 +35,7 @@ bob@example.com,Bob Wilson,Engineering,corporate_user"""
         # Step 2: Review staging data
         staging_response = client.get(
             f"/users/staging/{batch_id}",
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         assert staging_response.status_code == 200
         staging_rows = staging_response.json()
@@ -48,14 +48,14 @@ bob@example.com,Bob Wilson,Engineering,corporate_user"""
         # Step 3: Confirm import
         confirm_response = client.post(
             f"/users/staging/{batch_id}/confirm",
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         assert confirm_response.status_code in [200, 201]
         
         # Step 4: Verify users exist in system
         list_response = client.get(
             "/users",
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         assert list_response.status_code == 200
         users = response.json()
@@ -66,7 +66,7 @@ bob@example.com,Bob Wilson,Engineering,corporate_user"""
         assert "jane@example.com" in user_emails
         assert "bob@example.com" in user_emails
     
-    def test_e2e_single_user_creation_flow(self, client, tenant_admin_token, db_session, tenant_with_department):
+    def test_e2e_single_user_creation_flow(self, client, tenant_manager_token, db_session, tenant_with_department):
         """
         E2E: Admin creates single user → User is retrievable → User appears in lists
         """
@@ -83,7 +83,7 @@ bob@example.com,Bob Wilson,Engineering,corporate_user"""
         create_response = client.post(
             "/users",
             json=user_data,
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         assert create_response.status_code in [200, 201]
         created_user = create_response.json()
@@ -92,7 +92,7 @@ bob@example.com,Bob Wilson,Engineering,corporate_user"""
         # Step 2: Retrieve user by ID
         get_response = client.get(
             f"/users/{user_id}",
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         assert get_response.status_code == 200
         retrieved_user = get_response.json()
@@ -101,7 +101,7 @@ bob@example.com,Bob Wilson,Engineering,corporate_user"""
         # Step 3: Verify user appears in list
         list_response = client.get(
             "/users",
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         assert list_response.status_code == 200
         users = list_response.json()
@@ -267,7 +267,7 @@ class TestE2EDataIntegrity:
 class TestE2EErrorRecovery:
     """E2E tests for error handling and recovery"""
     
-    def test_e2e_bulk_upload_partial_failure_recovery(self, client, tenant_admin_token, db_session, tenant_with_department):
+    def test_e2e_bulk_upload_partial_failure_recovery(self, client, tenant_manager_token, db_session, tenant_with_department):
         """
         E2E: Upload CSV with mix of valid/invalid data → Review errors → Fix and reupload
         """
@@ -280,7 +280,7 @@ invalid-email,Invalid User,Engineering,user"""
         upload_response = client.post(
             "/users/upload",
             files=files,
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         assert upload_response.status_code in [200, 201]
         batch_id = upload_response.json()['batch_id']
@@ -288,7 +288,7 @@ invalid-email,Invalid User,Engineering,user"""
         # Step 2: Review staging data to find errors
         staging_response = client.get(
             f"/users/staging/{batch_id}",
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         assert staging_response.status_code == 200
         staging_rows = staging_response.json()
@@ -306,7 +306,7 @@ fixed@example.com,Fixed User,Engineering,corporate_user"""
         retry_response = client.post(
             "/users/upload",
             files=files,
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         assert retry_response.status_code in [200, 201]
         new_batch_id = retry_response.json()['batch_id']
@@ -314,7 +314,7 @@ fixed@example.com,Fixed User,Engineering,corporate_user"""
         # Step 4: Verify new batch has fewer errors
         new_staging_response = client.get(
             f"/users/staging/{new_batch_id}",
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         new_staging_rows = new_staging_response.json()
         new_error_rows = [r for r in new_staging_rows if not r.get('is_valid')]
@@ -388,7 +388,7 @@ def tenant_with_users_and_budget(db_session, tenant_with_department):
         corporate_email="admin@example.com",
         first_name="Admin",
         last_name="User",
-        org_role="tenant_admin",
+        org_role="tenant_manager",
         password_hash=get_password_hash("password"),
         status="ACTIVE"
     )

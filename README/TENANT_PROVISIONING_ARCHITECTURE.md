@@ -130,12 +130,12 @@ Coverage: Authentication, error handling, schemas, role system
 ```python
 # Before (BROKEN):
 User.email = "alice@company.com"        # ❌ Column doesn't exist
-User.role = "tenant_admin"              # ❌ Column doesn't exist
+User.role = "tenant_manager"              # ❌ Column doesn't exist
 User.status = "active"                  # ❌ Wrong enum value
 
 # After (FIXED):
 User.corporate_email = "alice@company.com"  # ✅ Correct field
-User.org_role = "tenant_admin"              # ✅ Correct field
+User.org_role = "tenant_manager"              # ✅ Correct field
 User.status = "ACTIVE"                      # ✅ Correct enum
 ```
 **File**: `backend/platform_admin/routes.py` (lines 145-156)  
@@ -148,7 +148,7 @@ if (userContext?.org_role === "admin")  // ❌ Wrong object path
 
 // After (FIXED):
 if (user?.org_role === "platform_admin" || 
-    user?.org_role === "tenant_admin")  // ✅ Correct path and roles
+    user?.org_role === "tenant_manager")  // ✅ Correct path and roles
 ```
 **File**: `frontend/src/App.jsx`  
 **Test**: TEST 3 confirms authorization working
@@ -159,7 +159,7 @@ if (user?.org_role === "platform_admin" ||
 // After: Menu shows for admin roles
 <MenuItem 
   label="Invite Users" 
-  visible={["tenant_admin", "hr_admin"].includes(org_role)}
+  visible={["tenant_manager", "hr_admin"].includes(org_role)}
 />
 ```
 **File**: `frontend/src/components/TopHeader.jsx`  

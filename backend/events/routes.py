@@ -123,8 +123,8 @@ async def create_event(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Create a new event (Tenant Admin only)."""
-    # TODO: Check if user is Tenant Admin
+    """Create a new event (Tenant Manager only)."""
+    # TODO: Check if user is Tenant Manager
     
     # Convert visible_to_departments UUIDs to strings for JSON serialization
     visible_departments = []
@@ -264,7 +264,7 @@ async def delete_event(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Delete an event (Tenant Admin only)."""
+    """Delete an event (Tenant Manager only)."""
     event = db.query(Event).filter(
         Event.id == event_id,
         Event.tenant_id == current_user.tenant_id

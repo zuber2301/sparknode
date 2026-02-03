@@ -17,7 +17,7 @@ class TestBulkImportRegressions:
     These tests validate the fixes applied to database schema and code.
     """
     
-    def test_bulk_upload_creates_staging_records(self, tenant_admin_token, db_session, tenant):
+    def test_bulk_upload_creates_staging_records(self, tenant_manager_token, db_session, tenant):
         """Regression: Bulk upload should create records in staging table"""
         from main import app
         
@@ -33,7 +33,7 @@ jane@example.com,Jane Smith,Engineering,corporate_user"""
         response = client.post(
             "/users/upload",
             files=files,
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         assert response.status_code in [200, 201]
@@ -130,7 +130,7 @@ jane@example.com,Jane Smith,Engineering,corporate_user"""
         assert result.validation_errors == errors
         assert isinstance(result.validation_errors, list)
     
-    def test_bulk_upload_endpoint_returns_valid_batch_id(self, tenant_admin_token, db_session, tenant):
+    def test_bulk_upload_endpoint_returns_valid_batch_id(self, tenant_manager_token, db_session, tenant):
         """Regression: Bulk upload should return a valid UUID batch_id"""
         from main import app
         
@@ -145,7 +145,7 @@ john@example.com,John Doe,Engineering,corporate_user"""
         response = client.post(
             "/users/upload",
             files=files,
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         assert response.status_code in [200, 201]
@@ -159,7 +159,7 @@ john@example.com,John Doe,Engineering,corporate_user"""
         except ValueError:
             pytest.fail(f"batch_id '{batch_id}' is not a valid UUID")
     
-    def test_bulk_upload_error_handling_no_500_errors(self, tenant_admin_token, db_session):
+    def test_bulk_upload_error_handling_no_500_errors(self, tenant_manager_token, db_session):
         """Regression: Bulk upload should never return 500 error, always 200 or 400"""
         from main import app
         
@@ -176,14 +176,14 @@ invalid-email,John,NonexistentDept,invalid_role"""
         response = client.post(
             "/users/upload",
             files=files,
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         # Should not return 500
         assert response.status_code in [200, 201, 400, 422], \
             f"Unexpected status {response.status_code}: {response.text}"
     
-    def test_bulk_upload_tracks_valid_vs_error_rows(self, tenant_admin_token, db_session, tenant_with_valid_department):
+    def test_bulk_upload_tracks_valid_vs_error_rows(self, tenant_manager_token, db_session, tenant_with_valid_department):
         """Regression: Bulk upload should track valid and error rows separately"""
         from main import app
         
@@ -199,7 +199,7 @@ invalid,Missing Name,Engineering,user"""
         response = client.post(
             "/users/upload",
             files=files,
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         assert response.status_code in [200, 201]
@@ -208,7 +208,7 @@ invalid,Missing Name,Engineering,user"""
         assert data['total_rows'] == 2
         assert data['valid_rows'] + data['error_rows'] == 2
     
-    def test_bulk_upload_staging_data_persists_across_requests(self, tenant_admin_token, db_session, tenant):
+    def test_bulk_upload_staging_data_persists_across_requests(self, tenant_manager_token, db_session, tenant):
         """Regression: Staging data should persist in database"""
         from main import app
         
@@ -223,7 +223,7 @@ john@example.com,John Doe,Engineering,corporate_user"""
         response = client.post(
             "/users/upload",
             files=files,
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         batch_id = response.json()['batch_id']
@@ -268,7 +268,7 @@ john@example.com,John Doe,Engineering,corporate_user"""
         ).all()
         assert len(records_in_other_tenant) == 0
     
-    def test_bulk_upload_double_insert_prevention(self, tenant_admin_token, db_session, tenant, user_in_tenant):
+    def test_bulk_upload_double_insert_prevention(self, tenant_manager_token, db_session, tenant, user_in_tenant):
         """Regression: System should prevent uploading duplicate emails"""
         from main import app
         
@@ -285,7 +285,7 @@ john@example.com,John Doe,Engineering,corporate_user"""
         response = client.post(
             "/users/upload",
             files=files,
-            headers={"Authorization": f"Bearer {tenant_admin_token}"}
+            headers={"Authorization": f"Bearer {tenant_manager_token}"}
         )
         
         assert response.status_code in [200, 201]

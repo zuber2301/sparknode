@@ -80,7 +80,7 @@ Role-gated views and dashboards:
 
 ### 2.3 Backend
 Role checks enforced in route dependencies and service methods across routers:
-- `platform_admin.py`, `tenant_admin.py`, `tenant_lead.py`, `corporate_user.py`
+- `platform_admin.py`, `tenant_manager.py`, `tenant_lead.py`, `corporate_user.py`
 
 ### 2.4 Database
 Role stored in `users.role` (ENUM `userrole`).
@@ -100,7 +100,7 @@ User records include role, department, job info, budgets and points balance.
   - `frontend/src/components/TenantSelector.jsx`
 
 ### 3.3 Backend
-**Router**: `backend/app/api/tenant_admin.py` and `backend/app/api/corporate_user.py`
+**Router**: `backend/app/api/tenant_manager.py` and `backend/app/api/corporate_user.py`
 
 Key endpoints (from `ENDPOINTS_NodeSpark.md`):
 - `GET /user/search`
@@ -139,7 +139,7 @@ Tenants (companies) are onboarded by Platform Admin. Each tenant has branding, f
   - `frontend/src/features/tenant/TenantsPage.jsx`
 
 ### 4.3 Backend
-**Router**: `backend/app/api/platform_admin.py`, `backend/app/api/tenant_admin.py`
+**Router**: `backend/app/api/platform_admin.py`, `backend/app/api/tenant_manager.py`
 
 Key endpoints (from `ENDPOINTS_NodeSpark.md`):
 - `GET /platform/tenants`
@@ -343,7 +343,7 @@ User wallet and points:
 - `frontend/src/features/dashboard/PointsBalance.jsx`
 
 ### 9.3 Backend
-**Routers**: `backend/app/api/tenant_admin.py`, `backend/app/api/tenant_lead.py`, `backend/app/api/platform_admin.py`
+**Routers**: `backend/app/api/tenant_manager.py`, `backend/app/api/tenant_lead.py`, `backend/app/api/platform_admin.py`
 
 Key endpoints (from `ENDPOINTS_NodeSpark.md`):
 - `GET /tenant/budget`
@@ -798,7 +798,7 @@ No database schema.
 - Recognition: `backend/app/api/recognition.py`
 - Rewards: `backend/app/api/rewards.py`
 - Badges: `backend/app/api/badges.py`
-- Tenant Admin: `backend/app/api/tenant_admin.py`
+- Tenant Manager: `backend/app/api/tenant_manager.py`
 - Tenant Lead: `backend/app/api/tenant_lead.py`
 - Platform Admin: `backend/app/api/platform_admin.py`
 - Events: `backend/app/api/events.py`

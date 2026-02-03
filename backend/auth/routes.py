@@ -559,7 +559,7 @@ async def generate_invitation_link(
     """
     Generate a secure invitation link for inviting new users to the organization.
     
-    Accessible by: Tenant Admin, HR Admin, or Platform Admin (when impersonating)
+    Accessible by: Tenant Manager, HR Admin, or Platform Admin (when impersonating)
     
     The generated link should be sent to the invitee's email. When they visit
     the link and sign up, the system will automatically assign them to your organization.
@@ -572,11 +572,11 @@ async def generate_invitation_link(
     
     Note: The token is email-specific and one-time use only.
     """
-    # Check authorization - only tenant admins and HR admins can generate invites
-    if current_user.org_role not in ["tenant_admin", "hr_admin"]:
+    # Check authorization - only tenant managers and HR admins can generate invites
+    if current_user.org_role not in ["tenant_manager", "hr_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only HR Admin and Tenant Admin can generate invitation links"
+            detail="Only HR Admin and Tenant Manager can generate invitation links"
         )
     
     # Validate expiration hours

@@ -87,7 +87,7 @@ Components
 
 ## 🎯 What Users Can Do
 
-### Tenant Admins/HR
+### Tenant Managers/HR
 1. ✅ Navigate to Currency Settings
 2. ✅ Select display currency (USD, INR, EUR, GBP, JPY)
 3. ✅ Enter exchange rate (e.g., 1 USD = 83.12 INR)

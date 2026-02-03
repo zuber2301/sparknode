@@ -19,7 +19,7 @@ export default function Profile() {
   const getRoleDisplayName = (role) => {
     const roles = {
       'platform_admin': 'Platform Admin',
-      'tenant_admin': 'Tenant Admin',
+      'tenant_manager': 'Tenant Manager',
       'tenant_lead': 'Tenant Leader',
       'corporate_user': 'Corporate User'
     };

@@ -93,7 +93,7 @@ def test_invite_users_endpoint():
     login_response = requests.post(
         f"{BASE_URL}/auth/login",
         json={
-            "email": "tenant_admin@sparknode.io",
+            "email": "tenant_manager@sparknode.io",
             "password": "jspark123"
         }
     )
@@ -135,7 +135,7 @@ def test_bulk_upload_endpoint():
     login_response = requests.post(
         f"{BASE_URL}/auth/login",
         json={
-            "email": "tenant_admin@sparknode.io",
+            "email": "tenant_manager@sparknode.io",
             "password": "jspark123"
         }
     )

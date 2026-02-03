@@ -162,7 +162,7 @@ The **Tenant-User "Hard Link"** architecture has been fully implemented in Spark
 | Endpoint | Method | Purpose | Authentication |
 |----------|--------|---------|-----------------|
 | `/auth/signup` | POST | Register user with auto tenant resolution | None |
-| `/auth/invitations/generate` | POST | Create secure invite link | HR Admin / Tenant Admin |
+| `/auth/invitations/generate` | POST | Create secure invite link | HR Admin / Tenant Manager |
 
 ### Users (Tenant-Aware)
 

@@ -5,7 +5,7 @@ from uuid import UUID
 from decimal import Decimal
 
 from database import get_db
-from core import append_impersonation_metadata, get_tenant_admin
+from core import append_impersonation_metadata, get_tenant_manager
 from models import Budget, DepartmentBudget, LeadBudget, User, AuditLog, ActorType
 from auth.utils import get_current_user, get_hr_admin
 from sqlalchemy import func

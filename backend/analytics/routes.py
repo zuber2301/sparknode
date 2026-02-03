@@ -23,7 +23,7 @@ from models import (
     Department, Badge, Tenant
 )
 from auth.utils import get_current_user
-from core.rbac import get_tenant_admin, get_platform_admin, RolePermissions
+from core.rbac import get_tenant_manager, get_platform_admin, RolePermissions
 from analytics.schemas import (
     TenantAnalyticsResponse, EngagementMetrics, BudgetMetrics, RedemptionMetrics,
     DepartmentMetrics, LeaderboardEntry, CultureHeatmap, CultureHeatmapCell,
@@ -59,10 +59,10 @@ async def get_tenant_analytics(
     end_date: Optional[date] = None,
     include_heatmap: bool = True,
     include_trends: bool = True,
-    current_user: User = Depends(get_tenant_admin),
+    current_user: User = Depends(get_tenant_manager),
     db: Session = Depends(get_db)
 ):
-    """Get comprehensive analytics for current tenant (Tenant Admin only)"""
+    """Get comprehensive analytics for current tenant (Tenant Manager only)"""
     period_start, period_end = get_period_dates(period_type, start_date, end_date)
     tenant_id = current_user.tenant_id
     
@@ -113,10 +113,10 @@ async def get_tenant_analytics(
 @router.get("/insights", response_model=InsightsResponse)
 async def get_insights(
     period_type: str = Query(default="monthly"),
-    current_user: User = Depends(get_tenant_admin),
+    current_user: User = Depends(get_tenant_manager),
     db: Session = Depends(get_db)
 ):
-    """Get AI-generated insights and recommendations"""
+    """Get AI-generated insights and recommendations (Tenant Manager only)"""
     period_start, period_end = get_period_dates(period_type)
     tenant_id = current_user.tenant_id
     
@@ -398,10 +398,10 @@ async def get_platform_metrics(
 @router.get("/benchmark", response_model=BenchmarkResponse)
 async def get_tenant_benchmark(
     period_type: str = Query(default="monthly"),
-    current_user: User = Depends(get_tenant_admin),
+    current_user: User = Depends(get_tenant_manager),
     db: Session = Depends(get_db)
 ):
-    """Get benchmarking data comparing tenant to platform averages"""
+    """Get benchmarking data comparing tenant to platform averages (Tenant Manager only)"""
     period_start, period_end = get_period_dates(period_type)
     tenant_id = current_user.tenant_id
     
@@ -507,10 +507,10 @@ async def get_spend_analysis(
     period_type: str = Query(default="monthly", regex="^(daily|weekly|monthly|quarterly|yearly)$"),
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
-    current_user: User = Depends(get_tenant_admin),
+    current_user: User = Depends(get_tenant_manager),
     db: Session = Depends(get_db)
 ):
-    """Get detailed spend analysis for current tenant (Tenant Admin only)"""
+    """Get detailed spend analysis for current tenant (Tenant Manager only)"""
     period_start, period_end = get_period_dates(period_type, start_date, end_date)
     tenant_id = current_user.tenant_id
 

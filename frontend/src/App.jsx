@@ -46,7 +46,7 @@ function AdminRoute({ children }) {
   if (!isAuthenticated) return <Navigate to="/login" />
   
   const effectiveRole = getEffectiveRole()
-  const isAdmin = effectiveRole === 'tenant_admin' || 
+  const isAdmin = effectiveRole === 'tenant_manager' || 
                   effectiveRole === 'hr_admin' ||
                   effectiveRole === 'platform_admin'
   

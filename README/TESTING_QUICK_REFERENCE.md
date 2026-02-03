@@ -145,7 +145,7 @@ def db_session():
 
 # Authenticated user token
 @pytest.fixture
-def tenant_admin_token(db_session, tenant):
+def tenant_manager_token(db_session, tenant):
     admin = User(...)
     db_session.add(admin)
     db_session.commit()

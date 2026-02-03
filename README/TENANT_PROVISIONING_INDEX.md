@@ -83,7 +83,7 @@ Test:     TEST 3 validates authorization
 ### Fix 3: Admin Menu Display
 ```
 ❌ Before: Menu not visible to admins
-✅ After:  Menu visible for tenant_admin, hr_admin roles
+✅ After:  Menu visible for tenant_manager, hr_admin roles
 File:     frontend/src/components/TopHeader.jsx
 Test:     Frontend rebuild verified
 ```
@@ -184,7 +184,7 @@ python3 -m pytest tests/test*provisioning*.py -v
 - Protected endpoints require token
 - Invalid tokens rejected
 - Role-based access control working
-- Multiple roles supported (platform_admin, tenant_admin, hr_admin)
+- Multiple roles supported (platform_admin, tenant_manager, hr_admin)
 
 ### Data Model Coverage ✅
 - corporate_email field present

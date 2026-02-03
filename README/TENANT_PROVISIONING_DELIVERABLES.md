@@ -64,7 +64,7 @@ Status: ✅ FIXED & TESTED
 File: frontend/src/App.jsx
 Changes:
   ❌ userContext?.org_role → ✅ user?.org_role
-  ❌ "admin" → ✅ ["platform_admin", "tenant_admin"]
+  ❌ "admin" → ✅ ["platform_admin", "tenant_manager"]
 Status: ✅ FIXED & VERIFIED
 ```
 
@@ -73,7 +73,7 @@ Status: ✅ FIXED & VERIFIED
 File: frontend/src/components/TopHeader.jsx
 Changes:
   ✅ Added "Invite Users" menu item
-  ✅ Visible for tenant_admin and hr_admin roles
+  ✅ Visible for tenant_manager and hr_admin roles
   ✅ Links to /admin/invite-users route
 Status: ✅ IMPLEMENTED & VERIFIED
 ```
@@ -235,7 +235,7 @@ TEST 9: User provisioning fields present ✅
 ```
 TEST 10: Provisioning roles available ✅
   - platform_admin: ✅ Provisioning new tenants
-  - tenant_admin: ✅ Inviting users
+  - tenant_manager: ✅ Inviting users
   - hr_admin: ✅ Bulk uploads
   - corporate_user: ✅ Regular employees
 ```

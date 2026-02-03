@@ -153,7 +153,7 @@ async def create_tenant(
             password_hash=get_password_hash(tenant_data.admin_password),
             first_name=tenant_data.admin_first_name,
             last_name=tenant_data.admin_last_name,
-            org_role='tenant_admin',
+            org_role='tenant_manager',
             department_id=hr_dept.id,
             status='ACTIVE',
             is_super_admin=True
