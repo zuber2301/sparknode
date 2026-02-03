@@ -203,7 +203,7 @@ export default function TenantDashboard() {
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold">{t.name?.charAt(0)}</div>
                         <div>
-                          <div onClick={() => setActionOpenFor(actionOpenFor === t.id ? null : t.id)} className="text-sm font-bold text-indigo-600 hover:underline cursor-pointer">{t.name}</div>
+                          <div onClick={() => navigate('/platform/tenants', { state: { selectedTenantId: t.id } })} className="text-sm font-bold text-indigo-600 hover:underline cursor-pointer">{t.name}</div>
                           <div className="text-xs text-gray-400">ID: {String(t.id).slice(0,10)}...</div>
                         </div>
                       </div>

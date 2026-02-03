@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useMemo, useState, useEffect } from 'react'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { 
@@ -234,6 +234,24 @@ export default function PlatformTenants() {
   }
 
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // If navigated here with a selectedTenantId (from TenantDashboard), auto-select it
+  useEffect(() => {
+    try {
+      const selId = location?.state?.selectedTenantId
+      if (selId && tenants && tenants.length > 0 && !selectedTenant) {
+        const found = tenants.find(t => String(t.id) === String(selId))
+        if (found) {
+          handleSelectTenant(found)
+          setActiveTab('overview')
+          window.scrollTo({ top: 0, behavior: 'smooth' })
+        }
+      }
+    } catch (err) {
+      // noop
+    }
+  }, [location, tenants])
 
   const handleSuspend = (tenant) => {
     const reason = window.prompt(`Suspend ${tenant.name}. Provide a reason:`)
@@ -351,33 +369,45 @@ export default function PlatformTenants() {
         </div>
       ) : selectedTenant ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <div className="bg-gray-50/50 border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={() => setSelectedTenant(null)} 
-                className="p-2 hover:bg-gray-200 rounded-full transition-colors"
-              >
-                <HiOutlineChevronLeft className="w-5 h-5 text-gray-400" />
-              </button>
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">{selectedTenant.name}</h2>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">{selectedTenant.subscription_tier} • {selectedTenant.status}</p>
-              </div>
-            </div>
-            <div className="flex bg-gray-100 p-1 rounded-xl">
-              {['overview', 'branding', 'security', 'economy', 'danger'].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-4 py-1.5 text-[10px] font-bold rounded-lg transition-all ${
-                    activeTab === tab 
-                      ? 'bg-white text-indigo-600 shadow-sm' 
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
+          <div className="bg-gray-50/50 border-b border-gray-100 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div
+                  onClick={() => setSelectedTenant(null)}
+                  className="text-sm text-indigo-600 cursor-pointer"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedTenant(null) }}
                 >
-                  {tab === 'danger' ? 'GOVERNANCE' : tab.toUpperCase()}
-                </button>
-              ))}
+                  <span className="text-sm font-semibold text-indigo-600">Tenant/</span><span className="text-sm font-semibold text-indigo-600 ml-1">{selectedTenant.name}</span>
+                </div>
+              </div>
+              <div />
+            </div>
+
+            <div className="mt-4">
+              <div className="flex items-center gap-4">
+                {[
+                  { key: 'overview', label: 'Overview', Icon: HiOutlineOfficeBuilding },
+                  { key: 'branding', label: 'Settings', Icon: HiOutlineShieldCheck },
+                  { key: 'security', label: 'Security', Icon: HiOutlineCheckCircle },
+                  { key: 'economy', label: 'Financials', Icon: HiOutlineCurrencyRupee },
+                  { key: 'danger', label: 'Danger Zone', Icon: HiOutlineLockClosed }
+                ].map(({ key, label, Icon }) => (
+                  <button
+                    key={key}
+                    onClick={() => setActiveTab(key)}
+                    className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold transition-all ${
+                      activeTab === key
+                        ? 'text-indigo-600 border-b-2 border-indigo-500'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 ${activeTab === key ? 'text-indigo-600' : 'text-gray-400'}`} />
+                    <span className="leading-none">{label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
