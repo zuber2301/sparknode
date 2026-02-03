@@ -364,7 +364,7 @@ export default function PlatformTenants() {
             {activeTab === 'overview' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6">
-                  <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Subscription Summary</h3>
+                  <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Subscription Summary</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 bg-gray-50 rounded-2xl">
                       <p className="text-xs text-gray-500 mb-1">Authorized Users</p>
@@ -377,7 +377,7 @@ export default function PlatformTenants() {
                   </div>
                 </div>
                 <div className="space-y-6">
-                  <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Platform Identity</h3>
+                  <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Platform Identity</h3>
                   <div className="p-4 bg-gray-50 rounded-2xl">
                     <p className="text-xs text-gray-500 mb-1">Domain / Access Slug</p>
                     <p className="text-sm font-bold text-gray-900 font-mono">{selectedTenant.domain || selectedTenant.slug}</p>
@@ -390,7 +390,7 @@ export default function PlatformTenants() {
               <div className="space-y-6 max-w-2xl">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Primary Color</label>
+                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Primary Color</label>
                     <div className="flex gap-2">
                       <input
                         type="color"
@@ -410,7 +410,7 @@ export default function PlatformTenants() {
                     </div>
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Secondary Color</label>
+                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Secondary Color</label>
                     <div className="flex gap-2">
                       <input
                         type="color"
@@ -431,7 +431,7 @@ export default function PlatformTenants() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Font Family</label>
+                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Font Family</label>
                   <select
                     value={editForm.theme_config.font_family}
                     onChange={(e) => setEditForm({
@@ -452,7 +452,7 @@ export default function PlatformTenants() {
             {activeTab === 'security' && (
               <div className="space-y-6 max-w-2xl">
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Authentication Method</label>
+                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Authentication Method</label>
                   <select
                     value={editForm.auth_method}
                     onChange={(e) => setEditForm({ ...editForm, auth_method: e.target.value })}
@@ -464,7 +464,7 @@ export default function PlatformTenants() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Domain Whitelist</label>
+                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Domain Whitelist</label>
                   <textarea
                     value={editForm.domain_whitelist.join('\n')}
                     onChange={(e) => setEditForm({
@@ -483,7 +483,7 @@ export default function PlatformTenants() {
                 <TenantCurrencySettings tenantId={selectedTenant.id} />
                 <div className="grid grid-cols-2 gap-6">
                   <div>
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Currency Display Name</label>
+                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Currency Display Name</label>
                     <input
                       type="text"
                       value={editForm.currency_label}
@@ -492,7 +492,7 @@ export default function PlatformTenants() {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Exchange Rate (INR/Point)</label>
+                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Exchange Rate (INR/Point)</label>
                     <input
                       type="number"
                       value={editForm.conversion_rate}
@@ -590,16 +590,16 @@ export default function PlatformTenants() {
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-100">
-                <thead className="bg-gray-50/50">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Organization</th>
-                    <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status</th>
-                    <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tier</th>
-                    <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Users</th>
-                    <th className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Balance</th>
-                    <th className="px-6 py-4 text-right text-[10px] font-bold text-gray-400 uppercase tracking-widest">Actions</th>
-                  </tr>
-                </thead>
+                <thead className="bg-gray-100">
+                    <tr>
+                      <th className="px-6 py-5 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Organization</th>
+                      <th className="px-6 py-5 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-5 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Tier</th>
+                      <th className="px-6 py-5 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Users</th>
+                      <th className="px-6 py-5 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Balance</th>
+                      <th className="px-6 py-5 text-right text-sm font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
                 <tbody className="divide-y divide-gray-50 bg-white">
                   {(tierFilter ? tenantsByTier : tenants).map((tenant) => (
                     <tr key={tenant.id} className="hover:bg-gray-50/50 transition-colors group">
@@ -610,9 +610,9 @@ export default function PlatformTenants() {
                           </div>
                           <div>
                             <div className="text-sm font-bold text-gray-900">
-                              <Link to={`/platform/tenants/${tenant.id}`} className="text-indigo-600 hover:underline font-semibold">
+                              <button onClick={() => handleSelectTenant(tenant)} className="text-indigo-600 hover:underline font-semibold text-left p-0">
                                 {tenant.name}
-                              </Link>
+                              </button>
                             </div>
                             <div className="text-xs text-gray-400">{tenant.domain || tenant.slug}</div>
                           </div>
@@ -635,12 +635,7 @@ export default function PlatformTenants() {
                         ₹{Number(tenant.master_budget_balance).toLocaleString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <button
-                          onClick={() => handleSelectTenant(tenant)}
-                          className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                        >
-                          <HiOutlineEye className="w-5 h-5 transition-transform group-hover:scale-110" />
-                        </button>
+                        {/* action column intentionally left for other actions; selection now on name click */}
                       </td>
                     </tr>
                   ))}

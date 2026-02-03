@@ -178,6 +178,7 @@ export const notificationsAPI = {
 // Tenants API
 export const tenantsAPI = {
   getCurrent: () => api.get('/tenants/current'),
+  getBySlug: (slug) => api.get(`/tenant/${slug}`),
   updateCurrent: (data) => api.put('/tenants/current', data),
   getDepartments: () => api.get('/tenants/departments'),
   createDepartment: (data) => api.post('/tenants/departments', data),
@@ -217,6 +218,9 @@ export const platformAPI = {
   getFeatureFlags: (tenantId) => api.get(`/platform/tenants/${tenantId}/feature_flags`),
   updateFeatureFlags: (tenantId, data) => api.patch(`/platform/tenants/${tenantId}/feature_flags`, data),
   recalculateBalances: (tenantId) => api.post(`/platform/tenants/${tenantId}/recalculate-balances`, null, { headers: { 'X-Skip-Tenant': '1' } }),
+  getBudgetActivity: (tenantId, params = {}) => api.get(`/platform/tenants/${tenantId}/budget-activity`, { params, headers: { 'X-Skip-Tenant': '1' } }),
+  addMasterBudget: (tenantId, data) => api.post(`/platform/tenants/${tenantId}/master-budget`, data, { headers: { 'X-Skip-Tenant': '1' } }),
+  getTenantUsers: (tenantId, params = {}) => api.get(`/users/tenant/${tenantId}/users`, { params, headers: { 'X-Skip-Tenant': '1' } }),
   getMetrics: (params) => api.get('/analytics/platform', { params }),
   getHealth: () => api.get('/platform/health'),
   getAuditLogs: (params) => api.get('/platform/audit-logs', { params }),

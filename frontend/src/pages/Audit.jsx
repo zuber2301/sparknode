@@ -106,13 +106,13 @@ export default function Audit() {
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-100">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Timestamp</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actor</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Entity</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Changes</th>
+                  <th className="px-4 py-4 text-left text-sm font-medium text-gray-700 uppercase">Timestamp</th>
+                  <th className="px-4 py-4 text-left text-sm font-medium text-gray-700 uppercase">Actor</th>
+                  <th className="px-4 py-4 text-left text-sm font-medium text-gray-700 uppercase">Action</th>
+                  <th className="px-4 py-4 text-left text-sm font-medium text-gray-700 uppercase">Entity</th>
+                  <th className="px-4 py-4 text-left text-sm font-medium text-gray-700 uppercase">Changes</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">

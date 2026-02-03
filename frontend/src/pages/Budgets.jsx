@@ -369,13 +369,13 @@ export default function Budgets() {
             ) : tenantLeads?.data?.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-100">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lead Name</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Allocated</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Used %</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Remaining</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase text-right">Action</th>
+                      <th className="px-4 py-4 text-left text-sm font-medium text-gray-700 uppercase">Lead Name</th>
+                      <th className="px-4 py-4 text-left text-sm font-medium text-gray-700 uppercase">Allocated</th>
+                      <th className="px-4 py-4 text-left text-sm font-medium text-gray-700 uppercase">Used %</th>
+                      <th className="px-4 py-4 text-left text-sm font-medium text-gray-700 uppercase">Remaining</th>
+                      <th className="px-4 py-4 text-left text-sm font-medium text-gray-700 uppercase text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">

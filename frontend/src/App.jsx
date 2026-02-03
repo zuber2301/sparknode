@@ -16,6 +16,8 @@ import Profile from './pages/Profile'
 import SpendAnalysis from './pages/SpendAnalysis'
 import PlatformTenants from './pages/PlatformTenants'
 import PlatformTenantDetail from './pages/PlatformTenantDetail'
+import PlatformTenantUsers from './pages/PlatformTenantUsers'
+import TenantDashboard from './pages/TenantDashboard'
 import Events from './pages/Events'
 import EventCreateWizard from './pages/EventCreateWizard'
 import EventDetail from './pages/EventDetail'
@@ -83,6 +85,8 @@ function App() {
         <Route path="events/:eventId/edit" element={<EventCreateWizardEdit />} />
         <Route path="platform/tenants" element={<PlatformTenants />} />
         <Route path="platform/tenants/:tenantId" element={<PlatformTenantDetail />} />
+        <Route path="platform/tenants/:tenantId/users" element={<PlatformTenantUsers />} />
+        <Route path="tenant/:slug" element={<TenantDashboard />} />
         <Route path="marketplace" element={<Marketplace />} />
         <Route path="ai-settings" element={<AISettings />} />
         <Route path="templates" element={<Templates />} />

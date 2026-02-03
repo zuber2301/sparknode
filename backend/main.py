@@ -7,7 +7,8 @@ from config import settings
 from database import engine, Base
 from core.tenant import TenantMiddleware
 from auth.routes import router as auth_router
-from tenants.routes import router as tenants_router
+from tenants.routes import router as tenants_router, public_router
+from tenants.routes import router as tenant_public_router
 from users.routes import router as users_router
 from budgets.routes import router as budgets_router
 from wallets.routes import router as wallets_router
@@ -60,6 +61,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(public_router, prefix="/tenant", tags=["Public Tenant Access"])
 app.include_router(tenants_router, prefix="/api/tenants", tags=["Tenants"])
 app.include_router(users_router, prefix="/api/users", tags=["Users"])
 app.include_router(budgets_router, prefix="/api/budgets", tags=["Budgets"])

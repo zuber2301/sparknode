@@ -13,6 +13,35 @@ from tenants.schemas import (
 
 router = APIRouter()
 
+# Public tenant access router
+public_router = APIRouter()
+
+
+@public_router.get("/{slug}")
+async def get_tenant_public(
+    slug: str,
+    db: Session = Depends(get_db)
+):
+    """Get tenant by slug (public endpoint - redirects to tenant dashboard)"""
+    tenant = db.query(Tenant).filter(
+        Tenant.slug == slug,
+        Tenant.status == 'active'
+    ).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    
+    # Return tenant info that can be used by frontend
+    return {
+        "id": tenant.id,
+        "name": tenant.name,
+        "slug": tenant.slug,
+        "domain": tenant.domain,
+        "logo_url": tenant.logo_url,
+        "theme_config": tenant.theme_config,
+        "currency_label": tenant.currency_label,
+        "status": tenant.status
+    }
+
 
 @router.get("/current", response_model=TenantResponse)
 async def get_current_tenant(

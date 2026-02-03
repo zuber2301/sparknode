@@ -29,7 +29,8 @@ from platform_admin.schemas import (
     TenantListResponse, TenantDetailResponse,
     SubscriptionTiersResponse, SUBSCRIPTION_TIERS,
     PlatformHealthResponse, SystemHealthCheck,
-    PlatformAuditEntry, PlatformAuditResponse, FeatureFlagsUpdate
+    PlatformAuditEntry, PlatformAuditResponse, FeatureFlagsUpdate, BudgetActivityResponse,
+    MasterBudgetAdjustRequest
 )
 
 router = APIRouter()
@@ -280,7 +281,18 @@ async def get_tenant(
         Recognition.tenant_id == tenant_id,
         Recognition.status == 'active'
     ).scalar() or 0
-    
+
+    # Financial aggregates from master budget ledger
+    total_allocated = db.query(func.sum(MasterBudgetLedger.points)).filter(
+        MasterBudgetLedger.tenant_id == tenant_id,
+        func.lower(MasterBudgetLedger.transaction_type) == 'credit'
+    ).scalar() or 0
+
+    total_spent = db.query(func.sum(MasterBudgetLedger.points)).filter(
+        MasterBudgetLedger.tenant_id == tenant_id,
+        func.lower(MasterBudgetLedger.transaction_type) == 'debit'
+    ).scalar() or 0
+
     return TenantDetailResponse(
         id=tenant.id,
         name=tenant.name,
@@ -314,7 +326,180 @@ async def get_tenant(
         active_user_count=active_user_count,
         department_count=department_count,
         total_recognitions=total_recognitions,
-        total_points_distributed=Decimal(str(total_points))
+        total_points_distributed=Decimal(str(total_points)),
+        total_allocated=Decimal(str(total_allocated)),
+        total_spent=Decimal(str(total_spent))
+    )
+
+
+@router.get("/tenants/{tenant_id}/budget-activity", response_model=BudgetActivityResponse)
+async def get_budget_activity(
+    tenant_id: UUID,
+    period: str = Query('monthly', regex='^(monthly|quarterly)$'),
+    intervals: int = Query(6, ge=1, le=24),
+    current_user: User = Depends(get_platform_admin),
+    db: Session = Depends(get_db)
+):
+    """Return budget activity aggregated by month or quarter for the last `intervals` periods."""
+    from sqlalchemy import case
+
+    now = datetime.utcnow()
+
+    if period == 'monthly':
+        # start from first day of month N-1 months ago
+        def add_months(dt, months):
+            y = dt.year + (dt.month - 1 + months) // 12
+            m = (dt.month - 1 + months) % 12 + 1
+            return dt.replace(year=y, month=m, day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        start = add_months(now, -intervals + 1)
+        period_trunc = func.date_trunc('month', MasterBudgetLedger.created_at).label('period')
+        rows = db.query(
+            period_trunc,
+            func.sum(case([(func.lower(MasterBudgetLedger.transaction_type) == 'credit', MasterBudgetLedger.points)], else_=0)).label('credits'),
+            func.sum(case([(func.lower(MasterBudgetLedger.transaction_type) == 'debit', MasterBudgetLedger.points)], else_=0)).label('debits')
+        ).filter(
+            MasterBudgetLedger.tenant_id == tenant_id,
+            MasterBudgetLedger.created_at >= start
+        ).group_by(period_trunc).order_by(period_trunc).all()
+
+        # Build a map for quick lookup
+        data_map = {r.period.strftime('%Y-%m'): {'credits': float(r.credits or 0), 'debits': float(r.debits or 0)} for r in rows}
+        results = []
+        for i in range(intervals):
+            period_dt = add_months(start, i)
+            label = period_dt.strftime('%b %Y')
+            key = period_dt.strftime('%Y-%m')
+            credits = data_map.get(key, {}).get('credits', 0)
+            debits = data_map.get(key, {}).get('debits', 0)
+            results.append({'period': label, 'credits': Decimal(str(credits)), 'debits': Decimal(str(debits)), 'net': Decimal(str(credits - debits))})
+
+    else:  # quarterly
+        # quarters are 3-month groups
+        def start_of_quarter(dt):
+            q = ((dt.month - 1) // 3) + 1
+            m = (q - 1) * 3 + 1
+            return dt.replace(month=m, day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        def add_quarters(dt, quarters):
+            return add_months(dt, quarters * 3)
+
+        # reuse add_months
+        def add_months(dt, months):
+            y = dt.year + (dt.month - 1 + months) // 12
+            m = (dt.month - 1 + months) % 12 + 1
+            return dt.replace(year=y, month=m, day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        start = start_of_quarter(add_months(now, -3 * (intervals - 1)))
+        period_trunc = func.date_trunc('quarter', MasterBudgetLedger.created_at).label('period')
+        rows = db.query(
+            period_trunc,
+            func.sum(case([(func.lower(MasterBudgetLedger.transaction_type) == 'credit', MasterBudgetLedger.points)], else_=0)).label('credits'),
+            func.sum(case([(func.lower(MasterBudgetLedger.transaction_type) == 'debit', MasterBudgetLedger.points)], else_=0)).label('debits')
+        ).filter(
+            MasterBudgetLedger.tenant_id == tenant_id,
+            MasterBudgetLedger.created_at >= start
+        ).group_by(period_trunc).order_by(period_trunc).all()
+
+        data_map = {r.period.strftime('%Y-%m'): {'credits': float(r.credits or 0), 'debits': float(r.debits or 0)} for r in rows}
+        results = []
+        for i in range(intervals):
+            period_dt = add_months(start, i * 3)
+            q = ((period_dt.month - 1) // 3) + 1
+            label = f"Q{q} {period_dt.year}"
+            key = period_dt.strftime('%Y-%m')
+            credits = data_map.get(key, {}).get('credits', 0)
+            debits = data_map.get(key, {}).get('debits', 0)
+            results.append({'period': label, 'credits': Decimal(str(credits)), 'debits': Decimal(str(debits)), 'net': Decimal(str(credits - debits))})
+
+    return BudgetActivityResponse(data=results)
+
+
+@router.post("/tenants/{tenant_id}/master-budget", response_model=TenantDetailResponse)
+async def adjust_master_budget(
+    tenant_id: UUID,
+    payload: MasterBudgetAdjustRequest,
+    current_user: User = Depends(get_platform_admin),
+    db: Session = Depends(get_db)
+):
+    """Adjust the tenant's master budget by creating a MasterBudgetLedger entry (credit)."""
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    points = Decimal(str(payload.points))
+    if points <= 0:
+        raise HTTPException(status_code=400, detail="Points must be positive")
+
+    new_balance = Decimal(str(tenant.master_budget_balance or 0)) + points
+
+    ledger_entry = MasterBudgetLedger(
+        tenant_id=tenant.id,
+        transaction_type='credit',
+        source='provisioning',
+        points=points,
+        balance_after=new_balance,
+        description=payload.description or 'Provisioned budget',
+        created_by=current_user.id,
+        created_by_type=ActorType.SYSTEM_ADMIN
+    )
+    db.add(ledger_entry)
+
+    tenant.master_budget_balance = new_balance
+
+    audit = AuditLog(
+        tenant_id=tenant.id,
+        actor_id=current_user.id,
+        actor_type=ActorType.SYSTEM_ADMIN,
+        action='master_budget_provisioned',
+        entity_type='tenant',
+        entity_id=tenant.id,
+        new_values=append_impersonation_metadata({
+            'points': str(points),
+            'balance_after': str(new_balance)
+        })
+    )
+    db.add(audit)
+
+    db.commit()
+    db.refresh(tenant)
+
+    # Return updated tenant detail
+    user_count = db.query(User).filter(
+        User.tenant_id == tenant_id,
+        func.lower(User.status) == 'active'
+    ).count()
+
+    return TenantDetailResponse(
+        id=tenant.id,
+        name=tenant.name,
+        slug=tenant.slug,
+        domain=tenant.domain,
+        logo_url=tenant.logo_url,
+        favicon_url=tenant.favicon_url,
+        theme_config=tenant.theme_config or {},
+        domain_whitelist=tenant.domain_whitelist or [],
+        auth_method=tenant.auth_method or 'PASSWORD_AND_OTP',
+        status=tenant.status,
+        currency_label=tenant.currency_label or 'Points',
+        conversion_rate=tenant.conversion_rate or Decimal('1.0'),
+        auto_refill_threshold=tenant.auto_refill_threshold or Decimal('20.0'),
+        award_tiers=tenant.award_tiers or {},
+        peer_to_peer_enabled=tenant.peer_to_peer_enabled or True,
+        expiry_policy=tenant.expiry_policy or 'NEVER',
+        subscription_tier=tenant.subscription_tier,
+        subscription_status=tenant.subscription_status,
+        subscription_started_at=tenant.subscription_started_at,
+        subscription_ends_at=tenant.subscription_ends_at,
+        max_users=tenant.max_users or 50,
+        master_budget_balance=Decimal(str(tenant.master_budget_balance or 0)),
+        feature_flags=tenant.feature_flags or {},
+        settings=tenant.settings or {},
+        catalog_settings=tenant.catalog_settings or {},
+        branding=tenant.branding or {},
+        created_at=tenant.created_at,
+        updated_at=tenant.updated_at,
+        user_count=user_count
     )
 
 

@@ -152,9 +152,36 @@ class TenantDetailResponse(BaseModel):
     department_count: Optional[int] = 0
     total_recognitions: Optional[int] = 0
     total_points_distributed: Optional[Decimal] = Decimal("0")
+    # Financial aggregates
+    total_allocated: Optional[Decimal] = Decimal("0")
+    total_spent: Optional[Decimal] = Decimal("0")
     
     class Config:
         from_attributes = True
+
+
+class BudgetActivityPoint(BaseModel):
+    period: str
+    credits: Decimal
+    debits: Decimal
+    net: Decimal
+
+
+class BudgetActivityResponse(BaseModel):
+    data: List[BudgetActivityPoint]
+
+
+class MasterBudgetAdjustRequest(BaseModel):
+    points: Decimal
+    description: Optional[str] = ''
+
+    class Config:
+        schema_extra = {
+            'example': {
+                'points': '1000.00',
+                'description': 'Provisioned extra budget'
+            }
+        }
 
 
 # =====================================================

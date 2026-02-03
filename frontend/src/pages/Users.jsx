@@ -409,9 +409,9 @@ export default function Users() {
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-100">
               <tr>
-                <th className="px-4 py-3 text-left w-10">
+                <th className="px-4 py-4 text-left w-10">
                   <input 
                     type="checkbox" 
                     className="rounded border-gray-300"
@@ -422,13 +422,13 @@ export default function Users() {
                     checked={selectedUserIds.length > 0 && filteredUsers?.length > 0 && selectedUserIds.length === filteredUsers.length}
                   />
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Employee</th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Personal Email</th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Mobile Number</th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Role</th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Department</th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Action</th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Employee</th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Personal Email</th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Mobile Number</th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Role</th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Department</th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                <th className="px-4 py-4 text-right text-sm font-semibold text-gray-700 uppercase tracking-wider">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
