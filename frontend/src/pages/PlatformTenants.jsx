@@ -1,18 +1,22 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { 
   HiOutlinePlus, 
   HiOutlineSearch, 
   HiOutlineOfficeBuilding, 
-  HiOutlineEye, 
   HiOutlineChevronLeft, 
   HiOutlineX,
   HiOutlineCheckCircle,
   HiOutlineShieldCheck,
-  HiOutlineCurrencyRupee
+  HiOutlineCurrencyRupee,
+  HiOutlineDotsVertical,
+  HiOutlinePencil,
+  HiOutlineLockClosed
 } from 'react-icons/hi'
+import ConfirmModal from '../components/ConfirmModal'
+import AddBudgetModal from '../components/AddBudgetModal'
 import { platformAPI } from '../lib/api'
 import TenantCurrencySettings from '../components/TenantCurrencySettings'
 import { useAuthStore } from '../store/authStore'
@@ -29,6 +33,11 @@ export default function PlatformTenants() {
   // Selected tenant & tabs
   const [selectedTenant, setSelectedTenant] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
+  const [actionOpenFor, setActionOpenFor] = useState(null)
+  const [isAddBudgetOpen, setIsAddBudgetOpen] = useState(false)
+  const [budgetTarget, setBudgetTarget] = useState(null)
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+  const [confirmProps, setConfirmProps] = useState({})
   
   // Filters
   const [searchQuery, setSearchQuery] = useState('')
@@ -100,6 +109,17 @@ export default function PlatformTenants() {
     onError: (error) => {
       toast.error(error.response?.data?.detail || 'Failed to suspend tenant')
     },
+  })
+
+  const addBudgetMutation = useMutation({
+    mutationFn: ({ tenantId, payload }) => platformAPI.addMasterBudget(tenantId, payload),
+    onSuccess: () => {
+      toast.success('Budget added')
+      queryClient.invalidateQueries(['platformTenants'])
+      setIsAddBudgetOpen(false)
+      setBudgetTarget(null)
+    },
+    onError: (err) => toast.error(err.response?.data?.detail || 'Failed to add budget')
   })
 
   const activateMutation = useMutation({
@@ -213,6 +233,8 @@ export default function PlatformTenants() {
       expiry_policy: tenant.expiry_policy || 'NEVER'
     })
   }
+
+  const navigate = useNavigate()
 
   const handleSuspend = (tenant) => {
     const reason = window.prompt(`Suspend ${tenant.name}. Provide a reason:`)
@@ -634,8 +656,29 @@ export default function PlatformTenants() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
                         ₹{Number(tenant.master_budget_balance).toLocaleString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        {/* action column intentionally left for other actions; selection now on name click */}
+                      <td className="px-6 py-4 whitespace-nowrap text-right relative">
+                        <button onClick={() => setActionOpenFor(actionOpenFor === tenant.id ? null : tenant.id)} className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg">
+                          <HiOutlineDotsVertical className="w-5 h-5" />
+                        </button>
+
+                        {actionOpenFor === tenant.id && (
+                          <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-lg shadow-lg z-50 p-1">
+                            <button onClick={() => { setActionOpenFor(null); handleSelectTenant(tenant); setActiveTab('overview'); window.scrollTo({ top: 0, behavior: 'smooth' }) }} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md">
+                              <HiOutlinePencil className="w-4 h-4 text-gray-400" />
+                              <span>Edit Settings</span>
+                            </button>
+
+                            <button onClick={() => { setActionOpenFor(null); setBudgetTarget(tenant); setIsAddBudgetOpen(true) }} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md">
+                              <HiOutlineCurrencyRupee className="w-4 h-4 text-gray-400" />
+                              <span>Load Budget</span>
+                            </button>
+
+                            <button onClick={() => { setActionOpenFor(null); setConfirmProps({ title: `Suspend ${tenant.name}`, description: 'Suspend will restrict access for this tenant. This action can be reversed by an admin.', onConfirm: () => suspendMutation.mutate({ tenantId: tenant.id, reason: 'Suspended by admin' }) }); setIsConfirmOpen(true) }} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md">
+                              <HiOutlineLockClosed className="w-4 h-4 text-red-500" />
+                              <span>Suspend</span>
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -741,6 +784,23 @@ export default function PlatformTenants() {
           </div>
         </div>
       )}
+
+      <AddBudgetModal
+        isOpen={isAddBudgetOpen}
+        onClose={() => { setIsAddBudgetOpen(false); setBudgetTarget(null) }}
+        tenantId={budgetTarget?.id}
+      />
+
+      <ConfirmModal
+        open={isConfirmOpen}
+        title={confirmProps.title}
+        description={confirmProps.description}
+        onCancel={() => setIsConfirmOpen(false)}
+        onConfirm={() => {
+          if (typeof confirmProps.onConfirm === 'function') confirmProps.onConfirm()
+          setIsConfirmOpen(false)
+        }}
+      />
 
       {/* Feature Flags Modal */}
       {showFlagsModal && selectedTenant && (

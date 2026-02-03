@@ -20,12 +20,10 @@ function LayoutContent() {
 
       {/* Main content area - two column split layout */}
       <div className="flex flex-1 overflow-hidden px-1 sm:px-2 lg:px-3 py-2 gap-2 sm:gap-3 h-full">
-        {/* Left Column - Copilot (always visible, independent scroll) */}
-        <div className="flex flex-col flex-shrink-0">
-          <RightSideCopilot />
-        </div>
+        {/* Left Column Placeholder - reserve space for fixed Copilot on large screens */}
+        <div className="hidden lg:block w-[450px] flex-shrink-0" />
         {/* Visual Divider */}
-        <div className="w-px bg-gray-200 flex-shrink-0" />
+        <div className="hidden lg:block w-px bg-gray-200 flex-shrink-0" />
 
         {/* Right Column - Main Content (independent scroll) */}
         <div className="flex flex-col flex-1 overflow-hidden">
@@ -34,6 +32,8 @@ function LayoutContent() {
           </main>
         </div>
       </div>
+      {/* Render Copilot fixed so it doesn't move with page scroll */}
+      <RightSideCopilot />
     </div>
   )
 }
