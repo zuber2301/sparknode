@@ -228,6 +228,25 @@ class Tenant(Base):
     def points_to_currency(self):
         return self.settings.get('points_to_currency_ratio', 0.10)
 
+    @property
+    def primary_color(self):
+        """Compatibility property: expose primary color from `theme_config`."""
+        try:
+            return (self.theme_config or {}).get('primary_color', '#3B82F6')
+        except Exception:
+            return '#3B82F6'
+
+    @property
+    def branding_config(self):
+        """Compatibility property for older code expecting `branding_config`.
+
+        Falls back to `settings['branding_config']` or an empty dict.
+        """
+        try:
+            return (self.settings or {}).get('branding_config', {})
+        except Exception:
+            return {}
+
 
 class Department(Base):
     __tablename__ = "departments"

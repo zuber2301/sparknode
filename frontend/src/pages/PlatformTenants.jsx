@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { 
@@ -608,7 +609,11 @@ export default function PlatformTenants() {
                             {tenant.name.charAt(0)}
                           </div>
                           <div>
-                            <div className="text-sm font-bold text-gray-900">{tenant.name}</div>
+                            <div className="text-sm font-bold text-gray-900">
+                              <Link to={`/platform/tenants/${tenant.id}`} className="text-indigo-600 hover:underline font-semibold">
+                                {tenant.name}
+                              </Link>
+                            </div>
                             <div className="text-xs text-gray-400">{tenant.domain || tenant.slug}</div>
                           </div>
                         </div>

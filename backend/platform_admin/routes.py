@@ -288,15 +288,23 @@ async def get_tenant(
         domain=tenant.domain,
         logo_url=tenant.logo_url,
         favicon_url=tenant.favicon_url,
-        primary_color=tenant.primary_color,
-        branding_config=tenant.branding_config or {},
+        theme_config=tenant.theme_config or {},
+        domain_whitelist=tenant.domain_whitelist or [],
+        auth_method=tenant.auth_method or 'PASSWORD_AND_OTP',
         status=tenant.status,
+        currency_label=tenant.currency_label or 'Points',
+        conversion_rate=tenant.conversion_rate or Decimal('1.0'),
+        auto_refill_threshold=tenant.auto_refill_threshold or Decimal('20.0'),
+        award_tiers=tenant.award_tiers or {},
+        peer_to_peer_enabled=tenant.peer_to_peer_enabled or True,
+        expiry_policy=tenant.expiry_policy or 'NEVER',
         subscription_tier=tenant.subscription_tier,
         subscription_status=tenant.subscription_status,
         subscription_started_at=tenant.subscription_started_at,
         subscription_ends_at=tenant.subscription_ends_at,
         max_users=tenant.max_users or 50,
         master_budget_balance=Decimal(str(tenant.master_budget_balance or 0)),
+        feature_flags=tenant.feature_flags or {},
         settings=tenant.settings or {},
         catalog_settings=tenant.catalog_settings or {},
         branding=tenant.branding or {},
@@ -396,6 +404,121 @@ async def update_tenant(
         created_at=tenant.created_at,
         user_count=user_count
     )
+
+
+@router.patch("/tenants/{tenant_id}", response_model=TenantDetailResponse)
+async def patch_tenant(
+    tenant_id: UUID,
+    tenant_data: TenantUpdateRequest,
+    current_user: User = Depends(get_platform_admin),
+    db: Session = Depends(get_db)
+):
+    """Patch tenant details (Platform Admin only) - partial updates allowed."""
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    update_data = tenant_data.model_dump(exclude_unset=True)
+    old_values = {k: str(getattr(tenant, k)) for k in update_data.keys()}
+
+    for key, value in update_data.items():
+        setattr(tenant, key, value)
+
+    audit = AuditLog(
+        tenant_id=tenant.id,
+        actor_id=current_user.id,
+        actor_type=ActorType.SYSTEM_ADMIN,
+        action="tenant_patched",
+        entity_type="tenant",
+        entity_id=tenant.id,
+        old_values=old_values,
+        new_values=append_impersonation_metadata({k: str(v) for k, v in update_data.items()})
+    )
+    db.add(audit)
+    db.commit()
+    db.refresh(tenant)
+
+    user_count = db.query(User).filter(
+        User.tenant_id == tenant_id,
+        func.lower(User.status) == 'active'
+    ).count()
+
+    return TenantDetailResponse(
+        id=tenant.id,
+        name=tenant.name,
+        slug=tenant.slug,
+        domain=tenant.domain,
+        logo_url=tenant.logo_url,
+        favicon_url=tenant.favicon_url,
+        theme_config=tenant.theme_config or {},
+        domain_whitelist=tenant.domain_whitelist or [],
+        auth_method=tenant.auth_method or "PASSWORD_AND_OTP",
+        status=tenant.status,
+        currency_label=tenant.currency_label or "Points",
+        conversion_rate=Decimal(str(tenant.conversion_rate or 1.0)),
+        auto_refill_threshold=Decimal(str(tenant.auto_refill_threshold or 20.0)),
+        award_tiers=tenant.award_tiers or {},
+        peer_to_peer_enabled=tenant.peer_to_peer_enabled if tenant.peer_to_peer_enabled is not None else True,
+        expiry_policy=tenant.expiry_policy or "NEVER",
+        subscription_tier=tenant.subscription_tier,
+        subscription_status=tenant.subscription_status,
+        subscription_started_at=tenant.subscription_started_at,
+        subscription_ends_at=tenant.subscription_ends_at,
+        max_users=tenant.max_users or 50,
+        master_budget_balance=Decimal(str(tenant.master_budget_balance or 0)),
+        feature_flags=tenant.feature_flags or {},
+        settings=tenant.settings or {},
+        catalog_settings=tenant.catalog_settings or {},
+        branding=tenant.branding or {},
+        created_at=tenant.created_at,
+        updated_at=tenant.updated_at,
+        user_count=user_count
+    )
+
+
+@router.post("/tenants/{tenant_id}/recalculate-balances")
+async def recalculate_balances(
+    tenant_id: UUID,
+    current_user: User = Depends(get_platform_admin),
+    db: Session = Depends(get_db)
+):
+    """Trigger a balances recalculation for the tenant. This is a safe operation that
+    ensures numeric fields are normalized and clears nulls that may render as NaN in the UI.
+    """
+    wallets = db.query(Wallet).filter(Wallet.tenant_id == tenant_id).all()
+    updated = 0
+    for w in wallets:
+        # Normalise None values to zero to avoid NaN UI issues
+        changed = False
+        if w.balance is None:
+            w.balance = 0
+            changed = True
+        if w.lifetime_earned is None:
+            w.lifetime_earned = 0
+            changed = True
+        if w.lifetime_spent is None:
+            w.lifetime_spent = 0
+            changed = True
+        if changed:
+            db.add(w)
+            updated += 1
+
+    db.commit()
+
+    # Audit
+    audit = AuditLog(
+        tenant_id=tenant_id,
+        actor_id=current_user.id,
+        actor_type=ActorType.SYSTEM_ADMIN,
+        action="recalculate_balances",
+        entity_type="tenant",
+        entity_id=tenant_id,
+        new_values={"wallets_normalized": updated}
+    )
+    db.add(audit)
+    db.commit()
+
+    return {"updated_wallets": updated}
 
 
 @router.put("/tenants/{tenant_id}/subscription", response_model=TenantDetailResponse)

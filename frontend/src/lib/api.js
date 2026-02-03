@@ -216,6 +216,7 @@ export const platformAPI = {
   getSubscriptionTiers: () => api.get('/platform/subscription-tiers'),
   getFeatureFlags: (tenantId) => api.get(`/platform/tenants/${tenantId}/feature_flags`),
   updateFeatureFlags: (tenantId, data) => api.patch(`/platform/tenants/${tenantId}/feature_flags`, data),
+  recalculateBalances: (tenantId) => api.post(`/platform/tenants/${tenantId}/recalculate-balances`, null, { headers: { 'X-Skip-Tenant': '1' } }),
   getMetrics: (params) => api.get('/analytics/platform', { params }),
   getHealth: () => api.get('/platform/health'),
   getAuditLogs: (params) => api.get('/platform/audit-logs', { params }),
