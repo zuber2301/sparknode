@@ -7,8 +7,9 @@ from decimal import Decimal
 
 from database import get_db
 from core import append_impersonation_metadata
+from core.budget_service import BudgetService, BudgetAllocationError
 from models import (
-    Recognition, Badge, User, Wallet, WalletLedger,
+    Recognition, Badge, User, Wallet, WalletLedger, Tenant,
     DepartmentBudget, Feed, Notification, AuditLog,
     RecognitionComment, RecognitionReaction
 )
@@ -103,7 +104,11 @@ async def create_recognition(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Create a new recognition"""
+    """Create a new recognition
+    
+    If points are included, they are deducted from the tenant's allocation pool
+    and added to the recipient's wallet.
+    """
     # Validate recipient exists
     recipient = db.query(User).filter(
         User.id == recognition_data.to_user_id,
@@ -116,29 +121,26 @@ async def create_recognition(
     if recognition_data.to_user_id == current_user.id:
         raise HTTPException(status_code=400, detail="Cannot recognize yourself")
     
-    # Check if manager and has budget (for managers giving points)
-    dept_budget = None
-    if recognition_data.points > 0 and current_user.org_role in ['manager', 'hr_admin', 'tenant_lead']:
-        # Find active budget and department budget
-        from models import Budget
-        active_budget = db.query(Budget).filter(
-            Budget.tenant_id == current_user.tenant_id,
-            Budget.status == 'active'
-        ).first()
+    # Get tenant
+    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    
+    # Validate points allocation pool if points are being awarded
+    if recognition_data.points > 0:
+        # Check manager/lead has permission to award points
+        if current_user.org_role not in ['manager', 'hr_admin', 'tenant_lead', 'tenant_manager']:
+            raise HTTPException(
+                status_code=403,
+                detail="Only managers and leads can award recognition points"
+            )
         
-        if active_budget and current_user.department_id:
-            dept_budget = db.query(DepartmentBudget).filter(
-                DepartmentBudget.budget_id == active_budget.id,
-                DepartmentBudget.department_id == current_user.department_id
-            ).first()
-            
-            if dept_budget:
-                remaining = Decimal(str(dept_budget.allocated_points)) - Decimal(str(dept_budget.spent_points))
-                if remaining < recognition_data.points:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Insufficient department budget. Available: {remaining}"
-                    )
+        # Check tenant has sufficient allocation balance
+        if Decimal(str(tenant.points_allocation_balance)) < Decimal(str(recognition_data.points)):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Insufficient points in distribution pool. Available: {tenant.points_allocation_balance}, Requested: {recognition_data.points}"
+            )
     
     # Create recognition
     recognition = Recognition(
@@ -149,39 +151,27 @@ async def create_recognition(
         points=recognition_data.points,
         message=recognition_data.message,
         visibility=recognition_data.visibility,
-        status='active',
-        department_budget_id=dept_budget.id if dept_budget else None
+        status='active'
     )
     db.add(recognition)
     db.flush()
     
-    # Process points if applicable
+    # Process budget using BudgetService if applicable
     if recognition_data.points > 0:
-        # Debit department budget
-        if dept_budget:
-            dept_budget.spent_points = Decimal(str(dept_budget.spent_points)) + recognition_data.points
-        
-        # Credit recipient's wallet
-        recipient_wallet = db.query(Wallet).filter(Wallet.user_id == recipient.id).first()
-        if recipient_wallet:
-            old_balance = recipient_wallet.balance
-            recipient_wallet.balance = Decimal(str(recipient_wallet.balance)) + recognition_data.points
-            recipient_wallet.lifetime_earned = Decimal(str(recipient_wallet.lifetime_earned)) + recognition_data.points
-            
-            # Create ledger entry
-            ledger_entry = WalletLedger(
-                tenant_id=current_user.tenant_id,
-                wallet_id=recipient_wallet.id,
-                transaction_type='credit',
-                source='recognition',
-                points=recognition_data.points,
-                balance_after=recipient_wallet.balance,
+        try:
+            wallet, ledger, distribution_log = BudgetService.awardToUser(
+                db=db,
+                tenant=tenant,
+                from_user=current_user,
+                to_user=recipient,
+                amount=Decimal(str(recognition_data.points)),
                 reference_type='recognition',
                 reference_id=recognition.id,
-                description=f"Recognition from {current_user.first_name} {current_user.last_name}",
-                created_by=current_user.id
+                description=recognition_data.message[:200]
             )
-            db.add(ledger_entry)
+        except BudgetAllocationError as e:
+            db.rollback()
+            raise HTTPException(status_code=400, detail=str(e))
     
     # Create feed entry
     feed_entry = Feed(
@@ -192,7 +182,7 @@ async def create_recognition(
         actor_id=current_user.id,
         target_id=recipient.id,
         visibility=recognition_data.visibility,
-        metadata={
+        event_metadata={
             "points": str(recognition_data.points),
             "message": recognition_data.message[:100]
         }

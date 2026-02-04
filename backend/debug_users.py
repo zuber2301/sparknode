@@ -8,7 +8,7 @@ try:
     print("--- Users ---")
     users = db.query(User).all()
     for u in users:
-        print(f"ID: {u.id}, Email: {u.email}, Role: {u.org_role}, Status: {u.status}, Has Admin: {u.system_admin is not None}")
+        print(f"ID: {u.id}, Email: {u.corporate_email}, Role: {u.org_role}, Status: {u.status}, Has Admin: {u.system_admin is not None}")
     
     print("\n--- System Admins ---")
     admins = db.query(SystemAdmin).all()

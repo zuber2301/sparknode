@@ -4,7 +4,7 @@ from typing import List
 from uuid import UUID
 
 from database import get_db
-from models import Tenant, Department, User
+from models import Tenant, Department, User, AuditLog, ActorType
 from auth.utils import get_current_user, get_hr_admin
 from tenants.schemas import (
     TenantCreate, TenantUpdate, TenantResponse,
@@ -67,9 +67,73 @@ async def update_current_tenant(
         raise HTTPException(status_code=404, detail="Tenant not found")
     
     update_data = tenant_data.model_dump(exclude_unset=True)
+    if not update_data:
+        return tenant
+
+    # Capture old values for audit
+    old_values = {k: str(getattr(tenant, k, None)) for k in update_data.keys()}
+
     for key, value in update_data.items():
         setattr(tenant, key, value)
-    
+
+    # Audit log
+    audit = AuditLog(
+        tenant_id=tenant.id,
+        actor_id=current_user.id,
+        actor_type=ActorType.USER,
+        action="tenant_updated",
+        entity_type="tenant",
+        entity_id=tenant.id,
+        old_values=old_values,
+        new_values={k: str(v) for k, v in update_data.items()}
+    )
+    db.add(audit)
+
+    db.commit()
+    db.refresh(tenant)
+    return tenant
+
+
+@router.put("/current/domain-whitelist", response_model=TenantResponse)
+async def update_tenant_domain_whitelist(
+    domain_data: dict,
+    current_user: User = Depends(get_hr_admin),
+    db: Session = Depends(get_db)
+):
+    """Update domain whitelist for the current tenant (HR Admin only).
+
+    Expected payload: {"domains": ["@company.com", "@subsidiary.company"]}
+    """
+    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    domains = domain_data.get('domains') or domain_data.get('domain_whitelist')
+    if domains is None or not isinstance(domains, list):
+        raise HTTPException(status_code=400, detail="Invalid payload: expected 'domains' list")
+
+    # Basic validation: each domain should start with '@' and contain at least one dot
+    cleaned = []
+    for d in domains:
+        if not isinstance(d, str) or not d.startswith('@') or '.' not in d:
+            raise HTTPException(status_code=400, detail=f"Invalid domain format: {d}")
+        cleaned.append(d)
+
+    old_values = {'domain_whitelist': str(tenant.domain_whitelist)}
+    tenant.domain_whitelist = cleaned
+
+    audit = AuditLog(
+        tenant_id=tenant.id,
+        actor_id=current_user.id,
+        actor_type=ActorType.USER,
+        action="tenant_domain_whitelist_updated",
+        entity_type="tenant",
+        entity_id=tenant.id,
+        old_values=old_values,
+        new_values={'domain_whitelist': str(cleaned)}
+    )
+    db.add(audit)
+
     db.commit()
     db.refresh(tenant)
     return tenant

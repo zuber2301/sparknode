@@ -87,3 +87,33 @@ async def send_invite_email(to_email: str, tenant_name: str) -> None:
             server.send_message(message)
 
     await asyncio.to_thread(_send)
+
+class EmailService:
+    """Simple email service for sending general emails"""
+    
+    async def send_email(self, to: str, subject: str, body: str, html: Optional[str] = None) -> bool:
+        """Send an email with optional HTML content"""
+        if not settings.smtp_host or not settings.smtp_from:
+            return False
+        
+        def _send():
+            message = EmailMessage()
+            message["Subject"] = subject
+            message["From"] = settings.smtp_from
+            message["To"] = to
+            message.set_content(body)
+            if html:
+                message.add_alternative(html, subtype='html')
+            
+            with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as server:
+                if settings.smtp_use_tls:
+                    server.starttls(context=ssl.create_default_context())
+                if settings.smtp_user and settings.smtp_password:
+                    server.login(settings.smtp_user, settings.smtp_password)
+                server.send_message(message)
+        
+        try:
+            await asyncio.to_thread(_send)
+            return True
+        except Exception:
+            return False

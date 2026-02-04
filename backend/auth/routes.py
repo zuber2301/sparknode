@@ -45,7 +45,8 @@ async def login(
     ).first()
     
     if user:
-        if not verify_password(login_data.password, user.password_hash):
+        # If there's no stored password hash, treat as invalid credentials
+        if not user.password_hash or not verify_password(login_data.password, user.password_hash):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password",
@@ -157,7 +158,8 @@ async def system_login(
         (User.corporate_email == login_data.email)
     ).first()
 
-    if not user or not user.system_admin or not verify_password(login_data.password, user.password_hash):
+    # Guard missing password_hash to avoid TypeErrors from passlib
+    if not user or not user.system_admin or not user.password_hash or not verify_password(login_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -196,7 +198,8 @@ async def login_for_access_token(
         (User.corporate_email == form_data.username) | (User.personal_email == form_data.username)
     ).first()
     
-    if not user or not verify_password(form_data.password, user.password_hash):
+    # Guard for missing password hash and invalid creds
+    if not user or not user.password_hash or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",

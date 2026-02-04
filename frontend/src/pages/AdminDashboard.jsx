@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import {
   HiOutlineChartBar,
@@ -11,10 +12,12 @@ import {
   HiOutlineBriefcase,
   HiOutlineDocument,
   HiOutlineCog,
+  HiOutlineArrowRight,
 } from 'react-icons/hi'
 
 export default function AdminDashboard() {
   const { tenantContext, getEffectiveRole } = useAuthStore()
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('overview')
   const effectiveRole = getEffectiveRole()
   const isPlatformAdmin = effectiveRole === 'platform_admin'
@@ -171,6 +174,16 @@ export default function AdminDashboard() {
               </p>
             )}
           </div>
+          {isPlatformAdmin && (
+            <button
+              onClick={() => navigate('/platform/budget-ledger')}
+              className="flex items-center gap-2 px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg transition-all text-sm font-medium text-white"
+            >
+              <HiOutlineChartBar className="w-5 h-5" />
+              Budget Ledger
+              <HiOutlineArrowRight className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 

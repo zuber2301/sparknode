@@ -3,6 +3,7 @@ import { useAuthStore } from '../store/authStore'
 import { useQuery } from '@tanstack/react-query'
 import { usersApi } from '../lib/api'
 import { NavLink } from 'react-router-dom'
+import MorningBriefing from '../components/MorningBriefing'
 
 export default function TeamHub() {
   const { user, canGiveRecognition } = useAuthStore()
@@ -27,7 +28,11 @@ export default function TeamHub() {
   const reports = reportsResponse?.data || []
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
+      {/* Morning Briefing - First Screen */}
+      <MorningBriefing />
+
+      {/* Team Hub Content */}
       <div className="card">
         <h1 className="text-2xl font-bold">Team Hub</h1>
         <p className="text-sm text-gray-600 mt-2">A dedicated view of direct reports' milestones (anniversaries, birthdays).</p>

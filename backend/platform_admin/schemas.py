@@ -54,16 +54,26 @@ class TenantUpdateRequest(BaseModel):
     domain_whitelist: Optional[List[str]] = None  # Email suffixes
     auth_method: Optional[str] = Field(None, pattern="^(PASSWORD_AND_OTP|OTP_ONLY|SSO_SAML)$")
     status: Optional[str] = Field(None, pattern="^(active|inactive|suspended|trial|archived)$")
-    
+
     # Point Economy
+    currency: Optional[str] = None
+    markup_percent: Optional[Decimal] = None
+    enabled_rewards: Optional[List[str]] = None
     currency_label: Optional[str] = None
     conversion_rate: Optional[Decimal] = None
     auto_refill_threshold: Optional[Decimal] = None
-    
+
     # Recognition Laws
     award_tiers: Optional[Dict[str, int]] = None
     peer_to_peer_enabled: Optional[bool] = None
-    expiry_policy: Optional[str] = Field(None, pattern="^(NEVER|90_DAYS|1_YEAR|CUSTOM)$")
+    expiry_policy: Optional[str] = Field(None, pattern="^(?i)(never|90_days|1_year|custom)$")
+
+    # Financial controls
+    redemptions_paused: Optional[bool] = None
+
+    # Branding
+    branding_config: Optional[Dict[str, Any]] = None
+    
     
     # Subscription
     subscription_tier: Optional[str] = Field(None, pattern="^(free|starter|professional|enterprise|basic|premium)$")
@@ -108,6 +118,7 @@ class TenantDetailResponse(BaseModel):
     
     # Theme & Branding
     theme_config: Dict[str, Any]
+    branding_config: Dict[str, Any]
     
     # Access & Security
     domain_whitelist: List[str]
@@ -115,6 +126,9 @@ class TenantDetailResponse(BaseModel):
     status: str
     
     # Point Economy
+    currency: str
+    markup_percent: Decimal
+    enabled_rewards: List[str]
     currency_label: str
     conversion_rate: Decimal
     auto_refill_threshold: Decimal
@@ -124,6 +138,9 @@ class TenantDetailResponse(BaseModel):
     peer_to_peer_enabled: bool
     expiry_policy: str
     
+    # Financial controls
+    redemptions_paused: bool
+
     # Subscription
     subscription_tier: Optional[str]
     subscription_status: Optional[str]
@@ -140,10 +157,6 @@ class TenantDetailResponse(BaseModel):
     
     # Timestamps
     created_at: datetime
-    user_count: Optional[int] = 0
-    
-    class Config:
-        from_attributes = True
     updated_at: datetime
     
     # Computed fields

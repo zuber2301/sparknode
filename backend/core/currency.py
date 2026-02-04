@@ -162,21 +162,26 @@ class TenantCurrencyContext:
     """
     Helper class to manage currency conversion for a tenant.
     Simplifies currency operations with tenant-specific rates.
+
+    Backwards compatible: accepts either (display_currency, fx_rate) or (currency, conversion_rate).
     """
     
-    def __init__(self, base_currency: str = "USD", display_currency: str = "USD", fx_rate: Decimal = Decimal("1.0")):
+    def __init__(self, base_currency: str = "USD", display_currency: str = None, fx_rate: Decimal = None, currency: str = None, conversion_rate: Decimal = None):
         """
         Initialize currency context for a tenant.
         
         Args:
             base_currency: Base currency (typically USD)
-            display_currency: Currency to display values in
-            fx_rate: Exchange rate
+            display_currency/currency: Currency to display values in
+            fx_rate/conversion_rate: Exchange rate
         """
         self.base_currency = base_currency
-        self.display_currency = display_currency
-        self.fx_rate = Decimal(str(fx_rate))
-        
+
+        # Prefer explicit new fields if provided, otherwise use legacy names
+        self.display_currency = currency or display_currency or "USD"
+        rate = conversion_rate if conversion_rate is not None else fx_rate
+        self.fx_rate = Decimal(str(rate or "1.0"))
+
         if self.fx_rate <= 0:
             raise ValueError("Exchange rate must be greater than 0")
     
@@ -197,7 +202,7 @@ class TenantCurrencyContext:
         """Get currency context as dictionary."""
         return {
             "base_currency": self.base_currency,
-            "display_currency": self.display_currency,
-            "fx_rate": float(self.fx_rate),
+            "currency": self.display_currency,
+            "conversion_rate": float(self.fx_rate),
             "currency_info": get_currency_info(self.display_currency)
         }

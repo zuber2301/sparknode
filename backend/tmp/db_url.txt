@@ -1,0 +1,1 @@
+postgresql://sparknode:sparknode_secret_2024@postgres:5432/sparknode

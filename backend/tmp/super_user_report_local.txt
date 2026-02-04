@@ -1,0 +1,38 @@
+USER:
+id: 220e8400-e29b-41d4-a716-446655440000
+email: super_user@sparknode.io
+status: ACTIVE
+has_password: True
+created_at: 2026-01-31 08:40:46 UTC
+
+SYSTEM_ADMIN:
+admin_id: d8684f3e-1e79-4a8f-a505-750d8e19cdbb
+user_id: 220e8400-e29b-41d4-a716-446655440000
+access_level: PLATFORM_ADMIN
+mfa_enabled: True
+last_login_at: 2026-02-03 14:02:00 UTC
+
+AUDIT LOGS:
+2026-02-04 10:42:18 UTC | 342e936a-14cb-44ca-a5bb-d6682030a9f5 | points_allocated | tenant
+2026-02-04 10:41:48 UTC | 51c30b91-dbbf-44e2-8271-362b221a674b | points_allocated | tenant
+2026-02-03 18:41:16 UTC | a4e9edb6-799a-4254-b5ea-491ea7cabdd4 | master_budget_provisioned | tenant
+2026-02-03 18:38:20 UTC | 2eae74f2-5df3-4226-a44f-26dfa483f643 | tenant_created | tenant
+2026-02-03 14:12:16 UTC | c511e2f4-5a0e-4769-b81b-9941e1c65cb3 | tenant_created | tenant
+2026-02-03 14:02:18 UTC | 04753e2e-c01e-42ed-9db4-37dbb628e5df | tenant_created | tenant
+2026-02-03 11:33:52 UTC | 279cae09-60b0-4f1b-a5f9-15b30687fddc | tenant_updated | tenant
+2026-02-03 11:33:46 UTC | 1178a640-0702-4fee-ac7c-8d002df0c36b | recalculate_balances | tenant
+2026-02-03 08:26:46 UTC | 7654eb34-aeba-439f-8185-1a39279af49e | tenant_updated | tenant
+2026-02-03 08:26:42 UTC | 62ff6cc4-0a06-4319-8d43-4dd5fe18b315 | recalculate_balances | tenant
+2026-02-01 18:12:19 UTC | 0eeac58e-f576-4862-8569-1538e2fb5ac4 | tenant_updated | tenant
+2026-02-01 18:09:38 UTC | c01408e8-15ee-4195-ab44-e660a40e9236 | tenant_updated | tenant
+2026-02-01 18:02:09 UTC | 2ab1f02b-fc6e-423e-ba0b-f28b9a18e920 | tenant_updated | tenant
+2026-02-01 18:01:37 UTC | d8df6b7e-7247-4f5d-8de5-ee945236a0b4 | tenant_updated | tenant
+2026-02-01 18:01:34 UTC | d6436853-8425-46c6-95bb-aa3178c2624d | tenant_updated | tenant
+2026-02-01 14:28:35 UTC | 2547ff62-f082-43ea-9e08-07870721fc57 | tenant_created | tenant
+2026-02-01 12:57:11 UTC | 195cdce5-c412-4df2-a0a5-c24b6e28e7c4 | tenant_created | tenant
+2026-02-01 12:54:14 UTC | be5e98fc-0902-472b-8684-5f4cab8ae14a | tenant_created | tenant
+2026-02-01 12:53:45 UTC | 01429b36-8f6b-4b2e-98c3-05d62aa8747d | tenant_created | tenant
+2026-02-01 12:53:28 UTC | 214c94da-4445-43eb-a4c8-936c2834de65 | tenant_created | tenant
+2026-02-01 12:53:18 UTC | b2aa4622-0237-453f-b910-c2bf47969d62 | tenant_created | tenant
+2026-02-01 12:53:00 UTC | 579f79b0-4545-4491-ac70-a31f025dca92 | tenant_created | tenant
+2026-02-01 12:52:29 UTC | f4743b0e-ffba-43cf-b846-33362085c313 | tenant_created | tenant

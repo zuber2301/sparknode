@@ -15,7 +15,8 @@ from core.tenant import set_tenant_context, TenantContext
 from core.rbac import RolePermissions
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+# Correct OAuth2 token URL - token endpoint is implemented at /api/auth/token
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

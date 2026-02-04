@@ -60,7 +60,7 @@ api.interceptors.response.use(
 
 // Auth API
 export const authAPI = {
-  login: (email, password) => api.post('/auth/login', { email, password }),
+  login: (email, password) => api.post('/auth/login', { email, password }, { skipTenant: true }),
   signup: (email, password, first_name, last_name, personal_email, mobile_number, invitation_token) => 
     api.post('/auth/signup', { 
       email, 
@@ -131,6 +131,7 @@ export const budgetsAPI = {
   allocateLeadBudget: (data) => api.post('/budgets/leads/allocate', data),
   activate: (id) => api.put(`/budgets/${id}/activate`),
   getUtilization: (id) => api.get(`/budgets/${id}/utilization`),
+  getPool: () => api.get('/budgets/pool'),
 }
 
 // Recognition API
@@ -237,6 +238,47 @@ export const platformAPI = {
   getVouchers: (params) => api.get('/platform/vouchers', { params }),
   createVoucher: (data) => api.post('/platform/vouchers', data),
   updateVoucher: (id, data) => api.put(`/platform/vouchers/${id}`, data),
+  // Budget Ledger API
+  getBudgetStats: (params = {}) => api.get('/platform/ledger/stats', { 
+    params, 
+    headers: { 'X-Skip-Tenant': '1' } 
+  }),
+  getBudgetActivity: (params = {}) => api.get('/platform/ledger/activity', { 
+    params, 
+    headers: { 'X-Skip-Tenant': '1' } 
+  }),
+  getTenantsWithBudgets: (params = {}) => api.get('/platform/ledger/tenants', { 
+    params, 
+    headers: { 'X-Skip-Tenant': '1' } 
+  }),
+  getFullBudgetLedger: (params = {}) => api.get('/platform/ledger/full-ledger', { 
+    params, 
+    headers: { 'X-Skip-Tenant': '1' } 
+  }),
+  // Budget Ledger Export API
+  exportBudgetLedgerCSV: (params = {}) => api.get('/platform/ledger/export/csv', { 
+    params, 
+    responseType: 'blob',
+    headers: { 'X-Skip-Tenant': '1' } 
+  }),
+  exportBudgetLedgerJSON: (params = {}) => api.get('/platform/ledger/export/json', { 
+    params, 
+    headers: { 'X-Skip-Tenant': '1' } 
+  }),
+  // Budget Alert API
+  checkBudgetHealth: () => api.get('/platform/alerts/health', { 
+    headers: { 'X-Skip-Tenant': '1' } 
+  }),
+  getAlertHistory: (params = {}) => api.get('/platform/alerts/history', { 
+    params, 
+    headers: { 'X-Skip-Tenant': '1' } 
+  }),
+  checkAndNotify: () => api.post('/platform/alerts/check-and-notify', null, { 
+    headers: { 'X-Skip-Tenant': '1' } 
+  }),
+  acknowledgeAlert: (alertId) => api.post(`/platform/alerts/acknowledge/${alertId}`, null, { 
+    headers: { 'X-Skip-Tenant': '1' } 
+  }),
 }
 
 // Events API (New - Multi-tenant Events & Logistics)

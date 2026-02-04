@@ -129,21 +129,20 @@ class Tenant(Base):
         "secondary_color": "#8B5CF6",
         "font_family": "Inter"
     })
-    
+    branding_config = Column(JSONB, default={})  # New: explicit branding config separate from settings
+
     # Access & Security
-    domain_whitelist = Column(JSONB, default=lambda: [])  # Array of email suffixes
-    auth_method = Column(String(50), default='PASSWORD_AND_OTP')  # PASSWORD_AND_OTP, OTP_ONLY, SSO_SAML
-    
+    domain_whitelist = Column(JSONB, default=lambda: [])  # Array of email suffixes for auto-onboarding
+    auth_method = Column(String(50), default='OTP_ONLY')  # PASSWORD_AND_OTP, OTP_ONLY, SSO_SAML
+
     # Point Economy Config
+    currency = Column(String(3), default='INR')  # Primary tenant currency (INR by default)
+    markup_percent = Column(Numeric(5, 2), default=0.0)  # For gift card or markup governance
+    enabled_rewards = Column(JSONB, default=lambda: [])  # Whitelisted reward ids
     currency_label = Column(String(100), default="Points")  # Custom name for points
     conversion_rate = Column(Numeric(10, 4), default=1.0)  # $1 = X points (for invoicing)
     auto_refill_threshold = Column(Numeric(5, 2), default=20.0)  # Percentage to trigger notification
-    
-    # Multi-Currency Support
-    base_currency = Column(String(3), default='USD')  # Base currency for all values (USD, INR, EUR, GBP, JPY)
-    display_currency = Column(String(3), default='USD')  # Display currency for UI (USD, INR, EUR, GBP, JPY)
-    fx_rate = Column(Numeric(10, 4), default=1.0)  # Exchange rate: 1 base_currency = fx_rate * display_currency
-    
+
     # Recognition Laws Config
     award_tiers = Column(JSONB, default=lambda: {
         "Gold": 5000,
@@ -151,8 +150,11 @@ class Tenant(Base):
         "Bronze": 1000
     })
     peer_to_peer_enabled = Column(Boolean, default=True)
-    expiry_policy = Column(String(50), default='NEVER')  # NEVER, 90_DAYS, 1_YEAR, CUSTOM
-    
+    expiry_policy = Column(String(50), default='never')  # never, 90_days, 1_year, custom
+
+    # Financials & Controls
+    redemptions_paused = Column(Boolean, default=False)
+
     status = Column(String(50), default='active')
     
     # Subscription & Billing
@@ -164,6 +166,12 @@ class Tenant(Base):
 
     # Master budget pool
     master_budget_balance = Column(Numeric(15, 2), nullable=False, default=0)
+    
+    # Budget allocated by platform admin (tenant manager distribution pool)
+    budget_allocated = Column(Numeric(15, 2), nullable=False, default=0)
+    
+    # Budget allocation balance (remaining available for distribution)
+    budget_allocation_balance = Column(Numeric(15, 2), nullable=False, default=0)
     
     # Feature Flags & Settings
     settings = Column(JSONB, default={})
@@ -238,11 +246,14 @@ class Tenant(Base):
 
     @property
     def branding_config(self):
-        """Compatibility property for older code expecting `branding_config`.
+        """Compatibility: return explicit `branding_config` column or fall back to settings.
 
-        Falls back to `settings['branding_config']` or an empty dict.
+        This ensures older code and new code both have a consistent view.
         """
         try:
+            # Prefer the explicit column if populated
+            if self.__dict__.get('branding_config'):
+                return self.__dict__.get('branding_config') or {}
             return (self.settings or {}).get('branding_config', {})
         except Exception:
             return {}
@@ -1123,6 +1134,84 @@ class InvitationToken(Base):
     )
 
 
+# =====================================================
+# POINTS ALLOCATION SYSTEM
+# =====================================================
+
+class BudgetAllocationLog(Base):
+    """
+    Tracks when Platform Admin allocates budget to Tenant.
+    Immutable audit trail for all allocation transactions.
+    """
+    __tablename__ = "budget_allocation_logs"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    admin_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    amount = Column(Numeric(15, 2), nullable=False)
+    currency = Column(String(10), default='INR')
+    reference_note = Column(Text)
+    transaction_type = Column(String(50), nullable=False, default='CREDIT_INJECTION')
+        # CHECK (transaction_type IN ('CREDIT_INJECTION', 'CLAWBACK', 'ADJUSTMENT'))
+    previous_balance = Column(Numeric(15, 2))
+    new_balance = Column(Numeric(15, 2))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    tenant = relationship("Tenant")
+    admin = relationship("User")
+
+
+class PlatformBudgetBillingLog(Base):
+    """
+    Platform-level budget billing audit trail.
+    Tracks all admin-initiated budget allocations for invoicing/reconciliation.
+    """
+    __tablename__ = "platform_billing_logs"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    admin_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    amount = Column(Numeric(15, 2), nullable=False)
+    currency = Column(String(10), default='INR')
+    reference_note = Column(Text)
+    transaction_type = Column(String(50), nullable=False, default='CREDIT_INJECTION')
+        # CHECK (transaction_type IN ('CREDIT_INJECTION', 'CLAWBACK', 'REVERSAL', 'REFUND', 'ADJUSTMENT'))
+    invoice_number = Column(String(100))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    admin = relationship("User")
+    tenant = relationship("Tenant")
+
+
+class BudgetDistributionLog(Base):
+    """
+    Tracks when Tenant Manager distributes budget from allocation pool to employees.
+    Records who gave budget to whom and the reason (recognition, award, event bonus).
+    """
+    __tablename__ = "budget_distribution_logs"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    from_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    to_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    amount = Column(Numeric(15, 2), nullable=False)
+    transaction_type = Column(String(50), nullable=False, default='RECOGNITION')
+        # CHECK (transaction_type IN ('RECOGNITION', 'MANUAL_AWARD', 'EVENT_BONUS'))
+    reference_type = Column(String(50))  # recognition, budget_allocation, event
+    reference_id = Column(UUID(as_uuid=True))
+    description = Column(Text)
+    previous_pool_balance = Column(Numeric(15, 2))
+    new_pool_balance = Column(Numeric(15, 2))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    tenant = relationship("Tenant")
+    from_user = relationship("User", foreign_keys=[from_user_id])
+    to_user = relationship("User", foreign_keys=[to_user_id])
+
+
 # -------------------- Compatibility aliases / legacy models --------------------
 # Provide simple aliases so existing imports in tests keep working.
 # Reward used to be a distinct model; map it to Voucher.
@@ -1130,5 +1219,8 @@ Reward = Voucher
 # WalletTransaction / Ledger map to the WalletLedger model/table.
 WalletTransaction = WalletLedger
 Ledger = WalletLedger
+# Budget allocation model aliases for backward compatibility
+AllocationLog = BudgetAllocationLog
+DistributionLog = BudgetDistributionLog
 
 

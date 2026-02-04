@@ -14,8 +14,8 @@ import {
 
 export default function TenantCurrencySettings({ tenantId = null }) {
   const [formData, setFormData] = useState({
-    display_currency: 'USD',
-    fx_rate: 1.0
+    currency: 'USD',
+    conversion_rate: 1.0
   })
   const [isEditing, setIsEditing] = useState(false)
   const [previewFormatter, setPreviewFormatter] = useState(null)
@@ -53,20 +53,20 @@ export default function TenantCurrencySettings({ tenantId = null }) {
   useEffect(() => {
     if (tenantData) {
       setFormData({
-        display_currency: tenantData.display_currency || 'USD',
-        fx_rate: parseFloat(tenantData.fx_rate) || 1.0
+        currency: tenantData.currency || tenantData.display_currency || 'USD',
+        conversion_rate: parseFloat(tenantData.conversion_rate || tenantData.fx_rate) || 1.0
       })
     }
   }, [tenantData])
 
   // Update preview when form changes
   useEffect(() => {
-    if (formData.display_currency && formData.fx_rate) {
+    if (formData.currency && formData.conversion_rate) {
       setPreviewFormatter(
         new TenantCurrencyFormatter(
           'USD',
-          formData.display_currency,
-          parseFloat(formData.fx_rate)
+          formData.currency,
+          parseFloat(formData.conversion_rate)
         )
       )
     }
@@ -75,8 +75,8 @@ export default function TenantCurrencySettings({ tenantId = null }) {
   const handleInputChange = (e) => {
     const { name, value } = e.target
     
-    if (name === 'fx_rate') {
-      // Validate: only allow positive numbers with max 2 decimal places
+    if (name === 'conversion_rate') {
+      // Validate: only allow positive numbers with up to 4 decimal places
       const regex = /^\d*\.?\d{0,4}$/
       if (regex.test(value) || value === '') {
         setFormData(prev => ({
@@ -96,29 +96,29 @@ export default function TenantCurrencySettings({ tenantId = null }) {
     e.preventDefault()
     
     // Validation
-    if (!formData.display_currency) {
+    if (!formData.currency) {
       toast.error('Please select a currency')
       return
     }
     
-    if (formData.display_currency !== 'USD' && (!formData.fx_rate || parseFloat(formData.fx_rate) <= 0)) {
+    if (formData.currency !== 'USD' && (!formData.conversion_rate || parseFloat(formData.conversion_rate) <= 0)) {
       toast.error('Please enter a valid exchange rate (must be greater than 0)')
       return
     }
 
-    const fxRate = formData.display_currency === 'USD' ? 1.0 : parseFloat(formData.fx_rate)
+    const conversionRate = formData.currency === 'USD' ? 1.0 : parseFloat(formData.conversion_rate)
     
     updateMutation.mutate({
-      display_currency: formData.display_currency,
-      fx_rate: fxRate
+      currency: formData.currency,
+      conversion_rate: conversionRate
     })
   }
 
   const handleReset = () => {
     if (tenantData) {
       setFormData({
-        display_currency: tenantData.display_currency || 'USD',
-        fx_rate: parseFloat(tenantData.fx_rate) || 1.0
+        currency: tenantData.currency || tenantData.display_currency || 'USD',
+        conversion_rate: parseFloat(tenantData.conversion_rate || tenantData.fx_rate) || 1.0
       })
     }
     setIsEditing(false)
@@ -163,7 +163,7 @@ export default function TenantCurrencySettings({ tenantId = null }) {
               <div>
                 <p className="text-sm font-medium text-gray-500">Exchange Rate</p>
                 <p className="text-lg font-bold text-gray-900 mt-1">
-                  1 USD = {tenantData?.fx_rate || 1.0} {tenantData?.display_currency || 'USD'}
+                  1 USD = {tenantData?.conversion_rate || tenantData?.fx_rate || 1.0} {tenantData?.currency || tenantData?.display_currency || 'USD'}
                 </p>
               </div>
             </div>
@@ -173,7 +173,7 @@ export default function TenantCurrencySettings({ tenantId = null }) {
               <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200 flex gap-2">
                 <HiOutlineInformationCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-blue-800">
-                  <strong>Example:</strong> 100 base points = <strong>{new TenantCurrencyFormatter('USD', tenantData?.display_currency, tenantData?.fx_rate).formatBaseValue(100)}</strong>
+                  <strong>Example:</strong> 100 base points = <strong>{new TenantCurrencyFormatter('USD', tenantData?.currency || tenantData?.display_currency, tenantData?.conversion_rate || tenantData?.fx_rate).formatBaseValue(100)}</strong>
                 </p>
               </div>
             )}
@@ -188,11 +188,11 @@ export default function TenantCurrencySettings({ tenantId = null }) {
             {/* Currency Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Display Currency
+                Currency
               </label>
               <select
-                name="display_currency"
-                value={formData.display_currency}
+                name="currency"
+                value={formData.currency}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sparknode-purple focus:border-transparent"
               >
@@ -208,7 +208,7 @@ export default function TenantCurrencySettings({ tenantId = null }) {
             </div>
 
             {/* FX Rate Input */}
-            {formData.display_currency !== 'USD' && (
+            {formData.currency !== 'USD' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Conversion Rate
@@ -217,8 +217,8 @@ export default function TenantCurrencySettings({ tenantId = null }) {
                   <span className="text-gray-700 font-medium">1 USD =</span>
                   <input
                     type="number"
-                    name="fx_rate"
-                    value={formData.fx_rate}
+                    name="conversion_rate"
+                    value={formData.conversion_rate}
                     onChange={handleInputChange}
                     placeholder="0.00"
                     step="0.0001"
@@ -226,7 +226,7 @@ export default function TenantCurrencySettings({ tenantId = null }) {
                     max="999999"
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sparknode-purple focus:border-transparent"
                   />
-                  <span className="text-gray-700 font-medium">{formData.display_currency}</span>
+                  <span className="text-gray-700 font-medium">{formData.currency}</span>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
                   Enter the exchange rate with up to 4 decimal places

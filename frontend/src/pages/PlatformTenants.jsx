@@ -18,6 +18,7 @@ import ConfirmModal from '../components/ConfirmModal'
 import AddBudgetModal from '../components/AddBudgetModal'
 import { platformAPI } from '../lib/api'
 import TenantCurrencySettings from '../components/TenantCurrencySettings'
+import TenantSettingsTab from '../components/TenantSettingsTab'
 import OrganizationInfoCard from '../components/OrganizationInfoCard'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
 import { useAuthStore } from '../store/authStore'
@@ -54,7 +55,7 @@ export default function PlatformTenants() {
     conversion_rate: 1.0,
     auto_refill_threshold: 20,
     peer_to_peer_enabled: true,
-    auth_method: 'PASSWORD_AND_OTP',
+    auth_method: 'OTP_ONLY',
     theme_config: {
       primary_color: '#3B82F6',
       secondary_color: '#8B5CF6',
@@ -146,26 +147,7 @@ export default function PlatformTenants() {
     }
   })
 
-  const uploadLogoMutation = useMutation({
-    mutationFn: (file) => platformAPI.uploadLogo(selectedTenant.id, file),
-    onSuccess: (res) => {
-      toast.success('Logo uploaded')
-      const logoUrl = res.data?.logo_url || res.data?.url || null
-      setEditForm(prev => {
-        try {
-          if (prev.logoPreview && String(prev.logoPreview).startsWith('blob:')) {
-            URL.revokeObjectURL(prev.logoPreview)
-          }
-        } catch (e) {
-          // ignore
-        }
-        return { ...prev, logoPreview: logoUrl }
-      })
-      setSelectedTenant(prev => ({ ...prev, logo_url: logoUrl }))
-      queryClient.invalidateQueries(['platformTenants'])
-    },
-    onError: (err) => toast.error(err.response?.data?.detail || 'Failed to upload logo')
-  })
+
 
   const updateFlagsMutation = useMutation({
     mutationFn: ({ tenantId, payload }) => platformAPI.updateFeatureFlags(tenantId, payload),
@@ -256,7 +238,7 @@ export default function PlatformTenants() {
         conversion_rate: full.conversion_rate || 1.0,
         auto_refill_threshold: full.auto_refill_threshold || 20,
         peer_to_peer_enabled: full.peer_to_peer_enabled !== false,
-        auth_method: full.auth_method || 'PASSWORD_AND_OTP',
+        auth_method: full.auth_method || 'OTP_ONLY',
         theme_config: full.theme_config || {
           primary_color: '#3B82F6',
           secondary_color: '#8B5CF6',
@@ -264,7 +246,7 @@ export default function PlatformTenants() {
         },
         domain_whitelist: full.domain_whitelist || [],
         award_tiers: full.award_tiers || {},
-        expiry_policy: full.expiry_policy || 'NEVER',
+        expiry_policy: full.expiry_policy || 'never',
         logoPreview: full.logo_url || full.logo || null,
         feature_flags: full.feature_flags || {}
       })
@@ -338,15 +320,20 @@ export default function PlatformTenants() {
       subscription_tier: editForm.subscription_tier,
       max_users: editForm.max_users,
       master_budget_balance: editForm.master_budget_balance,
+      currency: editForm.currency || editForm.currency_label,
+      markup_percent: editForm.redemption_markup || editForm.markup_percent || 0,
+      enabled_rewards: editForm.enabled_rewards || [],
       currency_label: editForm.currency_label,
       conversion_rate: editForm.conversion_rate,
       auto_refill_threshold: editForm.auto_refill_threshold,
       peer_to_peer_enabled: editForm.peer_to_peer_enabled,
+      redemptions_paused: editForm.redemptions_paused || false,
       auth_method: editForm.auth_method,
       theme_config: editForm.theme_config,
       domain_whitelist: editForm.domain_whitelist,
       award_tiers: editForm.award_tiers,
-      expiry_policy: editForm.expiry_policy
+      expiry_policy: editForm.expiry_policy,
+      branding_config: editForm.branding_config || {}
     }
     updateMutation.mutate({ tenantId: selectedTenant.id, payload })
   }
@@ -377,17 +364,7 @@ export default function PlatformTenants() {
     return { credits, debits, net }
   }, [chartDataForSelected])
 
-  const handleSaveBranding = async () => {
-    if (!selectedTenant) return
-    try {
-      if (editForm.logoFile) {
-        await uploadLogoMutation.mutateAsync(editForm.logoFile)
-      }
-      await updateMutation.mutateAsync({ tenantId: selectedTenant.id, payload: { theme_config: editForm.theme_config } })
-    } catch (err) {
-      // mutation onError handlers will show toast; swallow here
-    }
-  }
+
 
   if (!isPlatformOwner()) {
     return (
@@ -746,44 +723,24 @@ export default function PlatformTenants() {
             )}
 
             {activeTab === 'branding' && (
-              <div className="space-y-6 max-w-3xl">
-                <div>
-                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Company Logo</label>
-                  <input type="file" accept="image/*" onChange={(e) => {
-                    const f = e.target.files?.[0]
-                    if (!f) return
-                    setEditForm(prev => {
-                      try {
-                        if (prev.logoPreview && String(prev.logoPreview).startsWith('blob:')) {
-                          URL.revokeObjectURL(prev.logoPreview)
-                        }
-                      } catch (err) {
-                        // ignore
-                      }
-                      const newPreview = URL.createObjectURL(f)
-                      return { ...prev, logoFile: f, logoPreview: newPreview }
-                    })
-                  }} className="w-full" />
-                  {editForm.logoPreview && (<img src={editForm.logoPreview} alt="logo" className="h-12 mt-2" />)}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Primary Brand Color</label>
-                    <input type="color" value={editForm.theme_config.primary_color} onChange={(e) => setEditForm({ ...editForm, theme_config: { ...editForm.theme_config, primary_color: e.target.value } })} className="w-12 h-10 rounded-lg" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Accent Color</label>
-                    <input type="color" value={editForm.theme_config.secondary_color} onChange={(e) => setEditForm({ ...editForm, theme_config: { ...editForm.theme_config, secondary_color: e.target.value } })} className="w-12 h-10 rounded-lg" />
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-3 pt-4">
-                  <button type="button" onClick={() => setSelectedTenant(null)} className="px-6 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-widest hover:text-gray-700">Discard</button>
-                  <button type="button" onClick={handleSaveBranding} disabled={updateMutation.isPending || uploadLogoMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs uppercase tracking-widest">{(updateMutation.isPending || uploadLogoMutation.isPending) ? 'Saving...' : 'Save Branding'}</button>
-                </div>
+              <div className="space-y-6 max-w-4xl">
+                <TenantSettingsTab
+                  tenant={selectedTenant}
+                  onUpdate={(updated) => {
+                    // refresh selected tenant with returned values
+                    const updatedData = updated?.data || updated || {}
+                    setSelectedTenant(prev => ({ ...prev, ...(updatedData || {}) }))
+                    queryClient.invalidateQueries(['platformTenants'])
+                    queryClient.invalidateQueries(['platformTenant', selectedTenant.id])
+                  }}
+                  setMessage={(msg) => {
+                    // optional: show messages in page header or toast
+                    if (msg?.type === 'success') {
+                      // no-op for now
+                    }
+                  }}
+                />
               </div>
-
             )}
 
             {activeTab === 'features' && (

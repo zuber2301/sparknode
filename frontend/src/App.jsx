@@ -32,6 +32,7 @@ import TeamActivity from './pages/TeamActivity'
 import TeamApprovals from './pages/TeamApprovals'
 import TeamAnalytics from './pages/TeamAnalytics'
 import InviteUsers from './pages/admin/InviteUsers'
+import PlatformAdminBudgetLedgerPage from './pages/PlatformAdminBudgetLedgerPage'
 import { useParams } from 'react-router-dom'
 
 function EventCreateWizardEdit() {
@@ -86,6 +87,11 @@ function App() {
         <Route path="platform/tenants" element={<PlatformTenants />} />
         <Route path="platform/tenants/:tenantId" element={<PlatformTenantDetail />} />
         <Route path="platform/tenants/:tenantId/users" element={<PlatformTenantUsers />} />
+        <Route path="platform/budget-ledger" element={
+          <AdminRoute>
+            <PlatformAdminBudgetLedgerPage />
+          </AdminRoute>
+        } />
         <Route path="tenant/:slug" element={<TenantDashboard />} />
         <Route path="marketplace" element={<Marketplace />} />
         <Route path="ai-settings" element={<AISettings />} />
