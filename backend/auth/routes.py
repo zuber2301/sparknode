@@ -623,7 +623,7 @@ async def generate_invitation_link(
     ).first()
     
     # Construct join URL
-    base_url = settings.frontend_url or "http://localhost:5173"
+    base_url = getattr(settings, "frontend_url", None) or "http://localhost:5173"
     join_url = f"{base_url}/signup?token={token}&email={invitation_data.email}"
     
     return InvitationLinkResponse(

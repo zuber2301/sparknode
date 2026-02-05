@@ -202,6 +202,23 @@ async def create_user(
     db.refresh(user)
     return user
 
+@router.get("/profile", response_model=UserResponse)
+async def get_profile(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get the current user's profile"""
+    # Get department name
+    department_name = None
+    if current_user.department_id:
+        department = db.query(Department).filter(Department.id == current_user.department_id).first()
+        department_name = department.name if department else None
+
+    user_dict = current_user.__dict__.copy()
+    user_dict['department_name'] = department_name
+    return UserResponse(**user_dict)
+
+
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user(
     user_id: UUID,

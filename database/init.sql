@@ -58,8 +58,9 @@ CREATE TABLE tenants (
 CREATE TABLE departments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL CHECK (name IN ('Human Resource (HR)', 'Techology (IT)', 'Sale & Marketting', 'Business Unit -1', 'Business Unit-2', 'Business Unit-3')),
+    name VARCHAR(255) NOT NULL,
     parent_id UUID REFERENCES departments(id),
+    budget_balance DECIMAL(15, 2) NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(tenant_id, name)
@@ -74,7 +75,7 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
-    org_role VARCHAR(50) NOT NULL CHECK (org_role IN ('platform_admin', 'tenant_manager', 'hr_admin', 'tenant_lead', 'manager', 'corporate_user', 'employee')),
+    org_role VARCHAR(50) NOT NULL CHECK (org_role IN ('platform_admin', 'tenant_manager', 'hr_admin', 'tenant_lead', 'dept_lead', 'manager', 'corporate_user', 'employee')),
     department_id UUID NOT NULL REFERENCES departments(id),
     manager_id UUID REFERENCES users(id),
     avatar_url VARCHAR(500),

@@ -3,7 +3,18 @@ import { createContext, useContext, useState, useCallback } from 'react'
 const CopilotContext = createContext(undefined)
 
 export function CopilotProvider({ children }) {
-  const [isOpen, setIsOpen] = useState(true)
+  // Persisted "pinned" state controls whether SNPilot remains fixed-open
+  const [pinned, setPinned] = useState(() => {
+    try {
+      const s = localStorage.getItem('copilotPinned')
+      return s ? JSON.parse(s) : true
+    } catch (e) {
+      return true
+    }
+  })
+
+  // Start open if pinned, otherwise can be toggled
+  const [isOpen, setIsOpen] = useState(pinned)
   const [messages, setMessages] = useState([
     {
       id: '1',
@@ -75,11 +86,28 @@ export function CopilotProvider({ children }) {
     setIsOpen((prev) => !prev)
   }, [])
 
+  const togglePinned = useCallback(() => {
+    setPinned((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem('copilotPinned', JSON.stringify(next))
+      } catch (e) {
+        // ignore
+      }
+      // Keep the open state in sync with pinned
+      if (next) setIsOpen(true)
+      return next
+    })
+  }, [])
+
   return (
     <CopilotContext.Provider
       value={{
         isOpen,
         setIsOpen,
+        pinned,
+        setPinned,
+        togglePinned,
         messages,
         isLoading,
         sendMessage,

@@ -128,7 +128,15 @@ export default function Departments() {
       setTimeout(() => setNewlyCreatedDeptId(null), 3000)
     },
     onError: (error) => {
-      const detail = error.response?.data?.detail || error.message || 'Failed to create department'
+      let detail = error.response?.data?.detail || error.message || 'Failed to create department'
+      
+      // Handle Pydantic validation errors
+      if (Array.isArray(detail)) {
+        detail = detail.map(err => err.msg || err.message).join(', ')
+      } else if (typeof detail === 'object' && detail !== null) {
+        detail = detail.message || detail.msg || JSON.stringify(detail)
+      }
+      
       toast.error(detail)
     },
   })
@@ -199,7 +207,7 @@ export default function Departments() {
       return
     }
 
-    const allocation = newDeptAllocation ? parseFloat(newDeptAllocation) : 0
+    const allocation = newDeptAllocation ? parseFloat(newDeptAllocation) || 0 : 0
     if (allocation < 0) {
       toast.error('Allocation amount cannot be negative')
       return
@@ -213,7 +221,7 @@ export default function Departments() {
     createDeptMutation.mutate({
       name: newDeptName.trim(),
       initial_allocation: allocation,
-      lead_user_id: selectedLeadUserId || null
+      lead_user_id: selectedLeadUserId || undefined
     })
   }
 

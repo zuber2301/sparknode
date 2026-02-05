@@ -6,7 +6,9 @@ import os
 
 class Settings(BaseSettings):
     # Database
-    database_url: str = os.getenv("DATABASE_URL", "postgresql://sparknode:sparknode_secret_2024@localhost:5432/sparknode")
+    # Prefer an explicit app-scoped connection URL (APP_DATABASE_URL) for safer production posture.
+    # Falls back to legacy DATABASE_URL if APP_DATABASE_URL is not set.
+    database_url: str = os.getenv("APP_DATABASE_URL") or os.getenv("DATABASE_URL", "postgresql://sparknode:sparknode_secret_2024@localhost:5432/sparknode")
     
     # JWT Settings
     secret_key: str = os.getenv("SECRET_KEY", "sparknode-super-secret-key-change-in-production")

@@ -231,9 +231,20 @@ def get_scoped_db(
 
 
 def get_db_session() -> Generator[Session, None, None]:
-    """Get a database session"""
+    """Get a database session. Sets session-local tenant-related flags for RLS if tenant context exists."""
+    from sqlalchemy import text
+
     db = SessionLocal()
     try:
+        # If a tenant context has been established (by auth), set session local flags
+        context = get_tenant_context()
+        if context is not None:
+            try:
+                db.execute(text("SET LOCAL app.tenant_id = :tenant_id"), {"tenant_id": str(context.tenant_id)})
+                db.execute(text("SET LOCAL app.is_platform_admin = :is_admin"), {"is_admin": 'true' if context.can_access_all_tenants else 'false'})
+            except Exception:
+                # Best-effort: if SET fails (old PG versions), continue without RLS support
+                pass
         yield db
     finally:
         db.close()

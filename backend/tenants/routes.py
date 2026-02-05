@@ -8,7 +8,8 @@ from models import Tenant, Department, User, AuditLog, ActorType
 from auth.utils import get_current_user, get_hr_admin
 from tenants.schemas import (
     TenantCreate, TenantUpdate, TenantResponse,
-    DepartmentCreate, DepartmentUpdate, DepartmentResponse, DepartmentManagementResponse
+    DepartmentCreate, DepartmentUpdate, DepartmentResponse, DepartmentManagementResponse,
+    DepartmentCreateWithAllocation
 )
 
 router = APIRouter()
@@ -249,10 +250,13 @@ async def get_department_management_data(
 @router.post("/departments", response_model=DepartmentResponse)
 async def create_department(
     department_data: DepartmentCreate,
-    current_user: User = Depends(get_hr_admin),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Create a new department (HR Admin only)"""
+    """Create a new department (Tenant Manager or HR Admin)"""
+    # Check permissions - tenant managers and HR admins can create departments
+    if current_user.org_role not in ['tenant_manager', 'hr_admin']:
+        raise HTTPException(status_code=403, detail="Only tenant managers or HR admins can create departments")
     department = Department(
         tenant_id=current_user.tenant_id,
         **department_data.model_dump()
@@ -331,14 +335,14 @@ async def assign_department_lead(
     user = db.query(User).filter(
         User.id == user_id,
         User.tenant_id == current_user.tenant_id,
-        User.dept_id == department_id
+        User.department_id == department_id
     ).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found in this department")
     
     # Remove existing dept_lead role from anyone in this department
     db.query(User).filter(
-        User.dept_id == department_id,
+        User.department_id == department_id,
         User.org_role == 'dept_lead'
     ).update({"org_role": "corporate_user"})
     
@@ -438,10 +442,13 @@ async def get_department(
 async def update_department(
     department_id: UUID,
     department_data: DepartmentUpdate,
-    current_user: User = Depends(get_hr_admin),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Update a department (HR Admin only)"""
+    """Update a department (Tenant Manager or HR Admin)"""
+    # Check permissions - tenant managers and HR admins can update departments
+    if current_user.org_role not in ['tenant_manager', 'hr_admin']:
+        raise HTTPException(status_code=403, detail="Only tenant managers or HR admins can update departments")
     department = db.query(Department).filter(
         Department.id == department_id,
         Department.tenant_id == current_user.tenant_id
@@ -461,10 +468,13 @@ async def update_department(
 @router.delete("/departments/{department_id}")
 async def delete_department(
     department_id: UUID,
-    current_user: User = Depends(get_hr_admin),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Delete a department (HR Admin only)"""
+    """Delete a department (Tenant Manager or HR Admin)"""
+    # Check permissions - tenant managers and HR admins can delete departments
+    if current_user.org_role not in ['tenant_manager', 'hr_admin']:
+        raise HTTPException(status_code=403, detail="Only tenant managers or HR admins can delete departments")
     department = db.query(Department).filter(
         Department.id == department_id,
         Department.tenant_id == current_user.tenant_id
@@ -508,9 +518,7 @@ async def check_department_name(
 
 @router.post("/departments/create-and-allocate")
 async def create_department_with_allocation(
-    name: str,
-    initial_allocation: float = 0,
-    lead_user_id: Optional[UUID] = None,
+    data: DepartmentCreateWithAllocation,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -520,34 +528,34 @@ async def create_department_with_allocation(
         raise HTTPException(status_code=403, detail="Only tenant managers can create departments")
     
     # Validate department name
-    if not name or not name.strip():
+    if not data.name or not data.name.strip():
         raise HTTPException(status_code=400, detail="Department name is required")
     
     # Check if department already exists
     existing = db.query(Department).filter(
         Department.tenant_id == current_user.tenant_id,
-        Department.name.ilike(name.strip())
+        Department.name.ilike(data.name.strip())
     ).first()
     
     if existing:
-        raise HTTPException(status_code=400, detail=f'Department "{name}" already exists')
+        raise HTTPException(status_code=400, detail=f'Department "{data.name}" already exists')
     
     # Check master pool balance if allocation is requested
-    if initial_allocation > 0:
+    if data.initial_allocation > 0:
         tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
         if not tenant:
             raise HTTPException(status_code=404, detail="Tenant not found")
         
-        if tenant.master_budget_balance < initial_allocation:
+        if tenant.master_budget_balance < data.initial_allocation:
             raise HTTPException(
                 status_code=400,
                 detail=f"Insufficient master pool balance. Available: {tenant.master_budget_balance}"
             )
     
     # Check lead user if provided
-    if lead_user_id:
+    if data.lead_user_id:
         lead_user = db.query(User).filter(
-            User.id == lead_user_id,
+            User.id == data.lead_user_id,
             User.tenant_id == current_user.tenant_id
         ).first()
         if not lead_user:
@@ -560,19 +568,19 @@ async def create_department_with_allocation(
         # Create department
         department = Department(
             tenant_id=current_user.tenant_id,
-            name=name.strip(),
-            budget_balance=initial_allocation
+            name=data.name.strip(),
+            budget_balance=data.initial_allocation
         )
         db.add(department)
         db.flush()  # Get the ID without committing
         
         # Allocate from master pool if requested
-        if initial_allocation > 0:
+        if data.initial_allocation > 0:
             tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
-            tenant.master_budget_balance -= initial_allocation
+            tenant.master_budget_balance -= data.initial_allocation
         
         # Assign department lead if provided
-        if lead_user_id:
+        if data.lead_user_id:
             # Remove existing dept_lead role from anyone in this department (though it's new, be safe)
             db.query(User).filter(
                 User.tenant_id == current_user.tenant_id,
@@ -580,9 +588,9 @@ async def create_department_with_allocation(
             ).update({"org_role": "corporate_user"})
             
             # Assign new dept_lead
-            lead_user = db.query(User).filter(User.id == lead_user_id).first()
+            lead_user = db.query(User).filter(User.id == data.lead_user_id).first()
             lead_user.org_role = 'dept_lead'
-            lead_user.dept_id = department.id
+            lead_user.department_id = department.id
         
         db.commit()
         db.refresh(department)
@@ -591,8 +599,8 @@ async def create_department_with_allocation(
             "message": f'Department "{department.name}" created successfully',
             "department_id": department.id,
             "department_name": department.name,
-            "allocated_amount": initial_allocation,
-            "lead_assigned": bool(lead_user_id)
+            "allocated_amount": data.initial_allocation,
+            "lead_assigned": bool(data.lead_user_id)
         }
         
     except Exception as e:

@@ -1,0 +1,49 @@
+name: Migrations Check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  migrations:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sparknode
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Wait for Postgres
+        run: |
+          for i in {1..30}; do
+            if psql "postgresql://postgres:postgres@localhost:5432/sparknode" -c '\l' >/dev/null 2>&1; then
+              echo "Postgres ready"; break
+            fi
+            echo 'Waiting for Postgres...'; sleep 2
+          done
+
+      - name: Initialize DB schema and seed (CI-only)
+        run: |
+          psql "postgresql://postgres:postgres@localhost:5432/sparknode" -f database/init.sql
+          psql "postgresql://postgres:postgres@localhost:5432/sparknode" -f database/seed.sql
+
+      - name: Apply migrations
+        env:
+          APP_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sparknode
+        run: bash backend/scripts/apply_migrations.sh
+
+      - name: Check pending migrations
+        env:
+          APP_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sparknode
+        run: bash backend/scripts/check_migrations_ci.sh

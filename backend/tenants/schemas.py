@@ -157,11 +157,9 @@ class DepartmentBase(BaseModel):
 
     @field_validator('name')
     @classmethod
-    def validate_department_name(cls, v):
-        allowed_names = [d.value for d in AllowedDepartment]
-        if v not in allowed_names:
-            raise ValueError(f"Department name must be one of: {', '.join(allowed_names)}")
-        return v
+    def normalize_name(cls, v):
+        # Allow arbitrary department names; normalize whitespace
+        return v.strip() if isinstance(v, str) else v
 
 
 class DepartmentCreate(DepartmentBase):
@@ -171,6 +169,13 @@ class DepartmentCreate(DepartmentBase):
 class DepartmentUpdate(BaseModel):
     name: Optional[str] = None
     parent_id: Optional[UUID] = None
+    budget_balance: Optional[float] = None
+
+
+class DepartmentCreateWithAllocation(BaseModel):
+    name: str
+    initial_allocation: float = 0
+    lead_user_id: Optional[UUID] = None
 
 
 class DepartmentResponse(DepartmentBase):

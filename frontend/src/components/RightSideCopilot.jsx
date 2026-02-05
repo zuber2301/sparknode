@@ -5,6 +5,9 @@ import {
   HiOutlineTrash,
   HiOutlinePaperAirplane,
   HiOutlineSparkles,
+  HiOutlineX,
+  HiOutlineLockClosed,
+  HiOutlineLockOpen,
 } from 'react-icons/hi'
 
 export default function RightSideCopilot() {
@@ -13,12 +16,21 @@ export default function RightSideCopilot() {
     isLoading,
     sendMessage,
     clearMessages,
+    isOpen,
+    setIsOpen,
+    pinned,
+    togglePinned
   } = useCopilot()
   const { user } = useAuthStore()
   const [inputValue, setInputValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
+
+  // Keep the panel open if pinned
+  useEffect(() => {
+    if (pinned) setIsOpen(true)
+  }, [pinned, setIsOpen])
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -46,6 +58,21 @@ export default function RightSideCopilot() {
     }, 50)
   }
 
+  if (!isOpen) {
+    // Render a small pinned handle on the left so user can re-open the panel
+    return (
+      <div className="hidden lg:flex fixed left-6 top-40 z-50">
+        <button
+          onClick={() => setIsOpen(true)}
+          title="Open SNPilot"
+          className="bg-sparknode-purple text-white px-3 py-2 rounded-r-lg shadow-md"
+        >
+          SNPilot
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="hidden lg:flex fixed left-6 top-20 z-50 bg-white flex-col shadow-md h-[calc(100vh-7rem)] rounded-lg overflow-hidden">
       {/* Header */}
@@ -66,6 +93,23 @@ export default function RightSideCopilot() {
             className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-600"
           >
             <HiOutlineTrash className="w-4 h-4" />
+          </button>
+          {/* Pin / Unpin - keeps the Copilot fixed-open on the left */}
+          <button
+            onClick={() => { togglePinned && togglePinned() }}
+            title={pinned ? 'Unpin SNPilot' : 'Pin SNPilot'}
+            className={`p-1.5 rounded-lg hover:bg-gray-100 transition-colors ${pinned ? 'text-sparknode-purple' : 'text-gray-600'}`}
+          >
+            {pinned ? <HiOutlineLockClosed className="w-4 h-4" /> : <HiOutlineLockOpen className="w-4 h-4" />}
+          </button>
+
+          {/* Minimize */}
+          <button
+            onClick={() => setIsOpen(false)}
+            title="Minimize"
+            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-600"
+          >
+            <HiOutlineX className="w-4 h-4" />
           </button>
         </div>
       </div>
