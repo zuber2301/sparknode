@@ -23,7 +23,7 @@ if current_user.org_role == UserRole.DEPT_LEAD:
     # Department lead logic
     
 # Backward compatible - old names still work
-if user.org_role in ['dept_lead', 'manager', 'tenant_lead']:
+if user.org_role in ['dept_lead', 'manager']:
     # All map to department lead
 ```
 

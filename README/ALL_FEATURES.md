@@ -69,7 +69,7 @@ Auth relies on `users` table (see User Management). OAuth users store `hashed_pa
 
 ### 2.1 Overview
 Every tenant (company) is isolated by `tenant_id`. Roles gate access:
-- `SUPER_ADMIN`, `PLATFORM_ADMIN`, `TENANT_ADMIN`, `TENANT_LEAD`, `CORPORATE_USER`
+- `SUPER_ADMIN`, `PLATFORM_ADMIN`, `TENANT_ADMIN`, `DEPT_LEAD`, `CORPORATE_USER`
 
 ### 2.2 Frontend
 Role-gated views and dashboards:

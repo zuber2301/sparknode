@@ -77,7 +77,7 @@ async def get_user_wallet(
     
     # Check if current user can view this wallet
     if current_user.org_role not in ['tenant_manager', 'platform_admin', 'hr_admin']:
-        if current_user.org_role in ['tenant_lead', 'manager']:
+        if current_user.org_role in ['dept_lead', 'manager']:
             # Manager can view their direct reports
             if target_user.manager_id != current_user.id and target_user.id != current_user.id:
                 raise HTTPException(status_code=403, detail="Access denied")
@@ -131,10 +131,10 @@ async def allocate_points(
         raise HTTPException(status_code=404, detail="Target user not found")
 
     # Restriction: Tenant Managers (HR Admins) can only allocate points to Tenant Leads
-    if current_user.org_role in ['tenant_manager', 'hr_admin'] and target_user.org_role != 'tenant_lead':
+    if current_user.org_role in ['tenant_manager', 'hr_admin'] and target_user.org_role != 'dept_lead':
         raise HTTPException(
             status_code=403,
-            detail="Tenant Managers can only allocate points to Tenant Leads"
+            detail="Tenant Managers can only allocate points to Dept Leads"
         )
 
     # Get target user's wallet

@@ -219,7 +219,7 @@ class RolePermissions:
     def is_lead_level(role: str) -> bool:
         """Check if role has team lead level access."""
         user_role = RolePermissions.normalize_role(role)
-        return ROLE_HIERARCHY.get(user_role, 0) >= ROLE_HIERARCHY[UserRole.TENANT_LEAD]
+        return ROLE_HIERARCHY.get(user_role, 0) >= ROLE_HIERARCHY[UserRole.DEPT_LEAD]
     
     @staticmethod
     def get_role_level(role: str) -> int:
@@ -312,7 +312,7 @@ def require_minimum_role(minimum_role: UserRole):
     Usage:
         @router.get("/reports")
         async def get_reports(
-            current_user: User = Depends(require_minimum_role(UserRole.TENANT_LEAD))
+            current_user: User = Depends(require_minimum_role(UserRole.DEPT_LEAD))
         ):
             ...
     """
@@ -356,8 +356,8 @@ async def get_tenant_manager(request: Request, db: Session = Depends(get_db)):
     return current_user
 
 
-async def get_tenant_lead(request: Request, db: Session = Depends(get_db)):
-    """Dependency that requires Tenant Lead or higher role."""
+async def get_dept_lead(request: Request, db: Session = Depends(get_db)):
+    """Dependency that requires Dept Lead (team lead) or higher role."""
     current_user = await get_current_user_dependency(request, db)
     if not RolePermissions.is_lead_level(current_user.org_role):
         raise HTTPException(

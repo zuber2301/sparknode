@@ -203,7 +203,7 @@ async def distribute_to_lead(
         if not lead_user:
             raise HTTPException(status_code=404, detail="Lead user not found")
         
-        if lead_user.org_role not in ['tenant_lead', 'manager']:
+        if lead_user.org_role not in ['dept_lead', 'manager']:
             raise HTTPException(
                 status_code=400,
                 detail=f"Can only distribute to leads/managers, not {lead_user.org_role}"

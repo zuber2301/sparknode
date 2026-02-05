@@ -48,7 +48,7 @@ export default function Recognize() {
       description: 'Manager-to-employee high impact recognition', 
       icon: HiOutlineSparkles, 
       color: 'orange', 
-      roles: ['manager', 'tenant_lead', 'tenant_manager', 'dept_lead', 'platform_admin'] 
+      roles: ['manager', 'dept_lead', 'tenant_manager', 'dept_lead', 'platform_admin'] 
     },
     { 
       id: 'group_award', 
@@ -56,7 +56,7 @@ export default function Recognize() {
       description: 'Celebrate team-wide wins and project milestones', 
       icon: HiOutlineUsers, 
       color: 'blue', 
-      roles: ['manager', 'tenant_lead', 'tenant_manager', 'dept_lead', 'platform_admin'] 
+      roles: ['manager', 'dept_lead', 'tenant_manager', 'dept_lead', 'platform_admin'] 
     },
     { 
       id: 'ecard', 

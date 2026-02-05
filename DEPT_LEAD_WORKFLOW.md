@@ -162,7 +162,7 @@ For backward compatibility, the system supports these legacy role mappings:
 
 | Old Role | New Role | Notes |
 |----------|----------|-------|
-| `tenant_lead` | `dept_lead` | Renamed to clarify role scope |
+| `dept_lead` | `dept_lead` | Renamed to clarify role scope |
 | `manager` | `dept_lead` | Legacy alias |
 | `hr_admin` | `tenant_manager` | Legacy alias |
 | `employee` | `corporate_user` | Legacy alias |

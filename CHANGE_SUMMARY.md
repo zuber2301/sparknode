@@ -1,8 +1,8 @@
-# Change Summary: tenant_lead → dept_lead Refactoring & Workflow Update
+# Change Summary: dept_lead Refactoring & Workflow Update
 
 ## Executive Summary
 
-✅ **COMPLETE** - Successfully renamed `tenant_lead` role to `dept_lead` across the entire codebase and implemented an enhanced budget allocation workflow.
+✅ **COMPLETE** - Successfully renamed `dept_lead` role across the entire codebase and implemented an enhanced budget allocation workflow.
 
 ### Key Achievements
 1. ✅ Renamed `tenant_lead` to `dept_lead` in 25+ files
@@ -66,14 +66,14 @@ backend/tests/test_tenant_provisioning_integration.py - 1 replacement
 
 #### 1. **frontend/src/store/authStore.js** [MODIFIED]
 - ✅ Updated `UserRole.TENANT_LEAD` value: `'dept_lead'`
-- ✅ Updated `ROLE_HIERARCHY` dict with `dept_lead: 60` and legacy `tenant_lead: 60`
-- ✅ Updated `normalizeRole()` function to map `tenant_lead → dept_lead`
+- ✅ Updated `ROLE_HIERARCHY` dict with `dept_lead: 60`
+- ✅ Updated `normalizeRole()` function to map legacy roles to `dept_lead`
 - **Impact:** Frontend role management system synchronized with backend
 
 #### 2. **frontend/src/lib/roleUtils.js** [MODIFIED]
 - ✅ Added `dept_lead` config object with "Department Lead" label
 - ✅ Updated `ROLE_CONFIG` with proper display settings
-- ✅ Updated `getRoleLevel()` to include both `dept_lead` and `tenant_lead`
+- ✅ Updated `getRoleLevel()` to include `dept_lead` as lead-level role
 - ✅ Updated `isLeadOrHigher()` to recognize `dept_lead`
 - **Impact:** Role display and hierarchy logic uses canonical role name
 

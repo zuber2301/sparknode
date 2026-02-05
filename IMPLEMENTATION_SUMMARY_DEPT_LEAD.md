@@ -143,7 +143,7 @@ const ROLE_HIERARCHY = {
   tenant_manager: 80,
   hr_admin: 80,
   dept_lead: 60,
-  tenant_lead: 60,    // Legacy support
+  // legacy tenant_lead references updated to dept_lead
   manager: 60,        // Legacy support
   corporate_user: 40,
   employee: 40
@@ -154,7 +154,7 @@ const normalizeRole = (role) => {
   const legacyMap = {
     hr_admin: 'tenant_manager',
     manager: 'dept_lead',
-    tenant_lead: 'dept_lead',  // NEW
+    // tenant_lead legacy mapping -> dept_lead
     employee: 'corporate_user',
   }
   return legacyMap[role] || role
@@ -177,7 +177,7 @@ dept_lead: {
 const levels = {
   ...,
   dept_lead: 2,
-  tenant_lead: 2,  // Legacy support
+  // tenant_lead legacy support entries updated
   ...
 }
 ```

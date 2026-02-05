@@ -780,7 +780,7 @@ CREATE TABLE public.users (
     invitation_sent_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT users_org_role_check CHECK (((org_role)::text = ANY ((ARRAY['platform_admin'::character varying, 'tenant_manager'::character varying, 'hr_admin'::character varying, 'tenant_lead'::character varying, 'manager'::character varying, 'corporate_user'::character varying, 'employee'::character varying])::text[]))),
+    CONSTRAINT users_org_role_check CHECK (((org_role)::text = ANY ((ARRAY['platform_admin'::character varying, 'tenant_manager'::character varying, 'hr_admin'::character varying, 'dept_lead'::character varying, 'manager'::character varying, 'corporate_user'::character varying, 'employee'::character varying])::text[]))),
     CONSTRAINT users_status_check CHECK (((status)::text = ANY ((ARRAY['PENDING_INVITE'::character varying, 'ACTIVE'::character varying, 'DEACTIVATED'::character varying, 'pending_invite'::character varying, 'active'::character varying, 'deactivated'::character varying])::text[])))
 );
 
@@ -1184,7 +1184,7 @@ COPY public.user_upload_staging (id, tenant_id, batch_id, full_name, email, depa
 COPY public.users (id, tenant_id, corporate_email, personal_email, password_hash, first_name, last_name, org_role, department_id, manager_id, avatar_url, phone_number, mobile_number, date_of_birth, hire_date, status, is_super_admin, invitation_sent_at, created_at, updated_at) FROM stdin;
 220e8400-e29b-41d4-a716-446655440000	00000000-0000-0000-0000-000000000000	super_user@sparknode.io	\N	$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u	Platform	Admin	platform_admin	010e8400-e29b-41d4-a716-446655440000	\N	\N	\N	\N	\N	\N	ACTIVE	t	\N	2026-01-31 08:40:46.034656+00	2026-01-31 08:40:46.034656+00
 220e8400-e29b-41d4-a716-446655440001	100e8400-e29b-41d4-a716-446655440000	tenant_manager@sparknode.io	\N	$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u	Tenant	Admin	tenant_manager	110e8400-e29b-41d4-a716-446655440000	\N	\N	\N	\N	\N	\N	ACTIVE	f	\N	2026-01-31 08:40:46.043006+00	2026-01-31 08:40:46.043006+00
-220e8400-e29b-41d4-a716-446655440002	100e8400-e29b-41d4-a716-446655440000	tenant_lead@sparknode.io	\N	$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u	Tenant	Lead	tenant_lead	110e8400-e29b-41d4-a716-446655440000	\N	\N	\N	\N	\N	\N	ACTIVE	f	\N	2026-01-31 08:40:46.044459+00	2026-01-31 08:40:46.044459+00
+220e8400-e29b-41d4-a716-446655440002	100e8400-e29b-41d4-a716-446655440000	tenant_lead@sparknode.io	\N	$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u	Tenant	Lead	dept_lead	110e8400-e29b-41d4-a716-446655440000	\N	\N	\N	\N	\N	\N	ACTIVE	f	\N	2026-01-31 08:40:46.044459+00	2026-01-31 08:40:46.044459+00
 220e8400-e29b-41d4-a716-446655440003	100e8400-e29b-41d4-a716-446655440000	user@sparknode.io	\N	$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u	Corporate	User	corporate_user	110e8400-e29b-41d4-a716-446655440000	\N	\N	\N	\N	\N	\N	ACTIVE	f	\N	2026-01-31 08:40:46.04589+00	2026-01-31 08:40:46.04589+00
 \.
 

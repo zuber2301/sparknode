@@ -154,7 +154,7 @@ All text strings are in the JSX markup:
 ## Common Questions
 
 **Q: Why doesn't the Morning Briefing show for me?**
-A: You need to be a `tenant_manager` or `tenant_lead` role. Check your org_role in user settings.
+A: You need to be a `tenant_manager` or `dept_lead` role. Check your org_role in user settings.
 
 **Q: Can I hide the Morning Briefing?**
 A: Not currently, but we can add a preference toggle in future versions.

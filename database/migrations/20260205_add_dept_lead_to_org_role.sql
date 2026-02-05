@@ -11,7 +11,6 @@ ADD CONSTRAINT users_org_role_check CHECK (org_role IN (
     'platform_admin',
     'tenant_manager',
     'hr_admin',
-    'tenant_lead',
     'dept_lead',
     'manager',
     'corporate_user',

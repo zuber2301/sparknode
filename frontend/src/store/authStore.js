@@ -19,7 +19,7 @@ const ROLE_HIERARCHY = {
   platform_admin: 100,
   tenant_manager: 80,
   dept_lead: 60,
-  tenant_lead: 60, // Legacy alias
+  // tenant_lead legacy alias removed
   manager: 60, // Legacy alias
   corporate_user: 40,
   employee: 40, // Legacy alias
@@ -29,7 +29,7 @@ const ROLE_HIERARCHY = {
 const normalizeRole = (role) => {
   const legacyMap = {
     manager: 'dept_lead',
-    tenant_lead: 'dept_lead',
+    dept_lead: 'dept_lead',
     employee: 'corporate_user',
   }
   return legacyMap[role] || role

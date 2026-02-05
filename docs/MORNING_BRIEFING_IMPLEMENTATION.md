@@ -64,7 +64,7 @@ The component fetches data from:
 ## Integration Points
 
 ### 1. **Dashboard (`pages/Dashboard.jsx`)**
-- Shows for managers (`tenant_manager`, `tenant_lead` roles)
+- Shows for managers (`tenant_manager`, `dept_lead` roles)
 - Displays above stats grid
 - Hides regular welcome card for managers
 

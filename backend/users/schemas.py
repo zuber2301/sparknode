@@ -4,7 +4,7 @@ import re
 from uuid import UUID
 from datetime import datetime, date
 
-VALID_ROLES = ['tenant_manager', 'tenant_lead', 'corporate_user']
+VALID_ROLES = ['tenant_manager', 'dept_lead', 'corporate_user']
 VALID_STATUSES = {"PENDING_INVITE", "ACTIVE", "DEACTIVATED", "pending_invite", "active", "deactivated"}
 
 
@@ -13,7 +13,7 @@ class UserBase(BaseModel):
     personal_email: Optional[EmailStr] = None
     first_name: str
     last_name: str
-    org_role: Literal['tenant_manager', 'tenant_lead', 'corporate_user']
+    org_role: Literal['tenant_manager', 'dept_lead', 'corporate_user']
     phone_number: Optional[str] = None
     mobile_number: Optional[str] = None
     department_id: Optional[UUID] = None
@@ -54,7 +54,7 @@ class UserUpdate(BaseModel):
     personal_email: Optional[EmailStr] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    org_role: Optional[Literal['tenant_manager', 'tenant_lead', 'corporate_user']] = None
+    org_role: Optional[Literal['tenant_manager', 'dept_lead', 'corporate_user']] = None
     phone_number: Optional[str] = None
     mobile_number: Optional[str] = None
     department_id: Optional[UUID] = None
@@ -194,7 +194,7 @@ class UserPatch(BaseModel):
     mobile_number: Optional[str] = None
     department_id: Optional[UUID] = None
     manager_id: Optional[UUID] = None
-    role: Optional[Literal['tenant_manager', 'tenant_lead', 'corporate_user']] = None
+    role: Optional[Literal['tenant_manager', 'dept_lead', 'corporate_user']] = None
     status: Optional[str] = None
 
     @field_validator("phone_number")

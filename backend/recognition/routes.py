@@ -155,7 +155,7 @@ async def create_recognition(
         # Check manager/lead has permission to award points
         # Update: Allow according to user persona permissions in rbac.py if needed, 
         # but for now keeping it restricted to roles as before or following new logic
-        if current_user.org_role not in ['tenant_lead', 'tenant_manager', 'platform_admin', 'hr_admin']:
+        if current_user.org_role not in ['dept_lead', 'tenant_manager', 'platform_admin', 'hr_admin']:
             raise HTTPException(
                 status_code=403,
                 detail="Only managers and administrators can award recognition points"
