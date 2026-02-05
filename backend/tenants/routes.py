@@ -8,7 +8,7 @@ from models import Tenant, Department, User, AuditLog, ActorType
 from auth.utils import get_current_user, get_hr_admin
 from tenants.schemas import (
     TenantCreate, TenantUpdate, TenantResponse,
-    DepartmentCreate, DepartmentUpdate, DepartmentResponse
+    DepartmentCreate, DepartmentUpdate, DepartmentResponse, DepartmentManagementResponse
 )
 
 router = APIRouter()
@@ -184,6 +184,64 @@ async def get_departments(
     return departments
 
 
+@router.get("/departments/management", response_model=List[DepartmentManagementResponse])
+async def get_department_management_data(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get department management data for tenant managers.
+    
+    Returns department data with budget balances, user wallet sums, and department leads.
+    """
+    # Allow platform admins and users to access tenant via header
+    header_tenant = request.headers.get('x-tenant-id')
+    tenant_id = None
+
+    if header_tenant:
+        try:
+            tenant_id = UUID(header_tenant)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid X-Tenant-ID header")
+
+        # Users can access their own tenant's departments
+        # Platform admins can access any tenant's departments
+        if tenant_id != current_user.tenant_id:
+            if not (current_user.is_platform_admin or current_user.is_super_admin):
+                raise HTTPException(status_code=403, detail="Insufficient permissions to access other tenants' departments")
+
+    # Fallback to the current user's tenant
+    tenant_id = tenant_id or current_user.tenant_id
+
+    # Get departments with management data using raw SQL for efficiency
+    from sqlalchemy import text
+    
+    query = text("""
+        SELECT 
+            d.id,
+            d.name,
+            d.budget_balance as unallocated_budget,
+            (SELECT CONCAT(u.first_name, ' ', u.last_name) 
+             FROM users u 
+             WHERE u.dept_id = d.id AND u.org_role = 'dept_lead' 
+             LIMIT 1) as dept_lead_name,
+            COALESCE(SUM(w.balance), 0) as user_wallet_sum,
+            (d.budget_balance + COALESCE(SUM(w.balance), 0)) as total_liability,
+            COUNT(u.id) as employee_count
+        FROM departments d
+        LEFT JOIN users u ON d.id = u.dept_id
+        LEFT JOIN wallets w ON u.id = w.user_id
+        WHERE d.tenant_id = :tenant_id
+        GROUP BY d.id, d.name, d.budget_balance
+        ORDER BY d.name
+    """)
+    
+    result = db.execute(query, {"tenant_id": tenant_id})
+    departments = result.fetchall()
+    
+    return [DepartmentManagementResponse(**dict(row)) for row in departments]
+
+
 @router.post("/departments", response_model=DepartmentResponse)
 async def create_department(
     department_data: DepartmentCreate,
@@ -199,6 +257,94 @@ async def create_department(
     db.commit()
     db.refresh(department)
     return department
+
+
+@router.post("/departments/{department_id}/allocate-budget")
+async def allocate_budget_to_department(
+    department_id: UUID,
+    amount: float,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Allocate points from tenant master pool to department budget (Tenant Manager only)"""
+    # Check permissions - only tenant managers can allocate to departments
+    if current_user.org_role != 'tenant_manager':
+        raise HTTPException(status_code=403, detail="Only tenant managers can allocate budget to departments")
+    
+    # Get tenant and check master pool balance
+    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    
+    if tenant.master_budget_balance < amount:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Insufficient master pool balance. Available: {tenant.master_budget_balance}"
+        )
+    
+    # Get department
+    department = db.query(Department).filter(
+        Department.id == department_id,
+        Department.tenant_id == current_user.tenant_id
+    ).first()
+    if not department:
+        raise HTTPException(status_code=404, detail="Department not found")
+    
+    # Update balances
+    tenant.master_budget_balance -= amount
+    department.budget_balance += amount
+    
+    db.commit()
+    
+    return {
+        "message": f"Successfully allocated {amount} points to {department.name}",
+        "new_master_balance": tenant.master_budget_balance,
+        "new_dept_balance": department.budget_balance
+    }
+
+
+@router.post("/departments/{department_id}/assign-lead")
+async def assign_department_lead(
+    department_id: UUID,
+    user_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Assign a user as department lead (Tenant Manager only)"""
+    # Check permissions - only tenant managers can assign leads
+    if current_user.org_role != 'tenant_manager':
+        raise HTTPException(status_code=403, detail="Only tenant managers can assign department leads")
+    
+    # Get department
+    department = db.query(Department).filter(
+        Department.id == department_id,
+        Department.tenant_id == current_user.tenant_id
+    ).first()
+    if not department:
+        raise HTTPException(status_code=404, detail="Department not found")
+    
+    # Get user
+    user = db.query(User).filter(
+        User.id == user_id,
+        User.tenant_id == current_user.tenant_id,
+        User.dept_id == department_id
+    ).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found in this department")
+    
+    # Remove existing dept_lead role from anyone in this department
+    db.query(User).filter(
+        User.dept_id == department_id,
+        User.org_role == 'dept_lead'
+    ).update({"org_role": "corporate_user"})
+    
+    # Assign new dept_lead
+    user.org_role = 'dept_lead'
+    db.commit()
+    
+    return {
+        "message": f"Successfully assigned {user.first_name} {user.last_name} as department lead for {department.name}"
+    }
 
 
 @router.get("/departments/{department_id}", response_model=DepartmentResponse)

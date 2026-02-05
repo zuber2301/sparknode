@@ -176,7 +176,21 @@ class DepartmentUpdate(BaseModel):
 class DepartmentResponse(DepartmentBase):
     id: UUID
     tenant_id: UUID
+    budget_balance: float
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class DepartmentManagementResponse(BaseModel):
+    id: UUID
+    name: str
+    dept_lead_name: Optional[str]
+    unallocated_budget: float
+    user_wallet_sum: float
+    total_liability: float
+    employee_count: int
 
     class Config:
         from_attributes = True

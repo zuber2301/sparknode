@@ -183,9 +183,12 @@ export const tenantsAPI = {
   getBySlug: (slug) => api.get(`/tenant/${slug}`),
   updateCurrent: (data) => api.put('/tenants/current', data),
   getDepartments: () => api.get('/tenants/departments'),
+  getDepartmentManagement: () => api.get('/tenants/departments/management'),
   createDepartment: (data) => api.post('/tenants/departments', data),
   updateDepartment: (id, data) => api.put(`/tenants/departments/${id}`, data),
   deleteDepartment: (id) => api.delete(`/tenants/departments/${id}`),
+  allocateDepartmentBudget: (deptId, amount) => api.post(`/tenants/departments/${deptId}/allocate-budget`, { amount }),
+  assignDepartmentLead: (deptId, userId) => api.post(`/tenants/departments/${deptId}/assign-lead`, { user_id: userId }),
   // Tenant settings and branding
   getSettings: () => api.get('/tenants/settings'),
   updateSettings: (data) => api.put('/tenants/settings', data),
