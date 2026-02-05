@@ -17,7 +17,6 @@ export function formatRoleLabel(role) {
   const roleLabels = {
     'platform_admin': 'Platform Admin',
     'tenant_manager': 'Tenant Manager',
-    'hr_admin': 'HR Admin',
     'dept_lead': 'Department Lead',
     'manager': 'Manager',
     'corporate_user': 'Corporate User',
@@ -30,7 +29,6 @@ export function formatRoleColor(role) {
   const roleColors = {
     'platform_admin': 'bg-red-100 text-red-800',
     'tenant_manager': 'bg-purple-100 text-purple-800',
-    'hr_admin': 'bg-blue-100 text-blue-800',
     'dept_lead': 'bg-indigo-100 text-indigo-800',
     'manager': 'bg-cyan-100 text-cyan-800',
     'corporate_user': 'bg-green-100 text-green-800',

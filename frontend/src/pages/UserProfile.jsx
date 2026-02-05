@@ -22,8 +22,8 @@ export default function UserProfile() {
     // Users can view their own profile
     if (currentUser.id === userId) return true
 
-    // Tenant managers and HR admins can view users in their tenant
-    if (['tenant_manager', 'hr_admin'].includes(effectiveRole)) {
+    // Tenant managers can view users in their tenant
+    if (['tenant_manager'].includes(effectiveRole)) {
       // We'll check this in the API response
       return true
     }

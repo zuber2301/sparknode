@@ -131,7 +131,7 @@ async def allocate_points(
         raise HTTPException(status_code=404, detail="Target user not found")
 
     # Restriction: Tenant Managers (HR Admins) can only allocate points to Tenant Leads
-    if current_user.org_role == 'tenant_manager' and target_user.org_role != 'tenant_lead':
+    if current_user.org_role in ['tenant_manager', 'hr_admin'] and target_user.org_role != 'tenant_lead':
         raise HTTPException(
             status_code=403,
             detail="Tenant Managers can only allocate points to Tenant Leads"

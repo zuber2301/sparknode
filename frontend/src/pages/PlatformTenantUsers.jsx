@@ -108,7 +108,6 @@ export default function PlatformTenantUsers() {
                   <option value="corporate_user">Corporate User</option>
                   <option value="dept_lead">Tenant Lead</option>
                   <option value="tenant_manager">Tenant Manager</option>
-                  <option value="hr_admin">HR Admin</option>
                 </select>
               </div>
             </div>

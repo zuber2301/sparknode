@@ -38,10 +38,10 @@ const navigation = [
 
 const adminNavigation = [
   { name: 'Tenants', href: '/platform/tenants', icon: HiOutlineOfficeBuilding, roles: ['platform_admin'] },
-  { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar, roles: ['tenant_manager', 'hr_admin', 'platform_admin'] },
-  { name: 'Users', href: '/users', icon: HiOutlineUsers, roles: ['tenant_manager', 'hr_admin', 'platform_admin'] },
-  { name: 'Invite Users', href: '/admin/invite-users', icon: HiOutlineMailOpen, roles: ['tenant_manager', 'hr_admin'] },
-  { name: 'Audit Log', href: '/audit', icon: HiOutlineClipboardList, roles: ['tenant_manager', 'hr_admin', 'platform_admin'] },
+  { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar, roles: ['tenant_manager', 'platform_admin'] },
+  { name: 'Users', href: '/users', icon: HiOutlineUsers, roles: ['tenant_manager', 'platform_admin'] },
+  { name: 'Invite Users', href: '/admin/invite-users', icon: HiOutlineMailOpen, roles: ['tenant_manager'] },
+  { name: 'Audit Log', href: '/audit', icon: HiOutlineClipboardList, roles: ['tenant_manager', 'platform_admin'] },
   { name: 'Marketplace', href: '/marketplace', icon: HiOutlineShoppingCart, roles: ['platform_admin'] },
   { name: 'AI Settings', href: '/ai-settings', icon: HiOutlineCog, roles: ['platform_admin'] },
   { name: 'Templates', href: '/templates', icon: HiOutlineViewGrid, roles: ['platform_admin'] },
@@ -144,7 +144,6 @@ export default function TopHeader() {
       tenant_manager: 'Tenant Manager',
       dept_lead: 'Department Lead',
       corporate_user: 'Corporate User',
-      hr_admin: 'Tenant Manager',
     }
     return roles[role] || role
   }

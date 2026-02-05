@@ -221,18 +221,22 @@ async def get_department_management_data(
             d.id,
             d.name,
             d.budget_balance as unallocated_budget,
-            (SELECT CONCAT(u.first_name, ' ', u.last_name) 
-             FROM users u 
-             WHERE u.dept_id = d.id AND u.org_role = 'dept_lead' 
-             LIMIT 1) as dept_lead_name,
+            dl.dept_lead_name,
             COALESCE(SUM(w.balance), 0) as user_wallet_sum,
             (d.budget_balance + COALESCE(SUM(w.balance), 0)) as total_liability,
             COUNT(u.id) as employee_count
         FROM departments d
         LEFT JOIN users u ON d.id = u.dept_id
         LEFT JOIN wallets w ON u.id = w.user_id
+        LEFT JOIN (
+            SELECT 
+                dept_id,
+                CONCAT(first_name, ' ', last_name) as dept_lead_name
+            FROM users 
+            WHERE org_role = 'dept_lead'
+        ) dl ON d.id = dl.dept_id
         WHERE d.tenant_id = :tenant_id
-        GROUP BY d.id, d.name, d.budget_balance
+        GROUP BY d.id, d.name, d.budget_balance, dl.dept_lead_name
         ORDER BY d.name
     """)
     
@@ -268,7 +272,7 @@ async def allocate_budget_to_department(
 ):
     """Allocate points from tenant master pool to department budget (Tenant Manager only)"""
     # Check permissions - only tenant managers can allocate to departments
-    if current_user.org_role != 'tenant_manager':
+    if current_user.org_role not in ['tenant_manager', 'hr_admin']:
         raise HTTPException(status_code=403, detail="Only tenant managers can allocate budget to departments")
     
     # Get tenant and check master pool balance
@@ -312,7 +316,7 @@ async def assign_department_lead(
 ):
     """Assign a user as department lead (Tenant Manager only)"""
     # Check permissions - only tenant managers can assign leads
-    if current_user.org_role != 'tenant_manager':
+    if current_user.org_role not in ['tenant_manager', 'hr_admin']:
         raise HTTPException(status_code=403, detail="Only tenant managers can assign department leads")
     
     # Get department
@@ -345,6 +349,73 @@ async def assign_department_lead(
     return {
         "message": f"Successfully assigned {user.first_name} {user.last_name} as department lead for {department.name}"
     }
+
+
+@router.post("/departments/{department_id}/recall-budget")
+async def recall_department_budget(
+    department_id: UUID,
+    amount: float,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Recall budget from department back to tenant master pool (Tenant Manager only)"""
+    # Check permissions - only tenant managers can recall budget
+    if current_user.org_role not in ['tenant_manager', 'hr_admin']:
+        raise HTTPException(status_code=403, detail="Only tenant managers can recall department budget")
+    
+    # Get tenant and department
+    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    
+    department = db.query(Department).filter(
+        Department.id == department_id,
+        Department.tenant_id == current_user.tenant_id
+    ).first()
+    if not department:
+        raise HTTPException(status_code=404, detail="Department not found")
+    
+    # Validate amount
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Recall amount must be positive")
+    
+    if department.budget_balance < amount:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Insufficient department balance. Available: {department.budget_balance}"
+        )
+    
+    try:
+        # Start transaction
+        # Update balances
+        department.budget_balance -= amount
+        tenant.master_budget_balance += amount
+        
+        # Create audit log entry
+        budget_log = AuditLog(
+            tenant_id=tenant.id,
+            actor_id=current_user.id,
+            actor_type=ActorType.USER,
+            action="department_budget_recalled",
+            entity_type="department",
+            entity_id=department.id,
+            old_values={"budget_balance": department.budget_balance + amount},
+            new_values={"budget_balance": department.budget_balance}
+        )
+        db.add(budget_log)
+        
+        db.commit()
+        
+        return {
+            "message": f"Successfully recalled {amount} points from {department.name} back to master pool",
+            "recalled_amount": amount,
+            "new_dept_balance": department.budget_balance,
+            "new_master_balance": tenant.master_budget_balance
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to recall budget: {str(e)}")
 
 
 @router.get("/departments/{department_id}", response_model=DepartmentResponse)
@@ -444,8 +515,8 @@ async def create_department_with_allocation(
     db: Session = Depends(get_db)
 ):
     """Create a department and optionally allocate budget and assign lead in one atomic transaction"""
-    # Check permissions - only tenant managers can create departments
-    if current_user.org_role != 'tenant_manager':
+    # Check permissions - only tenant managers and hr admins can create departments
+    if current_user.org_role not in ['tenant_manager', 'hr_admin']:
         raise HTTPException(status_code=403, detail="Only tenant managers can create departments")
     
     # Validate department name

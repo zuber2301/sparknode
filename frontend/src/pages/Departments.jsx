@@ -21,8 +21,10 @@ export default function Departments() {
   const [showAddPointsModal, setShowAddPointsModal] = useState(false)
   const [showAssignLeadModal, setShowAssignLeadModal] = useState(false)
   const [showCreateDeptModal, setShowCreateDeptModal] = useState(false)
+  const [showRecallModal, setShowRecallModal] = useState(false)
   const [selectedDept, setSelectedDept] = useState(null)
   const [allocationAmount, setAllocationAmount] = useState('')
+  const [recallAmount, setRecallAmount] = useState('')
   const [newDeptName, setNewDeptName] = useState('')
   const [newDeptAllocation, setNewDeptAllocation] = useState('')
   const [selectedLeadUserId, setSelectedLeadUserId] = useState('')
@@ -72,6 +74,22 @@ export default function Departments() {
     },
     onError: (error) => {
       const detail = error.response?.data?.detail || error.message || 'Failed to assign lead'
+      toast.error(detail)
+    },
+  })
+
+  const recallMutation = useMutation({
+    mutationFn: ({ deptId, amount }) => tenantsAPI.recallDepartmentBudget(deptId, parseFloat(amount)),
+    onSuccess: (response) => {
+      toast.success(response.message)
+      queryClient.invalidateQueries(['departments', 'management'])
+      queryClient.invalidateQueries(['tenant', 'current'])
+      setShowRecallModal(false)
+      setSelectedDept(null)
+      setRecallAmount('')
+    },
+    onError: (error) => {
+      const detail = error.response?.data?.detail || error.message || 'Failed to recall budget'
       toast.error(detail)
     },
   })
@@ -132,6 +150,11 @@ export default function Departments() {
     setShowAssignLeadModal(true)
   }
 
+  const handleRecall = (dept) => {
+    setSelectedDept(dept)
+    setShowRecallModal(true)
+  }
+
   const submitAllocation = () => {
     if (!allocationAmount || parseFloat(allocationAmount) <= 0) {
       toast.error('Please enter a valid amount')
@@ -142,6 +165,27 @@ export default function Departments() {
 
   const submitAssignLead = (userId) => {
     assignLeadMutation.mutate({ deptId: selectedDept.id, userId })
+  }
+
+  const submitRecall = () => {
+    if (!recallAmount || parseFloat(recallAmount) <= 0) {
+      toast.error('Please enter a valid amount')
+      return
+    }
+    if (parseFloat(recallAmount) > selectedDept.unallocated_budget) {
+      toast.error('Recall amount cannot exceed department balance')
+      return
+    }
+    recallMutation.mutate({ deptId: selectedDept.id, amount: recallAmount })
+  }
+
+  const setRecallPercentage = (percentage) => {
+    const amount = (selectedDept.unallocated_budget * percentage / 100).toFixed(2)
+    setRecallAmount(amount)
+  }
+
+  const recallAll = () => {
+    setRecallAmount(selectedDept.unallocated_budget.toString())
   }
 
   const handleCreateDepartment = () => {
@@ -270,6 +314,15 @@ export default function Departments() {
                       <HiOutlineCurrencyDollar className="w-4 h-4" />
                       Add Points
                     </button>
+                    {dept.unallocated_budget > 0 && (
+                      <button
+                        onClick={() => handleRecall(dept)}
+                        className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                      >
+                        <HiOutlineX className="w-4 h-4" />
+                        Recall
+                      </button>
+                    )}
                     {!dept.dept_lead_name ? (
                       <button
                         onClick={() => handleAssignLead(dept)}
@@ -493,6 +546,107 @@ export default function Departments() {
                 className="flex-1 px-4 py-2 bg-sparknode-purple text-white rounded-lg hover:bg-sparknode-purple/90 transition-colors disabled:opacity-50"
               >
                 {createDeptMutation.isPending ? 'Creating...' : 'Create Department'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Recall Budget Modal */}
+      {showRecallModal && selectedDept && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Recall Budget: {selectedDept.name}
+            </h3>
+
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-600">Current Department Balance</p>
+              <p className="text-xl font-bold text-sparknode-purple">
+                {formatBudgetValue(selectedDept.unallocated_budget)}
+              </p>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Amount to Recall
+              </label>
+              <input
+                type="number"
+                value={recallAmount}
+                onChange={(e) => setRecallAmount(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                placeholder="Enter amount"
+                min="0"
+                max={selectedDept.unallocated_budget}
+                step="0.01"
+              />
+            </div>
+
+            {/* Quick Toggle Buttons */}
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-2">Quick Select:</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setRecallPercentage(25)}
+                  className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                >
+                  25%
+                </button>
+                <button
+                  onClick={() => setRecallPercentage(50)}
+                  className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                >
+                  50%
+                </button>
+                <button
+                  onClick={recallAll}
+                  className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                >
+                  Recall All
+                </button>
+              </div>
+            </div>
+
+            {recallAmount && parseFloat(recallAmount) > 0 && (
+              <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm text-gray-600 mb-1">Preview:</p>
+                <p className="text-sm">
+                  New Dept Balance: <span className="font-medium">{formatBudgetValue(selectedDept.unallocated_budget - parseFloat(recallAmount))}</span>
+                </p>
+                <p className="text-sm">
+                  New Master Pool: <span className="font-medium">{formatBudgetValue((tenant?.master_budget_balance || 0) + parseFloat(recallAmount))}</span>
+                </p>
+              </div>
+            )}
+
+            <div className="mb-4 p-3 bg-yellow-50 rounded-lg">
+              <div className="flex items-start gap-2">
+                <HiOutlineExclamation className="w-5 h-5 text-yellow-600 mt-0.5" />
+                <div className="text-sm text-yellow-800">
+                  <p className="font-medium">Warning:</p>
+                  <p>This will reduce the points available for the Department Lead to distribute. It will not affect points already in employee wallets.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowRecallModal(false)
+                  setSelectedDept(null)
+                  setRecallAmount('')
+                }}
+                className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitRecall}
+                disabled={recallMutation.isPending || !recallAmount || parseFloat(recallAmount) <= 0}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {recallMutation.isPending ? 'Recalling...' : 'Recall Budget'}
               </button>
             </div>
           </div>

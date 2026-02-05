@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     celery_result_backend: Optional[str] = os.getenv("CELERY_RESULT_BACKEND")
     
     # CORS - accept string or list
-    cors_origins: Union[str, List[str]] = "http://localhost:3000,http://localhost:5173,http://localhost:5180"
+    cors_origins: Union[str, List[str]] = "http://localhost:3000,http://localhost:5173,http://localhost:5180,http://localhost:6173"
     
     @field_validator('cors_origins', mode='before')
     @classmethod

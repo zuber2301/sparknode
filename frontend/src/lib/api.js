@@ -191,6 +191,7 @@ export const tenantsAPI = {
   assignDepartmentLead: (deptId, userId) => api.post(`/tenants/departments/${deptId}/assign-lead`, { user_id: userId }),
   checkDepartmentName: (name) => api.post('/tenants/departments/check-name', { name }),
   createDepartmentWithAllocation: (data) => api.post('/tenants/departments/create-and-allocate', data),
+  recallDepartmentBudget: (deptId, amount) => api.post(`/tenants/departments/${deptId}/recall-budget`, { amount }),
   // Tenant settings and branding
   getSettings: () => api.get('/tenants/settings'),
   updateSettings: (data) => api.put('/tenants/settings', data),

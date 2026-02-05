@@ -55,7 +55,6 @@ function AdminRoute({ children }) {
   
   const effectiveRole = getEffectiveRole()
   const isAdmin = effectiveRole === 'tenant_manager' || 
-                  effectiveRole === 'hr_admin' ||
                   effectiveRole === 'platform_admin'
   
   return isAdmin ? children : <Navigate to="/dashboard" />

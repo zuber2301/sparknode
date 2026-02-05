@@ -9,7 +9,7 @@ export const UserRole = {
   TENANT_LEAD: 'dept_lead',
   CORPORATE_USER: 'corporate_user',
   // Legacy mappings
-  HR_ADMIN: 'hr_admin',
+  HR_ADMIN: 'tenant_manager',
   MANAGER: 'manager',
   EMPLOYEE: 'employee',
 }
@@ -18,7 +18,6 @@ export const UserRole = {
 const ROLE_HIERARCHY = {
   platform_admin: 100,
   tenant_manager: 80,
-  hr_admin: 80, // Legacy alias
   dept_lead: 60,
   tenant_lead: 60, // Legacy alias
   manager: 60, // Legacy alias
@@ -29,7 +28,6 @@ const ROLE_HIERARCHY = {
 // Normalize legacy roles to new roles
 const normalizeRole = (role) => {
   const legacyMap = {
-    hr_admin: 'tenant_manager',
     manager: 'dept_lead',
     tenant_lead: 'dept_lead',
     employee: 'corporate_user',

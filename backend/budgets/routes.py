@@ -381,7 +381,7 @@ async def allocate_lead_budget(
         raise HTTPException(status_code=403, detail="Cannot allocate to users outside your organization")
     
     # 4. Tenant managers can only allocate to their own department's leads
-    if current_user.org_role == 'tenant_manager':
+    if current_user.org_role in ['tenant_manager', 'hr_admin']:
         if lead_user.department_id != current_user.department_id:
             raise HTTPException(status_code=403, detail="Tenant managers can only allocate to dept_leads in their department")
     
