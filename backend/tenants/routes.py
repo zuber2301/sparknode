@@ -150,8 +150,9 @@ async def get_departments(
 
     Platform admins may provide an `X-Tenant-ID` header to fetch departments
     for a specific tenant context (used by the frontend tenant selector).
+    Tenant managers, tenant leads, and admins can access their own tenant's departments.
     """
-    # Allow platform admins to override tenant selection via header
+    # Allow platform admins and users to access tenant via header
     header_tenant = request.headers.get('x-tenant-id')
     tenant_id = None
 
@@ -161,9 +162,11 @@ async def get_departments(
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid X-Tenant-ID header")
 
-        # Only permit overrides for platform-level users
-        if not (current_user.is_platform_admin or current_user.is_super_admin):
-            raise HTTPException(status_code=403, detail="Insufficient permissions to access other tenants' departments")
+        # Users can access their own tenant's departments
+        # Platform admins can access any tenant's departments
+        if tenant_id != current_user.tenant_id:
+            if not (current_user.is_platform_admin or current_user.is_super_admin):
+                raise HTTPException(status_code=403, detail="Insufficient permissions to access other tenants' departments")
 
         # If the special "All Tenants" selector is used, detect and return
         # departments across all tenants instead of filtering to a single one.
@@ -172,6 +175,7 @@ async def get_departments(
             return db.query(Department).all()
 
     # Fallback to the current user's tenant
+    # Tenant managers, tenant leads, and HR admins can access their own tenant's departments
     tenant_id = tenant_id or current_user.tenant_id
 
     departments = db.query(Department).filter(

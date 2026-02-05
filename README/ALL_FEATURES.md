@@ -80,7 +80,7 @@ Role-gated views and dashboards:
 
 ### 2.3 Backend
 Role checks enforced in route dependencies and service methods across routers:
-- `platform_admin.py`, `tenant_manager.py`, `tenant_lead.py`, `corporate_user.py`
+- `platform_admin.py`, `tenant_manager.py`, `dept_lead.py`, `corporate_user.py`
 
 ### 2.4 Database
 Role stored in `users.role` (ENUM `userrole`).
@@ -343,7 +343,7 @@ User wallet and points:
 - `frontend/src/features/dashboard/PointsBalance.jsx`
 
 ### 9.3 Backend
-**Routers**: `backend/app/api/tenant_manager.py`, `backend/app/api/tenant_lead.py`, `backend/app/api/platform_admin.py`
+**Routers**: `backend/app/api/tenant_manager.py`, `backend/app/api/dept_lead.py`, `backend/app/api/platform_admin.py`
 
 Key endpoints (from `ENDPOINTS_NodeSpark.md`):
 - `GET /tenant/budget`
@@ -799,7 +799,7 @@ No database schema.
 - Rewards: `backend/app/api/rewards.py`
 - Badges: `backend/app/api/badges.py`
 - Tenant Manager: `backend/app/api/tenant_manager.py`
-- Tenant Lead: `backend/app/api/tenant_lead.py`
+- Department Lead: `backend/app/api/dept_lead.py`
 - Platform Admin: `backend/app/api/platform_admin.py`
 - Events: `backend/app/api/events.py`
 - Event Studio: `backend/app/api/event_studio.py`

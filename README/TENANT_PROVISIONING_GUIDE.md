@@ -102,7 +102,7 @@ HR departments upload a CSV file with multiple users. System processes the file 
 ```
 email,full_name,department,role
 alice@company.com,Alice Johnson,Engineering,corporate_user
-bob@company.com,Bob Smith,Engineering,tenant_lead
+bob@company.com,Bob Smith,Engineering,dept_lead
 carol@company.com,Carol Davis,Marketing,corporate_user
 ```
 
@@ -253,7 +253,7 @@ curl -X POST http://localhost:7100/api/auth/invitations/generate \
 cat > users.csv << EOF
 email,full_name,department,role
 alice@company.com,Alice Johnson,Engineering,corporate_user
-bob@company.com,Bob Smith,Engineering,tenant_lead
+bob@company.com,Bob Smith,Engineering,dept_lead
 EOF
 
 # Upload CSV

@@ -85,6 +85,9 @@ async def get_recognitions(
             points=rec.points,
             message=rec.message,
             visibility=rec.visibility,
+            recognition_type=rec.recognition_type or 'individual_award',
+            ecard_template=rec.ecard_template,
+            is_equal_split=rec.is_equal_split or False,
             status=rec.status,
             created_at=rec.created_at,
             from_user_name=f"{from_user.first_name} {from_user.last_name}" if from_user else "Unknown",
@@ -109,16 +112,27 @@ async def create_recognition(
     If points are included, they are deducted from the tenant's allocation pool
     and added to the recipient's wallet.
     """
-    # Validate recipient exists
-    recipient = db.query(User).filter(
-        User.id == recognition_data.to_user_id,
+    # Determine recipients
+    recipient_ids = []
+    if recognition_data.recognition_type == 'group_award' and recognition_data.to_user_ids:
+        recipient_ids = recognition_data.to_user_ids
+    elif recognition_data.to_user_id:
+        recipient_ids = [recognition_data.to_user_id]
+    
+    if not recipient_ids:
+        raise HTTPException(status_code=400, detail="No recipients specified")
+
+    # Validate recipients exist and are in the same tenant
+    recipients = db.query(User).filter(
+        User.id.in_(recipient_ids),
         User.tenant_id == current_user.tenant_id
-    ).first()
-    if not recipient:
-        raise HTTPException(status_code=404, detail="Recipient not found")
+    ).all()
+    
+    if len(recipients) != len(recipient_ids):
+        raise HTTPException(status_code=404, detail="One or more recipients not found")
     
     # Can't recognize yourself
-    if recognition_data.to_user_id == current_user.id:
+    if any(rid == current_user.id for rid in recipient_ids):
         raise HTTPException(status_code=400, detail="Cannot recognize yourself")
     
     # Get tenant
@@ -126,100 +140,123 @@ async def create_recognition(
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
     
+    # Calculate points per recipient
+    total_points_to_award = Decimal('0')
+    points_per_recipient = recognition_data.points
+    
+    if recognition_data.recognition_type == 'group_award' and recognition_data.is_equal_split:
+        points_per_recipient = recognition_data.points / len(recipients)
+        total_points_to_award = recognition_data.points
+    else:
+        total_points_to_award = recognition_data.points * len(recipients)
+    
     # Validate points allocation pool if points are being awarded
-    if recognition_data.points > 0:
+    if total_points_to_award > 0:
         # Check manager/lead has permission to award points
-        if current_user.org_role not in ['manager', 'hr_admin', 'tenant_lead', 'tenant_manager']:
+        # Update: Allow according to user persona permissions in rbac.py if needed, 
+        # but for now keeping it restricted to roles as before or following new logic
+        if current_user.org_role not in ['tenant_lead', 'tenant_manager', 'platform_admin', 'hr_admin']:
             raise HTTPException(
                 status_code=403,
-                detail="Only managers and leads can award recognition points"
+                detail="Only managers and administrators can award recognition points"
             )
         
         # Check tenant has sufficient allocation balance
-        if Decimal(str(tenant.points_allocation_balance)) < Decimal(str(recognition_data.points)):
+        if Decimal(str(tenant.budget_allocation_balance)) < total_points_to_award:
             raise HTTPException(
                 status_code=400,
-                detail=f"Insufficient points in distribution pool. Available: {tenant.points_allocation_balance}, Requested: {recognition_data.points}"
+                detail=f"Insufficient points in distribution pool. Available: {tenant.budget_allocation_balance}, Requested: {total_points_to_award}"
             )
     
-    # Create recognition
-    recognition = Recognition(
-        tenant_id=current_user.tenant_id,
-        from_user_id=current_user.id,
-        to_user_id=recognition_data.to_user_id,
-        badge_id=recognition_data.badge_id,
-        points=recognition_data.points,
-        message=recognition_data.message,
-        visibility=recognition_data.visibility,
-        status='active'
-    )
-    db.add(recognition)
-    db.flush()
+    last_recognition = None
     
-    # Process budget using BudgetService if applicable
-    if recognition_data.points > 0:
-        try:
-            wallet, ledger, distribution_log = BudgetService.awardToUser(
-                db=db,
-                tenant=tenant,
-                from_user=current_user,
-                to_user=recipient,
-                amount=Decimal(str(recognition_data.points)),
-                reference_type='recognition',
-                reference_id=recognition.id,
-                description=recognition_data.message[:200]
-            )
-        except BudgetAllocationError as e:
-            db.rollback()
-            raise HTTPException(status_code=400, detail=str(e))
+    for recipient in recipients:
+        # Create recognition record
+        recognition = Recognition(
+            tenant_id=current_user.tenant_id,
+            from_user_id=current_user.id,
+            to_user_id=recipient.id,
+            badge_id=recognition_data.badge_id,
+            points=points_per_recipient,
+            message=recognition_data.message,
+            visibility=recognition_data.visibility,
+            recognition_type=recognition_data.recognition_type,
+            ecard_template=recognition_data.ecard_template,
+            is_equal_split=recognition_data.is_equal_split,
+            status='active'
+        )
+        db.add(recognition)
+        db.flush()
+        last_recognition = recognition
+        
+        # Process budget using BudgetService if applicable
+        if points_per_recipient > 0:
+            try:
+                BudgetService.awardToUser(
+                    db=db,
+                    tenant=tenant,
+                    from_user=current_user,
+                    to_user=recipient,
+                    amount=points_per_recipient,
+                    reference_type='recognition',
+                    reference_id=recognition.id,
+                    description=recognition_data.message[:200]
+                )
+            except BudgetAllocationError as e:
+                db.rollback()
+                raise HTTPException(status_code=400, detail=str(e))
+        
+        # Create feed entry
+        feed_entry = Feed(
+            tenant_id=current_user.tenant_id,
+            event_type='recognition',
+            reference_type='recognition',
+            reference_id=recognition.id,
+            actor_id=current_user.id,
+            target_id=recipient.id,
+            visibility=recognition_data.visibility,
+            event_metadata={
+                "points": str(points_per_recipient),
+                "message": recognition_data.message[:100],
+                "recognition_type": recognition_data.recognition_type,
+                "ecard_template": recognition_data.ecard_template,
+                "badge_name": db.query(Badge.name).filter(Badge.id == recognition_data.badge_id).scalar() if recognition_data.badge_id else None
+            }
+        )
+        db.add(feed_entry)
+        
+        # Create notification for recipient
+        notification = Notification(
+            tenant_id=current_user.tenant_id,
+            user_id=recipient.id,
+            type='recognition_received',
+            title='You received recognition!',
+            message=f"{current_user.first_name} {current_user.last_name} recognized you with {points_per_recipient} points",
+            reference_type='recognition',
+            reference_id=recognition.id
+        )
+        db.add(notification)
     
-    # Create feed entry
-    feed_entry = Feed(
-        tenant_id=current_user.tenant_id,
-        event_type='recognition',
-        reference_type='recognition',
-        reference_id=recognition.id,
-        actor_id=current_user.id,
-        target_id=recipient.id,
-        visibility=recognition_data.visibility,
-        event_metadata={
-            "points": str(recognition_data.points),
-            "message": recognition_data.message[:100]
-        }
-    )
-    db.add(feed_entry)
-    
-    # Create notification for recipient
-    notification = Notification(
-        tenant_id=current_user.tenant_id,
-        user_id=recipient.id,
-        type='recognition_received',
-        title='You received recognition!',
-        message=f"{current_user.first_name} {current_user.last_name} recognized you with {recognition_data.points} points",
-        reference_type='recognition',
-        reference_id=recognition.id
-    )
-    db.add(notification)
-    
-    # Audit log
+    # Audit log (one for the whole action)
     audit = AuditLog(
         tenant_id=current_user.tenant_id,
         actor_id=current_user.id,
         action="recognition_created",
         entity_type="recognition",
-        entity_id=recognition.id,
+        entity_id=last_recognition.id if last_recognition else None,
         new_values=append_impersonation_metadata({
-            "to_user_id": str(recognition_data.to_user_id),
-            "points": str(recognition_data.points),
+            "recipient_count": len(recipients),
+            "total_points": str(total_points_to_award),
+            "recognition_type": recognition_data.recognition_type,
             "message": recognition_data.message
         })
     )
     db.add(audit)
     
     db.commit()
-    db.refresh(recognition)
+    db.refresh(last_recognition)
     
-    return recognition
+    return last_recognition
 
 
 @router.get("/{recognition_id}", response_model=RecognitionDetailResponse)
@@ -263,6 +300,9 @@ async def get_recognition(
         points=rec.points,
         message=rec.message,
         visibility=rec.visibility,
+        recognition_type=rec.recognition_type or 'individual_award',
+        ecard_template=rec.ecard_template,
+        is_equal_split=rec.is_equal_split or False,
         status=rec.status,
         created_at=rec.created_at,
         from_user_name=f"{from_user.first_name} {from_user.last_name}" if from_user else "Unknown",
@@ -403,6 +443,65 @@ async def get_my_recognition_stats(
         Recognition.status == 'active'
     ).group_by(Badge.name).order_by(func.count(Recognition.id).desc()).limit(5).all()
     
+    return RecognitionStats(
+        total_given=given_stats[0] or 0,
+        total_received=received_stats[0] or 0,
+        points_given=Decimal(str(given_stats[1] or 0)),
+        points_received=Decimal(str(received_stats[1] or 0)),
+        top_badges=[{"name": b[0], "count": b[1]} for b in top_badges]
+    )
+
+
+@router.get("/stats/{user_id}", response_model=RecognitionStats)
+async def get_user_recognition_stats(
+    user_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get recognition statistics for a specific user"""
+    from core.rbac import get_effective_role
+
+    effective_role = get_effective_role(current_user, db)
+
+    # Check if user can view this profile
+    if effective_role == "platform_admin":
+        target_user = db.query(User).filter(User.id == user_id).first()
+    else:
+        target_user = db.query(User).filter(
+            User.id == user_id,
+            User.tenant_id == current_user.tenant_id
+        ).first()
+
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Given stats
+    given_stats = db.query(
+        func.count(Recognition.id),
+        func.coalesce(func.sum(Recognition.points), 0)
+    ).filter(
+        Recognition.from_user_id == user_id,
+        Recognition.status == 'active'
+    ).first()
+
+    # Received stats
+    received_stats = db.query(
+        func.count(Recognition.id),
+        func.coalesce(func.sum(Recognition.points), 0)
+    ).filter(
+        Recognition.to_user_id == user_id,
+        Recognition.status == 'active'
+    ).first()
+
+    # Top badges received
+    top_badges = db.query(
+        Badge.name,
+        func.count(Recognition.id).label('count')
+    ).join(Recognition, Recognition.badge_id == Badge.id).filter(
+        Recognition.to_user_id == user_id,
+        Recognition.status == 'active'
+    ).group_by(Badge.name).order_by(func.count(Recognition.id).desc()).limit(5).all()
+
     return RecognitionStats(
         total_given=given_stats[0] or 0,
         total_received=received_stats[0] or 0,

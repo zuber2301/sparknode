@@ -18,10 +18,14 @@ class BadgeResponse(BaseModel):
 
 
 class RecognitionCreate(BaseModel):
-    to_user_id: UUID
+    to_user_id: Optional[UUID] = None
+    to_user_ids: Optional[List[UUID]] = None
     badge_id: Optional[UUID] = None
     points: Decimal
     message: str
+    recognition_type: str = 'standard'
+    ecard_template: Optional[str] = None
+    is_equal_split: bool = False
     visibility: str = 'public'
 
 
@@ -33,6 +37,9 @@ class RecognitionResponse(BaseModel):
     badge_id: Optional[UUID] = None
     points: Decimal
     message: str
+    recognition_type: str
+    ecard_template: Optional[str] = None
+    is_equal_split: bool
     visibility: str
     status: str
     created_at: datetime

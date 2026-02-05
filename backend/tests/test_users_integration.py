@@ -163,7 +163,7 @@ class TestBulkUploadIntegration:
         """Test uploading a CSV file for bulk user import"""
         csv_content = """email,full_name,department,role
 john@example.com,John Doe,Engineering,corporate_user
-jane@example.com,Jane Smith,Engineering,tenant_lead"""
+jane@example.com,Jane Smith,Engineering,dept_lead"""
         
         files = {
             'file': ('users.csv', io.BytesIO(csv_content.encode()), 'text/csv')
@@ -191,7 +191,7 @@ jane@example.com,Jane Smith,Engineering,tenant_lead"""
         ws = wb.active
         ws.append(['email', 'full_name', 'department', 'role'])
         ws.append(['john@example.com', 'John Doe', 'Engineering', 'corporate_user'])
-        ws.append(['jane@example.com', 'Jane Smith', 'Engineering', 'tenant_lead'])
+        ws.append(['jane@example.com', 'Jane Smith', 'Engineering', 'dept_lead'])
         
         excel_buffer = BytesIO()
         wb.save(excel_buffer)

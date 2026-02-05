@@ -19,7 +19,7 @@ def auth_header_for(email="admin@demo.com", password="password123"):
         from models import User
         from auth.utils import create_access_token
         db = SessionLocal()
-        user = db.query(User).filter(User.org_role.in_(['tenant_manager', 'hr_admin', 'tenant_lead']), User.status == 'ACTIVE').first()
+        user = db.query(User).filter(User.org_role.in_(['tenant_manager', 'hr_admin', 'dept_lead']), User.status == 'ACTIVE').first()
         if not user:
             pytest.skip("No tenant manager/hr_admin available to generate token")
         payload = {

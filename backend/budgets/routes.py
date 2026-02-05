@@ -350,48 +350,97 @@ async def get_lead_budgets(
 @router.post("/leads/allocate", response_model=LeadBudgetResponse)
 async def allocate_lead_budget(
     request: LeadBudgetAllocateRequest,
-    current_user: User = Depends(get_hr_admin),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Allocate budget points to a Lead from their department's budget"""
-    # 1. Find the target lead user
+    """Allocate budget points to a Department Lead from their department's budget
+    
+    Workflow:
+    - Platform Admin: Can allocate to any dept_lead in any department
+    - Tenant Manager: Can allocate to dept_leads in their own department only
+    - HR Admin: Can allocate to any dept_lead in the tenant
+    
+    This endpoint:
+    1. Finds the target dept_lead user
+    2. Ensures they have a department assigned
+    3. Creates department budget if it doesn't exist
+    4. Creates or updates the lead budget allocation
+    5. Department budget can be shared by all users in that department
+    """
+    # 1. Authorization - Only hr_admin and tenant_manager can allocate
+    if current_user.org_role not in ['platform_admin', 'tenant_manager', 'hr_admin']:
+        raise HTTPException(status_code=403, detail="Only managers can allocate budgets")
+    
+    # 2. Find the target lead user (should have dept_lead role)
     lead_user = db.query(User).filter(User.id == request.user_id).first()
     if not lead_user or not lead_user.department_id:
-        raise HTTPException(status_code=404, detail="Lead user not found or has no department")
+        raise HTTPException(status_code=404, detail="Department Lead not found or has no department assigned")
     
-    # 2. Find the active budget for the tenant
+    # 3. Ensure lead_user is in the same tenant
+    if lead_user.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Cannot allocate to users outside your organization")
+    
+    # 4. Tenant managers can only allocate to their own department's leads
+    if current_user.org_role == 'tenant_manager':
+        if lead_user.department_id != current_user.department_id:
+            raise HTTPException(status_code=403, detail="Tenant managers can only allocate to dept_leads in their department")
+    
+    # 5. Find the active budget for the tenant
     active_budget = db.query(Budget).filter(
         Budget.tenant_id == current_user.tenant_id,
         Budget.status == 'active'
     ).first()
     if not active_budget:
         raise HTTPException(status_code=400, detail="No active budget found for this tenant")
-        
-    # 3. Find the department budget
+    
+    # 6. Get or create the department budget
     dept_budget = db.query(DepartmentBudget).filter(
         DepartmentBudget.budget_id == active_budget.id,
         DepartmentBudget.department_id == lead_user.department_id
     ).first()
     
+    # If department budget doesn't exist, we need to allocate budget to this department first
+    # For now, we'll create it with allocation equal to what's being allocated to the lead
+    # OR we can require it to exist - let's require it for now
     if not dept_budget:
-        raise HTTPException(status_code=400, detail="No budget allocated to this department yet")
-                
-    # 4. Check total already sub-allocated to leads in this department
+        # Option 1: Create department budget with the exact amount needed
+        # This allows flexible allocation without pre-allocating to departments
+        dept_budget = DepartmentBudget(
+            tenant_id=current_user.tenant_id,
+            budget_id=active_budget.id,
+            department_id=lead_user.department_id,
+            allocated_points=request.total_points,
+            spent_points=0,
+            monthly_cap=None
+        )
+        db.add(dept_budget)
+        db.flush()  # Ensure it has an ID
+        
+        # Update budget's allocated_points
+        active_budget.allocated_points = Decimal(str(active_budget.allocated_points)) + request.total_points
+    
+    # 7. Check total already sub-allocated to leads in this department
     sum_leads = db.query(func.sum(LeadBudget.total_points)).filter(
         LeadBudget.department_budget_id == dept_budget.id
-    ).scalar() or 0
+    ).scalar() or Decimal('0')
     
     lead_budget = db.query(LeadBudget).filter(
         LeadBudget.department_budget_id == dept_budget.id,
         LeadBudget.user_id == lead_user.id
     ).first()
     
-    existing_lead_points = lead_budget.total_points if lead_budget else 0
+    existing_lead_points = Decimal(str(lead_budget.total_points)) if lead_budget else Decimal('0')
     
-    if sum_leads - existing_lead_points + request.total_points > dept_budget.total_points:
-         raise HTTPException(status_code=400, detail=f"Exceeds department total budget. Available for sub-allocation: {float(dept_budget.total_points) - (float(sum_leads) - float(existing_lead_points))}")
-
-    # 5. Create or Update Lead Budget
+    # Calculate available points in department budget
+    available_in_dept = Decimal(str(dept_budget.allocated_points)) - (sum_leads - existing_lead_points)
+    
+    if request.total_points > available_in_dept:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Exceeds department budget capacity. Available: {float(available_in_dept)} points"
+        )
+    
+    # 8. Create or Update Lead Budget
     if lead_budget:
         lead_budget.total_points = request.total_points
     else:
@@ -400,10 +449,13 @@ async def allocate_lead_budget(
             department_budget_id=dept_budget.id,
             user_id=lead_user.id,
             total_points=request.total_points,
-            spent_points=0,
+            spent_points=Decimal('0'),
             status='active'
         )
         db.add(lead_budget)
+    
+    # Flush to generate ID for new lead budget
+    db.flush()
     
     # Audit log
     audit = AuditLog(
@@ -414,12 +466,29 @@ async def allocate_lead_budget(
         entity_id=lead_budget.id,
         new_values=append_impersonation_metadata({
             "user_id": str(request.user_id),
-            "points": float(request.total_points),
+            "department_id": str(lead_user.department_id),
+            "total_points": float(request.total_points),
             "description": request.description
         })
     )
     db.add(audit)
-        
+    
     db.commit()
     db.refresh(lead_budget)
-    return lead_budget
+    
+    # Build response with all required fields
+    return {
+        "id": lead_budget.id,
+        "tenant_id": lead_budget.tenant_id,
+        "department_budget_id": lead_budget.department_budget_id,
+        "user_id": lead_budget.user_id,
+        "user_name": f"{lead_user.first_name} {lead_user.last_name}".strip() if lead_user else None,
+        "total_points": Decimal(str(lead_budget.total_points)),
+        "spent_points": Decimal(str(lead_budget.spent_points)),
+        "remaining_points": Decimal(str(lead_budget.remaining_points)),
+        "usage_percentage": float(lead_budget.usage_percentage),
+        "remaining_percentage": float(lead_budget.remaining_percentage),
+        "status": lead_budget.status,
+        "expiry_date": lead_budget.expiry_date,
+        "created_at": lead_budget.created_at
+    }

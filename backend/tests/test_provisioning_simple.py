@@ -66,7 +66,7 @@ class TestBulkUploadMethod:
         """Test uploading a CSV file for bulk user provisioning"""
         csv_content = """email,full_name,department,role
 alice@example.com,Alice Johnson,Engineering,corporate_user
-bob@example.com,Bob Smith,Engineering,tenant_lead
+bob@example.com,Bob Smith,Engineering,dept_lead
 carol@example.com,Carol Davis,Marketing,corporate_user"""
         
         files = {

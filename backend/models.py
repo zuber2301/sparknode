@@ -569,6 +569,9 @@ class Recognition(Base):
     badge_id = Column(UUID(as_uuid=True), ForeignKey("badges.id"))
     points = Column(Numeric(15, 2), nullable=False, default=0)
     message = Column(Text, nullable=False)
+    recognition_type = Column(String(50), default='standard')
+    ecard_template = Column(String(50))
+    is_equal_split = Column(Boolean, default=False)
     visibility = Column(String(20), default='public')  # public/private/department
     status = Column(String(50), default='active')  # pending/active/rejected/revoked
     department_budget_id = Column(UUID(as_uuid=True), ForeignKey("department_budgets.id"))

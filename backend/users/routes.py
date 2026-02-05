@@ -202,6 +202,41 @@ async def create_user(
     db.refresh(user)
     return user
 
+@router.get("/{user_id}", response_model=UserResponse)
+async def get_user(
+    user_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get a specific user by ID (within same tenant)"""
+    from core.rbac import get_effective_role
+
+    effective_role = get_effective_role(current_user, db)
+
+    # Platform admins can view any user
+    if effective_role == "platform_admin":
+        user = db.query(User).filter(User.id == user_id).first()
+    else:
+        # Regular users can only view users in their tenant
+        user = db.query(User).filter(
+            User.id == user_id,
+            User.tenant_id == current_user.tenant_id
+        ).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Get department name
+    department_name = None
+    if user.department_id:
+        department = db.query(Department).filter(Department.id == user.department_id).first()
+        department_name = department.name if department else None
+
+    # Return user with department name
+    user_dict = user.__dict__.copy()
+    user_dict['department_name'] = department_name
+    return UserResponse(**user_dict)
+
 @router.patch("/{user_id}", response_model=UserResponse)
 async def patch_user(
     user_id: UUID,
@@ -226,6 +261,32 @@ async def patch_user(
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.get("/{user_id}/direct-reports", response_model=List[UserListResponse])
+async def get_direct_reports(
+    user_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get direct reports for a given user (manager)."""
+    # Ensure the user exists and belongs to the same tenant
+    manager = db.query(User).filter(
+        User.id == user_id,
+        User.tenant_id == current_user.tenant_id
+    ).first()
+    if not manager:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get all users who report to this manager
+    direct_reports = db.query(User).filter(
+        User.manager_id == user_id,
+        User.tenant_id == current_user.tenant_id,
+        User.status == 'active'
+    ).all()
+    
+    return direct_reports
+
 
 @router.get("/bulk/template")
 async def download_bulk_template():

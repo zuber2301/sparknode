@@ -309,7 +309,7 @@ def tenant_with_users(db_session, tenant):
         corporate_email="usera@example.com",
         first_name="User",
         last_name="A",
-        org_role="tenant_lead",
+        org_role="dept_lead",
         password_hash=get_password_hash("password"),
         status="ACTIVE"
     )

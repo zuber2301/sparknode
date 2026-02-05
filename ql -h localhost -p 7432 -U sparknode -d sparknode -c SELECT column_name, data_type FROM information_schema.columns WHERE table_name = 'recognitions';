@@ -1,0 +1,32 @@
+                                     Table "public.recognitions"
+        Column        |           Type           | Collation | Nullable |           Default           
+----------------------+--------------------------+-----------+----------+-----------------------------
+ id                   | uuid                     |           | not null | uuid_generate_v4()
+ tenant_id            | uuid                     |           | not null | 
+ from_user_id         | uuid                     |           | not null | 
+ to_user_id           | uuid                     |           | not null | 
+ badge_id             | uuid                     |           |          | 
+ points               | numeric(15,2)            |           | not null | 0
+ message              | text                     |           | not null | 
+ visibility           | character varying(20)    |           |          | 'public'::character varying
+ status               | character varying(50)    |           |          | 'active'::character varying
+ department_budget_id | uuid                     |           |          | 
+ lead_budget_id       | uuid                     |           |          | 
+ created_at           | timestamp with time zone |           |          | now()
+ updated_at           | timestamp with time zone |           |          | now()
+Indexes:
+    "recognitions_pkey" PRIMARY KEY, btree (id)
+Check constraints:
+    "recognitions_status_check" CHECK (status::text = ANY (ARRAY['pending'::character varying, 'active'::character varying, 'rejected'::character varying, 'revoked'::character varying]::text[]))
+    "recognitions_visibility_check" CHECK (visibility::text = ANY (ARRAY['public'::character varying, 'private'::character varying, 'department'::character varying]::text[]))
+Foreign-key constraints:
+    "recognitions_badge_id_fkey" FOREIGN KEY (badge_id) REFERENCES badges(id)
+    "recognitions_department_budget_id_fkey" FOREIGN KEY (department_budget_id) REFERENCES department_budgets(id)
+    "recognitions_from_user_id_fkey" FOREIGN KEY (from_user_id) REFERENCES users(id)
+    "recognitions_lead_budget_id_fkey" FOREIGN KEY (lead_budget_id) REFERENCES lead_budgets(id)
+    "recognitions_tenant_id_fkey" FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
+    "recognitions_to_user_id_fkey" FOREIGN KEY (to_user_id) REFERENCES users(id)
+Referenced by:
+    TABLE "recognition_comments" CONSTRAINT "recognition_comments_recognition_id_fkey" FOREIGN KEY (recognition_id) REFERENCES recognitions(id) ON DELETE CASCADE
+    TABLE "recognition_reactions" CONSTRAINT "recognition_reactions_recognition_id_fkey" FOREIGN KEY (recognition_id) REFERENCES recognitions(id) ON DELETE CASCADE
+

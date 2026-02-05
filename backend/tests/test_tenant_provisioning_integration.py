@@ -149,7 +149,7 @@ def test_bulk_upload_endpoint():
     # Create test CSV
     csv_content = """email,full_name,department,role
 alice@test.com,Alice Johnson,Engineering,corporate_user
-bob@test.com,Bob Smith,Engineering,tenant_lead
+bob@test.com,Bob Smith,Engineering,dept_lead
 carol@test.com,Carol Davis,Marketing,corporate_user"""
     
     files = {

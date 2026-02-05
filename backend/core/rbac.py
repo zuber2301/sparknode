@@ -40,12 +40,13 @@ class UserRole(str, Enum):
     """
     PLATFORM_ADMIN = "platform_admin"      # System-wide admin
     TENANT_MANAGER = "tenant_manager"          # Company HR/Admin
-    TENANT_LEAD = "tenant_lead"            # Manager/Team Lead
+    DEPT_LEAD = "dept_lead"                # Department Lead/Manager
     CORPORATE_USER = "corporate_user"      # Regular Employee
     
     # Legacy role mappings for backward compatibility
-    HR_ADMIN = "hr_admin"                  # Maps to TENANT_ADMIN
-    MANAGER = "manager"                    # Maps to TENANT_LEAD
+    TENANT_LEAD = "dept_lead"              # Legacy name for DEPT_LEAD
+    HR_ADMIN = "hr_admin"                  # Maps to TENANT_MANAGER
+    MANAGER = "dept_lead"                  # Legacy name for DEPT_LEAD
     EMPLOYEE = "employee"                  # Maps to CORPORATE_USER
 
 
@@ -54,8 +55,9 @@ ROLE_HIERARCHY = {
     UserRole.PLATFORM_ADMIN: 4,
     UserRole.TENANT_MANAGER: 3,
     UserRole.HR_ADMIN: 3,  # Legacy (maps to tenant manager)
-    UserRole.TENANT_LEAD: 2,
-    UserRole.MANAGER: 2,  # Legacy
+    UserRole.DEPT_LEAD: 2,
+    UserRole.MANAGER: 2,  # Legacy (maps to dept_lead)
+    UserRole.TENANT_LEAD: 2,  # Legacy (maps to dept_lead)
     UserRole.CORPORATE_USER: 1,
     UserRole.EMPLOYEE: 1,  # Legacy
 }
@@ -154,7 +156,7 @@ ROLE_PERMISSIONS: dict[UserRole, Set[Permission]] = {
         Permission.PARTICIPATE_EVENTS,
         Permission.UPDATE_PROFILE,
     },
-    UserRole.TENANT_LEAD: {
+    UserRole.DEPT_LEAD: {
         Permission.MANAGE_TEAM_BUDGET,
     },
     UserRole.CORPORATE_USER: {
@@ -165,7 +167,8 @@ ROLE_PERMISSIONS: dict[UserRole, Set[Permission]] = {
 # Legacy role mapping
 LEGACY_ROLE_PERMISSIONS = {
     UserRole.HR_ADMIN: ROLE_PERMISSIONS[UserRole.TENANT_MANAGER],
-    UserRole.MANAGER: ROLE_PERMISSIONS[UserRole.TENANT_LEAD],
+    UserRole.MANAGER: ROLE_PERMISSIONS[UserRole.DEPT_LEAD],
+    UserRole.TENANT_LEAD: ROLE_PERMISSIONS[UserRole.DEPT_LEAD],
     UserRole.EMPLOYEE: ROLE_PERMISSIONS[UserRole.CORPORATE_USER],
 }
 

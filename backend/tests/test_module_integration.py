@@ -310,10 +310,10 @@ class TestRBACIntegration:
         assert RolePermissions.has_permission('tenant_manager', Permission.VIEW_TENANT_ANALYTICS) is True
         assert RolePermissions.has_permission('tenant_manager', Permission.MANAGE_BUDGETS) is True
     
-    def test_tenant_lead_permissions(self):
+    def test_dept_lead_permissions(self):
         """Test Tenant Lead role has correct permissions"""
         # Lead should have team budget permission
-        assert RolePermissions.has_permission('tenant_lead', Permission.MANAGE_TEAM_BUDGET) is True
+        assert RolePermissions.has_permission('dept_lead', Permission.MANAGE_TEAM_BUDGET) is True
     
     def test_corporate_user_permissions(self):
         """Test Corporate User role has correct permissions"""
