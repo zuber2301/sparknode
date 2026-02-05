@@ -38,6 +38,7 @@ services:
       dockerfile: Dockerfile
     container_name: ${PROJECT_NAME:-sparknode}-backend
     environment:
+      APP_DATABASE_URL: ${APP_DATABASE_URL:-postgresql://sparknode_app:change_me_in_production@postgres:5432/sparknode}
       DATABASE_URL: ${DATABASE_URL:-postgresql://sparknode:sparknode_secret_2024@postgres:5432/sparknode}
       SECRET_KEY: ${SECRET_KEY:-sparknode-super-secret-key-change-in-production}
       ALGORITHM: ${ALGORITHM:-HS256}
@@ -58,6 +59,7 @@ services:
       - "${BACKEND_EXTERNAL_PORT:-6100}:8000"
     volumes:
       - ./backend:/app
+      - ./database:/app/database:ro
     depends_on:
       postgres:
         condition: service_healthy
