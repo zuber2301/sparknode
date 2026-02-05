@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { tenantsAPI, usersAPI } from '../lib/api'
 import { useAuthStore } from '../store/authStore'
@@ -12,14 +12,22 @@ import {
   HiOutlineCurrencyDollar,
   HiOutlineUsers,
   HiOutlineUserAdd,
-  HiOutlineExclamation
+  HiOutlineExclamation,
+  HiOutlineCheck,
+  HiOutlineX
 } from 'react-icons/hi'
 
 export default function Departments() {
   const [showAddPointsModal, setShowAddPointsModal] = useState(false)
   const [showAssignLeadModal, setShowAssignLeadModal] = useState(false)
+  const [showCreateDeptModal, setShowCreateDeptModal] = useState(false)
   const [selectedDept, setSelectedDept] = useState(null)
   const [allocationAmount, setAllocationAmount] = useState('')
+  const [newDeptName, setNewDeptName] = useState('')
+  const [newDeptAllocation, setNewDeptAllocation] = useState('')
+  const [selectedLeadUserId, setSelectedLeadUserId] = useState('')
+  const [deptNameCheck, setDeptNameCheck] = useState({ isChecking: false, exists: false, message: '' })
+  const [newlyCreatedDeptId, setNewlyCreatedDeptId] = useState(null)
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
 
@@ -68,6 +76,52 @@ export default function Departments() {
     },
   })
 
+  // Debounced department name checking
+  useEffect(() => {
+    if (!newDeptName.trim()) {
+      setDeptNameCheck({ isChecking: false, exists: false, message: '' })
+      return
+    }
+
+    const timeoutId = setTimeout(async () => {
+      setDeptNameCheck({ isChecking: true, exists: false, message: '' })
+      try {
+        const response = await tenantsAPI.checkDepartmentName(newDeptName)
+        setDeptNameCheck({ isChecking: false, exists: response.exists, message: response.message })
+      } catch (error) {
+        setDeptNameCheck({ isChecking: false, exists: false, message: '' })
+      }
+    }, 500)
+
+    return () => clearTimeout(timeoutId)
+  }, [newDeptName])
+
+  const createDeptMutation = useMutation({
+    mutationFn: (data) => tenantsAPI.createDepartmentWithAllocation(data),
+    onSuccess: (response) => {
+      toast.success(`Department "${response.department_name}" created successfully!`)
+      queryClient.invalidateQueries(['departments', 'management'])
+      queryClient.invalidateQueries(['tenant', 'current'])
+      setNewlyCreatedDeptId(response.department_id)
+      setShowCreateDeptModal(false)
+      resetCreateForm()
+      
+      // Remove highlight after 3 seconds
+      setTimeout(() => setNewlyCreatedDeptId(null), 3000)
+    },
+    onError: (error) => {
+      const detail = error.response?.data?.detail || error.message || 'Failed to create department'
+      toast.error(detail)
+    },
+  })
+
+  const resetCreateForm = () => {
+    setNewDeptName('')
+    setNewDeptAllocation('')
+    setSelectedLeadUserId('')
+    setDeptNameCheck({ isChecking: false, exists: false, message: '' })
+  }
+
   const handleAddPoints = (dept) => {
     setSelectedDept(dept)
     setShowAddPointsModal(true)
@@ -88,6 +142,35 @@ export default function Departments() {
 
   const submitAssignLead = (userId) => {
     assignLeadMutation.mutate({ deptId: selectedDept.id, userId })
+  }
+
+  const handleCreateDepartment = () => {
+    if (!newDeptName.trim()) {
+      toast.error('Please enter a department name')
+      return
+    }
+
+    if (deptNameCheck.exists) {
+      toast.error('Department name already exists')
+      return
+    }
+
+    const allocation = newDeptAllocation ? parseFloat(newDeptAllocation) : 0
+    if (allocation < 0) {
+      toast.error('Allocation amount cannot be negative')
+      return
+    }
+
+    if (allocation > (tenant?.master_budget_balance || 0)) {
+      toast.error('Allocation exceeds available master pool balance')
+      return
+    }
+
+    createDeptMutation.mutate({
+      name: newDeptName.trim(),
+      initial_allocation: allocation,
+      lead_user_id: selectedLeadUserId || null
+    })
   }
 
   const formatBudgetValue = (value) => {
@@ -111,11 +194,20 @@ export default function Departments() {
           <h1 className="text-2xl font-bold text-gray-900">Department Management</h1>
           <p className="text-gray-600">Monitor department budgets and point allocation flow</p>
         </div>
-        <div className="text-right">
-          <p className="text-sm text-gray-500">Tenant Master Pool</p>
-          <p className="text-2xl font-bold text-sparknode-purple">
-            {formatBudgetValue(tenant?.master_budget_balance || 0)}
-          </p>
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <p className="text-sm text-gray-500">Tenant Master Pool</p>
+            <p className="text-2xl font-bold text-sparknode-purple">
+              {formatBudgetValue(tenant?.master_budget_balance || 0)}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowCreateDeptModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-sparknode-purple text-white rounded-lg hover:bg-sparknode-purple/90 transition-colors"
+          >
+            <HiOutlinePlus className="w-4 h-4" />
+            New Department
+          </button>
         </div>
       </div>
 
@@ -134,7 +226,12 @@ export default function Departments() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {deptManagement?.data?.map((dept) => (
-                <tr key={dept.id} className="hover:bg-gray-50">
+                <tr 
+                  key={dept.id} 
+                  className={`hover:bg-gray-50 transition-colors ${
+                    newlyCreatedDeptId === dept.id ? 'bg-green-50 border-l-4 border-green-500' : ''
+                  }`}
+                >
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-sparknode-purple/10 rounded-lg">
@@ -291,6 +388,111 @@ export default function Departments() {
                 className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Department Modal */}
+      {showCreateDeptModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
+            <h3 className="text-xl font-semibold text-gray-900 mb-6">
+              Create New Department
+            </h3>
+
+            <div className="space-y-4">
+              {/* Department Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Department Name *
+                </label>
+                <input
+                  type="text"
+                  value={newDeptName}
+                  onChange={(e) => setNewDeptName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sparknode-purple focus:border-transparent"
+                  placeholder="e.g., Customer Success"
+                />
+                {deptNameCheck.isChecking && (
+                  <p className="text-sm text-gray-500 mt-1">Checking availability...</p>
+                )}
+                {deptNameCheck.exists && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <HiOutlineX className="w-4 h-4 text-red-500" />
+                    <p className="text-sm text-red-600">{deptNameCheck.message}</p>
+                  </div>
+                )}
+                {!deptNameCheck.exists && newDeptName.trim() && !deptNameCheck.isChecking && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <HiOutlineCheck className="w-4 h-4 text-green-500" />
+                    <p className="text-sm text-green-600">Department name is available</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Initial Allocation */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Initial Allocation (Optional)
+                </label>
+                <input
+                  type="number"
+                  value={newDeptAllocation}
+                  onChange={(e) => setNewDeptAllocation(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sparknode-purple focus:border-transparent"
+                  placeholder="Points to allocate from master pool"
+                  min="0"
+                  step="0.01"
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  Available: {formatBudgetValue(tenant?.master_budget_balance || 0)}
+                </p>
+                {newDeptAllocation && parseFloat(newDeptAllocation) > (tenant?.master_budget_balance || 0) && (
+                  <p className="text-sm text-red-600 mt-1">Amount exceeds available master pool balance</p>
+                )}
+              </div>
+
+              {/* Assign Department Lead */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Assign Department Lead (Optional)
+                </label>
+                <select
+                  value={selectedLeadUserId}
+                  onChange={(e) => setSelectedLeadUserId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sparknode-purple focus:border-transparent"
+                >
+                  <option value="">Select a user to promote to department lead...</option>
+                  {users?.data?.filter(u => u.org_role !== 'dept_lead')?.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.first_name} {user.last_name} ({user.corporate_email})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-sm text-gray-500 mt-1">
+                  Selected user will be promoted to department lead role
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowCreateDeptModal(false)
+                  resetCreateForm()
+                }}
+                className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateDepartment}
+                disabled={createDeptMutation.isPending || deptNameCheck.exists || deptNameCheck.isChecking}
+                className="flex-1 px-4 py-2 bg-sparknode-purple text-white rounded-lg hover:bg-sparknode-purple/90 transition-colors disabled:opacity-50"
+              >
+                {createDeptMutation.isPending ? 'Creating...' : 'Create Department'}
               </button>
             </div>
           </div>

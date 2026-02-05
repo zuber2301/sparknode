@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from database import get_db
@@ -412,3 +412,118 @@ async def delete_department(
     db.delete(department)
     db.commit()
     return {"message": "Department deleted successfully"}
+
+
+@router.post("/departments/check-name")
+async def check_department_name(
+    name: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Check if a department name already exists for the current tenant"""
+    existing = db.query(Department).filter(
+        Department.tenant_id == current_user.tenant_id,
+        Department.name.ilike(name.strip())
+    ).first()
+    
+    if existing:
+        return {
+            "exists": True,
+            "message": f'Department "{name}" already exists. Would you like to go to the department instead?'
+        }
+    else:
+        return {"exists": False, "message": "Department name is available"}
+
+
+@router.post("/departments/create-and-allocate")
+async def create_department_with_allocation(
+    name: str,
+    initial_allocation: float = 0,
+    lead_user_id: Optional[UUID] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a department and optionally allocate budget and assign lead in one atomic transaction"""
+    # Check permissions - only tenant managers can create departments
+    if current_user.org_role != 'tenant_manager':
+        raise HTTPException(status_code=403, detail="Only tenant managers can create departments")
+    
+    # Validate department name
+    if not name or not name.strip():
+        raise HTTPException(status_code=400, detail="Department name is required")
+    
+    # Check if department already exists
+    existing = db.query(Department).filter(
+        Department.tenant_id == current_user.tenant_id,
+        Department.name.ilike(name.strip())
+    ).first()
+    
+    if existing:
+        raise HTTPException(status_code=400, detail=f'Department "{name}" already exists')
+    
+    # Check master pool balance if allocation is requested
+    if initial_allocation > 0:
+        tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+        if not tenant:
+            raise HTTPException(status_code=404, detail="Tenant not found")
+        
+        if tenant.master_budget_balance < initial_allocation:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Insufficient master pool balance. Available: {tenant.master_budget_balance}"
+            )
+    
+    # Check lead user if provided
+    if lead_user_id:
+        lead_user = db.query(User).filter(
+            User.id == lead_user_id,
+            User.tenant_id == current_user.tenant_id
+        ).first()
+        if not lead_user:
+            raise HTTPException(status_code=404, detail="Lead user not found")
+    
+    try:
+        # Start transaction
+        department = None
+        
+        # Create department
+        department = Department(
+            tenant_id=current_user.tenant_id,
+            name=name.strip(),
+            budget_balance=initial_allocation
+        )
+        db.add(department)
+        db.flush()  # Get the ID without committing
+        
+        # Allocate from master pool if requested
+        if initial_allocation > 0:
+            tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+            tenant.master_budget_balance -= initial_allocation
+        
+        # Assign department lead if provided
+        if lead_user_id:
+            # Remove existing dept_lead role from anyone in this department (though it's new, be safe)
+            db.query(User).filter(
+                User.tenant_id == current_user.tenant_id,
+                User.org_role == 'dept_lead'
+            ).update({"org_role": "corporate_user"})
+            
+            # Assign new dept_lead
+            lead_user = db.query(User).filter(User.id == lead_user_id).first()
+            lead_user.org_role = 'dept_lead'
+            lead_user.dept_id = department.id
+        
+        db.commit()
+        db.refresh(department)
+        
+        return {
+            "message": f'Department "{department.name}" created successfully',
+            "department_id": department.id,
+            "department_name": department.name,
+            "allocated_amount": initial_allocation,
+            "lead_assigned": bool(lead_user_id)
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create department: {str(e)}")
