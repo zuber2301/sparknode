@@ -34,7 +34,7 @@ export default function Dashboard() {
   })
 
   // Check if user is a tenant manager/lead
-  const isManager = effectiveRole === 'tenant_manager' || effectiveRole === 'tenant_lead'
+  const isManager = effectiveRole === 'tenant_manager' || effectiveRole === 'dept_lead'
 
   return (
     <div className="space-y-3 sm:space-y-4 lg:space-y-5">

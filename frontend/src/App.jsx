@@ -13,6 +13,7 @@ import Budgets from './pages/Budgets'
 import Users from './pages/Users'
 import Audit from './pages/Audit'
 import Profile from './pages/Profile'
+import UserProfile from './pages/UserProfile'
 import SpendAnalysis from './pages/SpendAnalysis'
 import PlatformTenants from './pages/PlatformTenants'
 import PlatformTenantDetail from './pages/PlatformTenantDetail'
@@ -33,6 +34,9 @@ import TeamApprovals from './pages/TeamApprovals'
 import TeamAnalytics from './pages/TeamAnalytics'
 import InviteUsers from './pages/admin/InviteUsers'
 import PlatformAdminBudgetLedgerPage from './pages/PlatformAdminBudgetLedgerPage'
+import Departments from './pages/Departments'
+import Analytics from './pages/Analytics'
+import Settings from './pages/Settings'
 import { useParams } from 'react-router-dom'
 
 function EventCreateWizardEdit() {
@@ -78,6 +82,7 @@ function App() {
         <Route path="budgets" element={<Budgets />} />
         <Route path="spend-analysis" element={<SpendAnalysis />} />
         <Route path="users" element={<Users />} />
+        <Route path="users/:userId" element={<UserProfile />} />
         <Route path="audit" element={<Audit />} />
         <Route path="profile" element={<Profile />} />
         <Route path="events" element={<Events />} />
@@ -94,6 +99,9 @@ function App() {
         } />
         <Route path="tenant/:slug" element={<TenantDashboard />} />
         <Route path="marketplace" element={<Marketplace />} />
+        <Route path="departments" element={<Departments />} />
+        <Route path="analytics" element={<Analytics />} />
+        <Route path="settings" element={<Settings />} />
         <Route path="ai-settings" element={<AISettings />} />
         <Route path="templates" element={<Templates />} />
         <Route path="billing" element={<Billing />} />

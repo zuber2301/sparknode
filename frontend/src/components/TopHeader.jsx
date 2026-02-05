@@ -48,6 +48,16 @@ const adminNavigation = [
   { name: 'Billing', href: '/billing', icon: HiOutlineCreditCard, roles: ['platform_admin'] },
 ]
 
+// Tenant Manager specific navigation - "Nerve Center"
+const tenantManagerNavigation = [
+  { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
+  { name: 'Departments', href: '/departments', icon: HiOutlineOfficeBuilding },
+  { name: 'User Management', href: '/users', icon: HiOutlineUsers },
+  { name: 'Marketplace & Rewards', href: '/marketplace', icon: HiOutlineShoppingCart },
+  { name: 'Analytics & Reports', href: '/analytics', icon: HiOutlineChartBar },
+  { name: 'Settings', href: '/settings', icon: HiOutlineCog },
+]
+
 export default function TopHeader() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
@@ -132,7 +142,7 @@ export default function TopHeader() {
     const roles = {
       platform_admin: 'Platform Admin',
       tenant_manager: 'Tenant Manager',
-      tenant_lead: 'Tenant Leader',
+      dept_lead: 'Department Lead',
       corporate_user: 'Corporate User',
       hr_admin: 'Tenant Manager',
     }
@@ -226,13 +236,8 @@ export default function TopHeader() {
           <nav className="hidden lg:flex items-center gap-1 flex-1">
             {!isPlatformUser && effectiveRole === 'tenant_manager' ? (
               <>
-                {/* Tenant Manager: Primary tabs */}
-                {[
-                  { name: 'Recognize', href: '/recognize', icon: HiOutlineSparkles },
-                  { name: 'Feed', href: '/feed', icon: HiOutlineNewspaper },
-                  { name: 'Wallet', href: '/wallet', icon: HiOutlineCash },
-                  { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
-                ].map((item) => (
+                {/* Tenant Manager: Nerve Center tabs */}
+                {tenantManagerNavigation.map((item) => (
                   <NavLink
                     key={item.name}
                     to={item.href}
@@ -299,7 +304,7 @@ export default function TopHeader() {
                   </div>
                 </div>
               </>
-            ) : !isPlatformUser ? (
+            ) : (
               navigation.map((item) => (
                 <NavLink
                   key={item.name}
@@ -316,7 +321,7 @@ export default function TopHeader() {
                   {item.name}
                 </NavLink>
               ))
-            ) : null}
+            )}
 
             {adminNavigation.some((item) => canAccess(item.roles)) && effectiveRole !== 'tenant_manager' && (
               <>
@@ -401,7 +406,7 @@ export default function TopHeader() {
                         <div className="space-y-0.5">
                           {[
                             { value: 'tenant_manager', label: 'Tenant Manager' },
-                            { value: 'tenant_lead', label: 'Tenant Leader' },
+                            { value: 'dept_lead', label: 'Department Lead' },
                             { value: 'corporate_user', label: 'Corporate User' },
                           ].map((persona) => (
                             <button
@@ -427,7 +432,7 @@ export default function TopHeader() {
                               setPersonaExpandOpen(false)
                             }}
                             className={`w-full text-left px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                              effectiveRole === 'corporate_user' || (effectiveRole && !['tenant_manager', 'tenant_lead', 'corporate_user'].includes(effectiveRole))
+                              effectiveRole === 'corporate_user' || (effectiveRole && !['tenant_manager', 'dept_lead', 'corporate_user'].includes(effectiveRole))
                                 ? 'bg-sparknode-purple text-white'
                                 : 'text-gray-700 hover:bg-gray-50'
                             }`}
@@ -459,7 +464,7 @@ export default function TopHeader() {
       {/* Mobile Navigation Menu */}
       {mobileNavOpen && (
         <div className="lg:hidden border-t border-gray-200 bg-gray-50 px-4 sm:px-6 py-4 space-y-2 max-h-96 overflow-y-auto">
-          {!isPlatformUser && navigation.map((item) => (
+          {navigation.map((item) => (
             <NavLink
               key={item.name}
               to={item.href}

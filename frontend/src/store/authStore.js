@@ -6,7 +6,7 @@ export const UserRole = {
   PLATFORM_ADMIN: 'platform_admin',
   TENANT_ADMIN: 'tenant_manager',
   TENANT_MANAGER: 'tenant_manager',
-  TENANT_LEAD: 'tenant_lead',
+  TENANT_LEAD: 'dept_lead',
   CORPORATE_USER: 'corporate_user',
   // Legacy mappings
   HR_ADMIN: 'hr_admin',
@@ -19,7 +19,8 @@ const ROLE_HIERARCHY = {
   platform_admin: 100,
   tenant_manager: 80,
   hr_admin: 80, // Legacy alias
-  tenant_lead: 60,
+  dept_lead: 60,
+  tenant_lead: 60, // Legacy alias
   manager: 60, // Legacy alias
   corporate_user: 40,
   employee: 40, // Legacy alias
@@ -29,7 +30,8 @@ const ROLE_HIERARCHY = {
 const normalizeRole = (role) => {
   const legacyMap = {
     hr_admin: 'tenant_manager',
-    manager: 'tenant_lead',
+    manager: 'dept_lead',
+    tenant_lead: 'dept_lead',
     employee: 'corporate_user',
   }
   return legacyMap[role] || role
@@ -136,7 +138,7 @@ export const useAuthStore = create(
       // Tenant Lead check (includes Tenant Manager and above)
       isTenantLead: () => {
         const { getEffectiveRole, isTenantAdmin } = get()
-        return isTenantAdmin() || getEffectiveRole() === 'tenant_lead'
+        return isTenantAdmin() || getEffectiveRole() === 'dept_lead'
       },
 
       // Any authenticated user within tenant

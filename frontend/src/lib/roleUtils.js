@@ -26,7 +26,13 @@ export const ROLE_CONFIG = {
     description: 'HR administrator'
   },
   tenant_lead: {
-    label: 'Team Lead',
+    label: 'Department Lead',
+    color: 'bg-green-100 text-green-800',
+    badgeColor: 'green',
+    description: 'Department/team manager'
+  },
+  dept_lead: {
+    label: 'Department Lead',
     color: 'bg-green-100 text-green-800',
     badgeColor: 'green',
     description: 'Department/team manager'
@@ -101,7 +107,7 @@ export function isAdminRole(role) {
  */
 export function isLeadOrHigher(role) {
   if (!role) return false
-  const leadRoles = ['platform_admin', 'tenant_manager', 'hr_admin', 'tenant_lead', 'manager']
+  const leadRoles = ['platform_admin', 'tenant_manager', 'hr_admin', 'dept_lead', 'tenant_lead', 'manager']
   return leadRoles.includes(role.toLowerCase())
 }
 
@@ -116,6 +122,7 @@ export function getRoleLevel(role) {
     platform_admin: 4,
     tenant_manager: 3,
     hr_admin: 3,
+    dept_lead: 2,
     tenant_lead: 2,
     manager: 2,
     corporate_user: 1,

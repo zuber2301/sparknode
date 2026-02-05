@@ -20,7 +20,7 @@ export default function Profile() {
     const roles = {
       'platform_admin': 'Platform Admin',
       'tenant_manager': 'Tenant Manager',
-      'tenant_lead': 'Tenant Leader',
+      'dept_lead': 'Tenant Leader',
       'corporate_user': 'Corporate User'
     };
     return roles[role] || (role ? role.replace('_', ' ') : 'Employee');

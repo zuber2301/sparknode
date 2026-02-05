@@ -4,7 +4,7 @@
  * Displays the list of users in a table format with actions.
  */
 
-import { HiOutlinePencil, HiOutlineDotsVertical, HiOutlineMail, HiOutlineSparkles, HiOutlineTrash, HiOutlineExclamationCircle, HiOutlineCheckCircle } from 'react-icons/hi'
+import { Link } from 'react-router-dom'
 import { formatRoleColor, formatStatusColor, formatRoleLabel, formatUserName, formatUserEmail } from '../../utils/userUtils'
 
 export default function UserTable({ 
@@ -111,9 +111,12 @@ function UserRow({
             )}
           </div>
           <div className="ml-4">
-            <div className="text-sm font-medium text-gray-900">
+            <Link
+              to={`/users/${user.id}`}
+              className="text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline"
+            >
               {formatUserName(user)}
-            </div>
+            </Link>
             <div className="text-sm text-gray-500">
               {formatUserEmail(user)}
             </div>

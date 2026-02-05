@@ -99,6 +99,26 @@ export default function FeedCard({ item }) {
 
       {item.metadata?.message && (
         <div className="mt-3 sm:mt-4 p-3 sm:p-4 bg-gray-50 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            {item.metadata?.recognition_type === 'group_award' && (
+              <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-[10px] font-bold uppercase tracking-wider">
+                Group Award
+              </span>
+            )}
+            {item.metadata?.recognition_type === 'ecard' && (
+              <span className="px-2 py-0.5 bg-purple-100 text-purple-800 rounded text-[10px] font-bold uppercase tracking-wider">
+                E-Card
+              </span>
+            )}
+            {item.metadata?.ecard_template && (
+              <span className="text-sm">
+                {item.metadata.ecard_template === 'thank_you' && '🙏'}
+                {item.metadata.ecard_template === 'great_job' && '👏'}
+                {item.metadata.ecard_template === 'above_beyond' && '🚀'}
+                {item.metadata.ecard_template === 'anniversary' && '🎈'}
+              </span>
+            )}
+          </div>
           <p className="text-xs sm:text-sm text-gray-700">{item.metadata.message}</p>
           {item.metadata?.badge_name && (
             <div className="mt-2 inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">

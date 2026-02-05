@@ -16,11 +16,13 @@ import {
 } from 'react-icons/hi'
 
 export default function Budgets() {
-  const [activeTab, setActiveTab] = useState('budgets') // 'budgets', 'leads', or 'spend-analysis'
+  const [activeTab, setActiveTab] = useState('budgets') // 'budgets', 'departments', or 'spend-analysis'
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showAllocateModal, setShowAllocateModal] = useState(false)
+  const [showDeptAllocateModal, setShowDeptAllocateModal] = useState(false)
   const [showLeadAllocateModal, setShowLeadAllocateModal] = useState(false)
   const [selectedBudget, setSelectedBudget] = useState(null)
+  const [selectedDept, setSelectedDept] = useState(null)
   const [selectedLead, setSelectedLead] = useState(null)
   const [spendAnalysisPeriod, setSpendAnalysisPeriod] = useState('monthly')
   const queryClient = useQueryClient()
@@ -38,10 +40,10 @@ export default function Budgets() {
     enabled: true,
   })
 
-  const { data: tenantLeads, isLoading: isLoadingLeads } = useQuery({
-    queryKey: ['users', { org_role: 'tenant_lead' }],
-    queryFn: () => usersAPI.getAll({ org_role: 'tenant_lead' }),
-    enabled: activeTab === 'leads',
+  const { data: deptList, isLoading: isLoadingDepts } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => tenantsAPI.getDepartments(),
+    enabled: activeTab === 'departments',
   })
 
   const { data: spendAnalysis, isLoading: isLoadingSpendAnalysis } = useQuery({
@@ -52,10 +54,10 @@ export default function Budgets() {
 
   const activeBudget = budgets?.data?.find(b => b.status === 'active')
 
-  const { data: leadBudgets, isLoading: isLoadingLeadBudgets } = useQuery({
-    queryKey: ['leadBudgets', activeBudget?.id],
-    queryFn: () => budgetsAPI.getLeadBudgets(activeBudget.id),
-    enabled: !!activeBudget && activeTab === 'leads',
+  const { data: deptBudgets, isLoading: isLoadingDeptBudgets } = useQuery({
+    queryKey: ['deptBudgets', activeBudget?.id],
+    queryFn: () => budgetsAPI.getDepartmentBudgets(activeBudget?.id),
+    enabled: !!activeBudget && activeTab === 'departments',
   })
 
   const { data: departments } = useQuery({
@@ -84,7 +86,8 @@ export default function Budgets() {
       setShowCreateModal(false)
     },
     onError: (error) => {
-      toast.error(error.response?.data?.detail || 'Failed to create budget')
+      const detail = error.response?.data?.detail || error.response?.data?.message || 'Failed to create budget'
+      toast.error(typeof detail === 'string' ? detail : JSON.stringify(detail))
     },
   })
 
@@ -97,7 +100,8 @@ export default function Budgets() {
       setShowAllocateModal(false)
     },
     onError: (error) => {
-      toast.error(error.response?.data?.detail || 'Failed to allocate budget')
+      const detail = error.response?.data?.detail || error.response?.data?.message || 'Failed to allocate budget'
+      toast.error(typeof detail === 'string' ? detail : JSON.stringify(detail))
     },
   })
 
@@ -110,7 +114,54 @@ export default function Budgets() {
       setSelectedLead(null)
     },
     onError: (error) => {
-      toast.error(error.response?.data?.detail || 'Failed to allocate points')
+      // Handle different error response formats
+      let errorMessage = 'Failed to allocate points'
+      
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message
+      } else if (error.response?.data) {
+        // Check if it's a Pydantic validation error
+        if (Array.isArray(error.response.data)) {
+          errorMessage = error.response.data
+            .map(err => err.msg || JSON.stringify(err))
+            .join(', ')
+        } else if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data
+        }
+      }
+      
+      toast.error(typeof errorMessage === 'string' ? errorMessage : 'Failed to allocate points')
+    },
+  })
+
+  const deptAllocateMutation = useMutation({
+    mutationFn: (data) => budgetsAPI.allocate(data.budget_id, data),
+    onSuccess: () => {
+      toast.success('Budget allocated to department')
+      queryClient.invalidateQueries(['deptBudgets'])
+      setShowDeptAllocateModal(false)
+      setSelectedDept(null)
+    },
+    onError: (error) => {
+      let errorMessage = 'Failed to allocate budget'
+      
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message
+      } else if (error.response?.data) {
+        if (Array.isArray(error.response.data)) {
+          errorMessage = error.response.data
+            .map(err => err.msg || JSON.stringify(err))
+            .join(', ')
+        } else if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data
+        }
+      }
+      
+      toast.error(typeof errorMessage === 'string' ? errorMessage : 'Failed to allocate budget')
     },
   })
 
@@ -121,7 +172,8 @@ export default function Budgets() {
       queryClient.invalidateQueries(['budgets'])
     },
     onError: (error) => {
-      toast.error(error.response?.data?.detail || 'Failed to activate budget')
+      const detail = error.response?.data?.detail || error.response?.data?.message || 'Failed to activate budget'
+      toast.error(typeof detail === 'string' ? detail : JSON.stringify(detail))
     },
   })
 
@@ -171,6 +223,26 @@ export default function Budgets() {
       user_id: selectedLead.id,
       total_points: parseFloat(formData.get('points')),
       description: formData.get('description'),
+    })
+  }
+
+  const handleDeptAllocate = (e) => {
+    e.preventDefault()
+    const formData = new FormData(e.target)
+    const points = parseFloat(formData.get('points'))
+    
+    if (!points || points <= 0) {
+      toast.error('Points must be greater than 0')
+      return
+    }
+
+    deptAllocateMutation.mutate({
+      budget_id: activeBudget.id,
+      allocations: [{
+        department_id: selectedDept.id,
+        allocated_points: points,
+        monthly_cap: null,
+      }]
     })
   }
 
@@ -224,16 +296,16 @@ export default function Budgets() {
           </div>
         </button>
         <button
-          onClick={() => setActiveTab('leads')}
+          onClick={() => setActiveTab('departments')}
           className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'leads'
+            activeTab === 'departments'
               ? 'border-sparknode-purple text-sparknode-purple'
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
           <div className="flex items-center gap-2">
             <HiOutlineUsers className="w-5 h-5" />
-            Lead Allocations
+            Department Allocation
           </div>
         </button>
         <button
@@ -350,28 +422,32 @@ export default function Budgets() {
             </div>
           )}
         </>
-      ) : (
+      ) : activeTab === 'departments' ? (
         <div className="space-y-4">
           <div className="card">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Tenant Leads</h3>
-                <p className="text-sm text-gray-500">Allocate points to leads for peer recognition and rewards</p>
+                <h3 className="text-lg font-semibold text-gray-900">Department Allocation</h3>
+                <p className="text-sm text-gray-500">Allocate budget to departments</p>
               </div>
             </div>
 
-            {isLoadingLeads ? (
+            {!activeBudget ? (
+              <div className="text-center py-12 text-gray-500">
+                <p>Please create and activate a budget first to allocate to departments.</p>
+              </div>
+            ) : isLoadingDepts ? (
               <div className="space-y-4">
                 {[...Array(3)].map((_, i) => (
                   <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse" />
                 ))}
               </div>
-            ) : tenantLeads?.data?.length > 0 ? (
+            ) : deptList?.data?.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-100">
                     <tr>
-                      <th className="px-4 py-4 text-left text-sm font-medium text-gray-700 uppercase">Lead Name</th>
+                      <th className="px-4 py-4 text-left text-sm font-medium text-gray-700 uppercase">Department Name</th>
                       <th className="px-4 py-4 text-left text-sm font-medium text-gray-700 uppercase">Allocated</th>
                       <th className="px-4 py-4 text-left text-sm font-medium text-gray-700 uppercase">Used %</th>
                       <th className="px-4 py-4 text-left text-sm font-medium text-gray-700 uppercase">Remaining</th>
@@ -379,16 +455,15 @@ export default function Budgets() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {tenantLeads.data.map((lead) => {
-                      const budget = leadBudgets?.data?.find(lb => lb.user_id === lead.id)
+                    {deptList.data.map((dept) => {
+                      const budget = deptBudgets?.data?.find(db => db.department_id === dept.id)
                       return (
-                        <tr key={lead.id} className="hover:bg-gray-50">
+                        <tr key={dept.id} className="hover:bg-gray-50">
                           <td className="px-4 py-4">
-                            <div className="font-medium text-gray-900">{lead.first_name} {lead.last_name}</div>
-                            <div className="text-xs text-gray-500">{lead.email}</div>
+                            <div className="font-medium text-gray-900">{dept.name}</div>
                           </td>
                           <td className="px-4 py-4 text-sm font-medium">
-                            {budget ? Number(budget.total_points).toLocaleString() : '—'}
+                            {budget ? Number(budget.allocated_points).toLocaleString() : '—'}
                           </td>
                           <td className="px-4 py-4">
                             {budget ? (
@@ -396,26 +471,26 @@ export default function Budgets() {
                                 <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                                   <div 
                                     className="h-full bg-sparknode-purple" 
-                                    style={{ width: `${Number(budget.usage_percentage)}%` }} 
+                                    style={{ width: `${budget.allocated_points > 0 ? ((Number(budget.spent_points) / Number(budget.allocated_points)) * 100) : 0}%` }} 
                                   />
                                 </div>
-                                <span className="text-[10px] text-gray-500">{Number(budget.usage_percentage).toFixed(1)}% used</span>
+                                <span className="text-[10px] text-gray-500">{budget.allocated_points > 0 ? ((Number(budget.spent_points) / Number(budget.allocated_points)) * 100).toFixed(1) : 0}% used</span>
                               </div>
                             ) : '—'}
                           </td>
                           <td className="px-4 py-4 text-sm text-green-600 font-medium">
-                            {budget ? Number(budget.remaining_points).toLocaleString() : '—'}
+                            {budget ? (Number(budget.allocated_points) - Number(budget.spent_points)).toLocaleString() : '—'}
                           </td>
                           <td className="px-4 py-4 text-right">
                             <button
                               onClick={() => {
-                                setSelectedLead(lead)
-                                setShowLeadAllocateModal(true)
+                                setSelectedDept(dept)
+                                setShowDeptAllocateModal(true)
                               }}
                               className="btn-secondary text-sm flex items-center gap-2 ml-auto"
                             >
                               <HiOutlineCurrencyDollar className="w-4 h-4" />
-                              {budget ? 'Update Points' : 'Allocate Points'}
+                              {budget ? 'Update Budget' : 'Allocate Budget'}
                             </button>
                           </td>
                         </tr>
@@ -426,12 +501,12 @@ export default function Budgets() {
               </div>
             ) : (
               <div className="text-center py-12 text-gray-500">
-                No Tenant Leads found.
+                No departments found.
               </div>
             )}
           </div>
         </div>
-      )}
+      ) : null }
 
       {activeTab === 'spend-analysis' && (
         <div className="space-y-6">
@@ -601,6 +676,56 @@ export default function Budgets() {
                   className="btn-primary flex-1"
                 >
                   {allocateMutation.isPending ? 'Allocating...' : 'Allocate'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Allocate Budget to Department Modal */}
+      {showDeptAllocateModal && selectedDept && activeBudget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+            <h2 className="text-xl font-semibold mb-2">Allocate Budget to Department</h2>
+            <p className="text-gray-500 mb-4">
+              To: {selectedDept.name}
+            </p>
+            <form onSubmit={handleDeptAllocate} className="space-y-4">
+              <div>
+                <label className="label">Points to Allocate</label>
+                <input
+                  name="points"
+                  type="number"
+                  className="input"
+                  required
+                  min="1"
+                  step="0.01"
+                  placeholder="1000"
+                />
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-xs text-blue-700">
+                  <strong>Budget Remaining:</strong> {activeBudget.remaining_points.toLocaleString()} points
+                </p>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDeptAllocateModal(false)
+                    setSelectedDept(null)
+                  }}
+                  className="btn-secondary flex-1"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={deptAllocateMutation.isPending}
+                  className="btn-primary flex-1"
+                >
+                  {deptAllocateMutation.isPending ? 'Allocating...' : 'Allocate'}
                 </button>
               </div>
             </form>

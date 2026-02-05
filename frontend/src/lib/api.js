@@ -144,6 +144,7 @@ export const recognitionAPI = {
   getComments: (id) => api.get(`/recognitions/${id}/comments`),
   addComment: (id, data) => api.post(`/recognitions/${id}/comments`, data),
   getMyStats: () => api.get('/recognitions/stats/me'),
+  getUserStats: (userId) => api.get(`/recognitions/stats/${userId}`),
 }
 
 // Redemption API

@@ -116,7 +116,7 @@ export default function UserFormModal({
               className="input"
             >
               <option value="corporate_user">Corporate User</option>
-              <option value="tenant_lead">Tenant Leader</option>
+              <option value="dept_lead">Department Lead</option>
               <option value="tenant_manager">Tenant Manager</option>
             </select>
           </div>
