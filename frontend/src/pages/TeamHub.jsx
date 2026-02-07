@@ -50,7 +50,7 @@ export default function TeamHub() {
               <div key={r.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div>
                   <div className="font-medium">{r.first_name} {r.last_name}</div>
-                  <div className="text-sm text-gray-500">{r.email} {r.department_id ? `• ${r.department_name || ''}` : ''}</div>
+                  <div className="text-sm text-gray-500">{r.email} {(r.dept_id || r.department_id) ? `• ${r.department_name || ''}` : ''}</div>
                 </div>
                 <div className="flex items-center gap-2">
                   <NavLink

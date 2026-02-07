@@ -322,6 +322,11 @@ class User(Base):
         return f"{self.first_name} {self.last_name}"
 
     @property
+    def dept_id(self):
+        """Compatibility alias: return `department_id` under legacy name `dept_id`."""
+        return self.department_id
+
+    @property
     def role(self):
         return self.org_role
 

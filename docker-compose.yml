@@ -99,22 +99,24 @@ services:
     command: celery -A core.celery_app.celery_app worker --loglevel=info
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: nginx:alpine
     container_name: ${PROJECT_NAME:-sparknode}-frontend
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:7100}
     ports:
-      - "${FRONTEND_EXTERNAL_PORT:-6173}:5173"
+      - "${FRONTEND_EXTERNAL_PORT:-6173}:80"
     volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - backend
     networks:
       - app-network
-    command: npm run dev -- --host 0.0.0.0
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:

@@ -227,15 +227,15 @@ async def get_department_management_data(
             (d.budget_balance + COALESCE(SUM(w.balance), 0)) as total_liability,
             COUNT(u.id) as employee_count
         FROM departments d
-        LEFT JOIN users u ON d.id = u.dept_id
+        LEFT JOIN users u ON d.id = u.department_id
         LEFT JOIN wallets w ON u.id = w.user_id
         LEFT JOIN (
             SELECT 
-                dept_id,
+                department_id,
                 CONCAT(first_name, ' ', last_name) as dept_lead_name
             FROM users 
             WHERE org_role = 'dept_lead'
-        ) dl ON d.id = dl.dept_id
+        ) dl ON d.id = dl.department_id
         WHERE d.tenant_id = :tenant_id
         GROUP BY d.id, d.name, d.budget_balance, dl.dept_lead_name
         ORDER BY d.name
@@ -244,7 +244,7 @@ async def get_department_management_data(
     result = db.execute(query, {"tenant_id": tenant_id})
     departments = result.fetchall()
     
-    return [DepartmentManagementResponse(**dict(row)) for row in departments]
+    return [DepartmentManagementResponse(**dict(row._mapping)) for row in departments]
 
 
 @router.post("/departments", response_model=DepartmentResponse)

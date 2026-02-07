@@ -22,6 +22,22 @@ fi
 
 docker-compose -f "$ROOT_DIR/docker-compose.yml" up -d
 
+# Wait for backend HTTP health endpoint to be available on the host port
+BACKEND_PORT="${BACKEND_EXTERNAL_PORT:-6100}"
+echo "Waiting for backend HTTP health on http://localhost:$BACKEND_PORT/health..."
+COUNT=0
+MAX_RETRIES=60
+until curl -sSf "http://localhost:$BACKEND_PORT/health" > /dev/null 2>&1 || [ $COUNT -eq $MAX_RETRIES ]; do
+  sleep 1
+  ((COUNT++))
+done
+if [ $COUNT -ge $MAX_RETRIES ]; then
+  echo "ERROR: Backend HTTP health did not become available on port $BACKEND_PORT"
+  docker-compose -f "$ROOT_DIR/docker-compose.yml" logs backend --tail 50
+  exit 1
+fi
+echo "Backend HTTP health is available."
+
 # Wait for database to be ready and run seed script
 echo "Waiting for database to be ready..."
 MAX_RETRIES=30

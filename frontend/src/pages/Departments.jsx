@@ -117,12 +117,12 @@ export default function Departments() {
   const createDeptMutation = useMutation({
     mutationFn: (data) => tenantsAPI.createDepartmentWithAllocation(data),
     onSuccess: (response) => {
-      toast.success(`Department "${response.department_name}" created successfully!`)
-      queryClient.invalidateQueries(['departments', 'management'])
-      queryClient.invalidateQueries(['tenant', 'current'])
-      setNewlyCreatedDeptId(response.department_id)
-      setShowCreateDeptModal(false)
-      resetCreateForm()
+    toast.success(`Department "${response.department_name}" created successfully!`)
+    queryClient.invalidateQueries(['departments', 'management'])
+    queryClient.invalidateQueries(['tenant', 'current'])
+    setNewlyCreatedDeptId(response.dept_id || response.department_id)
+    setShowCreateDeptModal(false)
+    resetCreateForm()
       
       // Remove highlight after 3 seconds
       setTimeout(() => setNewlyCreatedDeptId(null), 3000)

@@ -117,10 +117,10 @@ export default function Analytics() {
           {spendAnalysis?.department_breakdown?.length > 0 ? (
             <div className="space-y-4">
               {spendAnalysis.department_breakdown.map((dept) => (
-                <div key={dept.department_id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                <div key={(dept.dept_id || dept.department_id)} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                   <div>
                     <h3 className="font-medium text-gray-900">
-                      {departments?.data?.find(d => d.id === dept.department_id)?.name || `Department ${dept.department_id}`}
+                      {departments?.data?.find(d => d.id === (dept.dept_id || dept.department_id))?.name || `Department ${dept.dept_id || dept.department_id}`}
                     </h3>
                     <p className="text-sm text-gray-500">
                       {dept.recognitions_count} recognitions

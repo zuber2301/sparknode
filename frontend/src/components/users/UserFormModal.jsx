@@ -95,7 +95,7 @@ export default function UserFormModal({
             <select
               name="department_id"
               required
-              defaultValue={user?.department_id || ''}
+              defaultValue={user?.dept_id || ''}
               className="input"
             >
               <option value="">Select Department</option>

@@ -107,7 +107,7 @@ class UserResponse(BaseModel):
     org_role: str
     phone_number: Optional[str] = None
     mobile_number: Optional[str] = None
-    department_id: Optional[UUID] = None
+    dept_id: Optional[UUID] = None
     manager_id: Optional[UUID] = None
     avatar_url: Optional[str] = None
     date_of_birth: Optional[date] = None
@@ -128,7 +128,7 @@ class UserListResponse(BaseModel):
     org_role: str
     phone_number: Optional[str] = None
     mobile_number: Optional[str] = None
-    department_id: Optional[UUID] = None
+    dept_id: Optional[UUID] = None
     avatar_url: Optional[str] = None
     status: str
 

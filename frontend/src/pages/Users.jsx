@@ -473,7 +473,7 @@ export default function Users() {
                     </span>
                   </td>
                   <td className="px-4 py-4 text-sm text-gray-600">
-                    {deptList.find((d) => d.id === user.department_id)?.name || '-'}
+                    {deptList.find((d) => d.id === user.dept_id)?.name || '-'}
                   </td>
                   <td className="px-4 py-4">
                     <span className={`badge ${getStatusColor(user.status)}`}>
@@ -877,7 +877,7 @@ export default function Users() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="label">Department</label>
-                  <select name="department_id" className="input" defaultValue={selectedUser?.department_id ? String(selectedUser.department_id) : ''} required>
+                  <select name="department_id" className="input" defaultValue={selectedUser?.dept_id ? String(selectedUser.dept_id) : ''} required>
                     {loadingDepartments ? (
                       <option value="">Loading departments...</option>
                     ) : (

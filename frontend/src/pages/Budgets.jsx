@@ -456,7 +456,7 @@ export default function Budgets() {
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {deptList.data.map((dept) => {
-                      const budget = deptBudgets?.data?.find(db => db.department_id === dept.id)
+                      const budget = deptBudgets?.data?.find(db => (db.department_id || db.dept_id) === dept.id)
                       return (
                         <tr key={dept.id} className="hover:bg-gray-50">
                           <td className="px-4 py-4">
@@ -626,7 +626,7 @@ export default function Budgets() {
             <form onSubmit={handleAllocate} className="space-y-4">
               {departments?.data?.map((dept) => {
                 const existing = departmentBudgets?.data?.find(
-                  (db) => db.department_id === dept.id
+                  (db) => (db.department_id || db.dept_id) === dept.id
                 )
                 return (
                   <div key={dept.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
