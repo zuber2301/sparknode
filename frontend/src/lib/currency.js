@@ -185,6 +185,19 @@ export function formatCurrencyCompact(amount) {
 }
 
 /**
+ * Format a points value for display using the Rupee symbol and no decimals.
+ * Ensures integer display with locale-aware grouping (en-IN).
+ * @param {number|string} amount
+ * @returns {string}
+ */
+export function formatPoints(amount) {
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
+  if (isNaN(numAmount)) return `₹0`
+  const formatter = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 })
+  return `₹${formatter.format(Math.round(numAmount))}`
+}
+
+/**
  * Get currency information (symbol, locale, decimal places).
  * 
  * @param {string} currencyCode - The currency code

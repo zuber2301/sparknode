@@ -1,7 +1,7 @@
 import { HiOutlineCash } from 'react-icons/hi'
 import { useQuery } from '@tanstack/react-query'
 import { tenantsAPI } from '../lib/api'
-import { formatCurrency } from '../lib/currency'
+import { formatCurrency, formatPoints } from '../lib/currency'
 
 export default function WalletBalance({ wallet }) {
   // Fetch tenant config to get currency settings
@@ -22,10 +22,10 @@ export default function WalletBalance({ wallet }) {
   const displayCurrency = tenantData?.display_currency || 'USD'
   const fxRate = parseFloat(tenantData?.fx_rate) || 1.0
 
-  // Format wallet values using the tenant's currency
-  const formattedBalance = formatCurrency(wallet.balance, displayCurrency, fxRate)
-  const formattedEarned = formatCurrency(wallet.lifetime_earned, displayCurrency, fxRate)
-  const formattedSpent = formatCurrency(wallet.lifetime_spent, displayCurrency, fxRate)
+  // Format wallet values as points using Rupee symbol and integer values
+  const formattedBalance = formatPoints(wallet.balance)
+  const formattedEarned = formatPoints(wallet.lifetime_earned)
+  const formattedSpent = formatPoints(wallet.lifetime_spent)
 
   return (
     <div className="stat-card bg-gradient-to-r from-sparknode-purple to-sparknode-blue text-white">
