@@ -89,6 +89,8 @@ function App() {
         <Route path="events/:eventId" element={<EventDetail />} />
         <Route path="events/:eventId/edit" element={<EventCreateWizardEdit />} />
         <Route path="platform/tenants" element={<PlatformTenants />} />
+        {/* Legacy/shortcut route: redirect /tenants to platform tenant management */}
+        <Route path="tenants" element={<Navigate to="/platform/tenants" />} />
         <Route path="platform/tenants/:tenantId" element={<PlatformTenantDetail />} />
         <Route path="platform/tenants/:tenantId/users" element={<PlatformTenantUsers />} />
         <Route path="platform/budget-ledger" element={

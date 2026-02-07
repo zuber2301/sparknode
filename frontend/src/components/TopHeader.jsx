@@ -25,6 +25,8 @@ import {
   HiOutlineViewGrid,
   HiOutlineCreditCard,
   HiOutlineMailOpen,
+  HiOutlineCalendar,
+  HiOutlineCog as HiOutlineSettings,
 } from 'react-icons/hi'
 
 const navigation = [
@@ -48,6 +50,26 @@ const adminNavigation = [
   { name: 'Billing', href: '/billing', icon: HiOutlineCreditCard, roles: ['platform_admin'] },
 ]
 
+// Platform Admin specific navigation - displayed in top nav with Controls dropdown
+const platformAdminNavigation = [
+  { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
+  { name: 'Tenants', href: '/platform/tenants', icon: HiOutlineOfficeBuilding },
+  { name: 'Users', href: '/users', icon: HiOutlineUsers },
+  { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar },
+  { name: 'Events', href: '/events/browse', icon: HiOutlineNewspaper },
+  { name: 'Marketplace', href: '/marketplace', icon: HiOutlineShoppingCart },
+  {
+    name: 'Controls',
+    icon: HiOutlineSettings,
+    submenu: [
+      { name: 'AI Settings', href: '/ai-settings', icon: HiOutlineCog },
+      { name: 'Templates', href: '/templates', icon: HiOutlineViewGrid },
+      { name: 'Billing', href: '/billing', icon: HiOutlineCreditCard },
+      { name: 'Audit Log', href: '/audit', icon: HiOutlineClipboardList },
+    ],
+  },
+]
+
 // Tenant Manager specific navigation - "Nerve Center"
 const tenantManagerNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
@@ -63,6 +85,7 @@ export default function TopHeader() {
   const [profileOpen, setProfileOpen] = useState(false)
   const [tenantSelectorOpen, setTenantSelectorOpen] = useState(false)
   const [personaExpandOpen, setPersonaExpandOpen] = useState(false)
+  const [controlsDropdownOpen, setControlsDropdownOpen] = useState(false)
   const [tenantSearch, setTenantSearch] = useState('')
   const profileRef = useRef(null)
 
@@ -233,7 +256,59 @@ export default function TopHeader() {
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-1 flex-1">
-            {!isPlatformUser && effectiveRole === 'tenant_manager' ? (
+            {effectiveRole === 'platform_admin' ? (
+              <>
+                {/* Platform Admin: Custom navigation with Controls dropdown */}
+                {platformAdminNavigation.map((item) => {
+                  if (item.submenu) {
+                    // Render Controls dropdown
+                    return (
+                      <div key={item.name} className="relative group">
+                        <button className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors">
+                          <item.icon className="w-4 h-4" />
+                          {item.name}
+                          <HiOutlineChevronDown className="w-4 h-4" />
+                        </button>
+                        <div className="absolute left-0 mt-0 w-48 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                          {item.submenu.map((subitem) => (
+                            <NavLink
+                              key={subitem.name}
+                              to={subitem.href}
+                              className={({ isActive }) =>
+                                `flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                                  isActive
+                                    ? 'bg-sparknode-purple/10 text-sparknode-purple'
+                                    : 'text-gray-700 hover:bg-gray-50'
+                                }`
+                              }
+                            >
+                              <subitem.icon className="w-4 h-4" />
+                              {subitem.name}
+                            </NavLink>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  }
+                  return (
+                    <NavLink
+                      key={item.name}
+                      to={item.href}
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          isActive
+                            ? 'bg-sparknode-purple/10 text-sparknode-purple'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                        }`
+                      }
+                    >
+                      <item.icon className="w-4 h-4" />
+                      {item.name}
+                    </NavLink>
+                  )
+                })}
+              </>
+            ) : !isPlatformUser && effectiveRole === 'tenant_manager' ? (
               <>
                 {/* Tenant Manager: Nerve Center tabs */}
                 {tenantManagerNavigation.map((item) => (
@@ -322,7 +397,7 @@ export default function TopHeader() {
               ))
             )}
 
-            {adminNavigation.some((item) => canAccess(item.roles)) && effectiveRole !== 'tenant_manager' && (
+            {adminNavigation.some((item) => canAccess(item.roles)) && effectiveRole !== 'tenant_manager' && effectiveRole !== 'platform_admin' && (
               <>
                 <div className="w-px h-6 bg-gray-200 mx-2" />
                 {adminNavigation.map((item) =>
@@ -463,25 +538,85 @@ export default function TopHeader() {
       {/* Mobile Navigation Menu */}
       {mobileNavOpen && (
         <div className="lg:hidden border-t border-gray-200 bg-gray-50 px-4 sm:px-6 py-4 space-y-2 max-h-96 overflow-y-auto">
-          {navigation.map((item) => (
-            <NavLink
-              key={item.name}
-              to={item.href}
-              onClick={() => setMobileNavOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-sparknode-purple text-white'
-                    : 'text-gray-700 hover:bg-gray-200'
-                }`
-              }
-            >
-              <item.icon className="w-4 h-4" />
-              {item.name}
-            </NavLink>
-          ))}
+          {effectiveRole === 'platform_admin' ? (
+            <>
+              {/* Platform Admin mobile nav */}
+              {platformAdminNavigation.map((item) => {
+                if (item.submenu) {
+                  return (
+                    <div key={item.name} className="space-y-1">
+                      <button
+                        onClick={() => setControlsDropdownOpen(!controlsDropdownOpen)}
+                        className="w-full flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                      >
+                        <item.icon className="w-4 h-4" />
+                        {item.name}
+                        <HiOutlineChevronDown className={`w-4 h-4 ml-auto transition-transform ${controlsDropdownOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      {controlsDropdownOpen && (
+                        <div className="pl-4 space-y-1">
+                          {item.submenu.map((subitem) => (
+                            <NavLink
+                              key={subitem.name}
+                              to={subitem.href}
+                              onClick={() => setMobileNavOpen(false)}
+                              className={({ isActive }) =>
+                                `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                  isActive
+                                    ? 'bg-sparknode-purple text-white'
+                                    : 'text-gray-700 hover:bg-gray-200'
+                                }`
+                              }
+                            >
+                              <subitem.icon className="w-4 h-4" />
+                              {subitem.name}
+                            </NavLink>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                }
+                return (
+                  <NavLink
+                    key={item.name}
+                    to={item.href}
+                    onClick={() => setMobileNavOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'bg-sparknode-purple text-white'
+                          : 'text-gray-700 hover:bg-gray-200'
+                      }`
+                    }
+                  >
+                    <item.icon className="w-4 h-4" />
+                    {item.name}
+                  </NavLink>
+                )
+              })}
+            </>
+          ) : (
+            navigation.map((item) => (
+              <NavLink
+                key={item.name}
+                to={item.href}
+                onClick={() => setMobileNavOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-sparknode-purple text-white'
+                      : 'text-gray-700 hover:bg-gray-200'
+                  }`
+                }
+              >
+                <item.icon className="w-4 h-4" />
+                {item.name}
+              </NavLink>
+            ))
+          )}
 
-          {adminNavigation.some((item) => canAccess(item.roles)) && (
+          {adminNavigation.some((item) => canAccess(item.roles)) && effectiveRole !== 'tenant_manager' && effectiveRole !== 'platform_admin' && (
             <>
               <div className="my-2 border-t border-gray-200 pt-2">
                 <p className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">

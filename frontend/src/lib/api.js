@@ -1,7 +1,10 @@
 import axios from 'axios'
 import { useAuthStore } from '../store/authStore'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+// Use a relative API base by default so the SPA can be served from the same origin
+// and API requests go through the nginx proxy at `/api`. During local development
+// set `VITE_API_URL` to an absolute URL if needed (e.g. http://localhost:7100).
+const API_URL = import.meta.env.VITE_API_URL || ''
 
 const api = axios.create({
   baseURL: `${API_URL}/api`,
