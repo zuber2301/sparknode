@@ -19,38 +19,38 @@ def admin_token():
 
 
 @pytest.fixture
-def tenant_manager_token():
-    resp = requests.post(f"{BASE_URL}/auth/login", json={"email": "tenant_manager@sparknode.io", "password": "jspark123"})
-    assert resp.status_code == 200, f"Tenant manager login failed: {resp.status_code} {resp.text}"
+def tenant_tenant_tenant_manager_token():
+    resp = requests.post(f"{BASE_URL}/auth/login", json={"email": "tenant_tenant_tenant_manager@sparknode.io", "password": "jspark123"})
+    assert resp.status_code == 200, f"Tenant tenant_tenant_manager login failed: {resp.status_code} {resp.text}"
     return resp.json()["access_token"]
 
 
 def create_dept_in_db(tenant_id: str, name: str):
-    dept_id = str(uuid.uuid4())
+    department_id = str(uuid.uuid4())
     with engine.connect() as conn:
         conn.execute(text(
             "INSERT INTO departments (id, tenant_id, name, budget_balance) VALUES (:id, :tid, :name, 0) ON CONFLICT (tenant_id, name) DO NOTHING"
-        ), {"id": dept_id, "tid": tenant_id, "name": name})
-    return dept_id
+        ), {"id": department_id, "tid": tenant_id, "name": name})
+    return department_id
 
 
-def test_tenant_manager_cannot_access_other_tenant_department(admin_token, tenant_manager_token):
+def test_tenant_tenant_tenant_manager_cannot_access_other_tenant_department(admin_token, tenant_tenant_tenant_manager_token):
     # Create a department for TENANT_B directly in DB
     dept_name = f"CrossTenantDept_{uuid.uuid4().hex[:6]}"
-    dept_id = create_dept_in_db(TENANT_B, dept_name)
+    department_id = create_dept_in_db(TENANT_B, dept_name)
 
-    headers_tm = {"Authorization": f"Bearer {tenant_manager_token}"}
+    headers_tm = {"Authorization": f"Bearer {tenant_tenant_tenant_manager_token}"}
 
-    # Tenant manager from TENANT_A tries to GET the department by id -> expect 404
-    r = requests.get(f"{BASE_URL}/tenants/departments/{dept_id}", headers=headers_tm)
-    assert r.status_code == 404, f"Expected 404 when tenant manager accesses other tenant dept, got {r.status_code} - {r.text}"
+    # Tenant tenant_tenant_manager from TENANT_A tries to GET the department by id -> expect 404
+    r = requests.get(f"{BASE_URL}/tenants/departments/{department_id}", headers=headers_tm)
+    assert r.status_code == 404, f"Expected 404 when tenant tenant_tenant_manager accesses other tenant dept, got {r.status_code} - {r.text}"
 
-    # Tenant manager tries to update -> expect 404
-    r = requests.put(f"{BASE_URL}/tenants/departments/{dept_id}", json={"name":"UpdatedName"}, headers=headers_tm)
+    # Tenant tenant_tenant_manager tries to update -> expect 404
+    r = requests.put(f"{BASE_URL}/tenants/departments/{department_id}", json={"name":"UpdatedName"}, headers=headers_tm)
     assert r.status_code == 404, f"Expected 404 on update of other tenant dept, got {r.status_code} - {r.text}"
 
-    # Tenant manager tries to delete -> expect 404
-    r = requests.delete(f"{BASE_URL}/tenants/departments/{dept_id}", headers=headers_tm)
+    # Tenant tenant_tenant_manager tries to delete -> expect 404
+    r = requests.delete(f"{BASE_URL}/tenants/departments/{department_id}", headers=headers_tm)
     assert r.status_code == 404, f"Expected 404 on delete of other tenant dept, got {r.status_code} - {r.text}"
 
 

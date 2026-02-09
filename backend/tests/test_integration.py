@@ -34,7 +34,7 @@ class TestAuthentication:
         assert "access_token" in data
         assert data["token_type"] == "bearer"
         assert data["user"]["email"] == "admin@demo.com"
-        assert data["user"]["role"] == "hr_admin"
+        assert data["user"]["role"] == "tenant_tenant_tenant_manager"
     
     def test_login_with_invalid_password(self):
         """Test login fails with wrong password"""
@@ -250,7 +250,7 @@ class TestRedemption:
 class TestAudit:
     """Test audit log endpoints"""
     
-    def test_get_audit_logs_as_hr_admin(self):
+    def test_get_audit_logs_as_tenant_tenant_tenant_manager(self):
         """Test getting audit logs (HR admin access)"""
         response = requests.get(
             f"{BASE_URL}/api/audit",

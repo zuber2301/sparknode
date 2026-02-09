@@ -117,7 +117,7 @@ class TestRecognitionApiIntegration:
         updated_wallet = db_session.query(Wallet).filter_by(user_id=user_b.id).first()
         assert updated_wallet.current_balance >= initial_balance + 75
     
-    def test_cannot_recognize_self(self, client, tenant_manager_token, tenant_with_users):
+    def test_cannot_recognize_self(self, client, tenant_tenant_tenant_manager_token, tenant_with_users):
         """Test user cannot recognize themselves"""
         user_a = tenant_with_users['user_a']
         
@@ -161,18 +161,18 @@ class TestRecognitionApiIntegration:
 class TestBadgesIntegration:
     """Integration tests for badge system"""
     
-    def test_list_available_badges(self, client, tenant_manager_token):
+    def test_list_available_badges(self, client, tenant_tenant_tenant_manager_token):
         """Test listing available badges"""
         response = client.get(
             "/badges",
-            headers={"Authorization": f"Bearer {tenant_manager_token}"}
+            headers={"Authorization": f"Bearer {tenant_tenant_tenant_manager_token}"}
         )
         
         assert response.status_code == 200
         badges = response.json()
         assert isinstance(badges, list)
     
-    def test_get_badge_by_id(self, client, db_session, tenant_manager_token, tenant):
+    def test_get_badge_by_id(self, client, db_session, tenant_tenant_tenant_manager_token, tenant):
         """Test retrieving a specific badge"""
         # Create badge
         badge = Badge(
@@ -186,7 +186,7 @@ class TestBadgesIntegration:
         
         response = client.get(
             f"/badges/{badge.id}",
-            headers={"Authorization": f"Bearer {tenant_manager_token}"}
+            headers={"Authorization": f"Bearer {tenant_tenant_tenant_manager_token}"}
         )
         
         assert response.status_code == 200
@@ -319,7 +319,7 @@ def tenant_with_users(db_session, tenant):
         corporate_email="userb@example.com",
         first_name="User",
         last_name="B",
-        org_role="corporate_user",
+        org_role="tenant_user",
         password_hash=get_password_hash("password"),
         status="ACTIVE"
     )

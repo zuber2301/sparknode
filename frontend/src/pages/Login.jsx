@@ -20,7 +20,7 @@ export default function Login() {
   const { setAuth } = useAuthStore()
 
   const redirectAfterLogin = (user) => {
-    if (user?.role === 'platform_admin') {
+    if (user?.org_role === 'platform_admin') {
       navigate('/tenants')
     } else {
       navigate('/dashboard')

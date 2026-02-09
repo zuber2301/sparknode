@@ -157,6 +157,10 @@ export const redemptionAPI = {
   getVouchers: (params) => api.get('/redemptions/vouchers', { params }),
   getVoucherById: (id) => api.get(`/redemptions/vouchers/${id}`),
   create: (data) => api.post('/redemptions', data),
+  initiate: (data) => api.post('/redemptions/initiate', data),
+  verifyOTP: (data) => api.post('/redemptions/verify-otp', data),
+  deliveryDetails: (data) => api.post('/redemptions/delivery-details', data),
+  resendOTP: (redemptionId) => api.post('/redemptions/resend-otp', null, { params: { redemption_id: redemptionId } }),
   getMyRedemptions: (params) => api.get('/redemptions', { params }),
   getById: (id) => api.get(`/redemptions/${id}`),
   // Tenant catalog management

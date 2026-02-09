@@ -204,7 +204,7 @@ export default function Users() {
       first_name: formData.get('first_name'),
       last_name: formData.get('last_name'),
       org_role: formData.get('org_role'),
-      department_id: formData.get('department_id') ? parseInt(formData.get('department_id')) : null,
+      department_id: formData.get('department_id') || null,
       mobile_number: formData.get('mobile_number') || null,
       date_of_birth: formData.get('date_of_birth') || null,
       hire_date: formData.get('hire_date') || null,
@@ -254,7 +254,10 @@ export default function Users() {
       platform_admin: 'bg-red-100 text-red-800',
       tenant_manager: 'bg-purple-100 text-purple-800',
       dept_lead: 'bg-blue-100 text-blue-800',
-      corporate_user: 'bg-green-100 text-green-800',
+      tenant_user: 'bg-green-100 text-green-800',
+      dept_lead: 'bg-blue-100 text-blue-800',
+      tenant_user: 'bg-green-100 text-green-800',
+      employee: 'bg-green-100 text-green-800',
     }
     return colors[role] || 'bg-gray-100 text-gray-800'
   }
@@ -270,9 +273,9 @@ export default function Users() {
   const getRoleLabel = (role) => {
     if (role === 'platform_admin') return 'Platform Admin'
     if (role === 'tenant_manager') return 'Tenant Manager'
-    if (role === 'dept_lead') return 'Tenant Leader'
-    if (role === 'corporate_user') return 'Corporate User'
-    return role?.replace('_', ' ')
+    if (role === 'dept_lead' || role === 'dept_lead') return 'Dept Lead'
+    if (role === 'tenant_user' || role === 'tenant_user' || role === 'employee') return 'Tenant User'
+    return role?.replace('_', ' ') || 'User'
   }
 
   if (!isHRAdmin()) {
@@ -473,7 +476,7 @@ export default function Users() {
                     </span>
                   </td>
                   <td className="px-4 py-4 text-sm text-gray-600">
-                    {deptList.find((d) => d.id === user.dept_id)?.name || '-'}
+                    {deptList.find((d) => d.id === user.department_id)?.name || '-'}
                   </td>
                   <td className="px-4 py-4">
                     <span className={`badge ${getStatusColor(user.status)}`}>
@@ -627,7 +630,7 @@ export default function Users() {
                         <ul className="text-[10px] space-y-1 text-sparknode-purple/80">
                           <li>• Use our official CSV template for formatting</li>
                           <li>• Emails must be unique within your organization</li>
-                          <li>• Role must be 'corporate_user', 'dept_lead' or 'tenant_manager'</li>
+                          <li>• Role must be 'tenant_user', 'dept_lead' or 'tenant_manager'</li>
                           <li>• Mobile should follow international format if possible</li>
                         </ul>
                       </div>
@@ -866,10 +869,10 @@ export default function Users() {
                 </div>
                 <div>
                   <label className="label">Org Role</label>
-                  <select name="org_role" className="input" defaultValue={selectedUser?.org_role || 'corporate_user'} required>
-                    <option value="corporate_user">Employee</option>
-                    <option value="dept_lead">Manager</option>
-                    <option value="tenant_manager">Admin</option>
+                  <select name="org_role" className="input" defaultValue={selectedUser?.org_role || 'tenant_user'} required>
+                    <option value="tenant_user">Tenant User</option>
+                    <option value="dept_lead">Dept Lead</option>
+                    <option value="tenant_manager">Tenant Manager</option>
                   </select>
                 </div>
               </div>
@@ -877,7 +880,7 @@ export default function Users() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="label">Department</label>
-                  <select name="department_id" className="input" defaultValue={selectedUser?.dept_id ? String(selectedUser.dept_id) : ''} required>
+                  <select name="department_id" className="input" defaultValue={selectedUser?.department_id ? String(selectedUser.department_id) : ''} required>
                     {loadingDepartments ? (
                       <option value="">Loading departments...</option>
                     ) : (

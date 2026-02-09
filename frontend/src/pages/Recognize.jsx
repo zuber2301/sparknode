@@ -16,7 +16,7 @@ export default function Recognize() {
   const effectiveRole = getEffectiveRole()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  const isManager = ['tenant_manager', 'dept_lead', 'platform_admin'].includes(effectiveRole);
+  const isManager = ['tenant_manager', 'dept_lead', 'dept_lead', 'platform_admin'].includes(effectiveRole);
 
   const { data: searchResults, isLoading: isSearching } = useQuery({
     queryKey: ['userSearch', searchQuery],
@@ -48,7 +48,7 @@ export default function Recognize() {
       description: 'Manager-to-employee high impact recognition', 
       icon: HiOutlineSparkles, 
       color: 'orange', 
-      roles: ['manager', 'dept_lead', 'tenant_manager', 'dept_lead', 'platform_admin'] 
+      roles: ['dept_lead', 'dept_lead', 'tenant_manager', 'platform_admin'] 
     },
     { 
       id: 'group_award', 
@@ -56,7 +56,7 @@ export default function Recognize() {
       description: 'Celebrate team-wide wins and project milestones', 
       icon: HiOutlineUsers, 
       color: 'blue', 
-      roles: ['manager', 'dept_lead', 'tenant_manager', 'dept_lead', 'platform_admin'] 
+      roles: ['dept_lead', 'dept_lead', 'tenant_manager', 'platform_admin'] 
     },
     { 
       id: 'ecard', 

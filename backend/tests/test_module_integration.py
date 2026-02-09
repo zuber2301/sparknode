@@ -62,7 +62,7 @@ class TestAuthenticationFlow:
             "sub": str(user_id),
             "tenant_id": str(tenant_id),
             "email": "user@example.com",
-            "org_role": "employee"
+            "org_role": "tenant_user"
         }
         token = create_access_token(token_data)
         
@@ -79,7 +79,7 @@ class TestAuthenticationFlow:
             "sub": str(user_id),
             "tenant_id": str(uuid4()),
             "email": "test@test.com",
-            "org_role": "employee"
+            "org_role": "tenant_user"
         })
         
         # Decode token - if successful, token hasn't expired
@@ -302,23 +302,23 @@ class TestAuditTrailFlow:
 class TestRBACIntegration:
     """Test Role-Based Access Control integration"""
     
-    def test_tenant_manager_permissions(self):
+    def test_tenant_tenant_tenant_manager_permissions(self):
         """Test Tenant Manager role has correct permissions"""
         # Tenant admin should have these permissions
-        assert RolePermissions.has_permission('tenant_manager', Permission.MANAGE_USERS) is True
-        assert RolePermissions.has_permission('tenant_manager', Permission.ALLOCATE_POINTS) is True
-        assert RolePermissions.has_permission('tenant_manager', Permission.VIEW_TENANT_ANALYTICS) is True
-        assert RolePermissions.has_permission('tenant_manager', Permission.MANAGE_BUDGETS) is True
+        assert RolePermissions.has_permission('tenant_tenant_tenant_manager', Permission.MANAGE_USERS) is True
+        assert RolePermissions.has_permission('tenant_tenant_tenant_manager', Permission.ALLOCATE_POINTS) is True
+        assert RolePermissions.has_permission('tenant_tenant_tenant_manager', Permission.VIEW_TENANT_ANALYTICS) is True
+        assert RolePermissions.has_permission('tenant_tenant_tenant_manager', Permission.MANAGE_BUDGETS) is True
     
     def test_dept_lead_permissions(self):
         """Test Tenant Lead role has correct permissions"""
         # Lead should have team budget permission
         assert RolePermissions.has_permission('dept_lead', Permission.MANAGE_TEAM_BUDGET) is True
     
-    def test_corporate_user_permissions(self):
+    def test_tenant_user_permissions(self):
         """Test Corporate User role has correct permissions"""
         # Corporate user can redeem points
-        assert RolePermissions.has_permission('corporate_user', Permission.REDEEM_POINTS) is True
+        assert RolePermissions.has_permission('tenant_user', Permission.REDEEM_POINTS) is True
     
     def test_platform_admin_has_all_permissions(self):
         """Test Platform Admin role has all permissions"""
@@ -329,9 +329,9 @@ class TestRBACIntegration:
     
     def test_has_permission_with_user_object(self):
         """Test has_permission helper with user mock"""
-        # Create mock user with corporate_user role
+        # Create mock user with tenant_user role
         mock_user = MagicMock()
-        mock_user.org_role = 'corporate_user'
+        mock_user.org_role = 'tenant_user'
         
         # Corporate user can redeem points
         assert has_permission(mock_user, 'redeem_points') is True
@@ -430,7 +430,7 @@ class TestCombinedWorkflow:
         admin_user = MagicMock()
         admin_user.id = hr_user_id
         admin_user.tenant_id = self.tenant_id
-        admin_user.org_role = 'tenant_manager'
+        admin_user.org_role = 'tenant_tenant_tenant_manager'
         
         # Mock employee wallet
         employee_wallet = MagicMock()

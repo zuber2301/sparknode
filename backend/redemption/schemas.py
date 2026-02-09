@@ -40,6 +40,23 @@ class RedemptionCreate(BaseModel):
     voucher_id: UUID
 
 
+class RedemptionVerifyOTPRequest(BaseModel):
+    redemption_id: UUID
+    otp: str
+
+
+class RedemptionDeliveryDetailsRequest(BaseModel):
+    redemption_id: UUID
+    full_name: str
+    phone: str
+    address_line1: str
+    address_line2: Optional[str] = None
+    city: str
+    state: str
+    postal_code: str
+    country: str
+
+
 class RedemptionResponse(BaseModel):
     id: UUID
     tenant_id: UUID
@@ -50,6 +67,8 @@ class RedemptionResponse(BaseModel):
     voucher_code: Optional[str] = None
     voucher_pin: Optional[str] = None
     status: str
+    reward_type: Optional[str] = None
+    delivery_details: Optional[dict] = None
     provider_reference: Optional[str] = None
     fulfilled_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None

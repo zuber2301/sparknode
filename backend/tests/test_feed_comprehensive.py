@@ -461,7 +461,7 @@ def tenant_with_users(db_session, tenant):
         corporate_email="feeduser@example.com",
         first_name="Feed",
         last_name="User",
-        org_role="corporate_user",
+        org_role="tenant_user",
         password_hash=get_password_hash("password"),
         status="ACTIVE"
     )

@@ -1,333 +1,307 @@
-import { useState, useEffect, useMemo } from 'react'
-import { useMutation } from '@tanstack/react-query'
-import { platformAPI } from '../lib/api'
-import toast from 'react-hot-toast'
+import React, { useState } from 'react';
+import { platformAPI } from '../lib/api';
+import toast from 'react-hot-toast';
+import './TenantSettingsTab.css';
 
-// TenantSettingsTab
-// Props:
-//  - tenant: tenant object with fields described in TenantDetailResponse
-//  - onUpdate: callback called after successful update
-//  - setMessage: optional function to show page-level messages
-
-export default function TenantSettingsTab({ tenant = {}, onUpdate = () => {}, setMessage = null }) {
-  const [loadingLogo, setLoadingLogo] = useState(false)
-  const [settings, setSettings] = useState({
-    name: tenant.name || '',
+export default function TenantSettingsTab({ tenant, onUpdate, setMessage }) {
+  const [formData, setFormData] = useState({
+    name: tenant.name,
     logo_url: tenant.logo_url || '',
     favicon_url: tenant.favicon_url || '',
     theme_config: tenant.theme_config || {
-      primary_color: '#3B82F6',
-      secondary_color: '#8B5CF6',
-      font_family: 'System UI'
+      primary_color: '#007bff',
+      secondary_color: '#6c757d',
+      font_family: 'system-ui',
     },
-    currency_label: tenant.currency_label || tenant.currency || 'Points',
-    conversion_rate: tenant.conversion_rate || 1.0,
-    auto_refill_threshold: tenant.auto_refill_threshold || 20,
-    // store as a single comma-separated string for the UI
-    domain_whitelist: (Array.isArray(tenant.domain_whitelist) && tenant.domain_whitelist.length) ? tenant.domain_whitelist.join(', ') : (typeof tenant.domain_whitelist === 'string' ? tenant.domain_whitelist : ''),
-    auth_method: tenant.auth_method || 'OTP_ONLY',
-    markup_percent: tenant.markup_percent || 0.0,
-    enabled_rewards: tenant.enabled_rewards || [],
-    redemptions_paused: tenant.redemptions_paused || false,
-    award_tiers: tenant.award_tiers || {},
-    expiry_policy: tenant.expiry_policy || 'never',
-    branding_config: tenant.branding_config || {}
-  })
+    domain_whitelist: (tenant.domain_whitelist || []).join(', '),
+    auth_method: tenant.auth_method,
+    currency_label: tenant.currency_label,
+    conversion_rate: tenant.conversion_rate,
+    auto_refill_threshold: tenant.auto_refill_threshold,
+    peer_to_peer_enabled: tenant.peer_to_peer_enabled,
+    expiry_policy: tenant.expiry_policy,
+  });
 
-  // Local form helpers
-  const [newDomain, setNewDomain] = useState('')
-  const [newEnabledReward, setNewEnabledReward] = useState('')
+  const [saving, setSaving] = useState(false);
 
-  // Keep state in sync when tenant prop changes
-  useEffect(() => {
-    setSettings(prev => ({
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
       ...prev,
-      name: tenant.name || prev.name,
-      logo_url: tenant.logo_url || prev.logo_url,
-      favicon_url: tenant.favicon_url || prev.favicon_url,
-      theme_config: tenant.theme_config || prev.theme_config,
-      // prefer explicit currency_label/currency fields
-      currency_label: tenant.currency_label || tenant.currency || prev.currency_label,
-      conversion_rate: tenant.conversion_rate || tenant.fx_rate || prev.conversion_rate,
-      auto_refill_threshold: tenant.auto_refill_threshold || prev.auto_refill_threshold,
-      domain_whitelist: (Array.isArray(tenant.domain_whitelist) && tenant.domain_whitelist.length) ? tenant.domain_whitelist.join(', ') : (typeof tenant.domain_whitelist === 'string' ? tenant.domain_whitelist : prev.domain_whitelist),
-      auth_method: tenant.auth_method || prev.auth_method,
-      markup_percent: tenant.markup_percent || prev.markup_percent,
-      enabled_rewards: tenant.enabled_rewards || prev.enabled_rewards,
-      redemptions_paused: tenant.redemptions_paused || prev.redemptions_paused,
-      award_tiers: tenant.award_tiers || prev.award_tiers,
-      expiry_policy: tenant.expiry_policy || prev.expiry_policy,
-      branding_config: tenant.branding_config || prev.branding_config
-    }))
-  }, [tenant])
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
 
-  // Mutation to save tenant
-  const updateMutation = useMutation({
-    mutationFn: (payload) => platformAPI.updateTenant(tenant.id, payload),
-    onSuccess: (resp) => {
-      toast.success('Tenant settings saved')
-      if (typeof onUpdate === 'function') onUpdate(resp.data || resp)
-      if (setMessage) setMessage({ type: 'success', text: 'Settings saved' })
-    },
-    onError: (err) => {
-      const msg = err?.response?.data?.detail || err.message || 'Failed to save settings'
-      toast.error(msg)
-      if (setMessage) setMessage({ type: 'error', text: msg })
-    }
-  })
+  const handleThemeChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      theme_config: {
+        ...prev.theme_config,
+        [name]: value,
+      },
+    }));
+  };
 
-  // Logo upload
-  const handleUploadLogo = async (file) => {
-    if (!file) return
-    setLoadingLogo(true)
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+
     try {
-      const resp = await platformAPI.uploadLogo(tenant.id, file)
-      const logoUrl = resp.data?.logo_url || resp.data?.url || null
-      setSettings(prev => ({ ...prev, logo_url: logoUrl }))
-      toast.success('Logo uploaded')
+      const updateData = {
+        name: formData.name,
+        logo_url: formData.logo_url,
+        favicon_url: formData.favicon_url,
+        theme_config: formData.theme_config,
+        domain_whitelist: formData.domain_whitelist
+          .split(',')
+          .map((d) => d.trim())
+          .filter(Boolean),
+        auth_method: formData.auth_method,
+        currency_label: formData.currency_label,
+        conversion_rate: parseFloat(formData.conversion_rate),
+        auto_refill_threshold: parseFloat(formData.auto_refill_threshold),
+        peer_to_peer_enabled: formData.peer_to_peer_enabled,
+        expiry_policy: formData.expiry_policy,
+      };
+
+      await platformAPI.updateTenant(tenant.id, updateData);
+      toast.success('Tenant settings updated successfully');
+      if (setMessage) {
+        setMessage({
+          type: 'success',
+          text: 'Tenant settings updated successfully',
+        });
+      }
+      if (onUpdate) {
+        onUpdate();
+      }
     } catch (err) {
-      toast.error(err?.response?.data?.detail || 'Failed to upload logo')
+      const errorMsg = err.response?.data?.detail || 'Failed to update settings';
+      toast.error(errorMsg);
+      if (setMessage) {
+        setMessage({
+          type: 'error',
+          text: errorMsg,
+        });
+      }
     } finally {
-      setLoadingLogo(false)
+      setSaving(false);
     }
-  }
-
-  const addDomain = () => {
-    const d = (newDomain || '').trim()
-    if (!d) return
-    // Basic validation
-    if (!d.startsWith('@') || !d.includes('.')) {
-      toast.error("Domain must start with '@' and contain a dot, e.g. @company.com")
-      return
-    }
-    if (settings.domain_whitelist.includes(d)) {
-      setNewDomain('')
-      return
-    }
-    setSettings(prev => ({ ...prev, domain_whitelist: [...prev.domain_whitelist, d] }))
-    setNewDomain('')
-  }
-
-  const removeDomain = (d) => {
-    setSettings(prev => ({ ...prev, domain_whitelist: prev.domain_whitelist.filter(x => x !== d) }))
-  }
-
-  const addEnabledReward = () => {
-    const r = (newEnabledReward || '').trim()
-    if (!r) return
-    if (settings.enabled_rewards.includes(r)) {
-      setNewEnabledReward('')
-      return
-    }
-    setSettings(prev => ({ ...prev, enabled_rewards: [...prev.enabled_rewards, r] }))
-    setNewEnabledReward('')
-  }
-
-  const removeEnabledReward = (r) => {
-    setSettings(prev => ({ ...prev, enabled_rewards: prev.enabled_rewards.filter(x => x !== r) }))
-  }
-
-  const handleSave = async () => {
-    // Minimal validation
-    if (!settings.name) {
-      toast.error('Organization name is required')
-      return
-    }
-
-    // Build payload
-    const payload = {
-      name: settings.name,
-      logo_url: settings.logo_url,
-      favicon_url: settings.favicon_url,
-      theme_config: settings.theme_config,
-      currency: settings.currency_label,
-      currency_label: settings.currency_label,
-      conversion_rate: settings.conversion_rate,
-      auto_refill_threshold: settings.auto_refill_threshold,
-      domain_whitelist: (settings.domain_whitelist || '').split(',').map(s => s.trim()).filter(Boolean),
-      auth_method: settings.auth_method,
-      markup_percent: settings.markup_percent,
-      enabled_rewards: settings.enabled_rewards,
-      redemptions_paused: settings.redemptions_paused,
-      award_tiers: settings.award_tiers,
-      expiry_policy: settings.expiry_policy,
-      branding_config: settings.branding_config
-    }
-
-    updateMutation.mutate(payload)
-  }
-
-  const themePreview = useMemo(() => ({
-    background: settings.theme_config?.primary_color || '#fff',
-    accent: settings.theme_config?.secondary_color || '#000'
-  }), [settings.theme_config])
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Identity & Branding</h2>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleSave}
-            disabled={updateMutation.isLoading}
-            className="px-4 py-2 bg-sparknode-purple text-white rounded-lg hover:bg-sparknode-purple/90"
-          >
-            {updateMutation.isLoading ? 'Saving...' : 'Save Settings'}
-          </button>
-        </div>
-      </div>
+    <div className="tab-settings">
+      <form onSubmit={handleSubmit} className="settings-form">
+        {/* Identity & Branding Section */}
+        <div className="form-section">
+          <h2>Identity & Branding</h2>
+          <div className="form-group">
+            <label>Tenant Name</label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              placeholder="e.g., Triton Energy"
+              required
+            />
+          </div>
 
-      <div className="bg-white border rounded p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Organization Name</label>
-          <input className="mt-1 w-full px-3 py-2 border rounded" value={settings.name} onChange={e => setSettings(s => ({ ...s, name: e.target.value }))} />
-
-          <label className="block text-sm font-medium text-gray-700 mt-4">Logo</label>
-          <div className="flex items-center gap-3 mt-2">
-            {settings.logo_url ? (
-              <img src={settings.logo_url} alt="logo" className="h-12 w-12 object-contain rounded" />
-            ) : (
-              <div className="h-12 w-12 bg-gray-100 rounded flex items-center justify-center text-xs">No logo</div>
+          <div className="form-group">
+            <label>Logo URL</label>
+            <input
+              type="url"
+              name="logo_url"
+              value={formData.logo_url}
+              onChange={handleInputChange}
+              placeholder="https://example.com/logo.png"
+            />
+            {formData.logo_url && (
+              <div className="preview-box">
+                <img src={formData.logo_url} alt="Logo" className="preview-img" />
+              </div>
             )}
-            <div>
-              <input type="file" accept="image/*" onChange={(e) => handleUploadLogo(e.target.files[0])} />
-              {loadingLogo && <div className="text-xs text-gray-500">Uploading...</div>}
-            </div>
           </div>
 
-          <label className="block text-sm font-medium text-gray-700 mt-4">Favicon URL</label>
-          <input className="mt-1 w-full px-3 py-2 border rounded" value={settings.favicon_url} onChange={e => setSettings(s => ({ ...s, favicon_url: e.target.value }))} />
-
-          <label className="block text-sm font-medium text-gray-700 mt-4">Theme</label>
-          <div className="grid grid-cols-2 gap-3 mt-2">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded" style={{ background: settings.theme_config.primary_color }} />
-              <input className="px-3 py-2 border rounded flex-1" value={settings.theme_config.primary_color} onChange={e => setSettings(s => ({ ...s, theme_config: { ...s.theme_config, primary_color: e.target.value } }))} placeholder="#3B82F6" />
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded" style={{ background: settings.theme_config.secondary_color }} />
-              <input className="px-3 py-2 border rounded flex-1" value={settings.theme_config.secondary_color} onChange={e => setSettings(s => ({ ...s, theme_config: { ...s.theme_config, secondary_color: e.target.value } }))} placeholder="#8B5CF6" />
-            </div>
+          <div className="form-group">
+            <label>Favicon URL</label>
+            <input
+              type="url"
+              name="favicon_url"
+              value={formData.favicon_url}
+              onChange={handleInputChange}
+              placeholder="https://example.com/favicon.ico"
+            />
           </div>
 
-          <div className="mt-3">
-            <label className="block text-sm font-medium text-gray-700">Font Family</label>
-            <select className="mt-1 w-full px-3 py-2 border rounded" value={settings.theme_config.font_family} onChange={e => setSettings(s => ({ ...s, theme_config: { ...s.theme_config, font_family: e.target.value } }))}>
-              <option value="System UI">System UI</option>
-              <option value="Inter">Inter</option>
-              <option value="Roboto">Roboto</option>
-              <option value="Poppins">Poppins</option>
+          <div className="theme-config">
+            <h3>Theme Configuration</h3>
+            <div className="form-group">
+              <label>Primary Color</label>
+              <div className="color-input-group">
+                <input
+                  type="color"
+                  name="primary_color"
+                  value={formData.theme_config.primary_color}
+                  onChange={handleThemeChange}
+                />
+                <input
+                  type="text"
+                  value={formData.theme_config.primary_color}
+                  onChange={handleThemeChange}
+                  name="primary_color"
+                  placeholder="#007bff"
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Secondary Color</label>
+              <div className="color-input-group">
+                <input
+                  type="color"
+                  name="secondary_color"
+                  value={formData.theme_config.secondary_color}
+                  onChange={handleThemeChange}
+                />
+                <input
+                  type="text"
+                  value={formData.theme_config.secondary_color}
+                  onChange={handleThemeChange}
+                  name="secondary_color"
+                  placeholder="#6c757d"
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Font Family</label>
+              <select
+                name="font_family"
+                value={formData.theme_config.font_family}
+                onChange={handleThemeChange}
+              >
+                <option value="system-ui">System UI</option>
+                <option value="Arial">Arial</option>
+                <option value="Georgia">Georgia</option>
+                <option value="Trebuchet MS">Trebuchet MS</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Governance & Security Section */}
+        <div className="form-section">
+          <h2>Governance & Security</h2>
+          <div className="form-group">
+            <label>Domain Whitelist</label>
+            <input
+              type="text"
+              name="domain_whitelist"
+              value={formData.domain_whitelist}
+              onChange={handleInputChange}
+              placeholder="@company.com, @company-intl.io"
+              title="Comma-separated email domain suffixes"
+            />
+            <small>Comma-separated email domain suffixes allowed for this tenant</small>
+          </div>
+
+          <div className="form-group">
+            <label>Authentication Method</label>
+            <select
+              name="auth_method"
+              value={formData.auth_method}
+              onChange={handleInputChange}
+            >
+              <option value="OTP_ONLY">OTP Only (Passwordless)</option>
+              <option value="PASSWORD_AND_OTP">Password + OTP</option>
+              <option value="SSO_SAML">SSO/SAML</option>
             </select>
           </div>
+        </div>
 
-          <div className="mt-3 p-3 rounded border flex items-center gap-4" style={{ background: themePreview.background }}>
-            <div className="w-8 h-8 rounded" style={{ background: themePreview.accent }} />
-            <div className="text-sm">Theme preview</div>
+        {/* Point Economy Section */}
+        <div className="form-section">
+          <h2>Point Economy</h2>
+          <div className="form-group">
+            <label>Currency Label</label>
+            <input
+              type="text"
+              name="currency_label"
+              value={formData.currency_label}
+              onChange={handleInputChange}
+              placeholder="e.g., Triton Credits"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Conversion Rate (₹1 = X Points)</label>
+            <input
+              type="number"
+              name="conversion_rate"
+              value={formData.conversion_rate}
+              onChange={handleInputChange}
+              step="0.01"
+              min="0.01"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Auto-Refill Threshold (%)</label>
+            <input
+              type="number"
+              name="auto_refill_threshold"
+              value={formData.auto_refill_threshold}
+              onChange={handleInputChange}
+              step="1"
+              min="1"
+              max="100"
+            />
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Currency Label</label>
-          <input className="mt-1 w-full px-3 py-2 border rounded" value={settings.currency_label} onChange={e => setSettings(s => ({ ...s, currency_label: e.target.value }))} />
-
-          <label className="block text-sm font-medium text-gray-700 mt-4">Conversion Rate (1 USD = ?)</label>
-          <input type="number" step="0.0001" className="mt-1 w-full px-3 py-2 border rounded" value={settings.conversion_rate} onChange={e => setSettings(s => ({ ...s, conversion_rate: e.target.value }))} />
-
-          <label className="block text-sm font-medium text-gray-700 mt-4">Auto-Refill Threshold (%)</label>
-          <input type="number" step="0.1" min="0" max="100" className="mt-1 w-full px-3 py-2 border rounded" value={settings.auto_refill_threshold} onChange={e => setSettings(s => ({ ...s, auto_refill_threshold: e.target.value }))} />
-
-          <label className="block text-sm font-medium text-gray-700 mt-4">Auth Method</label>
-          <select className="mt-1 w-full px-3 py-2 border rounded" value={settings.auth_method} onChange={e => setSettings(s => ({ ...s, auth_method: e.target.value }))}>
-            <option value="OTP_ONLY">OTP Only</option>
-            <option value="PASSWORD_AND_OTP">Password + OTP</option>
-            <option value="SSO_SAML">SSO / SAML</option>
-          </select>
-
-          <label className="block text-sm font-medium text-gray-700 mt-4">Markup Percent (for gift cards)</label>
-          <input type="number" step="0.01" className="mt-1 w-full px-3 py-2 border rounded" value={settings.markup_percent} onChange={e => setSettings(s => ({ ...s, markup_percent: e.target.value }))} />
-
-          <label className="block text-sm font-medium text-gray-700 mt-4">Redemptions Paused</label>
-          <div className="mt-1">
-            <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={settings.redemptions_paused} onChange={e => setSettings(s => ({ ...s, redemptions_paused: e.target.checked }))} />
-              <span className="text-sm text-gray-700">Pause all redemptions</span>
+        {/* Recognition Laws Section */}
+        <div className="form-section">
+          <h2>Recognition Rules</h2>
+          <div className="form-group">
+            <label>
+              <input
+                type="checkbox"
+                name="peer_to_peer_enabled"
+                checked={formData.peer_to_peer_enabled}
+                onChange={handleInputChange}
+              />
+              Allow Peer-to-Peer Recognition
             </label>
           </div>
 
-        </div>
-      </div>
-
-      {/* Domain Whitelist */}
-      <div className="bg-white border rounded p-6">
-        <h3 className="font-semibold">Domain Whitelist (Auto-Onboarding)</h3>
-          <div className="mt-3">
-          <input className="mt-1 w-full px-3 py-2 border rounded" placeholder="@company.com, @subsidiary.example" value={settings.domain_whitelist} onChange={e => setSettings(s => ({ ...s, domain_whitelist: e.target.value }))} />
-          <p className="text-xs text-gray-500 mt-1">Comma-separated email domain suffixes allowed for this tenant</p>
-        </div>
-      </div>
-
-      {/* Enabled Rewards */}
-      <div className="bg-white border rounded p-6">
-        <h3 className="font-semibold">Enabled Rewards (Whitelist)</h3>
-        <div className="mt-3 flex items-center gap-3">
-          <input className="px-3 py-2 border rounded flex-1" placeholder="reward-id" value={newEnabledReward} onChange={e => setNewEnabledReward(e.target.value)} />
-          <button onClick={addEnabledReward} className="px-3 py-2 bg-gray-100 rounded">Add</button>
-        </div>
-        <div className="mt-3 space-y-2">
-          {settings.enabled_rewards.length === 0 && <div className="text-sm text-gray-500">All rewards enabled</div>}
-          {settings.enabled_rewards.map(r => (
-            <div key={r} className="flex items-center justify-between p-2 border rounded">
-              <div className="text-sm">{r}</div>
-              <div>
-                <button onClick={() => removeEnabledReward(r)} className="text-sm text-red-600">Remove</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Recognition Rules */}
-      <div className="bg-white border rounded p-6">
-        <h3 className="font-semibold">Recognition Rules</h3>
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm text-gray-700">Expiry Policy</label>
-            <select className="mt-1 w-full px-3 py-2 border rounded" value={settings.expiry_policy} onChange={e => setSettings(s => ({ ...s, expiry_policy: e.target.value }))}>
-              <option value="never">Never</option>
+          <div className="form-group">
+            <label>Points Expiry Policy</label>
+            <select
+              name="expiry_policy"
+              value={formData.expiry_policy}
+              onChange={handleInputChange}
+            >
               <option value="90_days">90 Days</option>
+              <option value="180_days">180 Days</option>
               <option value="1_year">1 Year</option>
-              <option value="custom">Custom</option>
+              <option value="never">Never</option>
             </select>
           </div>
-
-          <div>
-            <label className="block text-sm text-gray-700">Award Tiers (JSON)</label>
-            <textarea className="mt-1 w-full px-3 py-2 border rounded" rows={4} value={JSON.stringify(settings.award_tiers || {}, null, 2)} onChange={e => {
-              try {
-                const parsed = JSON.parse(e.target.value)
-                setSettings(s => ({ ...s, award_tiers: parsed }))
-              } catch (err) {
-                // ignore parse errors until save
-              }
-            }} />
-          </div>
         </div>
-      </div>
 
-      {/* Branding Config raw editor */}
-      <div className="bg-white border rounded p-6">
-        <h3 className="font-semibold">Branding & Advanced</h3>
-        <label className="block text-sm text-gray-700">Branding Config (JSON)</label>
-        <textarea className="mt-1 w-full px-3 py-2 border rounded" rows={6} value={JSON.stringify(settings.branding_config || {}, null, 2)} onChange={e => {
-          try {
-            const parsed = JSON.parse(e.target.value)
-            setSettings(s => ({ ...s, branding_config: parsed }))
-          } catch (err) {
-            // ignore until save
-          }
-        }} />
-      </div>
-
+        {/* Submit Button */}
+        <div className="form-actions">
+          <button
+            type="submit"
+            className="btn-primary"
+            disabled={saving}
+          >
+            {saving ? 'Saving...' : 'Save Settings'}
+          </button>
+        </div>
+      </form>
     </div>
-  )
+  );
 }

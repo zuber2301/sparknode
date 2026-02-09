@@ -220,7 +220,7 @@ class TestProvisioningDataModel:
             # Fields needed for provisioning
             provisioning_fields = {
                 "corporate_email": "Corporate email for tenant admin",
-                "org_role": "Organization role (platform_admin, tenant_manager, etc.)",
+                "org_role": "Organization role (platform_admin, tenant_tenant_tenant_manager, etc.)",
                 "status": "User status (ACTIVE, INACTIVE, etc.)",
             }
             
@@ -235,8 +235,8 @@ class TestProvisioningDataModel:
         
         ✓ PROVISIONING REQUIREMENT: Role model supports all methods
         - platform_admin: Can provision new tenants
-        - tenant_manager: Can invite users (Invite-Link method)
-        - hr_admin: Can bulk upload users (Bulk Upload method)
+        - tenant_tenant_tenant_manager: Can invite users (Invite-Link method)
+        - tenant_tenant_tenant_manager: Can bulk upload users (Bulk Upload method)
         """
         response = requests.post(
             f"{BASE_URL}/auth/login",
@@ -247,7 +247,7 @@ class TestProvisioningDataModel:
             user = response.json().get("user", {})
             role = user.get("org_role")
             
-            valid_provisioning_roles = ["platform_admin", "tenant_manager", "hr_admin", "corporate_user"]
+            valid_provisioning_roles = ["platform_admin", "tenant_tenant_tenant_manager", "tenant_tenant_tenant_manager", "tenant_user"]
             assert role in valid_provisioning_roles or len(role) > 0, \
                 f"Role should be one of {valid_provisioning_roles}, got: {role}"
             

@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     celery_broker_url: Optional[str] = os.getenv("CELERY_BROKER_URL")
     celery_result_backend: Optional[str] = os.getenv("CELERY_RESULT_BACKEND")
     
+    # Aggregator Settings
+    aggregator_provider: str = os.getenv("AGGREGATOR_PROVIDER", "mock")
+    tango_api_base: str = os.getenv("TANGO_API_BASE", "https://integration-api.tangocard.com/raas/v2")
+    tango_api_key: Optional[str] = os.getenv("TANGO_API_KEY")
+    tango_account_identifier: Optional[str] = os.getenv("TANGO_ACCOUNT_IDENTIFIER")
+
     # CORS - accept string or list
     cors_origins: Union[str, List[str]] = "http://localhost:3000,http://localhost:5173,http://localhost:5180,http://localhost:6173"
     

@@ -105,8 +105,8 @@ export default function PlatformTenantUsers() {
                   className="px-2 py-1 border border-gray-300 rounded text-sm"
                   disabled={updateUserMutation.isPending}
                 >
-                  <option value="corporate_user">Corporate User</option>
-                  <option value="dept_lead">Tenant Lead</option>
+                  <option value="tenant_user">Tenant User</option>
+                  <option value="dept_lead">Dept Lead</option>
                   <option value="tenant_manager">Tenant Manager</option>
                 </select>
               </div>

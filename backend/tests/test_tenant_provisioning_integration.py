@@ -93,7 +93,7 @@ def test_invite_users_endpoint():
     login_response = requests.post(
         f"{BASE_URL}/auth/login",
         json={
-            "email": "tenant_manager@sparknode.io",
+            "email": "tenant_tenant_tenant_manager@sparknode.io",
             "password": "jspark123"
         }
     )
@@ -135,7 +135,7 @@ def test_bulk_upload_endpoint():
     login_response = requests.post(
         f"{BASE_URL}/auth/login",
         json={
-            "email": "tenant_manager@sparknode.io",
+            "email": "tenant_tenant_tenant_manager@sparknode.io",
             "password": "jspark123"
         }
     )
@@ -148,9 +148,9 @@ def test_bulk_upload_endpoint():
     
     # Create test CSV
     csv_content = """email,full_name,department,role
-alice@test.com,Alice Johnson,Engineering,corporate_user
+alice@test.com,Alice Johnson,Engineering,tenant_user
 bob@test.com,Bob Smith,Engineering,dept_lead
-carol@test.com,Carol Davis,Marketing,corporate_user"""
+carol@test.com,Carol Davis,Marketing,tenant_user"""
     
     files = {
         'file': ('test_users.csv', csv_content, 'text/csv')

@@ -83,7 +83,6 @@ async def login(
                     first_name=user.first_name,
                     last_name=user.last_name,
                     org_role="platform_admin",
-                    role="platform_admin",
                     phone_number=user.phone_number,
                     mobile_number=user.mobile_number,
                     personal_email=user.personal_email,
@@ -125,7 +124,6 @@ async def login(
                 first_name=user.first_name,
                 last_name=user.last_name,
                 org_role=user.org_role,
-                role=user.org_role,
                 phone_number=user.phone_number,
                 mobile_number=user.mobile_number,
                 personal_email=user.personal_email,
@@ -239,7 +237,6 @@ async def get_current_user_info(
         first_name=current_user.first_name,
         last_name=current_user.last_name,
         org_role=current_user.org_role,
-        role=current_user.org_role,
         phone_number=current_user.phone_number,
         mobile_number=current_user.mobile_number,
         corporate_email=current_user.corporate_email,
@@ -485,7 +482,7 @@ async def signup(
         password_hash=get_password_hash(signup_data.password),
         first_name=signup_data.first_name,
         last_name=signup_data.last_name,
-        org_role="corporate_user",  # Default role for self-registered users
+        org_role="tenant_user",  # Default role for self-registered users
         department_id=default_department.id,
         mobile_number=signup_data.mobile_number or None,
         status="ACTIVE",  # Auto-approve signups
@@ -541,7 +538,6 @@ async def signup(
             first_name=user.first_name,
             last_name=user.last_name,
             org_role=user.org_role,
-            role=user.org_role,
             mobile_number=user.mobile_number,
             department_id=user.department_id,
             status=user.status,
@@ -562,7 +558,7 @@ async def generate_invitation_link(
     """
     Generate a secure invitation link for inviting new users to the organization.
     
-    Accessible by: Tenant Manager, HR Admin, or Platform Admin (when impersonating)
+    Accessible by: Tenant Manager or Platform Admin (when impersonating)
     
     The generated link should be sent to the invitee's email. When they visit
     the link and sign up, the system will automatically assign them to your organization.
@@ -575,11 +571,11 @@ async def generate_invitation_link(
     
     Note: The token is email-specific and one-time use only.
     """
-    # Check authorization - only tenant managers and HR admins can generate invites
-    if current_user.org_role not in ["tenant_manager", "hr_admin"]:
+    # Check authorization - only tenant managers can generate invites
+    if current_user.org_role not in ["tenant_manager"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only HR Admin and Tenant Manager can generate invitation links"
+            detail="Only Tenant Manager can generate invitation links"
         )
     
     # Validate expiration hours

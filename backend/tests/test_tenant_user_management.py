@@ -84,7 +84,7 @@ def setup_database():
         password_hash=get_password_hash("password123"),
         first_name="HR",
         last_name="Admin",
-        role="hr_admin",
+        role="tenant_tenant_tenant_manager",
         department_id=dept.id,
         status="active"
     )
@@ -97,7 +97,7 @@ def setup_database():
         password_hash=get_password_hash("password123"),
         first_name="Employee",
         last_name="One",
-        role="employee",
+        role="tenant_user",
         department_id=dept.id,
         status="active"
     )
@@ -168,14 +168,14 @@ class TestTenantAndUserManagement:
         # HR admin creates a new user
         headers = auth_header_for("hr@orgtest.com")
         # Need department id from setup
-        dept_id = "660e8400-e29b-41d4-a716-446655441000"
+        department_id = "660e8400-e29b-41d4-a716-446655441000"
         payload = {
             "email": "newuser@orgtest.com",
             "first_name": "New",
             "last_name": "User",
-            "role": "corporate_user",
+            "role": "tenant_user",
             "password": "userpass123",
-            "department_id": dept_id
+            "department_id": department_id
         }
         r = client.post("/api/users", json=payload, headers=headers)
         assert r.status_code == 200, r.text
@@ -189,8 +189,8 @@ class TestTenantAndUserManagement:
         csv_content = io.StringIO()
         writer = csv.writer(csv_content)
         writer.writerow(["Full Name", "Email", "Role", "Department"])
-        writer.writerow(["Bulk One", "bulk1@orgtest.com", "corporate_user", "Engineering"])
-        writer.writerow(["Bulk Two", "bulk2@orgtest.com", "corporate_user", "Engineering"])
+        writer.writerow(["Bulk One", "bulk1@orgtest.com", "tenant_user", "Engineering"])
+        writer.writerow(["Bulk Two", "bulk2@orgtest.com", "tenant_user", "Engineering"])
         csv_bytes = csv_content.getvalue().encode()
 
         files = {"file": ("users.csv", io.BytesIO(csv_bytes), "text/csv")}

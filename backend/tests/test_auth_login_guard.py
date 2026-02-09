@@ -24,12 +24,12 @@ class FakeUser:
         self.corporate_email = "user@example.com"
         self.first_name = "Test"
         self.last_name = "User"
-        self.org_role = "employee"
+        self.org_role = "tenant_user"
         self.phone_number = None
         self.mobile_number = None
         self.personal_email = None
         self.department_id = None
-        self.manager_id = None
+        self.tenant_tenant_manager_id = None
         self.avatar_url = None
         self.date_of_birth = None
         self.hire_date = None

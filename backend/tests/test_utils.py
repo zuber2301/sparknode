@@ -120,22 +120,22 @@ class TestValidateStagingRow:
     def test_validate_staging_row_valid_data(self, db: Session, tenant_with_department):
         """Test validation of completely valid row"""
         tenant_id = tenant_with_department['tenant_id']
-        dept_id = tenant_with_department['department_id']
+        department_id = tenant_with_department['department_id']
         
         result = validate_staging_row(
             db=db,
             tenant_id=tenant_id,
             email="john@example.com",
             department_name="Engineering",
-            role="corporate_user",
-            manager_email="",
+            role="tenant_user",
+            tenant_tenant_manager_email="",
             full_name="John Doe",
             mobile_number="9876543210"
         )
         
         assert result["is_valid"] is True
         assert result["errors"] == []
-        assert result["department_id"] == dept_id
+        assert result["department_id"] == department_id
     
     def test_validate_staging_row_missing_full_name(self, db: Session, tenant_with_department):
         """Test validation fails with missing full name"""
@@ -144,8 +144,8 @@ class TestValidateStagingRow:
             tenant_id=tenant_with_department['tenant_id'],
             email="john@example.com",
             department_name="Engineering",
-            role="corporate_user",
-            manager_email="",
+            role="tenant_user",
+            tenant_tenant_manager_email="",
             full_name="",
             mobile_number=""
         )
@@ -160,8 +160,8 @@ class TestValidateStagingRow:
             tenant_id=tenant_with_department['tenant_id'],
             email="",
             department_name="Engineering",
-            role="corporate_user",
-            manager_email="",
+            role="tenant_user",
+            tenant_tenant_manager_email="",
             full_name="John Doe",
             mobile_number=""
         )
@@ -176,8 +176,8 @@ class TestValidateStagingRow:
             tenant_id=tenant_with_department['tenant_id'],
             email="invalid-email",
             department_name="Engineering",
-            role="corporate_user",
-            manager_email="",
+            role="tenant_user",
+            tenant_tenant_manager_email="",
             full_name="John Doe",
             mobile_number=""
         )
@@ -192,8 +192,8 @@ class TestValidateStagingRow:
             tenant_id=tenant_with_department['tenant_id'],
             email="john@example.com",
             department_name="NonexistentDept",
-            role="corporate_user",
-            manager_email="",
+            role="tenant_user",
+            tenant_tenant_manager_email="",
             full_name="John Doe",
             mobile_number=""
         )
@@ -209,7 +209,7 @@ class TestValidateStagingRow:
             email="john@example.com",
             department_name="Engineering",
             role="invalid_role",
-            manager_email="",
+            tenant_tenant_manager_email="",
             full_name="John Doe",
             mobile_number=""
         )
@@ -224,8 +224,8 @@ class TestValidateStagingRow:
             tenant_id=tenant_with_department['tenant_id'],
             email=user_in_tenant['corporate_email'],
             department_name="Engineering",
-            role="corporate_user",
-            manager_email="",
+            role="tenant_user",
+            tenant_tenant_manager_email="",
             full_name="John Doe",
             mobile_number=""
         )
@@ -240,8 +240,8 @@ class TestValidateStagingRow:
             tenant_id=tenant_with_department['tenant_id'],
             email="john@example.com",
             department_name="Engineering",
-            role="corporate_user",
-            manager_email="",
+            role="tenant_user",
+            tenant_tenant_manager_email="",
             full_name="John Doe",
             mobile_number="9876543210"
         )
@@ -287,7 +287,7 @@ def user_in_tenant(db: Session, tenant_with_department):
         personal_email="personal@test.example.com",
         first_name="Existing",
         last_name="User",
-        org_role="corporate_user",
+        org_role="tenant_user",
         password_hash=get_password_hash("password123"),
         status="ACTIVE"
     )

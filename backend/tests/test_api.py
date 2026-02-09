@@ -73,7 +73,7 @@ def setup_database():
         password_hash=get_password_hash("password123"),
         first_name="Test",
         last_name="User",
-        role="hr_admin",
+        role="tenant_tenant_tenant_manager",
         department_id=dept.id,
         status="active"
     )
@@ -86,7 +86,7 @@ def setup_database():
         password_hash=get_password_hash("password123"),
         first_name="Test",
         last_name="Employee",
-        role="employee",
+        role="tenant_user",
         department_id=dept.id,
         status="active"
     )

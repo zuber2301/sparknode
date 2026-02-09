@@ -19,15 +19,15 @@ export default function TeamAnalytics() {
   }
 
   const { data: metricsResp, isLoading: metricsLoading } = useQuery({
-    queryKey: ['departmentMetrics', user?.dept_id],
-    queryFn: () => analyticsApi.getDepartmentMetrics(user?.dept_id),
-    enabled: !!user?.dept_id,
+    queryKey: ['departmentMetrics', user?.department_id],
+    queryFn: () => analyticsApi.getDepartmentMetrics(user?.department_id),
+    enabled: !!user?.department_id,
   })
 
   const { data: trendsResp, isLoading: trendsLoading } = useQuery({
-    queryKey: ['departmentTrends', user?.dept_id],
-    queryFn: () => analyticsApi.getDailyTrends({ department_id: user?.dept_id, period: '30d' }),
-    enabled: !!user?.dept_id,
+    queryKey: ['departmentTrends', user?.department_id],
+    queryFn: () => analyticsApi.getDailyTrends({ department_id: user?.department_id, period: '30d' }),
+    enabled: !!user?.department_id,
   })
 
   const metrics = metricsResp?.data || {}

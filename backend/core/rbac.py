@@ -36,30 +36,20 @@ from database import get_db
 
 class UserRole(str, Enum):
     """
-    Four-tier role hierarchy for multi-tenant access control.
+    Standard roles for multi-tenant access control.
     """
     PLATFORM_ADMIN = "platform_admin"      # System-wide admin
-    TENANT_MANAGER = "tenant_manager"          # Company HR/Admin
-    DEPT_LEAD = "dept_lead"                # Department Lead/Manager
-    CORPORATE_USER = "corporate_user"      # Regular Employee
-    
-    # Legacy role mappings for backward compatibility
-    TENANT_LEAD = "dept_lead"              # Legacy name for DEPT_LEAD
-    HR_ADMIN = "hr_admin"                  # Maps to TENANT_MANAGER
-    MANAGER = "dept_lead"                  # Legacy name for DEPT_LEAD
-    EMPLOYEE = "employee"                  # Maps to CORPORATE_USER
+    TENANT_MANAGER = "tenant_manager"      # Company HR/Admin
+    TENANT_LEAD = "tenant_lead"            # Department Lead/Manager
+    TENANT_USER = "tenant_user"            # Regular Employee
 
 
 # Role hierarchy mapping (higher roles inherit lower role permissions)
 ROLE_HIERARCHY = {
     UserRole.PLATFORM_ADMIN: 4,
     UserRole.TENANT_MANAGER: 3,
-    UserRole.HR_ADMIN: 3,  # Legacy (maps to tenant manager)
-    UserRole.DEPT_LEAD: 2,
-    UserRole.MANAGER: 2,  # Legacy (maps to dept_lead)
-    UserRole.TENANT_LEAD: 2,  # Legacy (maps to dept_lead)
-    UserRole.CORPORATE_USER: 1,
-    UserRole.EMPLOYEE: 1,  # Legacy
+    UserRole.TENANT_LEAD: 2,
+    UserRole.TENANT_USER: 1,
 }
 
 
@@ -156,24 +146,13 @@ ROLE_PERMISSIONS: dict[UserRole, Set[Permission]] = {
         Permission.PARTICIPATE_EVENTS,
         Permission.UPDATE_PROFILE,
     },
-    UserRole.DEPT_LEAD: {
+    UserRole.TENANT_LEAD: {
         Permission.MANAGE_TEAM_BUDGET,
     },
-    UserRole.CORPORATE_USER: {
+    UserRole.TENANT_USER: {
         Permission.REDEEM_POINTS,
     },
 }
-
-# Legacy role mapping
-LEGACY_ROLE_PERMISSIONS = {
-    UserRole.HR_ADMIN: ROLE_PERMISSIONS[UserRole.TENANT_MANAGER],
-    UserRole.MANAGER: ROLE_PERMISSIONS[UserRole.DEPT_LEAD],
-    UserRole.TENANT_LEAD: ROLE_PERMISSIONS[UserRole.DEPT_LEAD],
-    UserRole.EMPLOYEE: ROLE_PERMISSIONS[UserRole.CORPORATE_USER],
-}
-
-# Combine for complete mapping
-ROLE_PERMISSIONS.update(LEGACY_ROLE_PERMISSIONS)
 
 
 class RolePermissions:
@@ -183,12 +162,12 @@ class RolePermissions:
     
     @staticmethod
     def normalize_role(role: str) -> UserRole:
-        """Convert string role to UserRole enum, handling legacy roles."""
+        """Convert string role to UserRole enum."""
         try:
             return UserRole(role)
         except ValueError:
-            # Default to corporate user for unknown roles
-            return UserRole.CORPORATE_USER
+            # Default to tenant user for unknown roles
+            return UserRole.TENANT_USER
     
     @staticmethod
     def has_permission(role: str, permission: Permission) -> bool:
@@ -219,7 +198,7 @@ class RolePermissions:
     def is_lead_level(role: str) -> bool:
         """Check if role has team lead level access."""
         user_role = RolePermissions.normalize_role(role)
-        return ROLE_HIERARCHY.get(user_role, 0) >= ROLE_HIERARCHY[UserRole.DEPT_LEAD]
+        return ROLE_HIERARCHY.get(user_role, 0) >= ROLE_HIERARCHY[UserRole.TENANT_LEAD]
     
     @staticmethod
     def get_role_level(role: str) -> int:
@@ -312,7 +291,7 @@ def require_minimum_role(minimum_role: UserRole):
     Usage:
         @router.get("/reports")
         async def get_reports(
-            current_user: User = Depends(require_minimum_role(UserRole.DEPT_LEAD))
+            current_user: User = Depends(require_minimum_role(UserRole.TENANT_LEAD))
         ):
             ...
     """
@@ -356,18 +335,18 @@ async def get_tenant_manager(request: Request, db: Session = Depends(get_db)):
     return current_user
 
 
-async def get_dept_lead(request: Request, db: Session = Depends(get_db)):
-    """Dependency that requires Dept Lead (team lead) or higher role."""
+async def get_tenant_lead(request: Request, db: Session = Depends(get_db)):
+    """Dependency that requires Tenant Lead (team lead) or higher role."""
     current_user = await get_current_user_dependency(request, db)
     if not RolePermissions.is_lead_level(current_user.org_role):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Team Lead access required"
+            detail="Tenant Lead access required"
         )
     return current_user
 
 
-async def get_corporate_user(request: Request, db: Session = Depends(get_db)):
+async def get_tenant_user(request: Request, db: Session = Depends(get_db)):
     """Dependency that requires any authenticated user."""
     current_user = await get_current_user_dependency(request, db)
     return current_user

@@ -27,7 +27,7 @@ export default function RecognitionModal({ isOpen, onClose, initialData = {} }) 
   const queryClient = useQueryClient()
   const { user, getEffectiveRole } = useAuthStore()
   const effectiveRole = getEffectiveRole()
-  const isManager = ['tenant_manager', 'dept_lead', 'platform_admin'].includes(effectiveRole)
+  const isManager = ['tenant_manager', 'dept_lead', 'dept_lead', 'platform_admin'].includes(effectiveRole)
 
   const { data: users } = useQuery({
     queryKey: ['users'],

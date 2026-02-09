@@ -17,10 +17,8 @@ export function formatRoleLabel(role) {
   const roleLabels = {
     'platform_admin': 'Platform Admin',
     'tenant_manager': 'Tenant Manager',
-    'dept_lead': 'Department Lead',
-    'manager': 'Manager',
-    'corporate_user': 'Corporate User',
-    'employee': 'Employee'
+    'dept_lead': 'Dept Lead',
+    'tenant_user': 'Tenant User'
   }
   return roleLabels[role] || role || 'Unknown Role'
 }
@@ -30,9 +28,7 @@ export function formatRoleColor(role) {
     'platform_admin': 'bg-red-100 text-red-800',
     'tenant_manager': 'bg-purple-100 text-purple-800',
     'dept_lead': 'bg-indigo-100 text-indigo-800',
-    'manager': 'bg-cyan-100 text-cyan-800',
-    'corporate_user': 'bg-green-100 text-green-800',
-    'employee': 'bg-gray-100 text-gray-800'
+    'tenant_user': 'bg-green-100 text-green-800'
   }
   return roleColors[role] || 'bg-gray-100 text-gray-800'
 }

@@ -33,7 +33,6 @@ class UserResponse(BaseModel):
     first_name: str
     last_name: str
     org_role: str
-    role: Optional[str] = None
     phone_number: Optional[str] = None
     mobile_number: Optional[str] = None
     department_id: Optional[UUID] = None

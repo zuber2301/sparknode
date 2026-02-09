@@ -60,7 +60,7 @@ body {
   }
 
   .stat-card {
-    @apply bg-white rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100;
+    @apply rounded-lg sm:rounded-xl shadow-sm border border-gray-100;
   }
 
   /* Compact variant for dashboard stat cards (shorter height, more rectangular) */

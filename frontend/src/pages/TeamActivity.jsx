@@ -18,9 +18,9 @@ export default function TeamActivity() {
   }
 
   const { data: feedResponse, isLoading } = useQuery({
-    queryKey: ['departmentFeed', user?.dept_id],
-    queryFn: () => feedApi.getDepartmentFeed({ department_id: user?.dept_id, limit: 25 }),
-    enabled: !!user?.dept_id,
+    queryKey: ['departmentFeed', user?.department_id],
+    queryFn: () => feedApi.getDepartmentFeed({ department_id: user?.department_id, limit: 25 }),
+    enabled: !!user?.department_id,
   })
 
   const items = feedResponse?.data || []

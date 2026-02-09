@@ -6,22 +6,22 @@ BASE_URL = "http://localhost:8000"
 
 
 def auth_header_for(email="admin@demo.com", password="password123"):
-    """Try to log in; if login fails, fall back to generating a JWT for an existing tenant manager via DB."""
+    """Try to log in; if login fails, fall back to generating a JWT for an existing tenant tenant_tenant_manager via DB."""
     resp = requests.post(f"{BASE_URL}/api/auth/login", json={"email": email, "password": password})
     if resp.status_code == 200:
         token = resp.json().get('access_token')
         return {"Authorization": f"Bearer {token}"}
 
-    # Fallback: generate token for any active tenant manager in the DB
+    # Fallback: generate token for any active tenant tenant_tenant_manager in the DB
     # This avoids brittle tests that depend on a specific seeded user/password.
     try:
         from database import SessionLocal
         from models import User
         from auth.utils import create_access_token
         db = SessionLocal()
-        user = db.query(User).filter(User.org_role.in_(['tenant_manager', 'hr_admin', 'dept_lead']), User.status == 'ACTIVE').first()
+        user = db.query(User).filter(User.org_role.in_(['tenant_tenant_tenant_manager', 'tenant_tenant_tenant_manager', 'dept_lead']), User.status == 'ACTIVE').first()
         if not user:
-            pytest.skip("No tenant manager/hr_admin available to generate token")
+            pytest.skip("No tenant tenant_tenant_manager/tenant_tenant_tenant_manager available to generate token")
         payload = {
             'sub': str(user.id),
             'tenant_id': str(user.tenant_id),

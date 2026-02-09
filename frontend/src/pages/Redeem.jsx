@@ -5,12 +5,14 @@ import toast from 'react-hot-toast'
 import { HiOutlineGift, HiOutlineSearch, HiOutlineFilter, HiOutlineCheck } from 'react-icons/hi'
 import RewardsCatalog from '../components/RewardsCatalog'
 import RedemptionHistory from '../components/RedemptionHistory'
+import RedemptionFlow from '../components/RedemptionFlow'
 
 export default function Redeem() {
   const [activeTab, setActiveTab] = useState('catalog')
   const [selectedCategory, setSelectedCategory] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedVoucher, setSelectedVoucher] = useState(null)
+  const [isFlowOpen, setIsFlowOpen] = useState(false)
   const queryClient = useQueryClient()
 
   const { data: wallet } = useQuery({
@@ -52,9 +54,8 @@ export default function Redeem() {
       return
     }
     
-    if (confirm(`Redeem ${voucher.name} for ${voucher.points_required} points?`)) {
-      redeemMutation.mutate({ voucher_id: voucher.id })
-    }
+    setSelectedVoucher(voucher)
+    setIsFlowOpen(true)
   }
 
   const filteredVouchers = vouchers?.data?.filter(v => 
@@ -140,36 +141,19 @@ export default function Redeem() {
         <RedemptionHistory redemptions={redemptions?.data || []} />
       )}
 
-      {/* Success modal */}
-      {selectedVoucher && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <HiOutlineCheck className="w-8 h-8 text-green-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Redemption Successful!</h2>
-            <p className="text-gray-500 mb-6">{selectedVoucher.voucher_name}</p>
-            
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <p className="text-sm text-gray-500 mb-1">Your Voucher Code</p>
-              <p className="text-2xl font-mono font-bold text-gray-900">{selectedVoucher.voucher_code}</p>
-              {selectedVoucher.voucher_pin && (
-                <>
-                  <p className="text-sm text-gray-500 mt-3 mb-1">PIN</p>
-                  <p className="text-xl font-mono font-bold text-gray-900">{selectedVoucher.voucher_pin}</p>
-                </>
-              )}
-            </div>
-
-            <button
-              onClick={() => setSelectedVoucher(null)}
-              className="btn-primary w-full"
-            >
-              Done
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Redemption Workflow Modal */}
+      <RedemptionFlow
+        voucher={selectedVoucher}
+        isOpen={isFlowOpen}
+        onClose={() => {
+          setIsFlowOpen(false)
+          setSelectedVoucher(null)
+        }}
+        onSuccess={() => {
+          queryClient.invalidateQueries(['myWallet'])
+          queryClient.invalidateQueries(['myRedemptions'])
+        }}
+      />
     </div>
   )
 }

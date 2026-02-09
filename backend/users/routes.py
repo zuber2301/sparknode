@@ -269,9 +269,6 @@ async def patch_user(
     if "mobile_number" in update_data:
         update_data["mobile_number"] = clean_mobile(update_data["mobile_number"])
 
-    if "role" in update_data:
-        user.org_role = update_data.pop("role")
-
     for key, value in update_data.items():
         setattr(user, key, value)
 

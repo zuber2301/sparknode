@@ -423,7 +423,7 @@ def tenant_with_wallet(db_session, tenant):
         corporate_email="admin@example.com",
         first_name="Admin",
         last_name="User",
-        org_role="tenant_manager",
+        org_role="tenant_tenant_tenant_manager",
         password_hash=get_password_hash("password"),
         status="ACTIVE"
     )
@@ -434,7 +434,7 @@ def tenant_with_wallet(db_session, tenant):
         corporate_email="user@example.com",
         first_name="Test",
         last_name="User",
-        org_role="corporate_user",
+        org_role="tenant_user",
         password_hash=get_password_hash("password"),
         status="ACTIVE"
     )
@@ -468,7 +468,7 @@ def tenant_with_multiple_users(db_session, tenant):
         corporate_email="admin@example.com",
         first_name="Admin",
         last_name="User",
-        org_role="tenant_manager",
+        org_role="tenant_tenant_tenant_manager",
         password_hash=get_password_hash("password"),
         status="ACTIVE"
     )
@@ -478,7 +478,7 @@ def tenant_with_multiple_users(db_session, tenant):
         corporate_email="user1@example.com",
         first_name="User",
         last_name="One",
-        org_role="corporate_user",
+        org_role="tenant_user",
         password_hash=get_password_hash("password"),
         status="ACTIVE"
     )
@@ -488,7 +488,7 @@ def tenant_with_multiple_users(db_session, tenant):
         corporate_email="user2@example.com",
         first_name="User",
         last_name="Two",
-        org_role="corporate_user",
+        org_role="tenant_user",
         password_hash=get_password_hash("password"),
         status="ACTIVE"
     )

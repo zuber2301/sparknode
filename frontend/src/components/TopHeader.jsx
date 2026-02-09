@@ -56,6 +56,7 @@ const platformAdminNavigation = [
   { name: 'Tenants', href: '/platform/tenants', icon: HiOutlineOfficeBuilding },
   { name: 'Users', href: '/users', icon: HiOutlineUsers },
   { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar },
+  { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
   { name: 'Events', href: '/events/browse', icon: HiOutlineNewspaper },
   { name: 'Marketplace', href: '/marketplace', icon: HiOutlineShoppingCart },
   {
@@ -73,6 +74,7 @@ const platformAdminNavigation = [
 // Tenant Manager specific navigation - "Nerve Center"
 const tenantManagerNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
+  { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
   { name: 'Departments', href: '/departments', icon: HiOutlineOfficeBuilding },
   { name: 'User Management', href: '/users', icon: HiOutlineUsers },
   { name: 'Marketplace & Rewards', href: '/marketplace', icon: HiOutlineShoppingCart },
@@ -168,8 +170,8 @@ export default function TopHeader() {
     const roles = {
       platform_admin: 'Platform Admin',
       tenant_manager: 'Tenant Manager',
-      dept_lead: 'Department Lead',
-      corporate_user: 'Corporate User',
+      dept_lead: 'Dept Lead',
+      tenant_user: 'Tenant User',
     }
     return roles[role] || role
   }

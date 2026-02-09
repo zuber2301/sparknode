@@ -184,29 +184,65 @@ export default function PlatformTenantDetail() {
       </div>
 
       {/* Top Metric Cards (Overview) */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <p className="text-[12px] text-gray-500 font-bold uppercase tracking-wider">Total Budget Allocated</p>
-          <p className="text-2xl font-bold text-gray-900 mt-3">₹{Number(totalAllocated || 0).toLocaleString()}</p>
-          <p className="text-xs text-gray-400 mt-2">Lifetime Allocations</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+        <div className="stat-card stat-card-compact bg-gradient-to-r from-sparknode-purple to-sparknode-blue text-white">
+          <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
+            <div className="flex-1">
+              <p className="text-xs sm:text-sm text-white/80">Total Budget Allocated</p>
+              <p className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-1">₹{Number(totalAllocated || 0).toLocaleString()}</p>
+            </div>
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+              <span className="text-sm font-semibold">💰</span>
+            </div>
+          </div>
+          <div className="stat-compact-footer">
+            <span className="text-white/80">Lifetime Allocations</span>
+          </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <p className="text-[12px] text-gray-500 font-bold uppercase tracking-wider">Total Spent</p>
-          <p className="text-2xl font-bold text-gray-900 mt-3">₹{Number(totalSpent || 0).toLocaleString()}</p>
-          <p className="text-xs text-gray-400 mt-2">Redeemed / Debited</p>
+        <div className="stat-card stat-card-compact bg-gradient-to-r from-sparknode-purple to-sparknode-blue text-white">
+          <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
+            <div className="flex-1">
+              <p className="text-xs sm:text-sm text-white/80">Total Spent</p>
+              <p className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-1">₹{Number(totalSpent || 0).toLocaleString()}</p>
+            </div>
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+              <span className="text-sm font-semibold">📊</span>
+            </div>
+          </div>
+          <div className="stat-compact-footer">
+            <span className="text-white/80">Redeemed / Debited</span>
+          </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <p className="text-[12px] text-gray-500 font-bold uppercase tracking-wider">Budget Remaining</p>
-          <p className="text-2xl font-bold text-gray-900 mt-3">₹{Number(budgetRemaining || 0).toLocaleString()}</p>
-          <p className="text-xs text-gray-400 mt-2">Current Master Balance</p>
+        <div className="stat-card stat-card-compact bg-gradient-to-r from-sparknode-purple to-sparknode-blue text-white">
+          <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
+            <div className="flex-1">
+              <p className="text-xs sm:text-sm text-white/80">Budget Remaining</p>
+              <p className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-1">₹{Number(budgetRemaining || 0).toLocaleString()}</p>
+            </div>
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+              <span className="text-sm font-semibold">✅</span>
+            </div>
+          </div>
+          <div className="stat-compact-footer">
+            <span className="text-white/80">Current Master Balance</span>
+          </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <p className="text-[12px] text-gray-500 font-bold uppercase tracking-wider">Total Users</p>
-          <p className="text-2xl font-bold text-gray-900 mt-3">{totalUsers}</p>
-          <p className="text-xs text-gray-400 mt-2">Managers / Leads / Employees: {managerCount} / {leadCount} / {employeeCount}</p>
+        <div className="stat-card stat-card-compact bg-gradient-to-r from-sparknode-purple to-sparknode-blue text-white">
+          <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
+            <div className="flex-1">
+              <p className="text-xs sm:text-sm text-white/80">Total Users</p>
+              <p className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-1">{totalUsers}</p>
+            </div>
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+              <span className="text-sm font-semibold">👥</span>
+            </div>
+          </div>
+          <div className="stat-compact-footer">
+            <span className="text-white/80">{managerCount}M / {leadCount}L / {employeeCount}E</span>
+          </div>
         </div>
       </div>
 

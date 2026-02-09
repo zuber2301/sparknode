@@ -20,10 +20,14 @@ export default function Profile() {
     const roles = {
       'platform_admin': 'Platform Admin',
       'tenant_manager': 'Tenant Manager',
-      'dept_lead': 'Tenant Leader',
-      'corporate_user': 'Corporate User'
+      'dept_lead': 'Dept Lead',
+      'tenant_user': 'Tenant User',
+      'dept_lead': 'Dept Lead',
+      'tenant_user': 'Tenant User',
+      'employee': 'Tenant User',
+      'manager': 'Dept Lead'
     };
-    return roles[role] || (role ? role.replace('_', ' ') : 'Employee');
+    return roles[role] || (role ? role.replace('_', ' ') : 'Tenant User');
   };
 
   const formatLocalPart = (local) => {

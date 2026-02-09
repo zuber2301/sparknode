@@ -353,7 +353,7 @@ class TestAdminUserCreation:
         
         assert admin_user is not None
         assert admin_user.corporate_email == "alice@admintest.io"  # Not 'email'
-        assert admin_user.org_role == "tenant_manager"  # Not 'role'
+        assert admin_user.org_role == "tenant_tenant_tenant_manager"  # Not 'role'
         assert admin_user.first_name == "Alice"
         assert admin_user.last_name == "Johnson"
         assert admin_user.status == "ACTIVE"  # Not 'active'
@@ -594,7 +594,7 @@ class TestAuthorizationAndSecurity:
             password_hash=get_password_hash("pass123"),
             first_name="Regular",
             last_name="Admin",
-            org_role="tenant_manager",  # Only tenant admin, not platform admin
+            org_role="tenant_tenant_tenant_manager",  # Only tenant admin, not platform admin
             department_id=dept.id,
             status="ACTIVE"
         )

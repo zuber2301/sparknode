@@ -95,7 +95,7 @@ export default function UserFormModal({
             <select
               name="department_id"
               required
-              defaultValue={user?.dept_id || ''}
+              defaultValue={user?.department_id || ''}
               className="input"
             >
               <option value="">Select Department</option>
@@ -112,11 +112,11 @@ export default function UserFormModal({
             <select
               name="org_role"
               required
-              defaultValue={user?.org_role || 'corporate_user'}
+              defaultValue={user?.org_role || 'tenant_user'}
               className="input"
             >
-              <option value="corporate_user">Corporate User</option>
-              <option value="dept_lead">Department Lead</option>
+              <option value="tenant_user">Tenant User</option>
+              <option value="dept_lead">Dept Lead</option>
               <option value="tenant_manager">Tenant Manager</option>
             </select>
           </div>

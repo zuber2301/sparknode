@@ -356,34 +356,33 @@ async def allocate_lead_budget(
     """Allocate budget points to a Department Lead from their department's budget
     
     Workflow:
-    - Platform Admin: Can allocate to any dept_lead in any department
-    - Tenant Manager: Can allocate to dept_leads in their own department only
-    - HR Admin: Can allocate to any dept_lead in the tenant
+    - Platform Admin: Can allocate to any Tenant Lead in any department
+    - Tenant Manager: Can allocate to Tenant Leads in their own department only
     
     This endpoint:
-    1. Finds the target dept_lead user
+    1. Finds the target Tenant Lead user
     2. Ensures they have a department assigned
     3. Creates department budget if it doesn't exist
     4. Creates or updates the lead budget allocation
     5. Department budget can be shared by all users in that department
     """
-    # 1. Authorization - Only hr_admin and tenant_manager can allocate
-    if current_user.org_role not in ['platform_admin', 'tenant_manager', 'hr_admin']:
+    # 1. Authorization - Only tenant_manager can allocate
+    if current_user.org_role not in ['platform_admin', 'tenant_manager', 'tenant_lead']:
         raise HTTPException(status_code=403, detail="Only managers can allocate budgets")
     
-    # 2. Find the target lead user (should have dept_lead role)
+    # 2. Find the target lead user (should have tenant_lead role)
     lead_user = db.query(User).filter(User.id == request.user_id).first()
     if not lead_user or not lead_user.department_id:
-        raise HTTPException(status_code=404, detail="Department Lead not found or has no department assigned")
+        raise HTTPException(status_code=404, detail="Tenant Lead not found or has no department assigned")
     
     # 3. Ensure lead_user is in the same tenant
     if lead_user.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=403, detail="Cannot allocate to users outside your organization")
     
     # 4. Tenant managers can only allocate to their own department's leads
-    if current_user.org_role in ['tenant_manager', 'hr_admin']:
+    if current_user.org_role in ['tenant_manager']:
         if lead_user.department_id != current_user.department_id:
-            raise HTTPException(status_code=403, detail="Tenant managers can only allocate to dept_leads in their department")
+            raise HTTPException(status_code=403, detail="Tenant managers can only allocate to Tenant Leads in their department")
     
     # 5. Find the active budget for the tenant
     active_budget = db.query(Budget).filter(

@@ -111,7 +111,7 @@ class TestRedemptionApiIntegration:
             corporate_email="low_balance@example.com",
             first_name="Low",
             last_name="Balance",
-            org_role="corporate_user",
+            org_role="tenant_user",
             password_hash=get_password_hash("password"),
             status="ACTIVE"
         )
@@ -191,18 +191,18 @@ class TestRedemptionApiIntegration:
 class TestRewardsApiIntegration:
     """Integration tests for /rewards/* endpoints"""
     
-    def test_list_available_rewards(self, client, tenant_manager_token, tenant):
+    def test_list_available_rewards(self, client, tenant_tenant_tenant_manager_token, tenant):
         """Test listing available rewards"""
         response = client.get(
             "/rewards",
-            headers={"Authorization": f"Bearer {tenant_manager_token}"}
+            headers={"Authorization": f"Bearer {tenant_tenant_tenant_manager_token}"}
         )
         
         assert response.status_code == 200
         rewards = response.json()
         assert isinstance(rewards, list)
     
-    def test_create_reward(self, client, db_session, tenant_manager_token, tenant):
+    def test_create_reward(self, client, db_session, tenant_tenant_tenant_manager_token, tenant):
         """Test creating a reward"""
         reward_data = {
             "name": "Amazon Voucher",
@@ -214,7 +214,7 @@ class TestRewardsApiIntegration:
         response = client.post(
             "/rewards",
             json=reward_data,
-            headers={"Authorization": f"Bearer {tenant_manager_token}"}
+            headers={"Authorization": f"Bearer {tenant_tenant_tenant_manager_token}"}
         )
         
         assert response.status_code in [200, 201]
@@ -222,7 +222,7 @@ class TestRewardsApiIntegration:
         assert reward['name'] == "Amazon Voucher"
         assert reward['cost_points'] == 500
     
-    def test_get_reward_by_id(self, client, db_session, tenant_manager_token, tenant):
+    def test_get_reward_by_id(self, client, db_session, tenant_tenant_tenant_manager_token, tenant):
         """Test retrieving a specific reward"""
         reward = Reward(
             tenant_id=tenant.id,
@@ -236,14 +236,14 @@ class TestRewardsApiIntegration:
         
         response = client.get(
             f"/rewards/{reward.id}",
-            headers={"Authorization": f"Bearer {tenant_manager_token}"}
+            headers={"Authorization": f"Bearer {tenant_tenant_tenant_manager_token}"}
         )
         
         assert response.status_code == 200
         retrieved = response.json()
         assert retrieved['name'] == "Coffee Voucher"
     
-    def test_update_reward(self, client, db_session, tenant_manager_token, tenant):
+    def test_update_reward(self, client, db_session, tenant_tenant_tenant_manager_token, tenant):
         """Test updating a reward"""
         reward = Reward(
             tenant_id=tenant.id,
@@ -263,7 +263,7 @@ class TestRewardsApiIntegration:
         response = client.patch(
             f"/rewards/{reward.id}",
             json=update_data,
-            headers={"Authorization": f"Bearer {tenant_manager_token}"}
+            headers={"Authorization": f"Bearer {tenant_tenant_tenant_manager_token}"}
         )
         
         assert response.status_code in [200, 204]
@@ -272,7 +272,7 @@ class TestRewardsApiIntegration:
         assert reward.name == "New Name"
         assert reward.cost_points == 150
     
-    def test_delete_reward(self, client, db_session, tenant_manager_token, tenant):
+    def test_delete_reward(self, client, db_session, tenant_tenant_tenant_manager_token, tenant):
         """Test deleting a reward"""
         reward = Reward(
             tenant_id=tenant.id,
@@ -287,7 +287,7 @@ class TestRewardsApiIntegration:
         
         response = client.delete(
             f"/rewards/{reward_id}",
-            headers={"Authorization": f"Bearer {tenant_manager_token}"}
+            headers={"Authorization": f"Bearer {tenant_tenant_tenant_manager_token}"}
         )
         
         assert response.status_code in [200, 204]
@@ -405,7 +405,7 @@ def tenant_with_users_and_rewards(db_session, tenant):
         corporate_email="testuser@example.com",
         first_name="Test",
         last_name="User",
-        org_role="corporate_user",
+        org_role="tenant_user",
         password_hash=get_password_hash("password"),
         status="ACTIVE"
     )
@@ -456,7 +456,7 @@ def two_tenants_setup(db_session):
         corporate_email="tenant1user@example.com",
         first_name="T1",
         last_name="User",
-        org_role="corporate_user",
+        org_role="tenant_user",
         password_hash=get_password_hash("password"),
         status="ACTIVE"
     )
@@ -466,7 +466,7 @@ def two_tenants_setup(db_session):
         corporate_email="tenant2user@example.com",
         first_name="T2",
         last_name="User",
-        org_role="corporate_user",
+        org_role="tenant_user",
         password_hash=get_password_hash("password"),
         status="ACTIVE"
     )

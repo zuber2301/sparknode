@@ -14,9 +14,12 @@ export default function RedemptionHistory({ redemptions }) {
 
   const getStatusIcon = (status) => {
     switch (status) {
+      case 'completed':
       case 'fulfilled':
         return <HiOutlineCheck className="w-5 h-5 text-green-500" />
       case 'pending':
+      case 'pending_otp':
+      case 'processing':
         return <HiOutlineClock className="w-5 h-5 text-yellow-500" />
       case 'failed':
         return <HiOutlineX className="w-5 h-5 text-red-500" />
@@ -27,8 +30,10 @@ export default function RedemptionHistory({ redemptions }) {
 
   const getStatusBadge = (status) => {
     const styles = {
+      completed: 'bg-green-100 text-green-800',
       fulfilled: 'bg-green-100 text-green-800',
       pending: 'bg-yellow-100 text-yellow-800',
+      pending_otp: 'bg-amber-100 text-amber-800',
       failed: 'bg-red-100 text-red-800',
       processing: 'bg-blue-100 text-blue-800'
     }
@@ -45,8 +50,8 @@ export default function RedemptionHistory({ redemptions }) {
           {/* Status Icon */}
           <div className="flex-shrink-0">
             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-              redemption.status === 'fulfilled' ? 'bg-green-100' :
-              redemption.status === 'pending' ? 'bg-yellow-100' :
+              (redemption.status === 'completed' || redemption.status === 'fulfilled') ? 'bg-green-100' :
+              (redemption.status === 'pending' || redemption.status === 'pending_otp') ? 'bg-yellow-100' :
               redemption.status === 'failed' ? 'bg-red-100' : 'bg-gray-100'
             }`}>
               {getStatusIcon(redemption.status)}
@@ -66,7 +71,7 @@ export default function RedemptionHistory({ redemptions }) {
             <div className="flex items-center space-x-4 mt-1 text-sm text-gray-500">
               <span>{redemption.brand_name}</span>
               <span>•</span>
-              <span>{redemption.points_spent} points</span>
+              <span>{redemption.points_used || redemption.points_spent} points</span>
               <span>•</span>
               <span>
                 {formatDistanceToNow(new Date(redemption.created_at), { addSuffix: true })}
@@ -75,7 +80,7 @@ export default function RedemptionHistory({ redemptions }) {
           </div>
 
           {/* Voucher Code (if fulfilled) */}
-          {redemption.status === 'fulfilled' && redemption.voucher_code && (
+          {(redemption.status === 'completed' || redemption.status === 'fulfilled') && redemption.voucher_code && (
             <div className="flex-shrink-0 text-right">
               <p className="text-xs text-gray-500">Voucher Code</p>
               <code className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">

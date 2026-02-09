@@ -66,7 +66,7 @@ class LLMService:
             System prompt string
         """
         page = context.get('page', 'general')
-        user_role = context.get('user_role', 'employee')
+        user_role = context.get('user_role', 'tenant_user')
         
         base_prompt = f"""You are SparkNode's AI Copilot, an intelligent assistant helping with employee recognition and rewards.
 

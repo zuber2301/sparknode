@@ -128,7 +128,7 @@ export default function Departments() {
     toast.success(`Department "${response.department_name}" created successfully!`)
     queryClient.invalidateQueries(['departments', 'management'])
     queryClient.invalidateQueries(['tenant', 'current'])
-    setNewlyCreatedDeptId(response.dept_id || response.department_id)
+    setNewlyCreatedDeptId(response.department_id || response.department_id)
     setShowCreateDeptModal(false)
     resetCreateForm()
       
@@ -489,7 +489,7 @@ export default function Departments() {
                 defaultValue=""
               >
                 <option value="" disabled>Select a user...</option>
-                {users?.data?.filter(u => u.dept_id === selectedDept.id)?.map((user) => (
+                {users?.data?.filter(u => u.department_id === selectedDept.id)?.map((user) => (
                   <option key={user.id} value={user.id}>
                     {user.first_name} {user.last_name} ({user.corporate_email})
                   </option>
@@ -580,7 +580,7 @@ export default function Departments() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sparknode-purple focus:border-transparent"
                 >
                   <option value="">Select a user to promote to department lead...</option>
-                  {users?.data?.filter(u => u.org_role !== 'dept_lead')?.map((user) => (
+                  {users?.data?.filter(u => u.org_role !== 'dept_lead' && u.org_role !== 'dept_lead')?.map((user) => (
                     <option key={user.id} value={user.id}>
                       {user.first_name} {user.last_name} ({user.corporate_email})
                     </option>

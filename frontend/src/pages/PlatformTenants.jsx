@@ -12,7 +12,8 @@ import {
   HiOutlineShieldCheck,
   HiOutlineCurrencyRupee,
   HiOutlineDotsVertical,
-  HiOutlineLockClosed
+  HiOutlineLockClosed,
+  HiOutlineLockOpen
 } from 'react-icons/hi'
 import ConfirmModal from '../components/ConfirmModal'
 import AddBudgetModal from '../components/AddBudgetModal'
@@ -890,10 +891,17 @@ export default function PlatformTenants() {
                               <span>Load Budget</span>
                             </button>
 
-                            <button onClick={() => { setActionOpenFor(null); setConfirmProps({ title: `Suspend ${tenant.name}`, description: 'Suspend will restrict access for this tenant. This action can be reversed by an admin.', onConfirm: () => suspendMutation.mutate({ tenantId: tenant.id, reason: 'Suspended by admin' }) }); setIsConfirmOpen(true) }} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md">
-                              <HiOutlineLockClosed className="w-4 h-4 text-red-500" />
-                              <span>Suspend</span>
-                            </button>
+                            {tenant.status === 'suspended' ? (
+                              <button onClick={() => { setActionOpenFor(null); setConfirmProps({ title: `Reactivate ${tenant.name}`, description: 'Reactivate will restore access for this tenant.', onConfirm: () => activateMutation.mutate(tenant.id) }); setIsConfirmOpen(true) }} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-green-600 hover:bg-green-50 rounded-md">
+                                <HiOutlineLockOpen className="w-4 h-4 text-green-500" />
+                                <span>Reactivate</span>
+                              </button>
+                            ) : (
+                              <button onClick={() => { setActionOpenFor(null); setConfirmProps({ title: `Suspend ${tenant.name}`, description: 'Suspend will restrict access for this tenant. This action can be reversed by an admin.', onConfirm: () => suspendMutation.mutate({ tenantId: tenant.id, reason: 'Suspended by admin' }) }); setIsConfirmOpen(true) }} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md">
+                                <HiOutlineLockClosed className="w-4 h-4 text-red-500" />
+                                <span>Suspend</span>
+                              </button>
+                            )}
                           </div>
                         )}
                       </td>

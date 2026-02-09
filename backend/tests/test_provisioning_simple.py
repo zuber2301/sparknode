@@ -26,8 +26,8 @@ def admin_token():
 
 
 @pytest.fixture
-def tenant_manager_token(admin_token):
-    """Get tenant admin authentication token (create temporary tenant manager if needed)"""
+def tenant_tenant_tenant_manager_token(admin_token):
+    """Get tenant admin authentication token (create temporary tenant tenant_tenant_manager if needed)"""
     import time
     # Try seeded user first
     response = requests.post(
@@ -37,13 +37,13 @@ def tenant_manager_token(admin_token):
     if response.status_code == 200:
         return response.json()["access_token"]
 
-    # If seeded login failed, create a temporary tenant manager using platform admin
+    # If seeded login failed, create a temporary tenant tenant_tenant_manager using platform admin
     tmp_email = f"tm_test_{int(time.time())}@sparknode.io"
     create_payload = {
         "corporate_email": tmp_email,
         "first_name": "TM",
         "last_name": "Test",
-        "org_role": "tenant_manager",
+        "org_role": "tenant_tenant_tenant_manager",
         "password": PASSWORD,
         "department_id": "110e8400-e29b-41d4-a716-446655440000"
     }
@@ -59,18 +59,18 @@ def tenant_manager_token(admin_token):
             if response.status_code == 200:
                 return response.json()["access_token"]
             time.sleep(0.5)
-        assert False, f"Unable to create or login tenant manager: {create_resp.status_code} {create_resp.text}"
+        assert False, f"Unable to create or login tenant tenant_tenant_manager: {create_resp.status_code} {create_resp.text}"
 
     # Login as the temporary user
     login_resp = requests.post(f"{BASE_URL}/auth/login", json={"email": tmp_email, "password": PASSWORD})
-    assert login_resp.status_code == 200, f"Failed to login as newly created tenant manager: {login_resp.text}"
+    assert login_resp.status_code == 200, f"Failed to login as newly created tenant tenant_tenant_manager: {login_resp.text}"
     return login_resp.json()["access_token"]
 
 
 class TestInviteUsersMethod:
     """Test the Invite-Link provisioning method"""
     
-    def test_generate_invitation_link(self, tenant_manager_token):
+    def test_generate_invitation_link(self, tenant_tenant_tenant_manager_token):
         """Test generating an invitation link for a new user"""
         payload = {
             "email": f"newuser_{datetime.now().timestamp()}@example.com",
@@ -80,7 +80,7 @@ class TestInviteUsersMethod:
         response = requests.post(
             f"{BASE_URL}/auth/invitations/generate",
             json=payload,
-            headers={"Authorization": f"Bearer {tenant_manager_token}"}
+            headers={"Authorization": f"Bearer {tenant_tenant_tenant_manager_token}"}
         )
         
         assert response.status_code in [200, 201, 405], f"Unexpected status: {response.status_code}, response: {response.json()}"
@@ -93,12 +93,12 @@ class TestInviteUsersMethod:
 class TestBulkUploadMethod:
     """Test the Bulk Upload (CSV) provisioning method"""
     
-    def test_bulk_upload_endpoint(self, tenant_manager_token):
+    def test_bulk_upload_endpoint(self, tenant_tenant_tenant_manager_token):
         """Test uploading a CSV file for bulk user provisioning"""
         csv_content = """email,full_name,department,role
-alice@example.com,Alice Johnson,Engineering,corporate_user
+alice@example.com,Alice Johnson,Engineering,tenant_user
 bob@example.com,Bob Smith,Engineering,dept_lead
-carol@example.com,Carol Davis,Marketing,corporate_user"""
+carol@example.com,Carol Davis,Marketing,tenant_user"""
         
         files = {
             'file': (f'test_users_{datetime.now().timestamp()}.csv', csv_content, 'text/csv')
@@ -107,7 +107,7 @@ carol@example.com,Carol Davis,Marketing,corporate_user"""
         response = requests.post(
             f"{BASE_URL}/users/upload",
             files=files,
-            headers={"Authorization": f"Bearer {tenant_manager_token}"}
+            headers={"Authorization": f"Bearer {tenant_tenant_tenant_manager_token}"}
         )
         
         if response.status_code != 200:
@@ -121,11 +121,11 @@ carol@example.com,Carol Davis,Marketing,corporate_user"""
 class TestUserManagement:
     """Test user management endpoints"""
     
-    def test_list_users(self, tenant_manager_token):
+    def test_list_users(self, tenant_tenant_tenant_manager_token):
         """Test fetching list of users"""
         response = requests.get(
             f"{BASE_URL}/users",
-            headers={"Authorization": f"Bearer {tenant_manager_token}"}
+            headers={"Authorization": f"Bearer {tenant_tenant_tenant_manager_token}"}
         )
         
         assert response.status_code == 200, f"Failed to list users: {response.json()}"
@@ -133,11 +133,11 @@ class TestUserManagement:
         assert isinstance(data, (list, dict)), "Response should be list or dict"
         print(f"✅ Users listed: {len(data) if isinstance(data, list) else 'dict response'}")
     
-    def test_get_user_profile(self, tenant_manager_token):
+    def test_get_user_profile(self, tenant_tenant_tenant_manager_token):
         """Test fetching current user profile"""
         response = requests.get(
             f"{BASE_URL}/users/profile",
-            headers={"Authorization": f"Bearer {tenant_manager_token}"}
+            headers={"Authorization": f"Bearer {tenant_tenant_tenant_manager_token}"}
         )
         
         assert response.status_code == 200, f"Failed to get profile: {response.json()}"
@@ -149,11 +149,11 @@ class TestUserManagement:
 class TestTenantOperations:
     """Test tenant-level operations"""
     
-    def test_get_current_tenant(self, tenant_manager_token):
+    def test_get_current_tenant(self, tenant_tenant_tenant_manager_token):
         """Test fetching current tenant information"""
         response = requests.get(
             f"{BASE_URL}/tenants/current",
-            headers={"Authorization": f"Bearer {tenant_manager_token}"}
+            headers={"Authorization": f"Bearer {tenant_tenant_tenant_manager_token}"}
         )
         
         assert response.status_code == 200, f"Failed to get tenant: {response.json()}"
@@ -161,11 +161,11 @@ class TestTenantOperations:
         assert "name" in tenant or "id" in tenant
         print(f"✅ Tenant retrieved: {tenant.get('name', 'Unknown')}")
     
-    def test_list_departments(self, tenant_manager_token):
+    def test_list_departments(self, tenant_tenant_tenant_manager_token):
         """Test listing tenant departments"""
         response = requests.get(
             f"{BASE_URL}/departments",
-            headers={"Authorization": f"Bearer {tenant_manager_token}"}
+            headers={"Authorization": f"Bearer {tenant_tenant_tenant_manager_token}"}
         )
         
         if response.status_code == 200:
@@ -191,9 +191,9 @@ class TestAuthenticationFlow:
         assert data.get("user", {}).get("is_platform_admin") == True or "super_admin" in str(data)
         print(f"✅ Platform admin login successful")
     
-    def test_login_as_tenant_manager(self, tenant_manager_token):
+    def test_login_as_tenant_tenant_tenant_manager(self, tenant_tenant_tenant_manager_token):
         """Test tenant admin login via fixture"""
-        assert tenant_manager_token is not None, "Failed to obtain tenant manager token"
+        assert tenant_tenant_tenant_manager_token is not None, "Failed to obtain tenant tenant_tenant_manager token"
         print("✅ Tenant admin login successful (via fixture)")
     
     def test_invalid_credentials(self):

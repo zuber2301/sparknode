@@ -133,16 +133,16 @@ VALUES
 ('220e8400-e29b-41d4-a716-446655440001', '100e8400-e29b-41d4-a716-446655440000', 'tenant_manager@sparknode.io', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Tenant', 'Admin', 'tenant_manager', '110e8400-e29b-41d4-a716-446655440000')
 ON CONFLICT (tenant_id, corporate_email) DO NOTHING;
 
--- Dept Lead: tenant_lead@sparknode.io
+-- Dept Lead: dept_lead@sparknode.io
 INSERT INTO users (id, tenant_id, corporate_email, password_hash, first_name, last_name, org_role, department_id)
 VALUES
-('220e8400-e29b-41d4-a716-446655440002', '100e8400-e29b-41d4-a716-446655440000', 'tenant_lead@sparknode.io', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Tenant', 'Lead', 'dept_lead', '110e8400-e29b-41d4-a716-446655440000')
+('220e8400-e29b-41d4-a716-446655440002', '100e8400-e29b-41d4-a716-446655440000', 'dept_lead@sparknode.io', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Tenant', 'Lead', 'dept_lead', '110e8400-e29b-41d4-a716-446655440000')
 ON CONFLICT (tenant_id, corporate_email) DO NOTHING;
 
--- Tenant User (Corporate User): user@sparknode.io
+-- Tenant User: user@sparknode.io
 INSERT INTO users (id, tenant_id, corporate_email, password_hash, first_name, last_name, org_role, department_id)
 VALUES
-('220e8400-e29b-41d4-a716-446655440003', '100e8400-e29b-41d4-a716-446655440000', 'user@sparknode.io', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Corporate', 'User', 'corporate_user', '110e8400-e29b-41d4-a716-446655440000')
+('220e8400-e29b-41d4-a716-446655440003', '100e8400-e29b-41d4-a716-446655440000', 'user@sparknode.io', '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u', 'Tenant', 'User', 'tenant_user', '110e8400-e29b-41d4-a716-446655440000')
 ON CONFLICT (tenant_id, corporate_email) DO NOTHING;
 
 -- Wallets for the 4 seeded users only

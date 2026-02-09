@@ -17,14 +17,14 @@ class TestBulkImportRegressions:
     These tests validate the fixes applied to database schema and code.
     """
     
-    def test_bulk_upload_creates_staging_records(self, tenant_manager_token, db_session, tenant):
+    def test_bulk_upload_creates_staging_records(self, tenant_tenant_tenant_manager_token, db_session, tenant):
         """Regression: Bulk upload should create records in staging table"""
         from main import app
         
         client = TestClient(app)
         csv_content = """email,full_name,department,role
-john@example.com,John Doe,Engineering,corporate_user
-jane@example.com,Jane Smith,Engineering,corporate_user"""
+john@example.com,John Doe,Engineering,tenant_user
+jane@example.com,Jane Smith,Engineering,tenant_user"""
         
         files = {
             'file': ('users.csv', io.BytesIO(csv_content.encode()), 'text/csv')
@@ -33,7 +33,7 @@ jane@example.com,Jane Smith,Engineering,corporate_user"""
         response = client.post(
             "/users/upload",
             files=files,
-            headers={"Authorization": f"Bearer {tenant_manager_token}"}
+            headers={"Authorization": f"Bearer {tenant_tenant_tenant_manager_token}"}
         )
         
         assert response.status_code in [200, 201]
@@ -52,8 +52,8 @@ jane@example.com,Jane Smith,Engineering,corporate_user"""
         required_columns = {
             'id', 'tenant_id', 'batch_id',
             'raw_full_name', 'raw_email', 'raw_department', 'raw_role', 'raw_mobile_phone',
-            'manager_email', 'first_name', 'last_name', 'corporate_email', 'personal_email',
-            'date_of_birth', 'hire_date', 'department_id', 'manager_id',
+            'tenant_tenant_manager_email', 'first_name', 'last_name', 'corporate_email', 'personal_email',
+            'date_of_birth', 'hire_date', 'department_id', 'tenant_tenant_manager_id',
             'is_valid', 'validation_errors', 'status',
             'created_at', 'updated_at'
         }
@@ -82,7 +82,7 @@ jane@example.com,Jane Smith,Engineering,corporate_user"""
             raw_full_name="John Doe",
             raw_email="john@example.com",
             raw_department="Engineering",
-            raw_role="corporate_user",
+            raw_role="tenant_user",
             is_valid=False,
             validation_errors=[],
             # These should be allowed to be NULL
@@ -91,9 +91,9 @@ jane@example.com,Jane Smith,Engineering,corporate_user"""
             first_name=None,
             last_name=None,
             corporate_email=None,
-            manager_email=None,
+            tenant_tenant_manager_email=None,
             department_id=None,
-            manager_id=None
+            tenant_tenant_manager_id=None
         )
         
         db_session.add(staging)
@@ -130,13 +130,13 @@ jane@example.com,Jane Smith,Engineering,corporate_user"""
         assert result.validation_errors == errors
         assert isinstance(result.validation_errors, list)
     
-    def test_bulk_upload_endpoint_returns_valid_batch_id(self, tenant_manager_token, db_session, tenant):
+    def test_bulk_upload_endpoint_returns_valid_batch_id(self, tenant_tenant_tenant_manager_token, db_session, tenant):
         """Regression: Bulk upload should return a valid UUID batch_id"""
         from main import app
         
         client = TestClient(app)
         csv_content = """email,full_name,department,role
-john@example.com,John Doe,Engineering,corporate_user"""
+john@example.com,John Doe,Engineering,tenant_user"""
         
         files = {
             'file': ('users.csv', io.BytesIO(csv_content.encode()), 'text/csv')
@@ -145,7 +145,7 @@ john@example.com,John Doe,Engineering,corporate_user"""
         response = client.post(
             "/users/upload",
             files=files,
-            headers={"Authorization": f"Bearer {tenant_manager_token}"}
+            headers={"Authorization": f"Bearer {tenant_tenant_tenant_manager_token}"}
         )
         
         assert response.status_code in [200, 201]
@@ -159,7 +159,7 @@ john@example.com,John Doe,Engineering,corporate_user"""
         except ValueError:
             pytest.fail(f"batch_id '{batch_id}' is not a valid UUID")
     
-    def test_bulk_upload_error_handling_no_500_errors(self, tenant_manager_token, db_session):
+    def test_bulk_upload_error_handling_no_500_errors(self, tenant_tenant_tenant_manager_token, db_session):
         """Regression: Bulk upload should never return 500 error, always 200 or 400"""
         from main import app
         
@@ -176,20 +176,20 @@ invalid-email,John,NonexistentDept,invalid_role"""
         response = client.post(
             "/users/upload",
             files=files,
-            headers={"Authorization": f"Bearer {tenant_manager_token}"}
+            headers={"Authorization": f"Bearer {tenant_tenant_tenant_manager_token}"}
         )
         
         # Should not return 500
         assert response.status_code in [200, 201, 400, 422], \
             f"Unexpected status {response.status_code}: {response.text}"
     
-    def test_bulk_upload_tracks_valid_vs_error_rows(self, tenant_manager_token, db_session, tenant_with_valid_department):
+    def test_bulk_upload_tracks_valid_vs_error_rows(self, tenant_tenant_tenant_manager_token, db_session, tenant_with_valid_department):
         """Regression: Bulk upload should track valid and error rows separately"""
         from main import app
         
         client = TestClient(app)
         csv_content = """email,full_name,department,role
-john@example.com,John Doe,Engineering,corporate_user
+john@example.com,John Doe,Engineering,tenant_user
 invalid,Missing Name,Engineering,user"""
         
         files = {
@@ -199,7 +199,7 @@ invalid,Missing Name,Engineering,user"""
         response = client.post(
             "/users/upload",
             files=files,
-            headers={"Authorization": f"Bearer {tenant_manager_token}"}
+            headers={"Authorization": f"Bearer {tenant_tenant_tenant_manager_token}"}
         )
         
         assert response.status_code in [200, 201]
@@ -208,13 +208,13 @@ invalid,Missing Name,Engineering,user"""
         assert data['total_rows'] == 2
         assert data['valid_rows'] + data['error_rows'] == 2
     
-    def test_bulk_upload_staging_data_persists_across_requests(self, tenant_manager_token, db_session, tenant):
+    def test_bulk_upload_staging_data_persists_across_requests(self, tenant_tenant_tenant_manager_token, db_session, tenant):
         """Regression: Staging data should persist in database"""
         from main import app
         
         client = TestClient(app)
         csv_content = """email,full_name,department,role
-john@example.com,John Doe,Engineering,corporate_user"""
+john@example.com,John Doe,Engineering,tenant_user"""
         
         files = {
             'file': ('users.csv', io.BytesIO(csv_content.encode()), 'text/csv')
@@ -223,7 +223,7 @@ john@example.com,John Doe,Engineering,corporate_user"""
         response = client.post(
             "/users/upload",
             files=files,
-            headers={"Authorization": f"Bearer {tenant_manager_token}"}
+            headers={"Authorization": f"Bearer {tenant_tenant_tenant_manager_token}"}
         )
         
         batch_id = response.json()['batch_id']
@@ -268,7 +268,7 @@ john@example.com,John Doe,Engineering,corporate_user"""
         ).all()
         assert len(records_in_other_tenant) == 0
     
-    def test_bulk_upload_double_insert_prevention(self, tenant_manager_token, db_session, tenant, user_in_tenant):
+    def test_bulk_upload_double_insert_prevention(self, tenant_tenant_tenant_manager_token, db_session, tenant, user_in_tenant):
         """Regression: System should prevent uploading duplicate emails"""
         from main import app
         
@@ -276,7 +276,7 @@ john@example.com,John Doe,Engineering,corporate_user"""
         
         # Try to upload user that already exists
         csv_content = f"""email,full_name,department,role
-{user_in_tenant['corporate_email']},Existing User,Engineering,corporate_user"""
+{user_in_tenant['corporate_email']},Existing User,Engineering,tenant_user"""
         
         files = {
             'file': ('users.csv', io.BytesIO(csv_content.encode()), 'text/csv')
@@ -285,7 +285,7 @@ john@example.com,John Doe,Engineering,corporate_user"""
         response = client.post(
             "/users/upload",
             files=files,
-            headers={"Authorization": f"Bearer {tenant_manager_token}"}
+            headers={"Authorization": f"Bearer {tenant_tenant_tenant_manager_token}"}
         )
         
         assert response.status_code in [200, 201]
@@ -343,7 +343,7 @@ def user_in_tenant(db_session, tenant):
         corporate_email="existing@example.com",
         first_name="Existing",
         last_name="User",
-        org_role="corporate_user",
+        org_role="tenant_user",
         password_hash=get_password_hash("password123"),
         status="ACTIVE"
     )

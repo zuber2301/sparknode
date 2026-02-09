@@ -13,11 +13,13 @@ from models import (
     Brand, Voucher, TenantVoucher, Redemption, User,
     Wallet, WalletLedger, Feed, Notification, AuditLog
 )
-from auth.utils import get_current_user, get_hr_admin
+from auth.utils import get_current_user
 from redemption.schemas import (
     BrandResponse, VoucherResponse, RedemptionCreate,
-    RedemptionResponse, RedemptionDetailResponse
+    RedemptionResponse, RedemptionDetailResponse,
+    RedemptionVerifyOTPRequest, RedemptionDeliveryDetailsRequest
 )
+from redemption.aggregator import get_aggregator_client
 
 router = APIRouter()
 
@@ -145,6 +147,253 @@ async def get_voucher(
         validity_days=voucher.validity_days,
         is_active=voucher.is_active
     )
+
+
+@router.post("/initiate", response_model=RedemptionResponse)
+async def initiate_redemption(
+    redemption_data: RedemptionCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Initiate a redemption and send OTP"""
+    # Get voucher
+    voucher_result = db.query(Voucher, Brand).join(
+        Brand, Voucher.brand_id == Brand.id
+    ).filter(Voucher.id == redemption_data.voucher_id).first()
+    
+    if not voucher_result:
+        raise HTTPException(status_code=404, detail="Voucher not found")
+    
+    voucher, brand = voucher_result
+    
+    if not voucher.is_active:
+        raise HTTPException(status_code=400, detail="Voucher is not available")
+    
+    # Check if voucher is available for tenant
+    tenant_voucher = db.query(TenantVoucher).filter(
+        TenantVoucher.tenant_id == current_user.tenant_id,
+        TenantVoucher.voucher_id == voucher.id,
+        TenantVoucher.is_active == True
+    ).first()
+    
+    if not tenant_voucher:
+        raise HTTPException(status_code=400, detail="Voucher not available for your organization")
+    
+    # Get user's wallet
+    wallet = db.query(Wallet).filter(Wallet.user_id == current_user.id).first()
+    if not wallet:
+        raise HTTPException(status_code=400, detail="Wallet not found")
+    
+    points_required = tenant_voucher.custom_points_required or voucher.points_required
+    
+    # Check wallet balance
+    if wallet.balance < points_required:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Insufficient balance. Required: {points_required}, Available: {wallet.balance}"
+        )
+    
+    # Check stock (if applicable)
+    if voucher.stock_quantity is not None and voucher.stock_quantity <= 0:
+        raise HTTPException(status_code=400, detail="Voucher out of stock")
+    
+    # Generate OTP
+    otp = str(secrets.randbelow(1000000)).zfill(6)
+    
+    # Create redemption in pending_otp status
+    redemption = Redemption(
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
+        voucher_id=voucher.id,
+        points_used=points_required,
+        copay_amount=voucher.copay_amount or Decimal(0),
+        status='pending_otp',
+        reward_type=voucher.reward_type or 'voucher',
+        otp_code=otp,
+        otp_expires_at=datetime.utcnow() + timedelta(minutes=10)
+    )
+    db.add(redemption)
+    db.flush()
+    
+    # Debit wallet (Lock points)
+    old_balance = wallet.balance
+    wallet.balance = Decimal(str(wallet.balance)) - points_required
+    wallet.lifetime_spent = Decimal(str(wallet.lifetime_spent)) + points_required
+    
+    # Create ledger entry
+    ledger_entry = WalletLedger(
+        tenant_id=current_user.tenant_id,
+        wallet_id=wallet.id,
+        transaction_type='debit',
+        source='redemption_initiated',
+        points=points_required,
+        balance_after=wallet.balance,
+        reference_type='redemption',
+        reference_id=redemption.id,
+        description=f"Redemption initiated: {voucher.name} (OTP pending)"
+    )
+    db.add(ledger_entry)
+    
+    # Create notification with OTP
+    notification = Notification(
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
+        type='redemption_otp',
+        title='Redemption Verification Code',
+        message=f"Your verification code for {voucher.name} is: {otp}. It expires in 10 minutes.",
+        reference_type='redemption',
+        reference_id=redemption.id
+    )
+    db.add(notification)
+    
+    db.commit()
+    db.refresh(redemption)
+    
+    return redemption
+
+
+@router.post("/verify-otp", response_model=RedemptionResponse)
+async def verify_redemption_otp(
+    data: RedemptionVerifyOTPRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Verify OTP and proceed with redemption"""
+    redemption = db.query(Redemption).filter(
+        Redemption.id == data.redemption_id,
+        Redemption.user_id == current_user.id,
+        Redemption.status == 'pending_otp'
+    ).first()
+    
+    if not redemption:
+        raise HTTPException(status_code=404, detail="Redemption session not found or already verified")
+        
+    if redemption.otp_expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="OTP has expired. Please resend.")
+        
+    if redemption.otp_code != data.otp:
+        raise HTTPException(status_code=400, detail="Invalid verification code")
+        
+    # Mark as processing
+    redemption.status = 'processing'
+    redemption.otp_code = None # Clear OTP after use
+    db.commit()
+    
+    # If it's a voucher, we can usually issue it immediately if using Mock or some providers
+    # If it's merchandise, we might wait for delivery details.
+    
+    if redemption.reward_type == 'voucher':
+        # Issue voucher logic
+        try:
+            voucher = db.query(Voucher).get(redemption.voucher_id)
+            client = get_aggregator_client()
+            issue_res = client.issue_voucher(
+                tenant_id=redemption.tenant_id,
+                vendor_code=voucher.vendor_code or f"MOCK-{voucher.denomination}",
+                amount=float(voucher.denomination),
+                metadata={
+                    "redemption_id": str(redemption.id),
+                    "email": current_user.corporate_email,
+                    "first_name": current_user.first_name,
+                    "last_name": current_user.last_name
+                }
+            )
+            
+            if issue_res.get("status") == "success":
+                redemption.status = 'completed'
+                redemption.voucher_code = issue_res.get("voucher_code")
+                redemption.voucher_pin = issue_res.get("pin")
+                redemption.provider_reference = issue_res.get("vendor_reference")
+                redemption.fulfilled_at = datetime.utcnow()
+                redemption.expires_at = datetime.utcnow() + timedelta(days=voucher.validity_days)
+                
+                # Update voucher stock
+                if voucher.stock_quantity is not None:
+                    voucher.stock_quantity -= 1
+                    
+                # Create final notification
+                notification = Notification(
+                    tenant_id=current_user.tenant_id,
+                    user_id=current_user.id,
+                    type='redemption_completed',
+                    title='Reward Issued!',
+                    message=f"Your {voucher.name} reward has been issued successfully.",
+                    reference_type='redemption',
+                    reference_id=redemption.id
+                )
+                db.add(notification)
+            else:
+                redemption.status = 'failed'
+        except Exception as e:
+            # In a real app, you'd log this and mark for retry
+            redemption.status = 'failed'
+            
+    db.commit()
+    db.refresh(redemption)
+    return redemption
+
+
+@router.post("/delivery-details", response_model=RedemptionResponse)
+async def set_delivery_details(
+    data: RedemptionDeliveryDetailsRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Set delivery details for physical rewards"""
+    redemption = db.query(Redemption).filter(
+        Redemption.id == data.redemption_id,
+        Redemption.user_id == current_user.id
+    ).first()
+    
+    if not redemption:
+        raise HTTPException(status_code=404, detail="Redemption not found")
+        
+    if redemption.reward_type != 'merchandise':
+        raise HTTPException(status_code=400, detail="Delivery details only required for merchandise")
+        
+    redemption.delivery_details = data.model_dump()
+    redemption.status = 'processing' # Confirm it's in processing after delivery details
+    
+    db.commit()
+    db.refresh(redemption)
+    return redemption
+
+
+@router.post("/resend-otp", response_model=dict)
+async def resend_redemption_otp(
+    redemption_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Resend verification code"""
+    redemption = db.query(Redemption).filter(
+        Redemption.id == redemption_id,
+        Redemption.user_id == current_user.id,
+        Redemption.status == 'pending_otp'
+    ).first()
+    
+    if not redemption:
+        raise HTTPException(status_code=404, detail="Redemption session not found")
+        
+    # Generate new OTP
+    otp = str(secrets.randbelow(1000000)).zfill(6)
+    redemption.otp_code = otp
+    redemption.otp_expires_at = datetime.utcnow() + timedelta(minutes=10)
+    
+    # Notify
+    notification = Notification(
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
+        type='redemption_otp',
+        title='New Verification Code',
+        message=f"Your new verification code is: {otp}. It expires in 10 minutes.",
+        reference_type='redemption',
+        reference_id=redemption.id
+    )
+    db.add(notification)
+    
+    db.commit()
+    return {"status": "success", "message": "Verification code resent"}
 
 
 @router.post("/", response_model=RedemptionDetailResponse)

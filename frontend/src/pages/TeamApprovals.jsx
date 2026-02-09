@@ -20,9 +20,9 @@ export default function TeamApprovals() {
   }
 
   const { data: pendingResp, isLoading, refetch } = useQuery({
-    queryKey: ['pendingApprovals', user?.dept_id],
-    queryFn: () => recognitionApi.getAll({ status: 'pending', department_id: user?.dept_id }),
-    enabled: !!user?.dept_id,
+    queryKey: ['pendingApprovals', user?.department_id],
+    queryFn: () => recognitionApi.getAll({ status: 'pending', department_id: user?.department_id }),
+    enabled: !!user?.department_id,
   })
 
   const items = pendingResp?.data || []

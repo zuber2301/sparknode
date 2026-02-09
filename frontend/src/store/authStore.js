@@ -4,14 +4,9 @@ import { persist } from 'zustand/middleware'
 // Role hierarchy constants
 export const UserRole = {
   PLATFORM_ADMIN: 'platform_admin',
-  TENANT_ADMIN: 'tenant_manager',
   TENANT_MANAGER: 'tenant_manager',
-  TENANT_LEAD: 'dept_lead',
-  CORPORATE_USER: 'corporate_user',
-  // Legacy mappings
-  HR_ADMIN: 'tenant_manager',
-  MANAGER: 'manager',
-  EMPLOYEE: 'employee',
+  DEPT_LEAD: 'dept_lead',
+  TENANT_USER: 'tenant_user',
 }
 
 // Role hierarchy levels (higher = more permissions)
@@ -19,20 +14,12 @@ const ROLE_HIERARCHY = {
   platform_admin: 100,
   tenant_manager: 80,
   dept_lead: 60,
-  // tenant_lead legacy alias removed
-  manager: 60, // Legacy alias
-  corporate_user: 40,
-  employee: 40, // Legacy alias
+  tenant_user: 40,
 }
 
-// Normalize legacy roles to new roles
+// Normalize roles to standardized format
 const normalizeRole = (role) => {
-  const legacyMap = {
-    manager: 'dept_lead',
-    dept_lead: 'dept_lead',
-    employee: 'corporate_user',
-  }
-  return legacyMap[role] || role
+  return role || 'tenant_user'
 }
 
 export const useAuthStore = create(
@@ -133,26 +120,23 @@ export const useAuthStore = create(
         return getEffectiveRole() === 'tenant_manager' || getEffectiveRole() === 'platform_admin'
       },
 
-      // Tenant Lead check (includes Tenant Manager and above)
+      // Dept Lead check (includes Tenant Manager and above)
       isTenantLead: () => {
         const { getEffectiveRole, isTenantAdmin } = get()
-        return isTenantAdmin() || getEffectiveRole() === 'dept_lead'
+        const role = getEffectiveRole()
+        return isTenantAdmin() || role === 'dept_lead' || role === 'dept_lead'
       },
 
       // Any authenticated user within tenant
-      isCorporateUser: () => {
+      isTenantUser: () => {
         const { isAuthenticated } = get()
         return isAuthenticated
       },
 
-      // Legacy compatibility methods
-      isHRAdmin: () => {
-        return get().isTenantAdmin()
-      },
-
-      isManager: () => {
-        return get().isTenantLead()
-      },
+      // Compatibility methods (can be phased out later)
+      isCorporateUser: () => get().isTenantUser(),
+      isHRAdmin: () => get().isTenantAdmin(),
+      isManager: () => get().isTenantLead(),
 
       // Permission checks
       canManageTenant: () => {

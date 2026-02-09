@@ -326,19 +326,6 @@ class User(Base):
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
 
-    @property
-    def dept_id(self):
-        """Compatibility alias: return `department_id` under legacy name `dept_id`."""
-        return self.department_id
-
-    @property
-    def role(self):
-        return self.org_role
-
-    @role.setter
-    def role(self, value):
-        self.org_role = value
-
 
 class SystemAdmin(Base):
     __tablename__ = "system_admins"
@@ -668,6 +655,8 @@ class Voucher(Base):
     brand_id = Column(UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(255), nullable=False)
     description = Column(Text)
+    reward_type = Column(String(50), default='voucher')  # voucher, merchandise
+    vendor_code = Column(String(100))
     denomination = Column(Numeric(15, 2), nullable=False)
     points_required = Column(Numeric(15, 2), nullable=False)
     copay_amount = Column(Numeric(15, 2), default=0)
@@ -713,10 +702,14 @@ class Redemption(Base):
     voucher_id = Column(UUID(as_uuid=True), ForeignKey("vouchers.id"), nullable=False)
     points_used = Column(Numeric(15, 2), nullable=False)
     copay_amount = Column(Numeric(15, 2), default=0)
+    reward_type = Column(String(50), default='voucher')  # voucher, merchandise
     voucher_code = Column(String(255))
     voucher_pin = Column(String(100))
-    status = Column(String(50), default='pending')  # pending/processing/completed/failed/cancelled/expired
+    status = Column(String(50), default='pending')  # pending_otp, processing, completed, failed, cancelled, expired
     provider_reference = Column(String(255))
+    otp_code = Column(String(10))
+    otp_expires_at = Column(DateTime(timezone=True))
+    delivery_details = Column(JSONB)  # For physical rewards
     fulfilled_at = Column(DateTime(timezone=True))
     expires_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
