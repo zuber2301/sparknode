@@ -53,8 +53,8 @@ export default function TenantCurrencySettings({ tenantId = null }) {
   useEffect(() => {
     if (tenantData) {
       setFormData({
-        currency: tenantData.currency || tenantData.display_currency || 'USD',
-        conversion_rate: parseFloat(tenantData.conversion_rate || tenantData.fx_rate) || 1.0
+        currency: tenantData.display_currency || tenantData.currency || 'USD',
+        conversion_rate: parseFloat(tenantData.fx_rate || tenantData.conversion_rate) || 1.0
       })
     }
   }, [tenantData])
@@ -109,8 +109,8 @@ export default function TenantCurrencySettings({ tenantId = null }) {
     const conversionRate = formData.currency === 'USD' ? 1.0 : parseFloat(formData.conversion_rate)
     
     updateMutation.mutate({
-      currency: formData.currency,
-      conversion_rate: conversionRate
+      display_currency: formData.currency,
+      fx_rate: conversionRate
     })
   }
 

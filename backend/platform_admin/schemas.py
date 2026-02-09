@@ -29,6 +29,10 @@ class TenantCreateRequest(BaseModel):
     max_users: int = Field(default=50, ge=1)
     master_budget_balance: Optional[Decimal] = Field(default=Decimal("0"), ge=0)
     
+    # Multi-Currency Configuration (Mandatory)
+    display_currency: str = Field(default="USD", pattern="^(USD|EUR|INR)$")  # Required currency choice
+    fx_rate: Optional[Decimal] = Field(default=Decimal("1.0"), gt=0)  # Exchange rate for display currency
+    
     # Initial admin
     admin_email: EmailStr
     admin_first_name: str = Field(..., min_length=1, max_length=100)
@@ -62,6 +66,10 @@ class TenantUpdateRequest(BaseModel):
     currency_label: Optional[str] = None
     conversion_rate: Optional[Decimal] = None
     auto_refill_threshold: Optional[Decimal] = None
+    
+    # Multi-Currency Support
+    display_currency: Optional[str] = Field(None, pattern="^(USD|EUR|INR)$")  # Display currency for tenant
+    fx_rate: Optional[Decimal] = Field(None, gt=0)  # Exchange rate for display currency
 
     # Recognition Laws
     award_tiers: Optional[Dict[str, int]] = None
@@ -132,6 +140,11 @@ class TenantDetailResponse(BaseModel):
     currency_label: str
     conversion_rate: Decimal
     auto_refill_threshold: Decimal
+    
+    # Multi-Currency Support
+    base_currency: str = "USD"  # Internal base currency
+    display_currency: str  # Currency for tenant display (USD, INR, EUR)
+    fx_rate: Decimal  # Exchange rate for display currency
     
     # Recognition Laws
     award_tiers: Dict[str, int]

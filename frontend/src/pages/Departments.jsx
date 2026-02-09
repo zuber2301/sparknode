@@ -14,7 +14,8 @@ import {
   HiOutlineUserAdd,
   HiOutlineExclamation,
   HiOutlineCheck,
-  HiOutlineX
+  HiOutlineX,
+  HiOutlineDotsVertical
 } from 'react-icons/hi'
 
 export default function Departments() {
@@ -30,6 +31,13 @@ export default function Departments() {
   const [selectedLeadUserId, setSelectedLeadUserId] = useState('')
   const [deptNameCheck, setDeptNameCheck] = useState({ isChecking: false, exists: false, message: '' })
   const [newlyCreatedDeptId, setNewlyCreatedDeptId] = useState(null)
+
+  // UI state for action dropdowns and editing
+  const [activeDeptDropdown, setActiveDeptDropdown] = useState(null)
+  const [showEditDeptModal, setShowEditDeptModal] = useState(false)
+  const [editDept, setEditDept] = useState(null)
+  const [editDeptName, setEditDeptName] = useState('')
+
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
 
@@ -141,6 +149,22 @@ export default function Departments() {
     },
   })
 
+  // Edit department mutation
+  const editDeptMutation = useMutation({
+    mutationFn: ({ deptId, data }) => tenantsAPI.updateDepartment(deptId, data),
+    onSuccess: (response) => {
+      toast.success('Department updated successfully')
+      queryClient.invalidateQueries(['departments', 'management'])
+      setShowEditDeptModal(false)
+      setEditDept(null)
+      setEditDeptName('')
+    },
+    onError: (error) => {
+      const detail = error.response?.data?.detail || error.message || 'Failed to update department'
+      toast.error(detail)
+    },
+  })
+
   const resetCreateForm = () => {
     setNewDeptName('')
     setNewDeptAllocation('')
@@ -225,6 +249,21 @@ export default function Departments() {
     })
   }
 
+  const openEditDeptModal = (dept) => {
+    setEditDept(dept)
+    setEditDeptName(dept.name || '')
+    setShowEditDeptModal(true)
+  }
+
+  const submitEditDept = () => {
+    if (!editDeptName.trim()) {
+      toast.error('Please enter a department name')
+      return
+    }
+
+    editDeptMutation.mutate({ deptId: editDept.id, data: { name: editDeptName.trim() } })
+  }
+
   const formatBudgetValue = (value) => {
     const displayCurrency = tenant?.display_currency || 'USD'
     const fxRate = parseFloat(tenant?.fx_rate) || 1.0
@@ -244,7 +283,7 @@ export default function Departments() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Department Management</h1>
-          <p className="text-gray-600">Monitor department budgets and point allocation flow</p>
+          <p className="text-gray-600">Monitor department points and allocation flow</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right">
@@ -270,9 +309,9 @@ export default function Departments() {
               <tr>
                 <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase">Department Name</th>
                 <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase">Dept Lead</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase">Unallocated Budget</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase">User Wallet Sum</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase">Total Dept Liability</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase">Unallocated Points</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase">User Wallet Points</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase">Total Points Liability</th>
                 <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase text-right">Actions</th>
               </tr>
             </thead>
@@ -314,40 +353,55 @@ export default function Departments() {
                   <td className="px-6 py-4 text-sm font-semibold text-gray-900">
                     {formatBudgetValue(dept.total_liability)}
                   </td>
-                  <td className="px-6 py-4 text-right space-x-2">
-                    <button
-                      onClick={() => handleAddPoints(dept)}
-                      className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-sparknode-purple text-white rounded hover:bg-sparknode-purple/90 transition-colors"
-                    >
-                      <HiOutlineCurrencyDollar className="w-4 h-4" />
-                      Add Points
-                    </button>
-                    {dept.unallocated_budget > 0 && (
+                  <td className="px-6 py-4 text-right text-sm font-medium">
+                    <div className="relative inline-block">
                       <button
-                        onClick={() => handleRecall(dept)}
-                        className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                        onClick={() => setActiveDeptDropdown(activeDeptDropdown === dept.id ? null : dept.id)}
+                        className="text-gray-500 hover:text-gray-800 p-2 rounded"
+                        title="More"
                       >
-                        <HiOutlineX className="w-4 h-4" />
-                        Recall
+                        <HiOutlineDotsVertical className="w-5 h-5" />
                       </button>
-                    )}
-                    {!dept.dept_lead_name ? (
-                      <button
-                        onClick={() => handleAssignLead(dept)}
-                        className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
-                      >
-                        <HiOutlineUserAdd className="w-4 h-4" />
-                        Assign Lead
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => {/* TODO: Navigate to department users */}}
-                        className="inline-flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
-                      >
-                        <HiOutlineUsers className="w-4 h-4" />
-                        View Users
-                      </button>
-                    )}
+
+                      {activeDeptDropdown === dept.id && (
+                        <div className="absolute right-0 mt-2 w-44 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+                          <div className="py-1" role="menu">
+                            <button
+                              onClick={() => {
+                                setActiveDeptDropdown(null)
+                                handleAddPoints(dept)
+                              }}
+                              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                            >
+                              <HiOutlineCurrencyDollar className="w-4 h-4" />
+                              Add Points
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setActiveDeptDropdown(null)
+                                handleAssignLead(dept)
+                              }}
+                              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                            >
+                              <HiOutlineUserAdd className="w-4 h-4" />
+                              Assign Lead
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setActiveDeptDropdown(null)
+                                openEditDeptModal(dept)
+                              }}
+                              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                            >
+                              <HiOutlinePencil className="w-4 h-4" />
+                              Edit Dept.
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -393,7 +447,7 @@ export default function Departments() {
                   New Master Pool: <span className="font-medium">{formatBudgetValue((tenant?.master_budget_balance || 0) - parseFloat(allocationAmount))}</span>
                 </p>
                 <p className="text-sm">
-                  New Dept Budget: <span className="font-medium">{formatBudgetValue(selectedDept.unallocated_budget + parseFloat(allocationAmount))}</span>
+                  New Dept Points: <span className="font-medium">{formatBudgetValue(selectedDept.unallocated_budget + parseFloat(allocationAmount))}</span>
                 </p>
               </div>
             )}
@@ -508,7 +562,7 @@ export default function Departments() {
                   step="0.01"
                 />
                 <p className="text-sm text-gray-500 mt-1">
-                  Available: {formatBudgetValue(tenant?.master_budget_balance || 0)}
+                  Available Points: {formatBudgetValue(tenant?.master_budget_balance || 0)}
                 </p>
                 {newDeptAllocation && parseFloat(newDeptAllocation) > (tenant?.master_budget_balance || 0) && (
                   <p className="text-sm text-red-600 mt-1">Amount exceeds available master pool balance</p>
@@ -555,6 +609,42 @@ export default function Departments() {
               >
                 {createDeptMutation.isPending ? 'Creating...' : 'Create Department'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Department Modal */}
+      {showEditDeptModal && editDept && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">Edit Department</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Department Name *</label>
+                <input
+                  type="text"
+                  value={editDeptName}
+                  onChange={(e) => setEditDeptName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sparknode-purple focus:border-transparent"
+                />
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => { setShowEditDeptModal(false); setEditDept(null); setEditDeptName('') }}
+                  className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={submitEditDept}
+                  disabled={editDeptMutation.isPending}
+                  className="flex-1 px-4 py-2 bg-sparknode-purple text-white rounded-lg hover:bg-sparknode-purple/90 transition-colors disabled:opacity-50"
+                >
+                  {editDeptMutation.isPending ? 'Saving...' : 'Save'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -620,7 +710,7 @@ export default function Departments() {
               <div className="mb-4 p-3 bg-blue-50 rounded-lg">
                 <p className="text-sm text-gray-600 mb-1">Preview:</p>
                 <p className="text-sm">
-                  New Dept Balance: <span className="font-medium">{formatBudgetValue(selectedDept.unallocated_budget - parseFloat(recallAmount))}</span>
+                  New Dept Points: <span className="font-medium">{formatBudgetValue(selectedDept.unallocated_budget - parseFloat(recallAmount))}</span>
                 </p>
                 <p className="text-sm">
                   New Master Pool: <span className="font-medium">{formatBudgetValue((tenant?.master_budget_balance || 0) + parseFloat(recallAmount))}</span>

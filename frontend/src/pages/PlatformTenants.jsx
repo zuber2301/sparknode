@@ -954,8 +954,24 @@ export default function PlatformTenants() {
                   <input name="max_users" type="number" className="input" defaultValue="50" min="1" required />
                 </div>
                 <div>
-                  <label className="label">Master Budget Balance</label>
+                  <label className="label">Master Budget Balance (Points)</label>
                   <input name="master_budget_balance" type="number" className="input" defaultValue="0" min="0" step="0.01" />
+                </div>
+                
+                {/* Currency Configuration - Mandatory */}
+                <div>
+                  <label className="label">Display Currency <span className="text-red-500">*</span></label>
+                  <select name="display_currency" className="input" defaultValue="USD" required>
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="INR">INR (₹)</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">This currency will be used across the tenant</p>
+                </div>
+                <div>
+                  <label className="label">Exchange Rate (FX Rate)</label>
+                  <input name="fx_rate" type="number" className="input" defaultValue="1.0" min="0.01" step="0.01" required />
+                  <p className="text-xs text-gray-500 mt-1">1 USD = ? {typeof document !== 'undefined' && document.querySelector('select[name="display_currency"]')?.value || 'selected currency'}</p>
                 </div>
               </div>
 

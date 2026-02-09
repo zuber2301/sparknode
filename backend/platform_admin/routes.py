@@ -125,6 +125,10 @@ async def create_tenant(
             subscription_started_at=datetime.utcnow(),
             max_users=tenant_data.max_users,
             master_budget_balance=starting_balance,
+            # Multi-currency configuration
+            base_currency='USD',  # Always USD as base
+            display_currency=tenant_data.display_currency,  # User-selected currency (USD, EUR, INR)
+            fx_rate=tenant_data.fx_rate or Decimal("1.0"),  # Exchange rate
             settings=tenant_data.settings or {
                 "copay_enabled": False,
                 "points_to_currency_ratio": 0.10,
