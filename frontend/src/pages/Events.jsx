@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { eventsAPI } from '../lib/eventsAPI'
 import { useAuthStore } from '../store/authStore'
 import toast from 'react-hot-toast'
-import { format } from 'date-fns'
+import { format, isPast, isFuture } from 'date-fns'
 import {
   HiOutlinePlus,
   HiOutlinePencil,
@@ -12,13 +12,18 @@ import {
   HiOutlineEye,
   HiOutlineCalendar,
   HiOutlineUsers,
-  HiOutlineChevronDown,
+  HiOutlineSparkles,
+  HiOutlineCheckCircle,
+  HiOutlineClipboardList,
+  HiOutlineClock,
+  HiOutlineGlobeAlt,
 } from 'react-icons/hi'
 
 export default function Events() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState(null)
   const [statusFilter, setStatusFilter] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
@@ -27,6 +32,18 @@ export default function Events() {
   const { data: events = [], isLoading } = useQuery({
     queryKey: ['events', { status: statusFilter }],
     queryFn: () => eventsAPI.getAll({ status: statusFilter }),
+  })
+
+  // Filter events by search
+  const filteredEvents = events.filter((event) => {
+    if (!searchQuery) return true
+    const query = searchQuery.toLowerCase()
+    return (
+      event.title.toLowerCase().includes(query) ||
+      (event.description && event.description.toLowerCase().includes(query)) ||
+      (event.venue && event.venue.toLowerCase().includes(query)) ||
+      (event.location && event.location.toLowerCase().includes(query))
+    )
   })
 
   // Delete event
@@ -126,7 +143,16 @@ export default function Events() {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Search Bar */}
+      <div className="flex gap-4">
+        <input
+          type="text"
+          placeholder="Search events..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-sparknode-purple"
+        />
+      </div>
       <div className="flex gap-2">
         <button
           onClick={() => setStatusFilter(null)}
@@ -155,10 +181,12 @@ export default function Events() {
 
       {/* Events List */}
       <div className="space-y-3">
-        {events.length === 0 ? (
+        {filteredEvents.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
             <HiOutlineCalendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No events found</p>
+            <p className="text-gray-500 font-medium">
+              {searchQuery ? 'No events match your search' : 'No events found'}
+            </p>
             <button
               onClick={handleCreateEvent}
               className="mt-4 text-sparknode-purple hover:text-sparknode-purple/80 font-medium"
@@ -167,68 +195,121 @@ export default function Events() {
             </button>
           </div>
         ) : (
-          events.map((event) => (
-            <div
-              key={event.id}
-              className="bg-white rounded-lg border border-gray-200 hover:border-sparknode-purple/30 transition-colors p-4"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">{event.title}</h3>
-                    <span className={`inline-block px-3 py-1 text-xs font-medium rounded-full ${getStatusBadge(event.status)}`}>
-                      {getStatusLabel(event.status)}
-                    </span>
-                  </div>
-                  <p className="text-gray-600 text-sm mb-3">{event.description}</p>
-                  <div className="flex gap-4 text-sm text-gray-500">
-                    <div className="flex items-center gap-1">
-                      <HiOutlineCalendar className="w-4 h-4" />
-                      {format(new Date(event.start_datetime), 'MMM d, yyyy')} - {format(new Date(event.end_datetime), 'MMM d, yyyy')}
+          filteredEvents.map((event) => {
+            const eventDate = new Date(event.start_datetime)
+            const isPastEvent = isPast(eventDate)
+            const isFutureEvent = isFuture(eventDate)
+            
+            return (
+              <div
+                key={event.id}
+                className="bg-white rounded-lg border border-gray-200 hover:border-sparknode-purple/30 hover:shadow-md transition-all p-5"
+              >
+                <div className="flex gap-4">
+                  {/* Event Banner/Color */}
+                  <div
+                    className="flex-shrink-0 w-20 h-20 rounded-lg flex items-center justify-center text-2xl"
+                    style={{
+                      backgroundColor: event.color_code || '#7c3aed',
+                      opacity: 0.15,
+                    }}
+                  >
+                    <div
+                      className="text-4xl"
+                      style={{ color: event.color_code || '#7c3aed' }}
+                    >
+                      📅
                     </div>
-                    {event.activity_count > 0 && (
-                      <div className="flex items-center gap-1">
-                        <HiOutlineUsers className="w-4 h-4" />
-                        {event.activity_count} activities
-                      </div>
-                    )}
-                    {event.nomination_count > 0 && (
-                      <div className="flex items-center gap-1">
-                        <HiOutlineUsers className="w-4 h-4" />
-                        {event.nomination_count} nominations
-                      </div>
-                    )}
                   </div>
-                </div>
 
-                {/* Actions */}
-                <div className="flex gap-2 ml-4">
-                  <button
-                    onClick={() => handleViewEvent(event.id)}
-                    className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                    title="View"
-                  >
-                    <HiOutlineEye className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => handleEditEvent(event.id)}
-                    className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                    title="Edit"
-                  >
-                    <HiOutlinePencil className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteEvent(event.id)}
-                    disabled={deleteMutation.isPending}
-                    className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
-                    title="Delete"
-                  >
-                    <HiOutlineTrash className="w-5 h-5" />
-                  </button>
+                  {/* Event Info */}
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-lg font-semibold text-gray-900">{event.title}</h3>
+                        <span
+                          className={`inline-block px-2.5 py-0.5 text-xs font-medium rounded-full ${getStatusBadge(
+                            event.status
+                          )}`}
+                        >
+                          {getStatusLabel(event.status)}
+                        </span>
+                        {event.format === 'virtual' && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                            <HiOutlineGlobeAlt className="w-3 h-3" />
+                            Virtual
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {event.description && (
+                      <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                        {event.description}
+                      </p>
+                    )}
+
+                    {/* Event Details Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <HiOutlineCalendar className="w-4 h-4 flex-shrink-0" />
+                        <span>
+                          {format(eventDate, 'MMM d')} - {format(new Date(event.end_datetime), 'MMM d')}
+                        </span>
+                      </div>
+
+                      {event.venue && (
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <HiOutlineClock className="w-4 h-4 flex-shrink-0" />
+                          <span className="truncate">{event.venue}</span>
+                        </div>
+                      )}
+
+                      {event.activity_count > 0 && (
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <HiOutlineSparkles className="w-4 h-4 flex-shrink-0" />
+                          <span>{event.activity_count} activities</span>
+                        </div>
+                      )}
+
+                      {event.nomination_count > 0 && (
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <HiOutlineUsers className="w-4 h-4 flex-shrink-0" />
+                          <span>{event.nomination_count} nominations</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => handleViewEvent(event.id)}
+                      className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                      title="View Details"
+                    >
+                      <HiOutlineEye className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleEditEvent(event.id)}
+                      className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                      title="Edit Event"
+                    >
+                      <HiOutlinePencil className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteEvent(event.id)}
+                      disabled={deleteMutation.isPending}
+                      className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
+                      title="Delete Event"
+                    >
+                      <HiOutlineTrash className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            )
+          })
         )}
       </div>
     </div>

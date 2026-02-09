@@ -57,7 +57,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
         <WalletBalance wallet={wallet?.data} />
         
-        <div className="stat-card bg-gradient-to-r from-sparknode-purple to-sparknode-blue text-white">
+        <div className="stat-card stat-card-compact bg-gradient-to-r from-sparknode-purple to-sparknode-blue text-white">
           <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
             <div className="flex-1">
               <p className="text-xs sm:text-sm text-white/80">Recognitions Given</p>
@@ -67,12 +67,12 @@ export default function Dashboard() {
               <HiOutlineSparkles className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
           </div>
-          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-white/20 text-xs sm:text-sm">
+          <div className="stat-compact-footer">
             <span className="text-white/80">{stats?.data?.points_given || 0} points</span>
           </div>
         </div>
 
-        <div className="stat-card bg-gradient-to-r from-sparknode-purple to-sparknode-blue text-white">
+        <div className="stat-card stat-card-compact bg-gradient-to-r from-sparknode-purple to-sparknode-blue text-white">
           <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
             <div className="flex-1">
               <p className="text-xs sm:text-sm text-white/80">Recognitions Received</p>
@@ -82,12 +82,12 @@ export default function Dashboard() {
               <HiOutlineTrendingUp className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
           </div>
-          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-white/20 text-xs sm:text-sm">
+          <div className="stat-compact-footer">
             <span className="text-white/80">{stats?.data?.points_received || 0} points</span>
           </div>
         </div>
 
-        <div className="stat-card bg-gradient-to-r from-sparknode-purple to-sparknode-blue text-white">
+        <div className="stat-card stat-card-compact bg-gradient-to-r from-sparknode-purple to-sparknode-blue text-white">
           <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
             <div className="flex-1">
               <p className="text-xs sm:text-sm text-white/80">Top Badge</p>
@@ -99,7 +99,7 @@ export default function Dashboard() {
               <HiOutlineGift className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
           </div>
-          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-white/20 text-xs sm:text-sm">
+          <div className="stat-compact-footer">
             <span className="text-white/80">{stats?.data?.top_badges?.[0]?.count || 0} times received</span>
           </div>
         </div>

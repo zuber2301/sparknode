@@ -84,7 +84,6 @@ export default function TopHeader() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [tenantSelectorOpen, setTenantSelectorOpen] = useState(false)
-  const [personaExpandOpen, setPersonaExpandOpen] = useState(false)
   const [controlsDropdownOpen, setControlsDropdownOpen] = useState(false)
   const [tenantSearch, setTenantSearch] = useState('')
   const profileRef = useRef(null)
@@ -95,8 +94,8 @@ export default function TopHeader() {
     updateTenantContext,
     tenantContext,
     getEffectiveRole,
-    setPersonaRole,
-    clearPersonaRole,
+    getTenantId,
+    getTenantName,
     isPlatformOwnerUser,
     isPlatformOwner,
     updateUser,
@@ -143,6 +142,10 @@ export default function TopHeader() {
     queryFn: () => tenantsAPI.getCurrent(),
     enabled: !isPlatformUser,
   })
+
+  // Tenant display helpers
+  const tenantName = getTenantName ? getTenantName() : tenantContext?.tenant_name || user?.tenant_name
+  const tenantIdShort = (getTenantId ? getTenantId() : tenantContext?.tenant_id || user?.tenant_id)?.split('-')?.[0]
 
   const { data: tenantsResponse } = useQuery({
     queryKey: ['platformTenantsSelector'],
@@ -465,56 +468,15 @@ export default function TopHeader() {
                       Profile
                     </NavLink>
 
-                    {/* Switch Persona / Persona Manager */}
                     <div className="border-t border-gray-100 my-1 pt-1">
-                      <button
-                        onClick={() => setPersonaExpandOpen(!personaExpandOpen)}
-                        className="w-full text-left px-3 py-1 mb-0.5 flex items-center justify-between"
-                      >
-                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                          Switch Persona
-                        </p>
-                        <HiOutlineChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${personaExpandOpen ? 'rotate-180' : ''}`} />
-                      </button>
-                      {personaExpandOpen && (
-                        <div className="space-y-0.5">
-                          {[
-                            { value: 'tenant_manager', label: 'Tenant Manager' },
-                            { value: 'dept_lead', label: 'Department Lead' },
-                            { value: 'corporate_user', label: 'Corporate User' },
-                          ].map((persona) => (
-                            <button
-                              key={persona.value}
-                              onClick={() => {
-                                setPersonaRole(persona.value)
-                                setProfileOpen(false)
-                                setPersonaExpandOpen(false)
-                              }}
-                              className={`w-full text-left px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                                effectiveRole === persona.value
-                                  ? 'bg-sparknode-purple text-white'
-                                  : 'text-gray-700 hover:bg-gray-50'
-                              }`}
-                            >
-                              {persona.label}
-                            </button>
-                          ))}
-                          <button
-                            onClick={() => {
-                              clearPersonaRole()
-                              setProfileOpen(false)
-                              setPersonaExpandOpen(false)
-                            }}
-                            className={`w-full text-left px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                              effectiveRole === 'corporate_user' || (effectiveRole && !['tenant_manager', 'dept_lead', 'corporate_user'].includes(effectiveRole))
-                                ? 'bg-sparknode-purple text-white'
-                                : 'text-gray-700 hover:bg-gray-50'
-                            }`}
-                          >
-                            Platform Admin
-                          </button>
-                        </div>
-                      )}
+                      <div className="px-3 py-2">
+                        <p className="text-xs text-gray-400 uppercase tracking-wider">Tenant Name</p>
+                        <p className="text-sm font-medium text-gray-900 truncate">{tenantName || '—'}</p>
+                      </div>
+                      <div className="px-3 py-2 border-t border-gray-100">
+                        <p className="text-xs text-gray-400 uppercase tracking-wider">Tenant ID</p>
+                        <p className="text-sm font-mono text-gray-700 truncate">{tenantIdShort || '—'}</p>
+                      </div>
                     </div>
 
                     <button

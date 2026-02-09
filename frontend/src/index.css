@@ -63,6 +63,15 @@ body {
     @apply bg-white rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100;
   }
 
+  /* Compact variant for dashboard stat cards (shorter height, more rectangular) */
+  .stat-card-compact {
+    @apply p-3 sm:p-4;
+  }
+
+  .stat-card-compact .stat-compact-footer {
+    @apply mt-2 sm:mt-2 pt-2 sm:pt-2 border-t border-white/20 text-xs sm:text-sm;
+  }
+
   .nav-link {
     @apply flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 rounded-lg transition-colors;
   }

@@ -12,8 +12,8 @@ export default function WalletBalance({ wallet }) {
 
   if (!wallet) {
     return (
-      <div className="stat-card animate-pulse">
-        <div className="h-20 bg-gray-200 rounded" />
+      <div className="stat-card stat-card-compact animate-pulse">
+        <div className="h-16 bg-gray-200 rounded" />
       </div>
     )
   }
