@@ -412,7 +412,7 @@ export default function Departments() {
 
       {/* Add Points Modal */}
       {showAddPointsModal && selectedDept && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Add Points to {selectedDept.name}
@@ -473,7 +473,7 @@ export default function Departments() {
 
       {/* Assign Lead Modal */}
       {showAssignLeadModal && selectedDept && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Assign Department Lead for {selectedDept.name}
@@ -511,7 +511,7 @@ export default function Departments() {
 
       {/* Create Department Modal */}
       {showCreateDeptModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
           <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
             <h3 className="text-xl font-semibold text-gray-900 mb-6">
               Create New Department
@@ -616,7 +616,7 @@ export default function Departments() {
 
       {/* Edit Department Modal */}
       {showEditDeptModal && editDept && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-xl font-semibold text-gray-900 mb-4">Edit Department</h3>
             <div className="space-y-4">
@@ -652,7 +652,7 @@ export default function Departments() {
 
       {/* Recall Budget Modal */}
       {showRecallModal && selectedDept && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Recall Budget: {selectedDept.name}

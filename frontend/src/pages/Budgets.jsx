@@ -545,7 +545,7 @@ export default function Budgets() {
 
       {/* Create Budget Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full">
             <h2 className="text-xl font-semibold mb-4">Create New Budget</h2>
             <form onSubmit={handleCreateBudget} className="space-y-4">
@@ -617,7 +617,7 @@ export default function Budgets() {
 
       {/* Allocate Budget Modal */}
       {showAllocateModal && selectedBudget && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <h2 className="text-xl font-semibold mb-2">Allocate Budget</h2>
             <p className="text-gray-500 mb-4">
@@ -685,7 +685,7 @@ export default function Budgets() {
 
       {/* Allocate Budget to Department Modal */}
       {showDeptAllocateModal && selectedDept && activeBudget && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full">
             <h2 className="text-xl font-semibold mb-2">Allocate Budget to Department</h2>
             <p className="text-gray-500 mb-4">
@@ -735,7 +735,7 @@ export default function Budgets() {
 
       {/* Allocate Points to Lead Modal */}
       {showLeadAllocateModal && selectedLead && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full">
             <h2 className="text-xl font-semibold mb-2">Allocate Points to Lead</h2>
             <p className="text-gray-500 mb-4">
