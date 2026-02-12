@@ -11,7 +11,7 @@ from uuid import UUID
 from typing import List, Optional
 
 from database import get_db
-from auth.utils import get_current_user, get_hr_admin
+from auth.utils import get_current_user, get_hr_admin, get_event_admin
 from models import User, Event, EventActivity, EventNomination, EventTeam, EventTeamMember, EventGiftBatch, EventGiftRedemption, EventBudget, EventMetrics
 from events.schemas import (
     EventCreate, EventUpdate, EventDetailResponse, EventListResponse,
@@ -120,7 +120,7 @@ async def get_event_templates(db: Session = Depends(get_db)):
 @router.post("/", response_model=EventDetailResponse, tags=["Events"])
 async def create_event(
     event: EventCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_event_admin),
     db: Session = Depends(get_db),
 ):
     """Create a new event (Tenant Manager only)."""
@@ -234,7 +234,7 @@ async def get_event(
 async def update_event(
     event_id: UUID,
     event_update: EventUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_event_admin),
     db: Session = Depends(get_db),
 ):
     """Update an event."""
@@ -261,7 +261,7 @@ async def update_event(
 @router.delete("/{event_id}", tags=["Events"])
 async def delete_event(
     event_id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_event_admin),
     db: Session = Depends(get_db),
 ):
     """Delete an event (Tenant Manager only)."""
@@ -287,7 +287,7 @@ async def delete_event(
 async def create_activity(
     event_id: UUID,
     activity: EventActivityCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_event_admin),
     db: Session = Depends(get_db),
 ):
     """Create an activity for an event."""
@@ -373,7 +373,7 @@ async def update_activity(
     event_id: UUID,
     activity_id: UUID,
     activity_update: EventActivityUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_event_admin),
     db: Session = Depends(get_db),
 ):
     """Update an activity."""
@@ -401,7 +401,7 @@ async def update_activity(
 async def delete_activity(
     event_id: UUID,
     activity_id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_event_admin),
     db: Session = Depends(get_db),
 ):
     """Delete an activity."""
@@ -494,7 +494,7 @@ async def approve_nomination(
     event_id: UUID,
     nomination_id: UUID,
     update_data: EventNominationUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_event_admin),
     db: Session = Depends(get_db),
 ):
     """Approve or reject a nomination (Admin only)."""
@@ -521,7 +521,7 @@ async def approve_nomination(
 @router.post("/nominations/bulk-approve", tags=["Nominations"])
 async def bulk_approve_nominations(
     bulk_request: BulkNominationApprovalRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_event_admin),
     db: Session = Depends(get_db),
 ):
     """Bulk approve/reject nominations."""

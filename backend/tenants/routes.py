@@ -5,11 +5,11 @@ from uuid import UUID
 
 from database import get_db
 from models import Tenant, Department, User, AuditLog, ActorType
-from auth.utils import get_current_user, get_hr_admin
+from auth.utils import get_current_user, get_hr_admin, require_tenant_manager_or_platform
 from tenants.schemas import (
     TenantCreate, TenantUpdate, TenantResponse,
     DepartmentCreate, DepartmentUpdate, DepartmentResponse, DepartmentManagementResponse,
-    DepartmentCreateWithAllocation
+    DepartmentCreateWithAllocation, AllocateBudgetRequest
 )
 
 router = APIRouter()
@@ -250,13 +250,10 @@ async def get_department_management_data(
 @router.post("/departments", response_model=DepartmentResponse)
 async def create_department(
     department_data: DepartmentCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_tenant_manager_or_platform),
     db: Session = Depends(get_db)
 ):
-    """Create a new department (Tenant Manager or HR Admin)"""
-    # Check permissions - tenant managers and HR admins can create departments
-    if current_user.org_role not in ['tenant_manager', 'hr_admin']:
-        raise HTTPException(status_code=403, detail="Only tenant managers or HR admins can create departments")
+    """Create a new department (Tenant Manager or Platform Admin)"""
     department = Department(
         tenant_id=current_user.tenant_id,
         **department_data.model_dump()
@@ -270,14 +267,13 @@ async def create_department(
 @router.post("/departments/{department_id}/allocate-budget")
 async def allocate_budget_to_department(
     department_id: UUID,
-    amount: float,
-    current_user: User = Depends(get_current_user),
+    budget_data: AllocateBudgetRequest,
+    current_user: User = Depends(require_tenant_manager_or_platform),
     db: Session = Depends(get_db)
 ):
-    """Allocate points from tenant master pool to department budget (Tenant Manager only)"""
-    # Check permissions - only tenant managers can allocate to departments
-    if current_user.org_role not in ['tenant_manager', 'hr_admin']:
-        raise HTTPException(status_code=403, detail="Only tenant managers can allocate budget to departments")
+    """Allocate points from tenant master pool to department budget (Tenant Manager or Platform Admin)"""
+    
+    amount = budget_data.amount
     
     # Get tenant and check master pool balance
     tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
@@ -315,13 +311,10 @@ async def allocate_budget_to_department(
 async def assign_department_lead(
     department_id: UUID,
     user_id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_tenant_manager_or_platform),
     db: Session = Depends(get_db)
 ):
-    """Assign a user as department lead (Tenant Manager only)"""
-    # Check permissions - only tenant managers can assign leads
-    if current_user.org_role not in ['tenant_manager', 'hr_admin']:
-        raise HTTPException(status_code=403, detail="Only tenant managers can assign department leads")
+    """Assign a user as department lead (Tenant Manager or Platform Admin)"""
     
     # Get department
     department = db.query(Department).filter(
@@ -359,13 +352,10 @@ async def assign_department_lead(
 async def recall_department_budget(
     department_id: UUID,
     amount: float,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_tenant_manager_or_platform),
     db: Session = Depends(get_db)
 ):
-    """Recall budget from department back to tenant master pool (Tenant Manager only)"""
-    # Check permissions - only tenant managers can recall budget
-    if current_user.org_role not in ['tenant_manager', 'hr_admin']:
-        raise HTTPException(status_code=403, detail="Only tenant managers can recall department budget")
+    """Recall budget from department back to tenant master pool (Tenant Manager or Platform Admin)"""
     
     # Get tenant and department
     tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
@@ -442,13 +432,10 @@ async def get_department(
 async def update_department(
     department_id: UUID,
     department_data: DepartmentUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_tenant_manager_or_platform),
     db: Session = Depends(get_db)
 ):
-    """Update a department (Tenant Manager or HR Admin)"""
-    # Check permissions - tenant managers and HR admins can update departments
-    if current_user.org_role not in ['tenant_manager', 'hr_admin']:
-        raise HTTPException(status_code=403, detail="Only tenant managers or HR admins can update departments")
+    """Update a department (Tenant Manager or Platform Admin)"""
     department = db.query(Department).filter(
         Department.id == department_id,
         Department.tenant_id == current_user.tenant_id
@@ -468,13 +455,10 @@ async def update_department(
 @router.delete("/departments/{department_id}")
 async def delete_department(
     department_id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_tenant_manager_or_platform),
     db: Session = Depends(get_db)
 ):
-    """Delete a department (Tenant Manager or HR Admin)"""
-    # Check permissions - tenant managers and HR admins can delete departments
-    if current_user.org_role not in ['tenant_manager', 'hr_admin']:
-        raise HTTPException(status_code=403, detail="Only tenant managers or HR admins can delete departments")
+    """Delete a department (Tenant Manager or Platform Admin)"""
     department = db.query(Department).filter(
         Department.id == department_id,
         Department.tenant_id == current_user.tenant_id
@@ -519,13 +503,10 @@ async def check_department_name(
 @router.post("/departments/create-and-allocate")
 async def create_department_with_allocation(
     data: DepartmentCreateWithAllocation,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_tenant_manager_or_platform),
     db: Session = Depends(get_db)
 ):
     """Create a department and optionally allocate budget and assign lead in one atomic transaction"""
-    # Check permissions - only tenant managers and hr admins can create departments
-    if current_user.org_role not in ['tenant_manager', 'hr_admin']:
-        raise HTTPException(status_code=403, detail="Only tenant managers can create departments")
     
     # Validate department name
     if not data.name or not data.name.strip():

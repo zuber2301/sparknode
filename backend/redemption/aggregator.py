@@ -11,7 +11,7 @@ import uuid
 from typing import Any, Dict
 
 import requests
-from .config import settings  # Adjusted from reference to local path if needed, but per convention it usually uses 'from config import settings'
+from config import settings
 
 
 class AggregatorClient:

@@ -31,7 +31,7 @@ import {
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
-  { name: 'Events', href: '/events/browse', icon: HiOutlineNewspaper },
+  { name: 'Event Management', href: '/events/browse', icon: HiOutlineNewspaper },
   { name: 'Feed', href: '/feed', icon: HiOutlineNewspaper },
   { name: 'Recognize', href: '/recognize', icon: HiOutlineSparkles },
   { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
@@ -74,6 +74,7 @@ const platformAdminNavigation = [
 // Tenant Manager specific navigation - "Nerve Center"
 const tenantManagerNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
+  { name: 'Events', href: '/events/browse', icon: HiOutlineNewspaper },
   { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
   { name: 'Departments', href: '/departments', icon: HiOutlineOfficeBuilding },
   { name: 'User Management', href: '/users', icon: HiOutlineUsers },

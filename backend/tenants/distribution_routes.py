@@ -18,7 +18,7 @@ from datetime import datetime
 
 from models import Tenant, User, Wallet, BudgetDistributionLog, Recognition
 from database import get_db
-from auth import get_current_user
+from auth.utils import get_current_user, require_tenant_manager_or_platform
 from core.budget_service import BudgetService, BudgetAllocationError
 from core.audit_service import AuditService
 
@@ -37,7 +37,7 @@ class AllocationPoolStats(BaseModel):
     distribution_count: int
     manager_can_distribute: bool  # True if balance > 0
     message: str  # UI message
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -55,7 +55,7 @@ class DistributeToLeadRequest(BaseModel):
     to_user_id: UUID
     amount: Decimal
     description: Optional[str] = None
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -73,7 +73,7 @@ class AwardBudgetRequest(BaseModel):
     reference_type: str  # recognition, event_bonus, etc.
     reference_id: Optional[UUID] = None
     description: Optional[str] = None
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -96,7 +96,7 @@ class DistributionResponse(BaseModel):
     previous_balance: Decimal
     new_balance: Decimal
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -110,7 +110,7 @@ class BudgetDistributionLogResponse(BaseModel):
     transaction_type: str
     description: Optional[str]
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -120,14 +120,9 @@ class BudgetDistributionLogResponse(BaseModel):
 # =====================================================
 
 async def get_tenant_manager(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_tenant_manager_or_platform),
 ) -> User:
-    """Verify user is a tenant manager"""
-    if current_user.org_role not in ['tenant_manager', 'hr_admin']:
-        raise HTTPException(
-            status_code=403,
-            detail="Only tenant managers can access this endpoint"
-        )
+    """Verify user is a tenant manager or platform admin"""
     return current_user
 
 
@@ -143,30 +138,29 @@ async def get_budget_pool_status(
     """
     Get current budget pool status for tenant manager.
     Shows available budget and distribution history.
-    
+
     This is displayed in the "Manager Stats" card on the dashboard.
     """
     tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
-    
+
     # Get stats
     stats = BudgetService.get_tenant_budget_stats(db, tenant)
-    
+
     # Get distribution count for today
-    from datetime import datetime
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    
+
     distribution_today = db.query(BudgetDistributionLog).filter(
         BudgetDistributionLog.tenant_id == tenant.id,
         BudgetDistributionLog.created_at >= today_start
     ).count()
-    
-    current_balance = Decimal(str(stats["budget_allocation_balance"]))
-    
+
+    current_balance = Decimal(str(stats.get("budget_allocation_balance", 0)))
+
     return AllocationPoolStats(
         current_balance=current_balance,
-        total_allocated_today=Decimal(str(stats["distributed_today"])),
+        total_allocated_today=Decimal(str(stats.get("distributed_today", 0))),
         distribution_count=distribution_today,
         manager_can_distribute=current_balance > 0,
         message=(
@@ -186,29 +180,29 @@ async def distribute_to_lead(
 ):
     """
     Tenant Manager distributes budget from pool to a Lead.
-    
+
     The lead can then further distribute to employees or keep for personal awards.
     """
     try:
         tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
         if not tenant:
             raise HTTPException(status_code=404, detail="Tenant not found")
-        
+
         # Get target lead
         lead_user = db.query(User).filter(
             User.id == request.to_user_id,
             User.tenant_id == current_user.tenant_id
         ).first()
-        
+
         if not lead_user:
             raise HTTPException(status_code=404, detail="Lead user not found")
-        
+
         if lead_user.org_role not in ['dept_lead', 'manager']:
             raise HTTPException(
                 status_code=400,
                 detail=f"Can only distribute to leads/managers, not {lead_user.org_role}"
             )
-        
+
         # Distribute budget
         updated_tenant, updated_wallet, distribution_log = BudgetService.distributeToLead(
             db=db,
@@ -218,9 +212,9 @@ async def distribute_to_lead(
             amount=request.amount,
             description=request.description
         )
-        
+
         db.commit()
-        
+
         return DistributionResponse(
             from_user_id=current_user.id,
             to_user_id=lead_user.id,
@@ -231,7 +225,7 @@ async def distribute_to_lead(
             new_balance=distribution_log.new_pool_balance,
             created_at=distribution_log.created_at
         )
-    
+
     except BudgetAllocationError as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -248,7 +242,7 @@ async def award_budget_to_user(
 ):
     """
     Manager awards budget directly to an employee from allocation pool.
-    
+
     This is used when recognizing an employee or awarding event bonuses.
     Budget is deducted from tenant pool and added to employee's wallet.
     """
@@ -256,16 +250,16 @@ async def award_budget_to_user(
         tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
         if not tenant:
             raise HTTPException(status_code=404, detail="Tenant not found")
-        
+
         # Get target employee
         target_user = db.query(User).filter(
             User.id == request.to_user_id,
             User.tenant_id == current_user.tenant_id
         ).first()
-        
+
         if not target_user:
             raise HTTPException(status_code=404, detail="Employee not found")
-        
+
         # Award budget
         updated_wallet, ledger, distribution_log = BudgetService.awardToUser(
             db=db,
@@ -277,9 +271,9 @@ async def award_budget_to_user(
             reference_id=request.reference_id,
             description=request.description
         )
-        
+
         db.commit()
-        
+
         return DistributionResponse(
             from_user_id=current_user.id,
             to_user_id=target_user.id,
@@ -290,7 +284,7 @@ async def award_budget_to_user(
             new_balance=distribution_log.new_pool_balance,
             created_at=distribution_log.created_at
         )
-    
+
     except BudgetAllocationError as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -314,7 +308,7 @@ async def get_distribution_history(
         BudgetDistributionLog.tenant_id == current_user.tenant_id,
         BudgetDistributionLog.from_user_id == current_user.id
     ).order_by(BudgetDistributionLog.created_at.desc()).offset(skip).limit(limit).all()
-    
+
     return logs
 
 
@@ -332,5 +326,5 @@ async def get_tenant_distribution_history(
     logs = db.query(BudgetDistributionLog).filter(
         BudgetDistributionLog.tenant_id == current_user.tenant_id
     ).order_by(BudgetDistributionLog.created_at.desc()).offset(skip).limit(limit).all()
-    
+
     return logs

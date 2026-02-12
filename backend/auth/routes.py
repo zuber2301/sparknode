@@ -23,7 +23,7 @@ from auth.schemas import (
     InvitationLinkRequest,
     InvitationLinkResponse
 )
-from auth.utils import verify_password, create_access_token, get_current_user, validate_otp_contact
+from auth.utils import verify_password, create_access_token, get_current_user, validate_otp_contact, require_tenant_manager_or_platform
 from auth.onboarding import resolve_tenant, validate_tenant_for_onboarding, generate_invitation_token
 from models import User, Tenant, OtpToken, InvitationToken, Department, Wallet
 from core.security import generate_verification_code, hash_token, verify_token_hash
@@ -552,7 +552,7 @@ async def signup(
 @router.post("/invitations/generate", response_model=InvitationLinkResponse)
 async def generate_invitation_link(
     invitation_data: InvitationLinkRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_tenant_manager_or_platform),
     db: Session = Depends(get_db)
 ):
     """
@@ -571,12 +571,7 @@ async def generate_invitation_link(
     
     Note: The token is email-specific and one-time use only.
     """
-    # Check authorization - only tenant managers can generate invites
-    if current_user.org_role not in ["tenant_manager"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only Tenant Manager can generate invitation links"
-        )
+    # Access controlled by dependency (tenant_manager or platform_admin)
     
     # Validate expiration hours
     if invitation_data.expires_hours < 1 or invitation_data.expires_hours > 720:  # Max 30 days

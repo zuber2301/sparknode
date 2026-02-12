@@ -210,6 +210,26 @@ async def get_manager_or_above(current_user: User = Depends(get_current_user)) -
     return current_user
 
 
+async def get_event_admin(current_user: User = Depends(get_current_user)) -> User:
+    """Require tenant manager OR platform admin for event administration endpoints."""
+    if not (current_user.org_role == 'tenant_manager' or current_user.is_platform_admin):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Event administration access required (tenant_manager or platform_admin)"
+        )
+    return current_user
+
+
+async def require_tenant_manager_or_platform(current_user: User = Depends(get_current_user)) -> User:
+    """Require tenant manager OR platform admin for tenant-admin endpoints."""
+    if not (current_user.org_role == 'tenant_manager' or current_user.is_platform_admin):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tenant admin access required (tenant_manager or platform_admin)"
+        )
+    return current_user
+
+
 def validate_otp_contact(
     db: Session,
     email: Optional[str] = None,

@@ -178,6 +178,17 @@ class DepartmentCreateWithAllocation(BaseModel):
     lead_user_id: Optional[UUID] = None
 
 
+class AllocateBudgetRequest(BaseModel):
+    amount: float
+    
+    @field_validator('amount')
+    @classmethod
+    def validate_amount(cls, v):
+        if v <= 0:
+            raise ValueError('Amount must be greater than 0')
+        return v
+
+
 class DepartmentResponse(DepartmentBase):
     id: UUID
     tenant_id: UUID

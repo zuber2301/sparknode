@@ -10,6 +10,7 @@ import Recognize from './pages/Recognize'
 import Redeem from './pages/Redeem'
 import Wallet from './pages/Wallet'
 import Budgets from './pages/Budgets'
+import BudgetWorkflow from './pages/BudgetWorkflow'
 import Users from './pages/Users'
 import Audit from './pages/Audit'
 import Profile from './pages/Profile'
@@ -79,6 +80,7 @@ function App() {
         <Route path="wallet" element={<Wallet />} />
         <Route path="events/browse" element={<EmployeeEvents />} />
         <Route path="budgets" element={<Budgets />} />
+        <Route path="budget-workflow" element={<BudgetWorkflow />} />
         <Route path="spend-analysis" element={<SpendAnalysis />} />
         <Route path="users" element={<Users />} />
         <Route path="users/:userId" element={<UserProfile />} />

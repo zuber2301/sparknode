@@ -1219,6 +1219,139 @@ class BudgetDistributionLog(Base):
     to_user = relationship("User", foreign_keys=[to_user_id])
 
 
+class TenantBudgetAllocation(Base):
+    """
+    Platform admin allocates budget to a tenant.
+    This is the 'Total Allocated Budget' available to tenant managers.
+    """
+    __tablename__ = "tenant_budget_allocations"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, unique=True)
+    total_allocated_budget = Column(Numeric(15, 2), nullable=False, default=0)
+    remaining_balance = Column(Numeric(15, 2), nullable=False, default=0)
+    status = Column(String(50), default='active')  # active/inactive/closed
+    allocation_date = Column(DateTime(timezone=True), server_default=func.now())
+    allocated_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    tenant = relationship("Tenant")
+    department_allocations = relationship("DepartmentBudgetAllocation", back_populates="tenant_allocation")
+    
+    @property
+    def total_allocated(self):
+        return float(self.total_allocated_budget) if self.total_allocated_budget else 0
+    
+    @property
+    def total_remaining(self):
+        return float(self.remaining_balance) if self.remaining_balance else 0
+
+
+class DepartmentBudgetAllocation(Base):
+    """
+    Tenant manager distributes budget from tenant allocation to departments.
+    Sum of all departments should not exceed total tenant allocation.
+    """
+    __tablename__ = "department_budget_allocations"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    department_id = Column(UUID(as_uuid=True), ForeignKey("departments.id", ondelete="CASCADE"), nullable=False)
+    tenant_budget_allocation_id = Column(UUID(as_uuid=True), ForeignKey("tenant_budget_allocations.id", ondelete="CASCADE"), nullable=False)
+    allocated_budget = Column(Numeric(15, 2), nullable=False, default=0)
+    distributed_budget = Column(Numeric(15, 2), nullable=False, default=0)  # sum of points to employees
+    remaining_budget = Column(Numeric(15, 2), nullable=False, default=0)
+    status = Column(String(50), default='active')  # active/inactive/closed
+    allocation_date = Column(DateTime(timezone=True), server_default=func.now())
+    allocated_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))  # tenant_manager
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    __table_args__ = (
+        # Ensure unique allocation per department
+        # NOTE: Removed UNIQUE constraint to allow multiple allocation periods
+    )
+    
+    # Relationships
+    tenant_allocation = relationship("TenantBudgetAllocation", back_populates="department_allocations")
+    employee_allocations = relationship("EmployeePointsAllocation", back_populates="department_allocation")
+    
+    @property
+    def allocated(self):
+        return float(self.allocated_budget) if self.allocated_budget else 0
+    
+    @property
+    def distributed(self):
+        return float(self.distributed_budget) if self.distributed_budget else 0
+    
+    @property
+    def remaining(self):
+        return float(self.remaining_budget) if self.remaining_budget else 0
+
+
+class EmployeePointsAllocation(Base):
+    """
+    Department lead distributes points to individual employees.
+    Points can be spent on recognitions or redeemed.
+    """
+    __tablename__ = "employee_points_allocations"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    department_budget_allocation_id = Column(UUID(as_uuid=True), ForeignKey("department_budget_allocations.id", ondelete="CASCADE"), nullable=False)
+    employee_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    allocated_points = Column(Numeric(15, 2), nullable=False, default=0)
+    spent_points = Column(Numeric(15, 2), nullable=False, default=0)
+    status = Column(String(50), default='active')  # active/inactive/closed
+    allocation_date = Column(DateTime(timezone=True), server_default=func.now())
+    allocated_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))  # dept_lead
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    department_allocation = relationship("DepartmentBudgetAllocation", back_populates="employee_allocations")
+    employee = relationship("User", foreign_keys=[employee_id])
+    
+    @property
+    def remaining_points(self):
+        return float(self.allocated_points) - float(self.spent_points) if self.allocated_points else 0
+    
+    @property
+    def usage_percentage(self):
+        if float(self.allocated_points) == 0:
+            return 0
+        return (float(self.spent_points) / float(self.allocated_points)) * 100
+
+
+class BudgetAllocationLedger(Base):
+    """
+    Immutable ledger tracking all budget allocation transactions.
+    Used for audit trail and compliance.
+    """
+    __tablename__ = "budget_allocation_ledger"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    transaction_type = Column(String(50), nullable=False)
+    # tenant_allocation / dept_allocation / employee_allocation / allocation_reversal / points_spend
+    source_entity_type = Column(String(50), nullable=False)  # tenant/department/employee
+    source_entity_id = Column(UUID(as_uuid=True), nullable=False)
+    target_entity_type = Column(String(50))  # department/employee (if applicable)
+    target_entity_id = Column(UUID(as_uuid=True))
+    amount = Column(Numeric(15, 2), nullable=False)
+    balance_before = Column(Numeric(15, 2))
+    balance_after = Column(Numeric(15, 2))
+    description = Column(Text)
+    actor_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    tenant = relationship("Tenant")
+    actor = relationship("User")
+
+
 # -------------------- Compatibility aliases / legacy models --------------------
 # Provide simple aliases so existing imports in tests keep working.
 # Reward used to be a distinct model; map it to Voucher.
