@@ -17,8 +17,9 @@ export function formatRoleLabel(role) {
   const roleLabels = {
     'platform_admin': 'Platform Admin',
     'tenant_manager': 'Tenant Manager',
-    'dept_lead': 'Dept Lead',
-    'tenant_user': 'Tenant User'
+    'dept_lead': 'Department Lead',
+    'dept_lead': 'Department Lead',
+    'tenant_user': 'User'
   }
   return roleLabels[role] || role || 'Unknown Role'
 }

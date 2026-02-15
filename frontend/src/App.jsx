@@ -3,7 +3,7 @@ import { useAuthStore } from './store/authStore'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
-import Dashboard from './pages/Dashboard'
+import Dashboard from './pages/DashboardRouter'
 import AdminDashboard from './pages/AdminDashboard'
 import Feed from './pages/Feed'
 import Recognize from './pages/Recognize'
@@ -61,6 +61,47 @@ function AdminRoute({ children }) {
   return isAdmin ? children : <Navigate to="/dashboard" />
 }
 
+/**
+ * TenantManagerRoute - Only visible to tenant_manager (not dept_lead or above)
+ * Used for pages that are ONLY for tenant manager, not for platform admin
+ */
+function TenantManagerRoute({ children }) {
+  const { isAuthenticated, getEffectiveRole } = useAuthStore()
+  if (!isAuthenticated) return <Navigate to="/login" />
+  
+  const effectiveRole = getEffectiveRole()
+  const isTenantManager = effectiveRole === 'tenant_manager'
+  
+  return isTenantManager ? children : <Navigate to="/dashboard" />
+}
+
+/**
+ * ManagerRoute - Visible to dept_lead and above (includes tenant_manager & platform_admin)
+ * Used for pages accessible to managers
+ */
+function ManagerRoute({ children }) {
+  const { isAuthenticated, getEffectiveRole } = useAuthStore()
+  if (!isAuthenticated) return <Navigate to="/login" />
+  
+  const effectiveRole = getEffectiveRole()
+  const isManager = ['tenant_manager', 'dept_lead', 'platform_admin'].includes(effectiveRole)
+  
+  return isManager ? children : <Navigate to="/dashboard" />
+}
+
+/**
+ * PlatformAdminRoute - Only visible to platform_admin
+ * Used for platform-wide admin pages
+ */
+function PlatformAdminRoute({ children }) {
+  const { isAuthenticated, isPlatformOwnerUser } = useAuthStore()
+  if (!isAuthenticated) return <Navigate to="/login" />
+  
+  const isPlatformUser = isPlatformOwnerUser()
+  
+  return isPlatformUser ? children : <Navigate to="/dashboard" />
+}
+
 function App() {
   return (
     <Routes>
@@ -79,45 +120,161 @@ function App() {
         <Route path="redeem" element={<Redeem />} />
         <Route path="wallet" element={<Wallet />} />
         <Route path="events/browse" element={<EmployeeEvents />} />
-        <Route path="budgets" element={<Budgets />} />
-        <Route path="budget-workflow" element={<BudgetWorkflow />} />
-        <Route path="spend-analysis" element={<SpendAnalysis />} />
-        <Route path="users" element={<Users />} />
-        <Route path="users/:userId" element={<UserProfile />} />
-        <Route path="audit" element={<Audit />} />
+        
+        {/* Admin Pages - Only Tenant Manager & Platform Admin */}
+        <Route path="budgets" element={
+          <AdminRoute>
+            <Budgets />
+          </AdminRoute>
+        } />
+        <Route path="budget-workflow" element={
+          <AdminRoute>
+            <BudgetWorkflow />
+          </AdminRoute>
+        } />
+        <Route path="departments" element={
+          <TenantManagerRoute>
+            <Departments />
+          </TenantManagerRoute>
+        } />
+        <Route path="users" element={
+          <AdminRoute>
+            <Users />
+          </AdminRoute>
+        } />
+        <Route path="users/:userId" element={
+          <AdminRoute>
+            <UserProfile />
+          </AdminRoute>
+        } />
+        <Route path="audit" element={
+          <AdminRoute>
+            <Audit />
+          </AdminRoute>
+        } />
+        
+        {/* Profile & Settings */}
         <Route path="profile" element={<Profile />} />
+        
+        {/* Event Management */}
         <Route path="events" element={<Events />} />
-        <Route path="events/create" element={<EventCreateWizard />} />
+        <Route path="events/create" element={<Events />} />
         <Route path="events/:eventId" element={<EventDetail />} />
         <Route path="events/:eventId/edit" element={<EventCreateWizardEdit />} />
-        <Route path="platform/tenants" element={<PlatformTenants />} />
+        
+        {/* Analytics - Different availability based on role */}
+        <Route path="analytics" element={
+          <ManagerRoute>
+            <Analytics />
+          </ManagerRoute>
+        } />
+        <Route path="spend-analysis" element={
+          <AdminRoute>
+            <SpendAnalysis />
+          </AdminRoute>
+        } />
+        
+        {/* Settings - Tenant Manager Only */}
+        <Route path="settings" element={
+          <TenantManagerRoute>
+            <Settings />
+          </TenantManagerRoute>
+        } />
+        
+        {/* Platform Admin Only */}
+        <Route path="platform/tenants" element={
+          <PlatformAdminRoute>
+            <PlatformTenants />
+          </PlatformAdminRoute>
+        } />
         {/* Legacy/shortcut route: redirect /tenants to platform tenant management */}
         <Route path="tenants" element={<Navigate to="/platform/tenants" />} />
-        <Route path="platform/tenants/:tenantId" element={<PlatformTenantDetail />} />
-        <Route path="platform/tenants/:tenantId/users" element={<PlatformTenantUsers />} />
+        <Route path="platform/tenants/:tenantId" element={
+          <PlatformAdminRoute>
+            <PlatformTenantDetail />
+          </PlatformAdminRoute>
+        } />
+        <Route path="platform/tenants/:tenantId/users" element={
+          <PlatformAdminRoute>
+            <PlatformTenantUsers />
+          </PlatformAdminRoute>
+        } />
         <Route path="platform/budget-ledger" element={
-          <AdminRoute>
+          <PlatformAdminRoute>
             <PlatformAdminBudgetLedgerPage />
-          </AdminRoute>
+          </PlatformAdminRoute>
         } />
-        <Route path="tenant/:slug" element={<TenantDashboard />} />
-        <Route path="marketplace" element={<Marketplace />} />
-        <Route path="departments" element={<Departments />} />
-        <Route path="analytics" element={<Analytics />} />
-        <Route path="settings" element={<Settings />} />
-        <Route path="ai-settings" element={<AISettings />} />
-        <Route path="templates" element={<Templates />} />
-        <Route path="billing" element={<Billing />} />
-        <Route path="team" element={<TeamHub />} />
-        <Route path="team/distribute" element={<TeamDistribute />} />
-        <Route path="team/activity" element={<TeamActivity />} />
-        <Route path="team/approvals" element={<TeamApprovals />} />
-        <Route path="team/analytics" element={<TeamAnalytics />} />
+        
+        {/* Platform Admin Controls */}
+        <Route path="marketplace" element={
+          <PlatformAdminRoute>
+            <Marketplace />
+          </PlatformAdminRoute>
+        } />
+        <Route path="ai-settings" element={
+          <PlatformAdminRoute>
+            <AISettings />
+          </PlatformAdminRoute>
+        } />
+        <Route path="templates" element={
+          <PlatformAdminRoute>
+            <Templates />
+          </PlatformAdminRoute>
+        } />
+        <Route path="billing" element={
+          <PlatformAdminRoute>
+            <Billing />
+          </PlatformAdminRoute>
+        } />
+        
+        {/* Team Management - Department Lead & Above */}
+        <Route path="team-hub" element={
+          <ManagerRoute>
+            <TeamHub />
+          </ManagerRoute>
+        } />
+        <Route path="team/distribute" element={
+          <ManagerRoute>
+            <TeamDistribute />
+          </ManagerRoute>
+        } />
+        <Route path="team/activity" element={
+          <ManagerRoute>
+            <TeamActivity />
+          </ManagerRoute>
+        } />
+        <Route path="team/approvals" element={
+          <ManagerRoute>
+            <TeamApprovals />
+          </ManagerRoute>
+        } />
+        <Route path="team/analytics" element={
+          <ManagerRoute>
+            <TeamAnalytics />
+          </ManagerRoute>
+        } />
+        
+        {/* Alternative Team Routes for backward compatibility */}
+        <Route path="team" element={
+          <ManagerRoute>
+            <TeamHub />
+          </ManagerRoute>
+        } />
+        <Route path="team-distribute" element={
+          <ManagerRoute>
+            <TeamDistribute />
+          </ManagerRoute>
+        } />
+        
+        {/* Admin Invite Users - Tenant Manager Only */}
         <Route path="admin/invite-users" element={
-          <AdminRoute>
+          <TenantManagerRoute>
             <InviteUsers />
-          </AdminRoute>
+          </TenantManagerRoute>
         } />
+        
+        {/* Legacy Routes */}
+        <Route path="tenant/:slug" element={<TenantDashboard />} />
       </Route>
     </Routes>
   )

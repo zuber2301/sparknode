@@ -304,7 +304,7 @@ async def get_direct_reports(
 
 @router.get("/bulk/template")
 async def download_bulk_template():
-    headers = "Full Name,Email,Role,Department,Manager Email,Mobile Number,Personal Email,Date of Birth,Hire Date\n"
+    headers = "Full Name,Email,org_role,Department,Manager Email,Mobile Number,Personal Email,Date of Birth,Hire Date\n"
     return Response(
         content=headers,
         media_type="text/csv",
@@ -339,7 +339,7 @@ async def upload_bulk_users(
             raw_email = str(row.get('email', '')).strip()
             raw_full_name = str(row.get('full_name', row.get('name', ''))).strip()
             raw_dept = str(row.get('department', '')).strip()
-            raw_role = str(row.get('role', 'corporate_user')).strip()
+            raw_role = str(row.get('org_role', row.get('role', 'corporate_user'))).strip()
             raw_manager = str(row.get('manager_email', '')).strip()
             raw_mobile = str(row.get('mobile_number', row.get('mobile', row.get('phone', '')))).strip()
             personal_email = str(row.get('personal_email', '')).strip()

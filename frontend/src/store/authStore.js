@@ -5,9 +5,10 @@ import { persist } from 'zustand/middleware'
 export const UserRole = {
   PLATFORM_ADMIN: 'platform_admin',
   TENANT_MANAGER: 'tenant_manager',
+  TENANT_LEAD: 'dept_lead', // legacy export name kept for compatibility; value is canonical 'dept_lead'
   DEPT_LEAD: 'dept_lead',
   TENANT_USER: 'tenant_user',
-}
+}  
 
 // Role hierarchy levels (higher = more permissions)
 const ROLE_HIERARCHY = {
@@ -15,6 +16,14 @@ const ROLE_HIERARCHY = {
   tenant_manager: 80,
   dept_lead: 60,
   tenant_user: 40,
+}
+
+// Role display names
+export const ROLE_DISPLAY_NAMES = {
+  platform_admin: 'Platform Admin',
+  tenant_manager: 'Tenant Manager',
+  dept_lead: 'Department Lead',
+  tenant_user: 'User',
 }
 
 // Normalize roles to standardized format
@@ -30,8 +39,17 @@ export const useAuthStore = create(
       isAuthenticated: false,
       tenantContext: null, // { tenant_id, tenant_name, subscription_tier, settings }
       personaRole: null, // platform admin UI override
+      currentRole: null, // Currently selected role (for multi-role users)
+      availableRoles: [], // List of available roles for current user
 
       setAuth: (user, token, tenantContext = null) => {
+        // Parse available roles from user data
+        const availableRoles = user?.roles 
+          ? user.roles.split(',').map(r => r.trim()).filter(Boolean)
+          : [user?.org_role]
+        
+        const currentRole = user?.default_role || user?.org_role
+        
         set({
           user,
           token,
@@ -40,6 +58,8 @@ export const useAuthStore = create(
             tenant_id: user?.tenant_id,
             tenant_name: user?.tenant_name,
           },
+          availableRoles,
+          currentRole,
         })
       },
 
@@ -49,6 +69,8 @@ export const useAuthStore = create(
           token: null,
           isAuthenticated: false,
           tenantContext: null,
+          currentRole: null,
+          availableRoles: [],
         })
       },
 
@@ -64,6 +86,39 @@ export const useAuthStore = create(
         })
       },
 
+      updateToken: (newToken) => {
+        set({
+          token: newToken,
+        })
+      },
+
+      // Multi-role support methods
+      getAvailableRoles: () => {
+        const { availableRoles } = get()
+        return availableRoles
+      },
+
+      getCurrentRole: () => {
+        const { currentRole, user } = get()
+        return currentRole || user?.org_role || 'tenant_user'
+      },
+
+      switchRole: (newRole) => {
+        const { availableRoles, user } = get()
+        
+        // Validate that the new role is available
+        if (!availableRoles.includes(newRole)) {
+          console.warn(`Cannot switch to role ${newRole}. Available roles: ${availableRoles.join(', ')}`)
+          return false
+        }
+        
+        set({ 
+          currentRole: newRole,
+          user: { ...user, default_role: newRole }
+        })
+        return true
+      },
+
       setPersonaRole: (role) => {
         const { user } = get()
         const actualRole = normalizeRole(user?.org_role)
@@ -76,11 +131,19 @@ export const useAuthStore = create(
       },
 
       getEffectiveRole: () => {
-        const { user, personaRole } = get()
+        const { user, personaRole, currentRole } = get()
         const actualRole = normalizeRole(user?.org_role)
+        
+        // Platform admin UI override
         if (actualRole === 'platform_admin' && personaRole) {
           return personaRole
         }
+        
+        // Use current role if set (for multi-role users)
+        if (currentRole) {
+          return currentRole
+        }
+        
         return actualRole
       },
 
@@ -120,11 +183,11 @@ export const useAuthStore = create(
         return getEffectiveRole() === 'tenant_manager' || getEffectiveRole() === 'platform_admin'
       },
 
-      // Dept Lead check (includes Tenant Manager and above)
+      // Tenant Lead check (includes Tenant Manager and above)
       isTenantLead: () => {
         const { getEffectiveRole, isTenantAdmin } = get()
         const role = getEffectiveRole()
-        return isTenantAdmin() || role === 'dept_lead' || role === 'dept_lead'
+        return isTenantAdmin() || role === 'dept_lead'
       },
 
       // Any authenticated user within tenant
@@ -225,6 +288,8 @@ export const useAuthStore = create(
         token: state.token,
         isAuthenticated: state.isAuthenticated,
         tenantContext: state.tenantContext,
+        currentRole: state.currentRole,
+        availableRoles: state.availableRoles,
       }),
     }
   )

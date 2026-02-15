@@ -19,14 +19,15 @@ export const ROLE_CONFIG = {
     badgeColor: 'blue',
     description: 'Company administrator'
   },
+
   dept_lead: {
-    label: 'Dept Lead',
+    label: 'Department Lead',
     color: 'bg-green-100 text-green-800',
     badgeColor: 'green',
-    description: 'Team lead'
+    description: 'Department lead'
   },
   tenant_user: {
-    label: 'Tenant User',
+    label: 'User',
     color: 'bg-gray-100 text-gray-800',
     badgeColor: 'gray',
     description: 'Regular employee'

@@ -255,7 +255,7 @@ Potential additions:
 
 ### Auth Integration
 - Uses `useAuthStore` from Zustand
-- Role-based visibility (`tenant_manager`, `tenant_lead`)
+- Role-based visibility (`tenant_manager`, `dept_lead`)
 - Filters direct reports automatically
 
 ---

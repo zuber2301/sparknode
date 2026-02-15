@@ -28,7 +28,7 @@ class AllocateBudgetRequest(BaseModel):
 - Updated import to include `AllocateBudgetRequest`
 - Modified the `allocate_budget_to_department` endpoint to:
   - Accept `budget_data: AllocateBudgetRequest` in the request body (instead of query parameter)
-  - Allowed both `tenant_manager` AND `tenant_lead` roles to allocate budget (previously only `tenant_manager`)
+  - Allowed both `tenant_manager` AND `dept_lead` roles to allocate budget (previously only `tenant_manager`)  
   - Updated permission error message to reflect both roles
 
 **Before:**
@@ -52,9 +52,9 @@ async def allocate_budget_to_department(
     db: Session = Depends(get_db)
 ):
     amount = budget_data.amount
-    # Check permissions - allow tenant_manager, tenant_lead, and hr_admin
-    if current_user.org_role not in ['tenant_manager', 'tenant_lead', 'hr_admin']:
-        raise HTTPException(status_code=403, detail="Only tenant managers and leads can allocate budget to departments")
+    # Check permissions - allow tenant_manager, dept_lead, and hr_admin
+    if current_user.org_role not in ['tenant_manager', 'dept_lead', 'hr_admin']:
+        raise HTTPException(status_code=403, detail="Only tenant managers and department leads can allocate budget to departments")
 ```
 
 ### 2. **Test Cases**
@@ -65,7 +65,7 @@ Created comprehensive test suite: `backend/tests/test_department_budget_allocati
 
 **Permission Tests:**
 - ✅ `test_allocate_budget_as_tenant_manager_success` - Tenant manager can allocate points
-- ✅ `test_allocate_budget_as_tenant_lead_success` - Tenant lead can allocate points
+- ✅ `test_allocate_budget_as_dept_lead_success` - Department lead can allocate points
 - ✅ `test_allocate_budget_as_regular_user_forbidden` - Regular users cannot allocate (403 Forbidden)
 
 **Validation Tests:**
@@ -117,7 +117,7 @@ Authorization: Bearer {token}
 
 ## Roles That Can Allocate
 - `tenant_manager` - Can allocate to any department
-- `tenant_lead` - Can allocate to any department (new in this fix)
+- `dept_lead` - Can allocate to any department (new in this fix)
 - `hr_admin` - Can allocate to any department
 
 ## How to Run Tests

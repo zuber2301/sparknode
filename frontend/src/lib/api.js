@@ -82,6 +82,8 @@ export const authAPI = {
   requestSmsOtp: (mobile_number, tenant_id) => api.post('/auth/otp/sms/request', { mobile_number, tenant_id }),
   verifySmsOtp: (mobile_number, code, tenant_id) => api.post('/auth/otp/sms/verify', { mobile_number, code, tenant_id }),
   generateInvitationLink: (email, expires_hours) => api.post('/auth/invitations/generate', { email, expires_hours }),
+  getRoles: () => api.get('/auth/roles'),
+  switchRole: (role) => api.post('/auth/switch-role', { role }),
 }
 
 // Users API

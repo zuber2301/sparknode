@@ -86,7 +86,7 @@ backend/tests/test_tenant_provisioning_integration.py - 1 replacement
 
 #### 4. **frontend/src/components/users/BulkUploadModal.jsx** [MODIFIED]
 - ✅ Updated CSV format requirements:
-  - `dept_lead, tenant_lead, tenant_manager` (was: `tenant_lead`)
+  - `dept_lead` (legacy: `tenant_lead`), `tenant_manager`
 - ✅ Updated role select dropdown option:
   - `<option value="dept_lead">Department Lead</option>`
 - **Impact:** User upload process accepts and displays new role name

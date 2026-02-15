@@ -154,14 +154,14 @@ export default function BudgetWorkflow() {
   const { data: deptAllocations, isLoading: loadingDeptAlloc } = useQuery({
     queryKey: ['budget-workflow', 'department-allocations', tenantAllocation?.id],
     queryFn: () => budgetWorkflowAPI.getDepartmentAllocations(tenantAllocation?.id),
-    enabled: !!tenantAllocation?.id && (user?.org_role === 'tenant_manager' || user?.org_role === 'dept_lead' || user?.org_role === 'tenant_lead'),
+    enabled: !!tenantAllocation?.id && (user?.org_role === 'tenant_manager' || user?.org_role === 'dept_lead'),
   })
 
   // Fetch employee allocations for selected department
   const { data: employeeAllocations, isLoading: loadingEmpAlloc } = useQuery({
     queryKey: ['budget-workflow', 'employee-allocations', selectedDeptAllocation?.id],
     queryFn: () => budgetWorkflowAPI.getEmployeeAllocations(selectedDeptAllocation?.id),
-    enabled: !!selectedDeptAllocation?.id && (user?.org_role === 'dept_lead' || user?.org_role === 'tenant_lead'),
+    enabled: !!selectedDeptAllocation?.id && (user?.org_role === 'dept_lead'),
   })
 
   // Fetch departments
@@ -176,13 +176,13 @@ export default function BudgetWorkflow() {
   const { data: deptUsers } = useQuery({
     queryKey: ['users', 'by-department', selectedDept?.id],
     queryFn: () => usersAPI.getUsersByDepartment(selectedDept?.id),
-    enabled: !!selectedDept?.id && (user?.org_role === 'dept_lead' || user?.org_role === 'tenant_lead')
+    enabled: !!selectedDept?.id && (user?.org_role === 'dept_lead')
   })
 
   // Check user role and show appropriate level
   const isPlatformAdmin = user?.org_role === 'platform_admin'
   const isTenantManager = user?.org_role === 'tenant_manager'
-  const isDeptLead = user?.org_role === 'dept_lead' || user?.org_role === 'tenant_lead'
+  const isDeptLead = user?.org_role === 'dept_lead'
 
   if (isPlatformAdmin) {
     return <PlatformAdminView />

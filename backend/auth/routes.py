@@ -21,7 +21,10 @@ from auth.schemas import (
     SignupRequest,
     SignupResponse,
     InvitationLinkRequest,
-    InvitationLinkResponse
+    InvitationLinkResponse,
+    SwitchRoleRequest,
+    SwitchRoleResponse,
+    RoleInfo
 )
 from auth.utils import verify_password, create_access_token, get_current_user, validate_otp_contact, require_tenant_manager_or_platform
 from auth.onboarding import resolve_tenant, validate_tenant_for_onboarding, generate_invitation_token
@@ -31,6 +34,41 @@ from core.notifications import send_email_otp, send_sms_otp, NotificationError
 from uuid import UUID
 
 router = APIRouter()
+
+
+def get_user_roles(org_role: str):
+    """
+    Determine the list of roles and default role based on org_role.
+    
+    Role hierarchy and inheritance:
+    - tenant_manager: has tenant_manager + dept_lead + tenant_user
+    - dept_lead: has dept_lead + tenant_user  
+    - tenant_user: has tenant_user only
+    - platform_admin: has platform_admin only
+    """
+    role_mapping = {
+        'platform_admin': {
+            'roles': 'platform_admin',
+            'default_role': 'platform_admin'
+        },
+        'tenant_manager': {
+            'roles': 'tenant_manager,dept_lead,tenant_user',
+            'default_role': 'tenant_manager'
+        },
+        'dept_lead': {
+            'roles': 'dept_lead,tenant_user',
+            'default_role': 'dept_lead'
+        },
+        'tenant_user': {
+            'roles': 'tenant_user',
+            'default_role': 'tenant_user'
+        }
+    }
+    
+    return role_mapping.get(org_role, {
+        'roles': org_role,
+        'default_role': org_role
+    })
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -102,12 +140,19 @@ async def login(
         tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
         tenant_name = tenant.name if tenant else None
         
+        # Get roles based on org_role
+        user_roles_config = get_user_roles(user.org_role)
+        roles_str = user.roles or user_roles_config['roles']
+        default_role = user.default_role or user_roles_config['default_role']
+        
         access_token = create_access_token(
             data={
                 "sub": str(user.id),
                 "tenant_id": str(user.tenant_id),
                 "email": user.corporate_email,
-                "org_role": user.org_role,
+                "org_role": default_role,  # Use default role in token
+                "roles": roles_str,  # Include all available roles
+                "default_role": default_role,
                 "type": "tenant"
             },
             expires_delta=access_token_expires
@@ -124,6 +169,8 @@ async def login(
                 first_name=user.first_name,
                 last_name=user.last_name,
                 org_role=user.org_role,
+                roles=roles_str,  # Include all available roles
+                default_role=default_role,  # Include default role
                 phone_number=user.phone_number,
                 mobile_number=user.mobile_number,
                 personal_email=user.personal_email,
@@ -230,6 +277,11 @@ async def get_current_user_info(
     current_user: User = Depends(get_current_user)
 ):
     """Get current authenticated user information"""
+    # Get roles based on org_role
+    user_roles_config = get_user_roles(current_user.org_role)
+    roles_str = current_user.roles or user_roles_config['roles']
+    default_role = current_user.default_role or user_roles_config['default_role']
+    
     return UserResponse(
         id=current_user.id,
         tenant_id=current_user.tenant_id,
@@ -237,6 +289,8 @@ async def get_current_user_info(
         first_name=current_user.first_name,
         last_name=current_user.last_name,
         org_role=current_user.org_role,
+        roles=roles_str,  # Include all available roles
+        default_role=default_role,  # Include default role
         phone_number=current_user.phone_number,
         mobile_number=current_user.mobile_number,
         corporate_email=current_user.corporate_email,
@@ -283,7 +337,75 @@ async def logout(current_user: User = Depends(get_current_user)):
     return {"message": "Successfully logged out"}
 
 
-@router.post("/otp/email/request", response_model=OtpResponse)
+@router.get("/roles", response_model=RoleInfo)
+async def get_available_roles(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get available roles for current user"""
+    # Get roles based on org_role
+    user_roles_config = get_user_roles(current_user.org_role)
+    roles_str = current_user.roles or user_roles_config['roles']
+    default_role = current_user.default_role or user_roles_config['default_role']
+    
+    available_roles = [r.strip() for r in roles_str.split(',') if r.strip()]
+    
+    # Get current role from JWT (stored in token as org_role, but we can infer it)
+    # For now, use default_role as current
+    current_role = default_role
+    
+    return RoleInfo(
+        available_roles=available_roles,
+        current_role=current_role,
+        default_role=default_role
+    )
+
+
+@router.post("/switch-role", response_model=SwitchRoleResponse)
+async def switch_role(
+    request: SwitchRoleRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Switch to a different role (must be one of user's available roles)"""
+    # Get roles based on org_role
+    user_roles_config = get_user_roles(current_user.org_role)
+    roles_str = current_user.roles or user_roles_config['roles']
+    
+    available_roles = [r.strip() for r in roles_str.split(',') if r.strip()]
+    
+    # Check if requested role is available
+    if request.role not in available_roles:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Role '{request.role}' is not available. Available roles: {', '.join(available_roles)}"
+        )
+    
+    # Update the user's default_role in DB
+    current_user.default_role = request.role
+    db.commit()
+    
+    # Create new token with the switched role
+    access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
+    access_token = create_access_token(
+        data={
+            "sub": str(current_user.id),
+            "tenant_id": str(current_user.tenant_id),
+            "email": current_user.corporate_email,
+            "org_role": request.role,  # Use the new role
+            "roles": roles_str,
+            "default_role": request.role,
+            "type": "tenant"
+        },
+        expires_delta=access_token_expires
+    )
+    
+    return SwitchRoleResponse(
+        access_token=access_token,
+        token_type="bearer",
+        current_role=request.role,
+        available_roles=available_roles
+    )
 async def request_email_otp(
     payload: EmailOtpRequest,
     db: Session = Depends(get_db)

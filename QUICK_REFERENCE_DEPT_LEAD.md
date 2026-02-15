@@ -3,7 +3,7 @@
 ## What Changed?
 
 ### Role Name
-- **Old:** `tenant_lead` (Tenant Leader)
+- **Old (legacy):** `tenant_lead` (Tenant Leader)
 - **New:** `dept_lead` (Department Lead)
 
 ### Budget Workflow
@@ -32,7 +32,7 @@ if user.org_role in ['dept_lead', 'manager']:
 import { UserRole } from '@/store/authStore'
 
 // Use the new canonical role
-if (user.org_role === UserRole.TENANT_LEAD) {  // maps to 'dept_lead'
+if (user.org_role === UserRole.DEPT_LEAD) {  // canonical role (legacy: TENANT_LEAD)
     // Department lead UI
 }
 
@@ -209,4 +209,4 @@ curl http://localhost:8000/api/budgets/{id}/leads
 
 ---
 
-**TL;DR:** `tenant_lead` → `dept_lead`, new workflow auto-creates department budgets, full backward compatibility ✅
+**TL;DR:** `tenant_lead` (legacy) → `dept_lead` (canonical), new workflow auto-creates department budgets, full backward compatibility ✅

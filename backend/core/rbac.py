@@ -40,7 +40,7 @@ class UserRole(str, Enum):
     """
     PLATFORM_ADMIN = "platform_admin"      # System-wide admin
     TENANT_MANAGER = "tenant_manager"      # Company HR/Admin
-    TENANT_LEAD = "tenant_lead"            # Department Lead/Manager
+    DEPT_LEAD = "dept_lead"                # Department Lead/Manager
     TENANT_USER = "tenant_user"            # Regular Employee
 
 
@@ -48,9 +48,9 @@ class UserRole(str, Enum):
 ROLE_HIERARCHY = {
     UserRole.PLATFORM_ADMIN: 4,
     UserRole.TENANT_MANAGER: 3,
-    UserRole.TENANT_LEAD: 2,
+    UserRole.DEPT_LEAD: 2,
     UserRole.TENANT_USER: 1,
-}
+}  # dept_lead is canonical lead-level role
 
 
 class Permission(str, Enum):
@@ -146,7 +146,7 @@ ROLE_PERMISSIONS: dict[UserRole, Set[Permission]] = {
         Permission.PARTICIPATE_EVENTS,
         Permission.UPDATE_PROFILE,
     },
-    UserRole.TENANT_LEAD: {
+    UserRole.DEPT_LEAD: {
         Permission.MANAGE_TEAM_BUDGET,
     },
     UserRole.TENANT_USER: {
@@ -162,11 +162,20 @@ class RolePermissions:
     
     @staticmethod
     def normalize_role(role: str) -> UserRole:
-        """Convert string role to UserRole enum."""
+        """Convert string role to UserRole enum (supports legacy aliases).
+
+        Legacy values like 'tenant_lead' and 'manager' are normalized to
+        the canonical `dept_lead` role to preserve backward compatibility.
+        """
+        if not role:
+            return UserRole.TENANT_USER
+        role_lower = role.lower()
+        # legacy aliases -> dept_lead
+        if role_lower in ('tenant_lead', 'manager'):
+            return UserRole.DEPT_LEAD
         try:
-            return UserRole(role)
+            return UserRole(role_lower)
         except ValueError:
-            # Default to tenant user for unknown roles
             return UserRole.TENANT_USER
     
     @staticmethod
@@ -198,7 +207,7 @@ class RolePermissions:
     def is_lead_level(role: str) -> bool:
         """Check if role has team lead level access."""
         user_role = RolePermissions.normalize_role(role)
-        return ROLE_HIERARCHY.get(user_role, 0) >= ROLE_HIERARCHY[UserRole.TENANT_LEAD]
+        return ROLE_HIERARCHY.get(user_role, 0) >= ROLE_HIERARCHY[UserRole.DEPT_LEAD]
     
     @staticmethod
     def get_role_level(role: str) -> int:
@@ -291,7 +300,7 @@ def require_minimum_role(minimum_role: UserRole):
     Usage:
         @router.get("/reports")
         async def get_reports(
-            current_user: User = Depends(require_minimum_role(UserRole.TENANT_LEAD))
+            current_user: User = Depends(require_minimum_role(UserRole.DEPT_LEAD))
         ):
             ...
     """
@@ -335,13 +344,13 @@ async def get_tenant_manager(request: Request, db: Session = Depends(get_db)):
     return current_user
 
 
-async def get_tenant_lead(request: Request, db: Session = Depends(get_db)):
-    """Dependency that requires Tenant Lead (team lead) or higher role."""
+async def get_dept_lead(request: Request, db: Session = Depends(get_db)):
+    """Dependency that requires Department Lead (dept_lead) or higher role."""
     current_user = await get_current_user_dependency(request, db)
     if not RolePermissions.is_lead_level(current_user.org_role):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Tenant Lead access required"
+            detail="Department Lead access required"
         )
     return current_user
 

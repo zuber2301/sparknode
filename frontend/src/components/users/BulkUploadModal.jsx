@@ -111,8 +111,8 @@ function UploadStep({ isUploading, onFileUpload, onDownloadTemplate }) {
       <div className="bg-gray-50 rounded-xl p-4">
         <h3 className="font-medium text-gray-900 mb-2">CSV Format Requirements</h3>
         <ul className="text-sm text-gray-600 space-y-1">
-          <li>• Columns: full_name, email, department, role (optional), mobile_phone (optional), manager_email (optional)</li>
-          <li>• Role values: tenant_user, dept_lead, tenant_manager</li>
+          <li>• Columns: full_name, email, department, org_role (optional), mobile_phone (optional), manager_email (optional)</li>
+          <li>• Org Role values: tenant_user, dept_lead, tenant_manager</li>
           <li>• First row should be headers</li>
         </ul>
         <button
@@ -171,7 +171,7 @@ function PreviewStep({
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Org Role</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Errors</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
@@ -276,8 +276,8 @@ function StagingRow({
             className="input text-sm"
           >
             <option value="">Select...</option>
-            <option value="tenant_user">Tenant User</option>
-            <option value="dept_lead">Dept Lead</option>
+              <option value="tenant_user">User</option>
+            <option value="dept_lead">Department Lead</option>
             <option value="tenant_manager">Tenant Manager</option>
           </select>
         </td>

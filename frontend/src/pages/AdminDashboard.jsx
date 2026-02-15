@@ -126,7 +126,7 @@ export default function AdminDashboard() {
       id: 'directory',
       label: 'Directory',
       icon: HiOutlineUsers,
-      description: 'Manage employees, departments, and "Dept Leads" (manager assignments).'
+      description: 'Manage employees, departments, and "Leads" (manager assignments).'
     },
     {
       id: 'wallets',
@@ -400,7 +400,7 @@ export default function AdminDashboard() {
           <div className="text-center py-12">
             <HiOutlineUsers className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Directory Management</h3>
-            <p className="text-gray-600">Manage employees, departments, and assign Dept Leads (manager assignments)</p>
+            <p className="text-gray-600">Manage employees, departments, and assign Department Leads (manager assignments)</p>
           </div>
         </div>
       )}

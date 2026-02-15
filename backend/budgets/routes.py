@@ -367,10 +367,10 @@ async def allocate_lead_budget(
     5. Department budget can be shared by all users in that department
     """
     # 1. Authorization - Only tenant_manager can allocate
-    if current_user.org_role not in ['platform_admin', 'tenant_manager', 'tenant_lead']:
+    if current_user.org_role not in ['platform_admin', 'tenant_manager', 'dept_lead']:
         raise HTTPException(status_code=403, detail="Only managers can allocate budgets")
-    
-    # 2. Find the target lead user (should have tenant_lead role)
+
+    # 2. Find the target lead user (should have dept_lead role)
     lead_user = db.query(User).filter(User.id == request.user_id).first()
     if not lead_user or not lead_user.department_id:
         raise HTTPException(status_code=404, detail="Tenant Lead not found or has no department assigned")

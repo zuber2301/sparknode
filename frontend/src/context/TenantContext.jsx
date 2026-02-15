@@ -10,6 +10,10 @@ const TenantContext = createContext({
   clearPersonaRole: () => {},
   effectiveRole: null,
   isPlatformOwnerUser: () => false,
+  availableRoles: [],
+  getAvailableRoles: () => [],
+  switchRole: () => false,
+  getCurrentRole: () => 'tenant_user',
 })
 
 export function TenantProvider({ children }) {
@@ -21,6 +25,10 @@ export function TenantProvider({ children }) {
     getEffectiveRole,
     isPlatformOwnerUser,
     personaRole,
+    availableRoles,
+    getAvailableRoles,
+    switchRole,
+    getCurrentRole,
   } = useAuthStore()
 
   const value = useMemo(() => ({
@@ -32,6 +40,10 @@ export function TenantProvider({ children }) {
     clearPersonaRole,
     effectiveRole: getEffectiveRole(),
     isPlatformOwnerUser,
+    availableRoles,
+    getAvailableRoles,
+    switchRole,
+    getCurrentRole,
   }), [
     tenantContext,
     updateTenantContext,
@@ -40,6 +52,10 @@ export function TenantProvider({ children }) {
     clearPersonaRole,
     getEffectiveRole,
     isPlatformOwnerUser,
+    availableRoles,
+    getAvailableRoles,
+    switchRole,
+    getCurrentRole,
   ])
 
   return <TenantContext.Provider value={value}>{children}</TenantContext.Provider>

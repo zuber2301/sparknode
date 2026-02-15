@@ -1,0 +1,7 @@
+                  id                  |         corporate_email         |    org_role    |     roles      |  default_role  
+--------------------------------------+---------------------------------+----------------+----------------+----------------
+ 220e8400-e29b-41d4-a716-446655440000 | super_user@sparknode.io         | platform_admin | platform_admin | platform_admin
+ 85d34feb-49a7-4cc2-b2c2-96600ab62c1f | tm_test_1770290760@sparknode.io | tenant_manager | tenant_manager | tenant_manager
+ 8b50644b-01e0-49db-98d4-83a915913601 | mj01@sparknode.io               | tenant_manager | tenant_manager | tenant_manager
+(3 rows)
+

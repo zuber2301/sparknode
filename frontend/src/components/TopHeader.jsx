@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import { notificationsAPI, platformAPI, tenantsAPI, authAPI } from '../lib/api'
+import toast from 'react-hot-toast'
 import {
   HiOutlineHome,
   HiOutlineSparkles,
@@ -57,7 +58,7 @@ const platformAdminNavigation = [
   { name: 'Users', href: '/users', icon: HiOutlineUsers },
   { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar },
   { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
-  { name: 'Events', href: '/events/browse', icon: HiOutlineNewspaper },
+  { name: 'Event Management', href: '/events', icon: HiOutlineNewspaper },
   { name: 'Marketplace', href: '/marketplace', icon: HiOutlineShoppingCart },
   {
     name: 'Controls',
@@ -74,13 +75,23 @@ const platformAdminNavigation = [
 // Tenant Manager specific navigation - "Nerve Center"
 const tenantManagerNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
-  { name: 'Events', href: '/events/browse', icon: HiOutlineNewspaper },
+  { name: 'Event Management', href: '/events', icon: HiOutlineNewspaper },
   { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
   { name: 'Departments', href: '/departments', icon: HiOutlineOfficeBuilding },
   { name: 'User Management', href: '/users', icon: HiOutlineUsers },
   { name: 'Marketplace & Rewards', href: '/marketplace', icon: HiOutlineShoppingCart },
   { name: 'Analytics & Reports', href: '/analytics', icon: HiOutlineChartBar },
   { name: 'Settings', href: '/settings', icon: HiOutlineCog },
+]
+
+// Tenant Lead specific navigation
+const tenantLeadNavigation = [
+  { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
+  { name: 'Event Management', href: '/events/browse', icon: HiOutlineNewspaper },
+  { name: 'Recognize', href: '/recognize', icon: HiOutlineSparkles },
+  { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
+  { name: 'Wallet', href: '/wallet', icon: HiOutlineCash },
+  { name: 'Analytics & Reports', href: '/analytics', icon: HiOutlineChartBar },
 ]
 
 export default function TopHeader() {
@@ -102,6 +113,9 @@ export default function TopHeader() {
     isPlatformOwnerUser,
     isPlatformOwner,
     updateUser,
+    getAvailableRoles,
+    switchRole,
+    getCurrentRole,
   } = useAuthStore()
   const { canGiveRecognition, canManageBudgets, canApproveTeamRecognitions, canViewAnalytics } = useAuthStore()
   const navigate = useNavigate()
@@ -171,8 +185,8 @@ export default function TopHeader() {
     const roles = {
       platform_admin: 'Platform Admin',
       tenant_manager: 'Tenant Manager',
-      dept_lead: 'Dept Lead',
-      tenant_user: 'Tenant User',
+      dept_lead: 'Department Lead',
+      tenant_user: 'User',
     }
     return roles[role] || role
   }
@@ -211,6 +225,38 @@ export default function TopHeader() {
   const handleLogout = () => {
     logout()
     navigate('/login')
+  }
+
+  // Switch role mutation
+  const switchRoleMutation = useMutation({
+    mutationFn: (newRole) => authAPI.switchRole(newRole),
+    onSuccess: (response) => {
+      const { access_token, current_role, available_roles } = response.data
+      
+      // Update the token in store and local storage
+      const { updateToken } = useAuthStore.getState()
+      updateToken(access_token)
+      localStorage.setItem('token', access_token)
+      
+      // Update the auth store with new role
+      switchRole(current_role)
+      
+      // Show success message
+      toast.success(`Switched to ${current_role.replace(/_/g, ' ').toUpperCase()} role`)
+      
+      // Reload the page to reflect role changes in navigation
+      setTimeout(() => {
+        window.location.reload()
+      }, 500)
+    },
+    onError: (error) => {
+      const message = error.response?.data?.detail || 'Failed to switch role'
+      toast.error(message)
+    }
+  })
+
+  const handleSwitchRole = async (newRole) => {
+    switchRoleMutation.mutate(newRole)
   }
 
   const allTenants = tenantsResponse?.data
@@ -384,6 +430,76 @@ export default function TopHeader() {
                   </div>
                 </div>
               </>
+            ) : !isPlatformUser && effectiveRole === 'dept_lead' ? (
+              <>
+                {/* Tenant Lead: Browse tabs */}
+                {tenantLeadNavigation.map((item) => (
+                  <NavLink
+                    key={item.name}
+                    to={item.href}
+                    className={({ isActive }) =>
+                      `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'bg-sparknode-purple/10 text-sparknode-purple'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      }`
+                    }
+                  >
+                    <item.icon className="w-4 h-4" />
+                    {item.name}
+                  </NavLink>
+                ))}
+
+                {/* Admin Dropdown */}
+                <div className="relative group">
+                  <button className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors">
+                    <HiOutlineClipboardList className="w-4 h-4" />
+                    Admin
+                    <HiOutlineChevronDown className="w-4 h-4" />
+                  </button>
+                  <div className="absolute left-0 mt-0 w-48 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                    <NavLink
+                      to="/budgets"
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                          isActive
+                            ? 'bg-sparknode-purple/10 text-sparknode-purple'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`
+                      }
+                    >
+                      <HiOutlineChartBar className="w-4 h-4" />
+                      Budgets
+                    </NavLink>
+                    <NavLink
+                      to="/users"
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                          isActive
+                            ? 'bg-sparknode-purple/10 text-sparknode-purple'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`
+                      }
+                    >
+                      <HiOutlineUsers className="w-4 h-4" />
+                      Users
+                    </NavLink>
+                    <NavLink
+                      to="/audit"
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                          isActive
+                            ? 'bg-sparknode-purple/10 text-sparknode-purple'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`
+                      }
+                    >
+                      <HiOutlineClipboardList className="w-4 h-4" />
+                      Audit
+                    </NavLink>
+                  </div>
+                </div>
+              </>
             ) : (
               navigation.map((item) => (
                 <NavLink
@@ -403,7 +519,7 @@ export default function TopHeader() {
               ))
             )}
 
-            {adminNavigation.some((item) => canAccess(item.roles)) && effectiveRole !== 'tenant_manager' && effectiveRole !== 'platform_admin' && (
+            {adminNavigation.some((item) => canAccess(item.roles)) && effectiveRole !== 'tenant_manager' && effectiveRole !== 'dept_lead' && effectiveRole !== 'platform_admin' && (
               <>
                 <div className="w-px h-6 bg-gray-200 mx-2" />
                 {adminNavigation.map((item) =>
@@ -470,6 +586,37 @@ export default function TopHeader() {
                       <HiOutlineUser className="w-4 h-4" />
                       Profile
                     </NavLink>
+
+                    {/* Switch Role Option - Only show if user has multiple roles */}
+                    {getAvailableRoles && getAvailableRoles().length > 1 && (
+                      <div className="border-t border-gray-100 my-1 pt-1">
+                        <div className="px-3 py-2">
+                          <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Switch Role</p>
+                          <div className="space-y-1">
+                            {getAvailableRoles && getAvailableRoles().map((role) => (
+                              <button
+                                key={role}
+                                onClick={() => {
+                                  handleSwitchRole(role)
+                                  setProfileOpen(false)
+                                }}
+                                disabled={switchRoleMutation.isPending}
+                                className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${
+                                  getCurrentRole && getCurrentRole() === role
+                                    ? 'bg-sparknode-purple/10 text-sparknode-purple font-medium'
+                                    : 'text-gray-700 hover:bg-gray-50'
+                                } ${switchRoleMutation.isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              >
+                                {role === 'tenant_user' && '👤 User'}
+                                {role === 'dept_lead' && '👥 Department Lead'}
+                                {role === 'tenant_manager' && '⚙️ Tenant Manager'}
+                                {role === 'platform_admin' && '🔐 Platform Admin'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="border-t border-gray-100 my-1 pt-1">
                       <div className="px-3 py-2">

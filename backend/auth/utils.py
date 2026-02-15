@@ -49,6 +49,8 @@ def decode_token(token: str) -> TokenData:
         token_type: str = payload.get("type", "tenant")
         actual_user_id: str = payload.get("actual_user_id")
         effective_tenant_id: str = payload.get("effective_tenant_id")
+        roles: str = payload.get("roles")
+        default_role: str = payload.get("default_role")
         if user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -62,7 +64,9 @@ def decode_token(token: str) -> TokenData:
             org_role=org_role,
             token_type=token_type,
             actual_user_id=UUID(actual_user_id) if actual_user_id else None,
-            effective_tenant_id=UUID(effective_tenant_id) if effective_tenant_id else None
+            effective_tenant_id=UUID(effective_tenant_id) if effective_tenant_id else None,
+            roles=roles,
+            default_role=default_role
         )
     except JWTError:
         raise HTTPException(
@@ -202,7 +206,7 @@ async def get_hr_admin(current_user: User = Depends(get_current_user)) -> User:
 
 
 async def get_manager_or_above(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.org_role not in ['tenant_lead', 'tenant_manager', 'platform_admin']:
+    if current_user.org_role not in ['dept_lead', 'tenant_manager', 'platform_admin']:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Manager access required"

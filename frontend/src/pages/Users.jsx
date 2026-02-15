@@ -255,8 +255,6 @@ export default function Users() {
       tenant_manager: 'bg-purple-100 text-purple-800',
       dept_lead: 'bg-blue-100 text-blue-800',
       tenant_user: 'bg-green-100 text-green-800',
-      dept_lead: 'bg-blue-100 text-blue-800',
-      tenant_user: 'bg-green-100 text-green-800',
       employee: 'bg-green-100 text-green-800',
     }
     return colors[role] || 'bg-gray-100 text-gray-800'
@@ -273,8 +271,8 @@ export default function Users() {
   const getRoleLabel = (role) => {
     if (role === 'platform_admin') return 'Platform Admin'
     if (role === 'tenant_manager') return 'Tenant Manager'
-    if (role === 'dept_lead' || role === 'dept_lead') return 'Dept Lead'
-    if (role === 'tenant_user' || role === 'tenant_user' || role === 'employee') return 'Tenant User'
+    if (role === 'dept_lead') return 'Department Lead'
+    if (role === 'tenant_user' || role === 'employee') return 'User'
     return role?.replace('_', ' ') || 'User'
   }
 
@@ -630,7 +628,7 @@ export default function Users() {
                         <ul className="text-[10px] space-y-1 text-sparknode-purple/80">
                           <li>• Use our official CSV template for formatting</li>
                           <li>• Emails must be unique within your organization</li>
-                          <li>• Role must be 'tenant_user', 'dept_lead' or 'tenant_manager'</li>
+                          <li>• Org Role must be 'tenant_user', 'dept_lead' or 'tenant_manager'</li>
                           <li>• Mobile should follow international format if possible</li>
                         </ul>
                       </div>
@@ -870,8 +868,8 @@ export default function Users() {
                 <div>
                   <label className="label">Org Role</label>
                   <select name="org_role" className="input" defaultValue={selectedUser?.org_role || 'tenant_user'} required>
-                    <option value="tenant_user">Tenant User</option>
-                    <option value="dept_lead">Dept Lead</option>
+                    <option value="tenant_user">User</option>
+                    <option value="dept_lead">Department Lead</option>
                     <option value="tenant_manager">Tenant Manager</option>
                   </select>
                 </div>

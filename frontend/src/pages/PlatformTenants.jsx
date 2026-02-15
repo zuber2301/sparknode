@@ -209,6 +209,7 @@ export default function PlatformTenants() {
       subscription_tier: formData.get('subscription_tier'),
       max_users: parseInt(formData.get('max_users'), 10),
       master_budget_balance: parseFloat(formData.get('master_budget_balance') || '0'),
+      display_currency: formData.get('display_currency'),
       admin_email: formData.get('admin_email'),
       admin_first_name: formData.get('admin_first_name'),
       admin_last_name: formData.get('admin_last_name'),
@@ -975,11 +976,6 @@ export default function PlatformTenants() {
                     <option value="INR">INR (₹)</option>
                   </select>
                   <p className="text-xs text-gray-500 mt-1">This currency will be used across the tenant</p>
-                </div>
-                <div>
-                  <label className="label">Exchange Rate (FX Rate)</label>
-                  <input name="fx_rate" type="number" className="input" defaultValue="1.0" min="0.01" step="0.01" required />
-                  <p className="text-xs text-gray-500 mt-1">1 USD = ? {typeof document !== 'undefined' && document.querySelector('select[name="display_currency"]')?.value || 'selected currency'}</p>
                 </div>
               </div>
 

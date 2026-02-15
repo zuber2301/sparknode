@@ -108,15 +108,15 @@ export default function UserFormModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Org Role *</label>
             <select
               name="org_role"
               required
               defaultValue={user?.org_role || 'tenant_user'}
               className="input"
             >
-              <option value="tenant_user">Tenant User</option>
-              <option value="dept_lead">Dept Lead</option>
+              <option value="tenant_user">User</option>
+              <option value="dept_lead">Department Lead</option>
               <option value="tenant_manager">Tenant Manager</option>
             </select>
           </div>

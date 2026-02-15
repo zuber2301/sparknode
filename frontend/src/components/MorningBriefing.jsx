@@ -42,7 +42,7 @@ export default function MorningBriefing() {
     if (!teamLeadsData?.data) return []
     
     return teamLeadsData.data
-      .filter(lead => lead.org_role === 'dept_lead' || lead.org_role === 'dept_lead')
+      .filter(lead => lead.org_role === 'dept_lead')
       .map(lead => {
         const budgetUsagePercent = lead.wallet_data?.lifetime_spent 
           ? Math.round((Number(lead.wallet_data.lifetime_spent) / (Number(lead.wallet_data.lifetime_spent) + Number(lead.wallet_data.balance))) * 100)

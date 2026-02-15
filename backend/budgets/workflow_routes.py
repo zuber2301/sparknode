@@ -47,7 +47,7 @@ def is_tenant_manager(current_user: User) -> bool:
 
 def is_dept_lead(current_user: User) -> bool:
     """Check if user is department lead"""
-    return current_user.org_role == "tenant_lead" or current_user.org_role == "dept_lead"
+    return current_user.org_role == "dept_lead"
 
 
 # =====================================================

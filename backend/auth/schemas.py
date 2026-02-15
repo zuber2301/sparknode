@@ -17,6 +17,8 @@ class TokenData(BaseModel):
     token_type: Optional[str] = None
     actual_user_id: Optional[UUID] = None
     effective_tenant_id: Optional[UUID] = None
+    roles: Optional[str] = None  # Comma-separated roles
+    default_role: Optional[str] = None
 
 
 class LoginRequest(BaseModel):
@@ -33,6 +35,8 @@ class UserResponse(BaseModel):
     first_name: str
     last_name: str
     org_role: str
+    roles: Optional[str] = None  # Comma-separated list of available roles
+    default_role: Optional[str] = None  # Default role when user has multiple roles
     phone_number: Optional[str] = None
     mobile_number: Optional[str] = None
     department_id: Optional[UUID] = None
@@ -137,6 +141,26 @@ class InvitationLinkResponse(BaseModel):
     """Response containing the invitation link."""
     token: str
     email: str
+
+
+class SwitchRoleRequest(BaseModel):
+    """Request to switch to a different role"""
+    role: str
+
+
+class RoleInfo(BaseModel):
+    """Information about available roles"""
+    available_roles: list[str]
+    current_role: str  
+    default_role: str
+
+
+class SwitchRoleResponse(BaseModel):
+    """Response after switching role"""
+    access_token: str
+    token_type: str
+    current_role: str
+    available_roles: list[str]
     expires_at: datetime
     join_url: str  # Full URL for the join link
     tenant_id: UUID

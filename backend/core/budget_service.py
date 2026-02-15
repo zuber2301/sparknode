@@ -174,7 +174,7 @@ class BudgetService:
             BudgetAllocationError: If insufficient balance or invalid user roles
         """
         # Validate manager role
-        if from_manager.org_role not in ['tenant_manager', 'tenant_lead']:
+        if from_manager.org_role not in ['tenant_manager', 'dept_lead']:
             raise BudgetAllocationError(
                 f"User {from_manager.id} (role: {from_manager.org_role}) cannot distribute budget"
             )

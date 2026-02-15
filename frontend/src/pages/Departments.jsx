@@ -308,7 +308,7 @@ export default function Departments() {
             <thead className="bg-gray-100">
               <tr>
                 <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase">Department Name</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase">Dept Lead</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase">Department Lead</th>
                 <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase">Unallocated Points</th>
                 <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase">User Wallet Points</th>
                 <th className="px-6 py-4 text-left text-sm font-medium text-gray-700 uppercase">Total Points Liability</th>
@@ -580,7 +580,7 @@ export default function Departments() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sparknode-purple focus:border-transparent"
                 >
                   <option value="">Select a user to promote to department lead...</option>
-                  {users?.data?.filter(u => u.org_role !== 'dept_lead' && u.org_role !== 'dept_lead')?.map((user) => (
+                  {users?.data?.filter(u => u.org_role !== 'dept_lead')?.map((user) => (
                     <option key={user.id} value={user.id}>
                       {user.first_name} {user.last_name} ({user.corporate_email})
                     </option>

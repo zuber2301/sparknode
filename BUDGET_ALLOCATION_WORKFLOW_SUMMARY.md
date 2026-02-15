@@ -117,7 +117,7 @@ Employees use points for recognition/redemption
 ### 3. Role-Based Access
 - `platform_admin` - Only can allocate to tenants
 - `tenant_manager` - Can distribute to departments in their tenant
-- `dept_lead` / `tenant_lead` - Can distribute to employees in their department
+- `dept_lead` (formerly `tenant_lead`) - Can distribute to employees in their department
 - `tenant_user` - View only
 
 ### 4. Audit & Compliance

@@ -1,6 +1,6 @@
 """
 Test cases for department budget allocation functionality.
-Tests for adding points to departments by tenant_manager and tenant_lead roles.
+Tests for adding points to departments by tenant_manager and dept_lead roles.
 """
 
 import pytest
@@ -74,14 +74,14 @@ def tenant_manager_user(db, test_tenant):
 
 
 @pytest.fixture
-def tenant_lead_user(db, test_tenant, test_department):
-    """Create a tenant_lead user"""
+def dept_lead_user(db, test_tenant, test_department):
+    """Create a dept_lead user"""
     user = User(
         tenant_id=test_tenant.id,
         corporate_email="lead@test.com",
         first_name="Jane",
         last_name="Lead",
-        org_role="tenant_lead",
+        org_role="dept_lead",
         department_id=test_department.id,
         password_hash="hashed_password",
         status="ACTIVE"
@@ -144,10 +144,10 @@ class TestDepartmentBudgetAllocation:
         assert test_tenant.master_budget_balance == initial_master_balance - allocation_amount
         assert test_department.budget_balance == initial_dept_balance + allocation_amount
 
-    def test_allocate_budget_as_tenant_lead_success(self, db, test_tenant, test_department, tenant_lead_user):
-        """Test that tenant_lead can allocate points to their department"""
-        # Create access token for tenant_lead
-        token = create_access_token(str(tenant_lead_user.id))
+    def test_allocate_budget_as_dept_lead_success(self, db, test_tenant, test_department, dept_lead_user):
+        """Test that dept_lead can allocate points to their department"""
+        # Create access token for dept_lead
+        token = create_access_token(str(dept_lead_user.id))
         
         # Initial values
         initial_master_balance = test_tenant.master_budget_balance

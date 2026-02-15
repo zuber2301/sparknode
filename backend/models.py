@@ -295,6 +295,10 @@ class User(Base):
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
     org_role = Column(String(50), nullable=False)
+    # Multiple roles support (comma-separated: "tenant_user,dept_lead,tenant_manager")
+    roles = Column(String(255), nullable=True)
+    # Default role for the user (when multiple roles are available)
+    default_role = Column(String(50), nullable=True)
     department_id = Column(UUID(as_uuid=True), ForeignKey("departments.id"), nullable=False)
     manager_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     avatar_url = Column(String(500))
@@ -325,6 +329,33 @@ class User(Base):
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
+    
+    # Multi-role support methods
+    def get_roles_list(self):
+        """Get list of all roles for this user"""
+        if self.roles:
+            return [r.strip() for r in self.roles.split(',') if r.strip()]
+        # Fallback to org_role if roles not populated yet
+        return [self.org_role] if self.org_role else []
+    
+    def get_effective_role(self, requested_role: str = None):
+        """Get the effective role - either the requested one or the default"""
+        available_roles = self.get_roles_list()
+        
+        # If requesting a specific role, ensure it's available
+        if requested_role and requested_role in available_roles:
+            return requested_role
+        
+        # Use default role if set and available
+        if self.default_role and self.default_role in available_roles:
+            return self.default_role
+        
+        # Use the org_role as fallback (for backward compatibility)
+        if self.org_role in available_roles:
+            return self.org_role
+            
+        # Fallback to first available role
+        return available_roles[0] if available_roles else self.org_role
 
 
 class SystemAdmin(Base):
