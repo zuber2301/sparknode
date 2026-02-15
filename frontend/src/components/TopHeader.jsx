@@ -113,6 +113,7 @@ export default function TopHeader() {
     isPlatformOwnerUser,
     isPlatformOwner,
     updateUser,
+    setAuth,
     getAvailableRoles,
     switchRole,
     getCurrentRole,
@@ -127,7 +128,10 @@ export default function TopHeader() {
     staleTime: 5 * 60 * 1000, // 5 minutes
     onSuccess: (response) => {
       if (response?.data?.id) {
-        updateUser(response.data)
+        // Ensure auth store has full user/roles state populated.
+        // If the persisted store already has a token, preserve it.
+        const token = useAuthStore.getState().token
+        setAuth(response.data, token)
       }
     },
   })

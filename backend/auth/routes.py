@@ -277,9 +277,19 @@ async def get_current_user_info(
     current_user: User = Depends(get_current_user)
 ):
     """Get current authenticated user information"""
-    # Get roles based on org_role
+    # Get roles based on org_role and merge with any roles explicitly stored on the user record.
     user_roles_config = get_user_roles(current_user.org_role)
-    roles_str = current_user.roles or user_roles_config['roles']
+    db_roles = [r.strip() for r in (current_user.roles or '').split(',') if r.strip()]
+    config_roles = [r.strip() for r in user_roles_config['roles'].split(',') if r.strip()]
+    # Preserve config ordering, but include any extra roles present on the user record.
+    if db_roles:
+        merged = []
+        for r in config_roles + db_roles:
+            if r not in merged:
+                merged.append(r)
+        roles_str = ','.join(merged)
+    else:
+        roles_str = ','.join(config_roles)
     default_role = current_user.default_role or user_roles_config['default_role']
     
     return UserResponse(
@@ -343,11 +353,20 @@ async def get_available_roles(
     db: Session = Depends(get_db)
 ):
     """Get available roles for current user"""
-    # Get roles based on org_role
+    # Get roles based on org_role and merge with any stored user roles
     user_roles_config = get_user_roles(current_user.org_role)
-    roles_str = current_user.roles or user_roles_config['roles']
+    db_roles = [r.strip() for r in (current_user.roles or '').split(',') if r.strip()]
+    config_roles = [r.strip() for r in user_roles_config['roles'].split(',') if r.strip()]
+    if db_roles:
+        merged = []
+        for r in config_roles + db_roles:
+            if r not in merged:
+                merged.append(r)
+        roles_str = ','.join(merged)
+    else:
+        roles_str = ','.join(config_roles)
     default_role = current_user.default_role or user_roles_config['default_role']
-    
+
     available_roles = [r.strip() for r in roles_str.split(',') if r.strip()]
     
     # Get current role from JWT (stored in token as org_role, but we can infer it)
@@ -368,10 +387,19 @@ async def switch_role(
     db: Session = Depends(get_db)
 ):
     """Switch to a different role (must be one of user's available roles)"""
-    # Get roles based on org_role
+    # Get roles based on org_role and merge with any stored user roles
     user_roles_config = get_user_roles(current_user.org_role)
-    roles_str = current_user.roles or user_roles_config['roles']
-    
+    db_roles = [r.strip() for r in (current_user.roles or '').split(',') if r.strip()]
+    config_roles = [r.strip() for r in user_roles_config['roles'].split(',') if r.strip()]
+    if db_roles:
+        merged = []
+        for r in config_roles + db_roles:
+            if r not in merged:
+                merged.append(r)
+        roles_str = ','.join(merged)
+    else:
+        roles_str = ','.join(config_roles)
+
     available_roles = [r.strip() for r in roles_str.split(',') if r.strip()]
     
     # Check if requested role is available
