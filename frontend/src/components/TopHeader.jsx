@@ -76,6 +76,7 @@ const platformAdminNavigation = [
 const tenantManagerNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
   { name: 'Event Management', href: '/events', icon: HiOutlineNewspaper },
+  { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: 'sales_marketting_enabled' },
   { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
   { name: 'Departments', href: '/departments', icon: HiOutlineOfficeBuilding },
   { name: 'User Management', href: '/users', icon: HiOutlineUsers },
@@ -88,6 +89,7 @@ const tenantManagerNavigation = [
 const tenantLeadNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
   { name: 'Event Management', href: '/events/browse', icon: HiOutlineNewspaper },
+  { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: 'sales_marketting_enabled' },
   { name: 'Recognize', href: '/recognize', icon: HiOutlineSparkles },
   { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
   { name: 'Wallet', href: '/wallet', icon: HiOutlineCash },
@@ -163,6 +165,11 @@ export default function TopHeader() {
     queryFn: () => tenantsAPI.getCurrent(),
     enabled: !isPlatformUser,
   })
+
+  const salesEnabled = (() => {
+    const flags = (tenantContext && tenantContext.feature_flags) || (currentTenantResponse && currentTenantResponse.data && currentTenantResponse.data.feature_flags) || {}
+    return !!flags.sales_marketting_enabled
+  })()
 
   // Tenant display helpers
   const tenantName = getTenantName ? getTenantName() : tenantContext?.tenant_name || user?.tenant_name
@@ -367,7 +374,7 @@ export default function TopHeader() {
             ) : !isPlatformUser && effectiveRole === 'tenant_manager' ? (
               <>
                 {/* Tenant Manager: Nerve Center tabs */}
-                {tenantManagerNavigation.map((item) => (
+                {tenantManagerNavigation.filter(item => !item.featureFlag || salesEnabled).map((item) => (
                   <NavLink
                     key={item.name}
                     to={item.href}
@@ -437,7 +444,7 @@ export default function TopHeader() {
             ) : !isPlatformUser && effectiveRole === 'dept_lead' ? (
               <>
                 {/* Tenant Lead: Browse tabs */}
-                {tenantLeadNavigation.map((item) => (
+                {tenantLeadNavigation.filter(item => !item.featureFlag || salesEnabled).map((item) => (
                   <NavLink
                     key={item.name}
                     to={item.href}

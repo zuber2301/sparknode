@@ -162,6 +162,20 @@ export default function PlatformTenants() {
     },
   })
 
+  const toggleFeatureMutation = useMutation({
+    mutationFn: async ({ tenantId, key, value }) => {
+      const resp = await platformAPI.getFeatureFlags(tenantId)
+      const existing = resp.data ? resp.data.feature_flags || {} : resp.feature_flags || {}
+      const updated = { ...(existing || {}), [key]: value }
+      return platformAPI.updateFeatureFlags(tenantId, { feature_flags: updated })
+    },
+    onSuccess: () => {
+      toast.success('Feature updated')
+      queryClient.invalidateQueries(['platformTenants'])
+    },
+    onError: (err) => toast.error(err.response?.data?.detail || 'Failed to update feature')
+  })
+
   const tiers = useMemo(() => tiersResponse?.data?.tiers || [], [tiersResponse])
   
   const tenants = useMemo(() => {
@@ -202,6 +216,20 @@ export default function PlatformTenants() {
   const handleCreateTenant = (e) => {
     e.preventDefault()
     const formData = new FormData(e.target)
+    
+    // Process selected module
+    const selectedModule = formData.get('enabled_modules')
+    const featureFlags = {}
+    
+    // Map module selection to feature flags
+    if (selectedModule === 'ai_module') {
+      featureFlags.ai_module_enabled = true
+      featureFlags.ai_copilot = true
+    } else if (selectedModule === 'sales_marketing') {
+      featureFlags.sales_marketting_enabled = true
+    }
+    // For 'none', featureFlags remains empty object
+    
     createMutation.mutate({
       name: formData.get('name'),
       slug: formData.get('slug') || undefined,
@@ -214,6 +242,7 @@ export default function PlatformTenants() {
       admin_first_name: formData.get('admin_first_name'),
       admin_last_name: formData.get('admin_last_name'),
       admin_password: formData.get('admin_password'),
+      feature_flags: featureFlags
     })
   }
 
@@ -469,6 +498,7 @@ export default function PlatformTenants() {
               <div className="flex items-center gap-4">
                 {[
                   { key: 'overview', label: 'Overview', Icon: HiOutlineOfficeBuilding },
+                  { key: 'features', label: 'Features', Icon: HiOutlineDotsVertical },
                   { key: 'branding', label: 'Settings', Icon: HiOutlineShieldCheck },
                   { key: 'security', label: 'Security', Icon: HiOutlineCheckCircle },
                   { key: 'economy', label: 'Financials', Icon: HiOutlineCurrencyRupee },
@@ -756,6 +786,12 @@ export default function PlatformTenants() {
                   </div>
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
                     <div>
+                      <p className="text-sm font-medium">Sales & Marketing (Sales Events)</p>
+                    </div>
+                    <input type="checkbox" checked={!!editForm.feature_flags?.sales_marketting_enabled} onChange={(e) => setEditForm({ ...editForm, feature_flags: { ...editForm.feature_flags, sales_marketting_enabled: e.target.checked } })} />
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                    <div>
                       <p className="text-sm font-medium">Tango Card Marketplace</p>
                     </div>
                     <input type="checkbox" checked={!!editForm.feature_flags?.tango_card} onChange={(e) => setEditForm({ ...editForm, feature_flags: { ...editForm.feature_flags, tango_card: e.target.checked } })} />
@@ -892,6 +928,36 @@ export default function PlatformTenants() {
                               <span>Load Budget</span>
                             </button>
 
+                            <button onClick={async () => {
+                              setActionOpenFor(null)
+                              try {
+                                const currentFlagsResp = await platformAPI.getFeatureFlags(tenant.id)
+                                const current = currentFlagsResp.data ? currentFlagsResp.data.feature_flags || {} : currentFlagsResp.feature_flags || {}
+                                const newVal = !Boolean(current.sales_marketting_enabled)
+                                toggleFeatureMutation.mutate({ tenantId: tenant.id, key: 'sales_marketting_enabled', value: newVal })
+                              } catch (e) {
+                                toast.error('Failed to toggle Sales Events')
+                              }
+                            }} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md">
+                              <HiOutlineOfficeBuilding className="w-4 h-4 text-gray-400" />
+                              <span>{tenant.feature_flags?.sales_marketting_enabled ? 'Disable' : 'Enable'} Sales Events</span>
+                            </button>
+
+                            <button onClick={async () => {
+                              setActionOpenFor(null)
+                              try {
+                                const currentFlagsResp = await platformAPI.getFeatureFlags(tenant.id)
+                                const current = currentFlagsResp.data ? currentFlagsResp.data.feature_flags || {} : currentFlagsResp.feature_flags || {}
+                                const newVal = !Boolean(current.ai_copilot || current.ai_module_enabled)
+                                toggleFeatureMutation.mutate({ tenantId: tenant.id, key: 'ai_copilot', value: newVal })
+                              } catch (e) {
+                                toast.error('Failed to toggle SNPilot')
+                              }
+                            }} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md">
+                              <HiOutlineShieldCheck className="w-4 h-4 text-gray-400" />
+                              <span>{(tenant.feature_flags?.ai_copilot || tenant.feature_flags?.ai_module_enabled) ? 'Disable' : 'Enable'} SNPilot</span>
+                            </button>
+
                             {tenant.status === 'suspended' ? (
                               <button onClick={() => { setActionOpenFor(null); setConfirmProps({ title: `Reactivate ${tenant.name}`, description: 'Reactivate will restore access for this tenant.', onConfirm: () => activateMutation.mutate(tenant.id) }); setIsConfirmOpen(true) }} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-green-600 hover:bg-green-50 rounded-md">
                                 <HiOutlineLockOpen className="w-4 h-4 text-green-500" />
@@ -926,8 +992,12 @@ export default function PlatformTenants() {
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-semibold mb-2">Provision New Tenant</h2>
-            <p className="text-sm text-gray-500 mb-4">Creates tenant, initializes master budget, and provisions a SUPER_ADMIN.</p>
+            <div className="-mx-6 -mt-6 mb-4 rounded-2xl overflow-hidden">
+              <div className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 p-6">
+                <h2 className="text-xl font-semibold text-white mb-1">Provision New Tenant</h2>
+                <p className="text-sm text-indigo-100 mb-0">Creates tenant, initializes master budget, and provisions a SUPER_ADMIN.</p>
+              </div>
+            </div>
             <form onSubmit={handleCreateTenant} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -976,6 +1046,20 @@ export default function PlatformTenants() {
                     <option value="INR">INR (₹)</option>
                   </select>
                   <p className="text-xs text-gray-500 mt-1">This currency will be used across the tenant</p>
+                </div>
+
+                {/* Optional Modules */}
+                <div>
+                  <label className="label">Optional Modules</label>
+                  <select 
+                    name="enabled_modules" 
+                    className="input"
+                    defaultValue="none"
+                  >
+                    <option value="none">None (Default)</option>
+                    <option value="ai_module">AI Module</option>
+                    <option value="sales_marketing">Sales & Marketing</option>
+                  </select>
                 </div>
               </div>
 

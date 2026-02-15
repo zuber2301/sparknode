@@ -21,11 +21,19 @@ export default function RightSideCopilot() {
     pinned,
     togglePinned
   } = useCopilot()
-  const { user } = useAuthStore()
+  const { user, tenantContext } = useAuthStore()
   const [inputValue, setInputValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
+
+  // Check if AI copilot is enabled for this tenant
+  const aiCopilotEnabled = tenantContext?.feature_flags?.ai_copilot || tenantContext?.feature_flags?.ai_module_enabled
+
+  // Don't render anything if AI copilot is not enabled
+  if (!aiCopilotEnabled) {
+    return null
+  }
 
   // Keep the panel open if pinned
   useEffect(() => {

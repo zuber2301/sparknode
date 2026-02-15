@@ -26,6 +26,8 @@ import EventDetail from './pages/EventDetail'
 import EmployeeEvents from './pages/EmployeeEvents'
 import Marketplace from './pages/Marketplace'
 import AISettings from './pages/AISettings'
+import SalesEvents from './pages/SalesEvents'
+import SalesEventRegistration from './pages/SalesEventRegistration'
 import Templates from './pages/Templates'
 import Billing from './pages/Billing'
 import TeamHub from './pages/TeamHub'
@@ -161,6 +163,9 @@ function App() {
         <Route path="events/create" element={<Events />} />
         <Route path="events/:eventId" element={<EventDetail />} />
         <Route path="events/:eventId/edit" element={<EventCreateWizardEdit />} />
+        {/* Sales & Marketing */}
+        <Route path="sales-events" element={<SalesEvents />} />
+        <Route path="e/sales/:eventId" element={<SalesEventRegistration />} />
         
         {/* Analytics - Different availability based on role */}
         <Route path="analytics" element={

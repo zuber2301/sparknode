@@ -352,6 +352,21 @@ export const eventsAPI = {
   getMyRegistrations: (params) => api.get('/events/my/registrations', { params }),
 }
 
+// Sales & Marketing API (Sales Events)
+export const salesAPI = {
+  create: (data) => api.post('/sales-events', data),
+  list: (params) => api.get('/sales-events', { params }),
+  get: (id) => api.get(`/sales-events/${id}`),
+  update: (id, data) => api.patch(`/sales-events/${id}`, data),
+  publish: (id) => api.post(`/sales-events/${id}/publish`),
+  publicRegister: (id, data) => api.post(`/sales-events/public/${id}/register`, data, { skipTenant: true }),
+  registrations: (id) => api.get(`/sales-events/${id}/registrations`),
+  leads: (id) => api.get(`/sales-events/${id}/leads`),
+  updateLead: (leadId, data) => api.patch(`/sales-events/leads/${leadId}`, data),
+  metrics: (id) => api.get(`/sales-events/${id}/metrics`),
+  metricsSummary: () => api.get('/sales-events/metrics/summary'),
+}
+
 // Analytics API (New - Tenant Dashboard & Insights)
 export const analyticsAPI = {
   // Tenant Analytics
