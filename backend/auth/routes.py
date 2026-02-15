@@ -427,12 +427,24 @@ async def switch_role(
         },
         expires_delta=access_token_expires
     )
-    
+    # Build a full SwitchRoleResponse satisfying the response model fields.
+    expires_at = datetime.utcnow() + access_token_expires
+    # Try to resolve tenant name for the response (may be None for platform admins)
+    tenant_name = None
+    if current_user.tenant_id:
+        tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+        if tenant:
+            tenant_name = tenant.name
+
     return SwitchRoleResponse(
         access_token=access_token,
         token_type="bearer",
         current_role=request.role,
-        available_roles=available_roles
+        available_roles=available_roles,
+        expires_at=expires_at,
+        join_url="",  # not applicable for role switch, keep empty
+        tenant_id=current_user.tenant_id,
+        tenant_name=tenant_name or "",
     )
 async def request_email_otp(
     payload: EmailOtpRequest,

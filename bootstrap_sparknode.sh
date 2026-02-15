@@ -3,12 +3,25 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-BOOTSTART_SCRIPT="$ROOT_DIR/bootstart_persku.sh"
+# Allow an optional local/override bootstrap script. Common names we accept
+# (in order) are: `bootstrap_override.sh`, `bootstrap_local.sh`,
+# `bootstart_sparknode.sh` (legacy). The previous name `bootstart_persku.sh`
+# appeared to be a typo and caused unexpected behavior.
+BOOTSTRAP_CANDIDATES=(
+  "$ROOT_DIR/bootstrap_override.sh"
+  "$ROOT_DIR/bootstrap_local.sh"
+  "$ROOT_DIR/bootstart_sparknode.sh"
+)
 
-if [[ -f "$BOOTSTART_SCRIPT" ]]; then
-  chmod +x "$BOOTSTART_SCRIPT"
-  exec "$BOOTSTART_SCRIPT"
-fi
+for candidate in "${BOOTSTRAP_CANDIDATES[@]}"; do
+  if [[ -f "$candidate" ]]; then
+    chmod +x "$candidate" || true
+    echo "Found local bootstrap override: $(basename "$candidate"). Executing it."
+    exec "$candidate"
+  fi
+done
+
+# No override script found; continue with standard bootstrap flow
 
 cd "$ROOT_DIR"
 
