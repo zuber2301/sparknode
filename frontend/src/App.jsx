@@ -160,7 +160,7 @@ function App() {
         
         {/* Event Management */}
         <Route path="events" element={<Events />} />
-        <Route path="events/create" element={<Events />} />
+        <Route path="events/create" element={<EventCreateWizard />} />
         <Route path="events/:eventId" element={<EventDetail />} />
         <Route path="events/:eventId/edit" element={<EventCreateWizardEdit />} />
         {/* Sales & Marketing */}

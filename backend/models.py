@@ -80,8 +80,8 @@ class ActorType(str, enum.Enum):
 
 class AllowedDepartment(str, enum.Enum):
     HR = "Human Resource (HR)"
-    IT = "Techology (IT)"
-    SALES_MARKETING = "Sale & Marketting"
+    IT = "Technology (IT)"
+    SALES_MARKETING = "Sales & Marketing"
     BU1 = "Business Unit -1"
     BU2 = "Business Unit-2"
     BU3 = "Business Unit-3"
@@ -227,6 +227,7 @@ class Tenant(Base):
     users = relationship("User", back_populates="tenant", cascade="all, delete-orphan")
     budgets = relationship("Budget", back_populates="tenant", cascade="all, delete-orphan")
     events = relationship("Event", back_populates="tenant", cascade="all, delete-orphan")
+    sales_events = relationship("SalesEvent", back_populates="tenant", cascade="all, delete-orphan")
     master_budget_ledger = relationship("MasterBudgetLedger", back_populates="tenant", cascade="all, delete-orphan")
     
     @property
@@ -1132,6 +1133,115 @@ class EventMetrics(Base):
     
     # Relationships
     event = relationship("Event", back_populates="metrics")
+
+
+class SalesEvent(Base):
+    __tablename__ = "sales_events"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    name = Column(Text, nullable=False)
+    description = Column(Text)
+    event_type = Column(String(50), nullable=False)
+    start_at = Column(DateTime(timezone=True), nullable=False)
+    end_at = Column(DateTime(timezone=True))
+    location = Column(Text)
+    status = Column(String(50), default='draft')
+    owner_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    marketing_owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    target_registrations = Column(Integer)
+    target_pipeline = Column(Numeric(18, 2))
+    target_revenue = Column(Numeric(18, 2))
+    registration_url = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    tenant = relationship("Tenant", back_populates="sales_events")
+    registrations = relationship("SalesEventRegistration", back_populates="event", cascade="all, delete-orphan")
+    leads = relationship("SalesEventLead", back_populates="event", cascade="all, delete-orphan")
+    metrics = relationship("SalesEventMetrics", back_populates="event", uselist=False, cascade="all, delete-orphan")
+
+
+class SalesEventRegistration(Base):
+    __tablename__ = "sales_event_registrations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_id = Column(UUID(as_uuid=True), ForeignKey("sales_events.id", ondelete="CASCADE"), nullable=False)
+    email = Column(String(255), nullable=False)
+    full_name = Column(Text)
+    company = Column(Text)
+    role = Column(String(255))
+    status = Column(String(50), default='registered')
+    source_channel = Column(String(50))
+    utm_source = Column(String(255))
+    utm_campaign = Column(String(255))
+    registered_at = Column(DateTime(timezone=True), server_default=func.now())
+    checked_in_at = Column(DateTime(timezone=True))
+
+    event = relationship("SalesEvent", back_populates="registrations")
+
+
+class SalesEventLead(Base):
+    __tablename__ = "sales_event_leads"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_id = Column(UUID(as_uuid=True), ForeignKey("sales_events.id", ondelete="CASCADE"), nullable=False)
+    registration_id = Column(UUID(as_uuid=True), ForeignKey("sales_event_registrations.id"))
+    owner_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    lead_status = Column(String(50), default='new')
+    qualification_fit = Column(String(50))
+    qualification_timing = Column(String(50))
+    notes = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    event = relationship("SalesEvent", back_populates="leads")
+
+
+class SalesEventMetrics(Base):
+    __tablename__ = "sales_event_metrics"
+
+    event_id = Column(UUID(as_uuid=True), ForeignKey("sales_events.id", ondelete="CASCADE"), primary_key=True)
+    registrations = Column(Integer, default=0)
+    attendees = Column(Integer, default=0)
+    meetings_booked = Column(Integer, default=0)
+    opportunities = Column(Integer, default=0)
+    pipeline_value = Column(Numeric(18, 2), default=0)
+    revenue_closed = Column(Numeric(18, 2), default=0)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    event = relationship("SalesEvent", back_populates="metrics")
+
+
+class CRMConnector(Base):
+    __tablename__ = "crm_connectors"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    name = Column(String(255), nullable=False)
+    connector_type = Column(String(100), nullable=False)
+    config = Column(JSONB, default={})
+    enabled = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    tenant = relationship("Tenant")
+
+
+class WebhookLog(Base):
+    __tablename__ = "webhook_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    connector_id = Column(UUID(as_uuid=True), ForeignKey("crm_connectors.id"))
+    event_type = Column(String(255), nullable=False)
+    payload = Column(JSONB)
+    response_status = Column(Integer)
+    response_body = Column(Text)
+    attempted_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    tenant = relationship("Tenant")
+    connector = relationship("CRMConnector")
 
 
 class InvitationToken(Base):

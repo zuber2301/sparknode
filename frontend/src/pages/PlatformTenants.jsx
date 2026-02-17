@@ -226,7 +226,7 @@ export default function PlatformTenants() {
       featureFlags.ai_module_enabled = true
       featureFlags.ai_copilot = true
     } else if (selectedModule === 'sales_marketing') {
-      featureFlags.sales_marketting_enabled = true
+      featureFlags.sales_marketing = true
     }
     // For 'none', featureFlags remains empty object
     
@@ -788,7 +788,7 @@ export default function PlatformTenants() {
                     <div>
                       <p className="text-sm font-medium">Sales & Marketing (Sales Events)</p>
                     </div>
-                    <input type="checkbox" checked={!!editForm.feature_flags?.sales_marketting_enabled} onChange={(e) => setEditForm({ ...editForm, feature_flags: { ...editForm.feature_flags, sales_marketting_enabled: e.target.checked } })} />
+                    <input type="checkbox" checked={!!editForm.feature_flags?.sales_marketing || !!editForm.feature_flags?.sales_marketting_enabled} onChange={(e) => setEditForm({ ...editForm, feature_flags: { ...editForm.feature_flags, sales_marketing: e.target.checked } })} />
                   </div>
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
                     <div>
@@ -933,14 +933,14 @@ export default function PlatformTenants() {
                               try {
                                 const currentFlagsResp = await platformAPI.getFeatureFlags(tenant.id)
                                 const current = currentFlagsResp.data ? currentFlagsResp.data.feature_flags || {} : currentFlagsResp.feature_flags || {}
-                                const newVal = !Boolean(current.sales_marketting_enabled)
-                                toggleFeatureMutation.mutate({ tenantId: tenant.id, key: 'sales_marketting_enabled', value: newVal })
+                                const newVal = !Boolean(current.sales_marketing || current.sales_marketting_enabled)
+                                toggleFeatureMutation.mutate({ tenantId: tenant.id, key: 'sales_marketing', value: newVal })
                               } catch (e) {
                                 toast.error('Failed to toggle Sales Events')
                               }
                             }} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md">
                               <HiOutlineOfficeBuilding className="w-4 h-4 text-gray-400" />
-                              <span>{tenant.feature_flags?.sales_marketting_enabled ? 'Disable' : 'Enable'} Sales Events</span>
+                              <span>{(tenant.feature_flags?.sales_marketing || tenant.feature_flags?.sales_marketting_enabled) ? 'Disable' : 'Enable'} Sales Events</span>
                             </button>
 
                             <button onClick={async () => {
@@ -991,13 +991,12 @@ export default function PlatformTenants() {
       {/* Create Tenant Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="-mx-6 -mt-6 mb-4 rounded-2xl overflow-hidden">
-              <div className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 p-6">
-                <h2 className="text-xl font-semibold text-white mb-1">Provision New Tenant</h2>
-                <p className="text-sm text-indigo-100 mb-0">Creates tenant, initializes master budget, and provisions a SUPER_ADMIN.</p>
-              </div>
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 px-6 py-4 rounded-t-2xl">
+              <h2 className="text-xl font-semibold text-white">Provision New Tenant</h2>
+              <p className="text-sm text-indigo-100">Creates tenant, initializes master budget, and provisions a SUPER_ADMIN.</p>
             </div>
+            <div className="p-6">
             <form onSubmit={handleCreateTenant} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -1102,6 +1101,7 @@ export default function PlatformTenants() {
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}

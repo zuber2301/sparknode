@@ -63,6 +63,15 @@ def get_user_roles(org_role: str):
             'roles': 'tenant_user',
             'default_role': 'tenant_user'
         }
+        ,
+        'sales_marketing': {
+            'roles': 'sales_marketing,tenant_user',
+            'default_role': 'sales_marketing'
+        },
+        'ai_copilot': {
+            'roles': 'ai_copilot,tenant_user',
+            'default_role': 'ai_copilot'
+        }
     }
     
     return role_mapping.get(org_role, {

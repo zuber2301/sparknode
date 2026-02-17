@@ -136,7 +136,7 @@ async def create_tenant(
                 "social_feed_enabled": True,
                 "events_module_enabled": True
             },
-            feature_flags={},
+            feature_flags=tenant_data.feature_flags or {},
             catalog_settings={},
             branding={}
         )
@@ -151,6 +151,15 @@ async def create_tenant(
         db.add(hr_dept)
         db.flush()
         
+        # Determine admin org_role based on selected modules/feature flags
+        admin_org_role = 'tenant_manager'  # default
+        
+        feature_flags = tenant_data.feature_flags or {}
+        if feature_flags.get('sales_marketing') or feature_flags.get('sales_marketting_enabled'):
+            admin_org_role = 'sales_marketing'
+        elif feature_flags.get('ai_copilot') or feature_flags.get('ai_module_enabled'):
+            admin_org_role = 'ai_copilot'
+        
         # Create admin user with correct field names (corporate_email, org_role)
         admin_user = User(
             tenant_id=tenant.id,
@@ -158,7 +167,7 @@ async def create_tenant(
             password_hash=get_password_hash(tenant_data.admin_password),
             first_name=tenant_data.admin_first_name,
             last_name=tenant_data.admin_last_name,
-            org_role='tenant_manager',
+            org_role=admin_org_role,
             department_id=hr_dept.id,
             status='ACTIVE',
             is_super_admin=True
@@ -233,6 +242,9 @@ async def create_tenant(
         currency_label=tenant.currency_label or 'Points',
         conversion_rate=tenant.conversion_rate or Decimal('1.0'),
         auto_refill_threshold=tenant.auto_refill_threshold or Decimal('20.0'),
+        base_currency=tenant.base_currency or 'USD',
+        display_currency=tenant.display_currency or 'USD',
+        fx_rate=tenant.fx_rate or Decimal('1.0'),
         award_tiers=tenant.award_tiers or {},
         peer_to_peer_enabled=tenant.peer_to_peer_enabled or True,
         expiry_policy=tenant.expiry_policy or 'never',

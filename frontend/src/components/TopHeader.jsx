@@ -76,7 +76,7 @@ const platformAdminNavigation = [
 const tenantManagerNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
   { name: 'Event Management', href: '/events', icon: HiOutlineNewspaper },
-  { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: 'sales_marketting_enabled' },
+  { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: true },
   { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
   { name: 'Departments', href: '/departments', icon: HiOutlineOfficeBuilding },
   { name: 'User Management', href: '/users', icon: HiOutlineUsers },
@@ -89,7 +89,7 @@ const tenantManagerNavigation = [
 const tenantLeadNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
   { name: 'Event Management', href: '/events/browse', icon: HiOutlineNewspaper },
-  { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: 'sales_marketting_enabled' },
+  { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: true },
   { name: 'Recognize', href: '/recognize', icon: HiOutlineSparkles },
   { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
   { name: 'Wallet', href: '/wallet', icon: HiOutlineCash },
@@ -168,8 +168,11 @@ export default function TopHeader() {
 
   const salesEnabled = (() => {
     const flags = (tenantContext && tenantContext.feature_flags) || (currentTenantResponse && currentTenantResponse.data && currentTenantResponse.data.feature_flags) || {}
-    return !!flags.sales_marketting_enabled
+    return !!(flags.sales_marketing || flags.sales_marketting_enabled)
   })()
+
+  // Check if user has sales_marketing role for menu access
+  const hasSalesRole = user?.org_role === 'sales_marketing'
 
   // Tenant display helpers
   const tenantName = getTenantName ? getTenantName() : tenantContext?.tenant_name || user?.tenant_name
@@ -198,6 +201,8 @@ export default function TopHeader() {
       tenant_manager: 'Tenant Manager',
       dept_lead: 'Department Lead',
       tenant_user: 'User',
+      sales_marketing: 'Sales & Marketing',
+      ai_copilot: 'AI Assistant',
     }
     return roles[role] || role
   }
@@ -374,7 +379,7 @@ export default function TopHeader() {
             ) : !isPlatformUser && effectiveRole === 'tenant_manager' ? (
               <>
                 {/* Tenant Manager: Nerve Center tabs */}
-                {tenantManagerNavigation.filter(item => !item.featureFlag || salesEnabled).map((item) => (
+                {tenantManagerNavigation.filter(item => !item.featureFlag || salesEnabled || hasSalesRole).map((item) => (
                   <NavLink
                     key={item.name}
                     to={item.href}
@@ -444,7 +449,7 @@ export default function TopHeader() {
             ) : !isPlatformUser && effectiveRole === 'dept_lead' ? (
               <>
                 {/* Tenant Lead: Browse tabs */}
-                {tenantLeadNavigation.filter(item => !item.featureFlag || salesEnabled).map((item) => (
+                {tenantLeadNavigation.filter(item => !item.featureFlag || salesEnabled || hasSalesRole).map((item) => (
                   <NavLink
                     key={item.name}
                     to={item.href}

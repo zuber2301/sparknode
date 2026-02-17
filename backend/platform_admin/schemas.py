@@ -41,6 +41,8 @@ class TenantCreateRequest(BaseModel):
     
     # Settings
     settings: Optional[Dict[str, Any]] = {}
+    # Initial feature flags for tenant provisioning (e.g., enable AI module)
+    feature_flags: Optional[Dict[str, Any]] = {}
 
 
 class TenantUpdateRequest(BaseModel):

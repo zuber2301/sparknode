@@ -24,6 +24,8 @@ export const ROLE_DISPLAY_NAMES = {
   tenant_manager: 'Tenant Manager',
   dept_lead: 'Department Lead',
   tenant_user: 'User',
+  sales_marketing: 'Sales & Marketing',
+  ai_copilot: 'AI Assistant',
 }
 
 // Normalize roles to standardized format

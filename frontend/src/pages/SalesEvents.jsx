@@ -9,7 +9,7 @@ export default function SalesEvents() {
   const qc = useQueryClient()
   
   // Check if sales & marketing feature is enabled
-  const salesEnabled = tenantContext?.feature_flags?.sales_marketting_enabled
+  const salesEnabled = tenantContext?.feature_flags?.sales_marketing || tenantContext?.feature_flags?.sales_marketting_enabled
   if (!salesEnabled) {
     return (
       <div className="p-6">

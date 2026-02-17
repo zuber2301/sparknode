@@ -23,6 +23,8 @@ export default function Profile() {
       'dept_lead': 'Department Lead',
       'tenant_user': 'User',
       'employee': 'User',
+      'sales_marketing': 'Sales & Marketing',
+      'ai_copilot': 'AI Assistant',
     };
     return roles[role] || (role ? role.replace('_', ' ') : 'User');
   };

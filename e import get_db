@@ -1,0 +1,5 @@
+                  id                  |            corporate_email            |    org_role    |              tenant_id               | tenant_name |           feature_flags            
+--------------------------------------+---------------------------------------+----------------+--------------------------------------+-------------+------------------------------------
+ 0f40e7d4-5604-4422-a426-bea1736f7189 | tenant_mgr_mj04@testmj04.sparknode.io | tenant_manager | ec8ccf86-502f-403a-941a-b26ee9365f41 | testmj04    | {"sales_marketting_enabled": true}
+(1 row)
+

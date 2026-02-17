@@ -20,8 +20,8 @@ class AllowedDepartment(str, Enum):
     Standard department categories allowed in the system.
     """
     HR = "Human Resource (HR)"
-    IT = "Techology (IT)"
-    SALES_MARKETING = "Sale & Marketting"
+    IT = "Technology (IT)"
+    SALES_MARKETING = "Sales & Marketing"
     BU1 = "Business Unit -1"
     BU2 = "Business Unit-2"
     BU3 = "Business Unit-3"

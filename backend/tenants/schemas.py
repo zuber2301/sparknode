@@ -140,6 +140,9 @@ class TenantResponse(TenantBase):
     # Settings
     settings: Dict[str, Any]
 
+    # Feature Flags
+    feature_flags: Dict[str, Any]
+
     # Budget fields for tenant managers
     budget_allocated: Decimal
     budget_allocation_balance: Decimal
