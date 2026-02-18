@@ -24,6 +24,8 @@ import {
 export default function Users() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
+  const [showCreatedUserModal, setShowCreatedUserModal] = useState(false)
+  const [createdUser, setCreatedUser] = useState(null)
   
   const [uploadStep, setUploadStep] = useState('upload') // upload, preview, processing
   const [batchInfo, setBatchInfo] = useState(null)
@@ -92,8 +94,10 @@ export default function Users() {
 
   const createMutation = useMutation({
     mutationFn: (data) => usersAPI.create(data),
-    onSuccess: () => {
-      toast.success('User created successfully')
+    onSuccess: (response) => {
+      const userData = response.data || response
+      setCreatedUser(userData)
+      setShowCreatedUserModal(true)
       queryClient.invalidateQueries(['users'])
       setShowCreateModal(false)
     },
@@ -803,6 +807,53 @@ export default function Users() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Created Success Modal */}
+      {showCreatedUserModal && createdUser && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-300">
+            <div className="flex justify-center mb-6">
+              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+                <HiOutlineCheckCircle className="w-8 h-8 text-green-600" />
+              </div>
+            </div>
+            
+            <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">User Created Successfully!</h2>
+            <p className="text-sm text-gray-500 text-center mb-6">An invitation email has been sent to the user</p>
+            
+            <div className="bg-gray-50 rounded-2xl p-4 space-y-4 mb-6">
+              <div className="flex justify-between items-center pb-3 border-b border-gray-200">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</span>
+                <span className="text-sm font-semibold text-gray-900">{createdUser.first_name} {createdUser.last_name}</span>
+              </div>
+              <div className="flex justify-between items-center pb-3 border-b border-gray-200">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</span>
+                <span className="text-sm font-semibold text-gray-900 truncate ml-2">{createdUser.corporate_email}</span>
+              </div>
+              <div className="flex justify-between items-center pb-3 border-b border-gray-200">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Role</span>
+                <span className="text-sm font-semibold text-gray-900">{getRoleLabel(createdUser.org_role)}</span>
+              </div>
+              {createdUser.department_id && (
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Department</span>
+                  <span className="text-sm font-semibold text-gray-900">{deptList.find(d => d.id === createdUser.department_id)?.name || '—'}</span>
+                </div>
+              )}
+            </div>
+            
+            <button
+              onClick={() => {
+                setShowCreatedUserModal(false)
+                setCreatedUser(null)
+              }}
+              className="w-full btn-primary py-3 rounded-xl font-bold shadow-lg shadow-sparknode-purple/20"
+            >
+              OK
+            </button>
           </div>
         </div>
       )}

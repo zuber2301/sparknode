@@ -110,7 +110,7 @@ async def get_users(
     tenant_id: Optional[UUID] = Query(None),
     department_id: Optional[UUID] = None,
     org_role: Optional[str] = Query(None, alias="role"),
-    status: Optional[str] = Query(default="active"),
+    status: Optional[str] = Query(default=None),
     skip: int = 0,
     limit: int = 100,
     current_user: User = Depends(get_current_user),
@@ -162,6 +162,9 @@ async def get_users(
     
     if status:
         query = query.filter(func.lower(User.status) == status.lower())
+    else:
+        # Default filter shows both active and pending_invite users
+        query = query.filter(User.status.in_(['ACTIVE', 'PENDING_INVITE']))
     
     users = query.offset(skip).limit(limit).all()
     return users
@@ -193,11 +196,35 @@ async def create_user(
         date_of_birth=user_data.date_of_birth,
         hire_date=user_data.hire_date
     )
+    # Set status to ACTIVE when created by admin with a password
+    user.status = 'ACTIVE'
     db.add(user)
     db.flush()
     
     wallet = Wallet(tenant_id=current_user.tenant_id, user_id=user.id, balance=0)
     db.add(wallet)
+    db.commit()
+    db.refresh(user)
+    return user
+
+@router.post("/{user_id}/activate", response_model=UserResponse)
+async def activate_user(
+    user_id: UUID,
+    current_user: User = Depends(get_hr_admin),
+    db: Session = Depends(get_db)
+):
+    """Activate a pending_invite user"""
+    user = db.query(User).filter(
+        User.id == user_id,
+        User.tenant_id == current_user.tenant_id
+    ).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user.status != 'PENDING_INVITE':
+        raise HTTPException(status_code=400, detail=f"User status is {user.status}, can only activate PENDING_INVITE users")
+    
+    user.status = 'ACTIVE'
     db.commit()
     db.refresh(user)
     return user

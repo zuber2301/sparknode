@@ -10,14 +10,26 @@ export default function AddBudgetModal({ isOpen, onClose, tenantId }) {
   const queryClient = useQueryClient()
 
   const mutation = useMutation({
-    mutationFn: (payload) => platformAPI.addMasterBudget(tenantId, payload),
+    mutationFn: (payload) => {
+      if (!tenantId) {
+        return Promise.reject(new Error('Tenant ID is missing'))
+      }
+      return platformAPI.addMasterBudget(tenantId, payload)
+    },
     onSuccess: () => {
       toast.success('Budget provisioned')
-      queryClient.invalidateQueries(['platformTenant', tenantId])
+      if (tenantId) {
+        queryClient.invalidateQueries(['platformTenant', tenantId])
+      }
       queryClient.invalidateQueries(['platformTenants'])
       handleClose()
     },
-    onError: (err) => toast.error(err.response?.data?.detail || 'Failed to provision budget')
+    onError: (err) => {
+      const errorMsg = err.message === 'Tenant ID is missing' 
+        ? 'Tenant not properly selected' 
+        : err.response?.data?.detail || 'Failed to provision budget'
+      toast.error(errorMsg)
+    }
   })
 
   const handleClose = () => {
@@ -28,6 +40,12 @@ export default function AddBudgetModal({ isOpen, onClose, tenantId }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    
+    if (!tenantId) {
+      toast.error('Tenant not properly selected')
+      return
+    }
+    
     const value = Number(points)
     if (!value || value <= 0) {
       toast.error('Enter a positive amount')

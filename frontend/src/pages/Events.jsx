@@ -59,6 +59,18 @@ export default function Events() {
     },
   })
 
+  // Publish event
+  const publishMutation = useMutation({
+    mutationFn: (eventId) => eventsAPI.publish(eventId),
+    onSuccess: () => {
+      toast.success('Event published successfully')
+      queryClient.invalidateQueries(['events'])
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.detail || 'Failed to publish event')
+    },
+  })
+
   const handleCreateEvent = () => {
     navigate('/events/create')
   }
@@ -69,6 +81,12 @@ export default function Events() {
 
   const handleEditEvent = (eventId) => {
     navigate(`/events/${eventId}/edit`)
+  }
+
+  const handlePublishEvent = (eventId) => {
+    if (window.confirm('Are you sure you want to publish this event?')) {
+      publishMutation.mutate(eventId)
+    }
   }
 
   const handleDeleteEvent = (eventId) => {
@@ -297,6 +315,16 @@ export default function Events() {
                     >
                       <HiOutlinePencil className="w-5 h-5" />
                     </button>
+                    {event.status === 'draft' && (
+                      <button
+                        onClick={() => handlePublishEvent(event.id)}
+                        disabled={publishMutation.isPending}
+                        className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-50"
+                        title="Publish Event"
+                      >
+                        <HiOutlineCheckCircle className="w-5 h-5" />
+                      </button>
+                    )}
                     <button
                       onClick={() => handleDeleteEvent(event.id)}
                       disabled={deleteMutation.isPending}

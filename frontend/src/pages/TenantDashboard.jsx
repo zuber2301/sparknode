@@ -238,11 +238,9 @@ export default function TenantDashboard() {
           </div>
         </div>
         <AddBudgetModal
-          open={isAddBudgetOpen}
-          tenantName={budgetTarget?.name}
-          initialAmount=""
-          onCancel={() => { setIsAddBudgetOpen(false); setBudgetTarget(null) }}
-          onSubmit={(payload) => addBudgetMutation.mutate({ tenantId: budgetTarget.id, payload })}
+          isOpen={isAddBudgetOpen}
+          onClose={() => { setIsAddBudgetOpen(false); setBudgetTarget(null) }}
+          tenantId={budgetTarget?.id}
         />
 
         <ConfirmModal

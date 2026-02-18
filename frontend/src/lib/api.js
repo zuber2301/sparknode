@@ -97,6 +97,7 @@ export const usersAPI = {
   getDirectReports: (id) => api.get(`/users/${id}/direct-reports`),
   bulkCreate: (data) => api.post('/users/bulk', data),
   deactivate: (id) => api.put(`/users/${id}/deactivate`),
+  activate: (id) => api.post(`/users/${id}/activate`),
   reactivate: (id) => api.put(`/users/${id}/reactivate`),
   downloadTemplate: () => api.get('/users/bulk/template', { responseType: 'blob' }),
   uploadBulk: (file) => {
@@ -307,7 +308,7 @@ export const eventsAPI = {
   delete: (id) => api.delete(`/events/${id}`),
   
   // Event status management
-  publish: (id) => api.put(`/events/${id}/publish`),
+  publish: (id) => api.put(`/events/${id}`, { status: 'published' }),
   cancel: (id, reason) => api.put(`/events/${id}/cancel`, { reason }),
   complete: (id) => api.put(`/events/${id}/complete`),
   

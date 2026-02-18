@@ -33,6 +33,7 @@ import {
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
   { name: 'Event Management', href: '/events/browse', icon: HiOutlineNewspaper },
+  { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: true },
   { name: 'Feed', href: '/feed', icon: HiOutlineNewspaper },
   { name: 'Recognize', href: '/recognize', icon: HiOutlineSparkles },
   { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
@@ -164,6 +165,11 @@ export default function TopHeader() {
     queryKey: ['currentTenant'],
     queryFn: () => tenantsAPI.getCurrent(),
     enabled: !isPlatformUser,
+    onSuccess: (response) => {
+      if (response?.data?.feature_flags && !tenantContext?.feature_flags) {
+        updateTenantContext({ feature_flags: response.data.feature_flags })
+      }
+    },
   })
 
   const salesEnabled = (() => {
@@ -517,7 +523,7 @@ export default function TopHeader() {
                 </div>
               </>
             ) : (
-              navigation.map((item) => (
+              navigation.filter(item => !item.featureFlag || salesEnabled || hasSalesRole).map((item) => (
                 <NavLink
                   key={item.name}
                   to={item.href}
@@ -725,7 +731,7 @@ export default function TopHeader() {
               })}
             </>
           ) : (
-            navigation.map((item) => (
+            navigation.filter(item => !item.featureFlag || salesEnabled || hasSalesRole).map((item) => (
               <NavLink
                 key={item.name}
                 to={item.href}

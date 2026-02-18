@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { eventsAPI } from '../lib/eventsAPI'
-import { salesAPI } from '../lib/api'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import {
@@ -47,7 +46,6 @@ export default function EventCreateWizard({ editingEventId = null }) {
 
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [salesCreated, setSalesCreated] = useState(null)
 
   // Fetch event templates for quick start
   const { data: templates = [] } = useQuery({
@@ -67,24 +65,6 @@ export default function EventCreateWizard({ editingEventId = null }) {
 
   const createMutation = useMutation({
     mutationFn: (data) => {
-      // If creating a Sales Event (Sales & Marketing module), use salesAPI
-      if (data.is_sales_event) {
-        // Map form fields to API fields for sales events
-        const salesPayload = {
-          name: data.title,
-          description: data.description,
-          event_type: data.type,
-          start_at: new Date(data.start_datetime).toISOString(),
-          end_at: new Date(data.end_datetime).toISOString(),
-          owner_user_id: data.owner_user_id,
-          marketing_owner_id: data.marketing_owner_id,
-          target_registrations: data.target_registrations,
-          target_pipeline: data.target_pipeline,
-          target_revenue: data.target_revenue,
-        }
-        if (editingEventId) return salesAPI.update(editingEventId, salesPayload)
-        return salesAPI.create(salesPayload)
-      }
       if (editingEventId) {
         return eventsAPI.update(editingEventId, data)
       }
@@ -93,12 +73,7 @@ export default function EventCreateWizard({ editingEventId = null }) {
     onSuccess: (newEvent) => {
       toast.success(editingEventId ? 'Event updated successfully' : 'Event created successfully')
       queryClient.invalidateQueries(['events'])
-      // If this was a sales event, keep the created event in state to allow publishing
-      if (newEvent.registration_url || newEvent.event_type === 'campaign' || newEvent.status) {
-        setSalesCreated(newEvent)
-      } else {
-        navigate(`/events/${newEvent.id}`)
-      }
+      navigate(`/events/${newEvent.id}`)
     },
     onError: (error) => {
       const detail = error.response?.data?.detail || error.message || 'Failed to create event'
@@ -143,35 +118,20 @@ export default function EventCreateWizard({ editingEventId = null }) {
       toast.error('Event dates are required')
       return
     }
-    if (formData.is_sales_event) {
-      if (!formData.type) {
-        toast.error('Event type is required')
-        return
-      }
-    } else {
-      if (!formData.nomination_start || !formData.nomination_end) {
-        toast.error('Nomination dates are required')
-        return
-      }
-      if (activities.length === 0) {
-        toast.error('At least one activity is required')
-        return
-      }
-    }
 
     const submitData = { ...formData }
     createMutation.mutate(submitData)
   }
 
   const publishMutation = useMutation({
-    mutationFn: ({ eventId }) => salesAPI.publish(eventId),
-    onSuccess: (resp) => {
-      toast.success('Event published')
-      if (salesCreated) {
-        setSalesCreated((s) => ({ ...s, registration_url: resp.registration_url, status: 'published' }))
-      }
+    mutationFn: ({ eventId }) => eventsAPI.publish(eventId),
+    onSuccess: () => {
+      toast.success('Event published successfully')
+      queryClient.invalidateQueries(['events'])
     },
-    onError: (err) => toast.error(err.response?.data?.detail || 'Publish failed')
+    onError: (err) => {
+      toast.error(err.response?.data?.detail || 'Failed to publish event')
+    },
   })
 
   const steps = [
@@ -186,9 +146,9 @@ export default function EventCreateWizard({ editingEventId = null }) {
       case 1:
         return formData.title.trim() && formData.start_datetime && formData.end_datetime
       case 2:
-        return activities.length > 0
+        return true // Activities are optional
       case 3:
-        return formData.nomination_start && formData.nomination_end
+        return true // Nomination dates are optional
       case 4:
         return formData.planned_budget >= 0
       default:
@@ -210,27 +170,6 @@ export default function EventCreateWizard({ editingEventId = null }) {
           {editingEventId ? 'Edit Event' : 'Create New Event'}
         </h1>
       </div>
-
-      {/* Sales Event publish banner */}
-      {salesCreated && (
-        <div className="mb-4 p-4 bg-white border rounded-md">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-gray-700">Sales Event created:</div>
-              <div className="font-medium">{salesCreated.name || salesCreated.title}</div>
-              <div className="text-xs text-gray-500">Registration URL: {salesCreated.registration_url || 'Not published yet'}</div>
-            </div>
-            <div className="flex items-center gap-2">
-              {!salesCreated.registration_url && (
-                <button onClick={() => publishMutation.mutate({ eventId: salesCreated.id })} className="btn-primary">Publish</button>
-              )}
-              {salesCreated.registration_url && (
-                <a href={salesCreated.registration_url} target="_blank" rel="noreferrer" className="btn-secondary">Open Registration</a>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Stepper */}
       <div className="bg-white rounded-lg border border-gray-200 p-6 mb-8">
@@ -262,16 +201,6 @@ export default function EventCreateWizard({ editingEventId = null }) {
           {step === 1 && (
             <div className="space-y-6">
               <h2 className="text-xl font-semibold text-gray-900">Event Basics</h2>
-
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="is_sales_event"
-                  checked={!!formData.is_sales_event}
-                  onChange={(e) => setFormData({ ...formData, is_sales_event: e.target.checked })}
-                />
-                <label htmlFor="is_sales_event" className="text-sm text-gray-700">Create as Sales & Marketing Event</label>
-              </div>
 
               {/* Quick Templates */}
               {templates.length > 0 && (
