@@ -273,6 +273,7 @@ class Department(Base):
     name = Column(String(255), nullable=False)
     parent_id = Column(UUID(as_uuid=True), ForeignKey("departments.id"))
     budget_balance = Column(Numeric(15, 2), nullable=False, default=0)
+    budget_allocated = Column(Numeric(15, 2), nullable=False, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     

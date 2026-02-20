@@ -1,165 +1,222 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useAuthStore } from '../../store/authStore'
-import { walletsAPI, tenantsAPI, usersAPI, recognitionAPI } from '../../lib/api'
-import { HiOutlineUsers, HiOutlineCurrencyDollar, HiOutlineChartBar, HiOutlineSparkles } from 'react-icons/hi'
-import MorningBriefing from '../../components/MorningBriefing'
+import { dashboardApi } from '../../lib/api'
+import {
+  HiOutlineBanknotes,
+  HiOutlineUsers,
+  HiOutlineWallet,
+  HiOutlineArrowTrendingUp,
+  HiOutlinePlusCircle,
+  HiOutlineDocumentArrowDown,
+  HiOutlineBell,
+} from 'react-icons/hi2'
+import HeroSection from './DashboardComponents/HeroSection'
+import DelegationStatusTable from './DashboardComponents/DelegationStatusTable'
+import DepartmentManager from './DashboardComponents/DepartmentManager'
+import RecentRecognitionFeed from './DashboardComponents/RecentRecognitionFeed'
+import SpendingAnalytics from './DashboardComponents/SpendingAnalytics'
+import ActionSidebar from './DashboardComponents/ActionSidebar'
+import DistributePointsModal from './DashboardComponents/DistributePointsModal'
+import TopupRequestModal from './DashboardComponents/TopupRequestModal'
 
 /**
- * Tenant Manager Dashboard
- * Only visible to tenant_manager role
- * Shows tenant-wide metrics, team overview, and management summary
+ * TenantManagerDashboard Component
+ * Main dashboard for HR Admins to view and manage company points allocation
  */
 export default function TenantManagerDashboard() {
-  const { user } = useAuthStore()
+  // Tabs and Modal states
+  const [activeTab, setActiveTab] = useState('summary')
+  const [showDistributeModal, setShowDistributeModal] = useState(false)
+  const [showTopupModal, setShowTopupModal] = useState(false)
 
-  const { data: tenantResponse } = useQuery({
-    queryKey: ['currentTenant'],
-    queryFn: () => tenantsAPI.getCurrent(),
+  // Fetch dashboard summary using React Query
+  const { 
+    data: summaryResponse, 
+    isLoading, 
+    isError, 
+    error, 
+    refetch, 
+    isFetching 
+  } = useQuery({
+    queryKey: ['dashboardSummary'],
+    queryFn: () => dashboardApi.getSummary(),
+    refetchInterval: 60000, // Refresh every minute
   })
 
-  const { data: usersResponse } = useQuery({
-    queryKey: ['tenantUsers'],
-    queryFn: () => usersAPI.getAll({ limit: 100 }),
-  })
+  const dashboardData = summaryResponse?.data?.data || summaryResponse?.data
 
-  const { data: walletResponse } = useQuery({
-    queryKey: ['tenantWallet'],
-    queryFn: () => walletsAPI.getMyWallet(),
-  })
+  if (isLoading) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin mb-4">
+            <HiOutlineArrowTrendingUp className="w-12 h-12 text-sparknode-purple" />
+          </div>
+          <p className="text-gray-700 font-medium tracking-tight">Loading your management dashboard...</p>
+        </div>
+      </div>
+    )
+  }
 
-  const { data: recognitionResponse } = useQuery({
-    queryKey: ['tenantRecognitions'],
-    queryFn: () => recognitionAPI.getAll({ limit: 10 }),
-  })
-
-  const tenant = tenantResponse?.data
-  const users = usersResponse?.data || []
-  const wallet = walletResponse?.data
-  const recognitions = recognitionResponse?.data || []
-
-  const stats = [
-    {
-      label: 'Total Users',
-      value: users.length,
-      icon: HiOutlineUsers,
-      color: 'from-blue-500 to-blue-600',
-    },
-    {
-      label: 'Budget Balance',
-      value: wallet?.balance ? `$${(wallet.balance / 100).toFixed(2)}` : '$0.00',
-      icon: HiOutlineCurrencyDollar,
-      color: 'from-green-500 to-green-600',
-    },
-    {
-      label: 'Recognition Given',
-      value: recognitions.length,
-      icon: HiOutlineSparkles,
-      color: 'from-purple-500 to-purple-600',
-    },
-    {
-      label: 'Active Departments',
-      value: '—',
-      icon: HiOutlineChartBar,
-      color: 'from-orange-500 to-orange-600',
-    },
-  ]
+  if (isError) {
+    return (
+      <div className="p-8">
+        <div className="max-w-4xl mx-auto bg-red-50 border border-red-200 rounded-2xl p-6 text-red-700">
+          <p className="font-semibold mb-2 text-lg">Error Loading Dashboard</p>
+          <p>{error?.message || 'Could not fetch dashboard data'}</p>
+          <button
+            onClick={() => refetch()}
+            className="mt-4 px-6 py-2 bg-sparknode-purple text-white rounded-xl hover:bg-sparknode-purple/90 transition shadow-sm"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Morning Briefing */}
-      <MorningBriefing />
-
+    <div className="min-h-screen bg-transparent">
       {/* Header */}
-      <div className="bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-xl p-6 text-white">
-        <h1 className="text-3xl font-bold mb-1">{tenant?.name || 'Tenant'}</h1>
-        <p className="text-white/80">Manage your organization</p>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-black text-gray-900 tracking-tightest">
+            {dashboardData?.tenant_name || 'Organization Dashboard'}
+          </h1>
+          <p className="text-gray-500 mt-1 font-medium italic">Manage your points allocation and team performance</p>
+        </div>
+        <button
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition disabled:opacity-50 flex items-center gap-2 shadow-sm"
+        >
+          <HiOutlineArrowTrendingUp className={`w-4 h-4 text-sparknode-purple ${isFetching ? 'animate-spin' : ''}`} />
+          {isFetching ? 'Syncing...' : 'Sync Data'}
+        </button>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat) => {
-          const Icon = stat.icon
-          return (
-            <div key={stat.label} className={`bg-gradient-to-br ${stat.color} rounded-lg p-4 text-white`}>
-              <div className="flex items-start justify-between mb-2">
-                <Icon className="w-6 h-6 text-white/50" />
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200 mb-8 overflow-x-auto">
+        <button
+          onClick={() => setActiveTab('summary')}
+          className={`px-6 py-3 text-sm font-bold border-b-2 transition-all whitespace-nowrap ${
+            activeTab === 'summary'
+              ? 'border-sparknode-purple text-sparknode-purple'
+              : 'border-transparent text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          Summary
+        </button>
+        <button
+          onClick={() => setActiveTab('departments')}
+          className={`px-6 py-3 text-sm font-bold border-b-2 transition-all whitespace-nowrap ${
+            activeTab === 'departments'
+              ? 'border-sparknode-purple text-sparknode-purple'
+              : 'border-transparent text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          Organization
+        </button>
+        <button
+          onClick={() => setActiveTab('activity')}
+          className={`px-6 py-3 text-sm font-bold border-b-2 transition-all whitespace-nowrap ${
+            activeTab === 'activity'
+              ? 'border-sparknode-purple text-sparknode-purple'
+              : 'border-transparent text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          Feed
+        </button>
+        <button
+          onClick={() => setActiveTab('analytics')}
+          className={`px-6 py-3 text-sm font-bold border-b-2 transition-all whitespace-nowrap ${
+            activeTab === 'analytics'
+              ? 'border-sparknode-purple text-sparknode-purple'
+              : 'border-transparent text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          Insights
+        </button>
+      </div>
+
+      {/* Main Content */}
+      <div className="space-y-8">
+        {activeTab === 'summary' && (
+          <>
+            {/* Hero Section */}
+            <HeroSection stats={dashboardData?.stats} currency={dashboardData?.currency} />
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 space-y-8">
+                <DepartmentManager onRefresh={refetch} />
               </div>
-              <p className="text-xs font-medium text-white/80">{stat.label}</p>
-              <p className="text-2xl font-bold mt-1">{stat.value}</p>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Users Summary */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold mb-4">User Management</h2>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Active Users</span>
-              <span className="font-semibold">{users.filter(u => u.status === 'ACTIVE').length}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Pending Invites</span>
-              <span className="font-semibold">{users.filter(u => u.status === 'PENDING_INVITE').length}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Total Users</span>
-              <span className="font-semibold">{users.length}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Budget Summary */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold mb-4">Budget Status</h2>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Available</span>
-              <span className="font-semibold text-green-600">${(wallet?.balance || 0) / 100}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Lifetime Earned</span>
-              <span className="font-semibold">${(wallet?.lifetime_earned || 0) / 100}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Lifetime Spent</span>
-              <span className="font-semibold">${(wallet?.lifetime_spent || 0) / 100}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="bg-white rounded-lg border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold">Recent Recognition</h2>
-        </div>
-        <div className="divide-y divide-gray-200">
-          {recognitions.slice(0, 5).map((recognition) => (
-            <div key={recognition.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="font-medium text-gray-900">
-                    {recognition.from_user?.first_name} recognized {recognition.to_user?.first_name}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-1">{recognition.message}</p>
-                </div>
-                <span className="text-xs text-gray-500">
-                  {new Date(recognition.created_at).toLocaleDateString()}
-                </span>
+              <div className="lg:col-span-1">
+                <ActionSidebar
+                  tenantId={dashboardData?.tenant_id}
+                  onDistributeClick={() => setShowDistributeModal(true)}
+                  onTopupClick={() => setShowTopupModal(true)}
+                  onExportReport={refetch}
+                  stats={dashboardData?.stats}
+                />
               </div>
             </div>
-          ))}
-        </div>
-        {recognitions.length === 0 && (
-          <div className="px-6 py-12 text-center text-gray-500">
-            No recognitions yet
+          </>
+        )}
+
+        {activeTab === 'departments' && (
+          <div className="space-y-8">
+            <DepartmentManager onRefresh={refetch} />
+            <DelegationStatusTable
+              leads={dashboardData?.leads || []}
+              currency={dashboardData?.currency}
+              onRefresh={refetch}
+            />
           </div>
         )}
+
+        {activeTab === 'activity' && (
+          <div className="max-w-4xl mx-auto">
+            <RecentRecognitionFeed
+              recognitions={dashboardData?.recent_recognitions || []}
+              onRefresh={refetch}
+            />
+          </div>
+        )}
+
+        {activeTab === 'analytics' && (
+          <SpendingAnalytics
+            spendingData={dashboardData?.spending_analytics}
+            currency={dashboardData?.currency}
+          />
+        )}
       </div>
+
+      {/* Modals */}
+      {showDistributeModal && (
+        <DistributePointsModal
+          isOpen={showDistributeModal}
+          onClose={() => setShowDistributeModal(false)}
+          onSuccess={() => {
+            setShowDistributeModal(false)
+            refetch()
+          }}
+          availablePoints={dashboardData?.stats?.master_pool}
+          leads={dashboardData?.leads || []}
+          currency={dashboardData?.currency}
+        />
+      )}
+
+      {showTopupModal && (
+        <TopupRequestModal
+          isOpen={showTopupModal}
+          onClose={() => setShowTopupModal(false)}
+          onSuccess={() => {
+            setShowTopupModal(false)
+            refetch()
+          }}
+          tenantName={dashboardData?.tenant_name}
+        />
+      )}
     </div>
   )
 }

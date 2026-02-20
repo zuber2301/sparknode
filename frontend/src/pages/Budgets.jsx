@@ -10,13 +10,14 @@ import {
   HiOutlinePencil, 
   HiOutlineChartBar, 
   HiOutlineCheck,
+  HiOutlineCheckCircle,
   HiOutlineUsers,
   HiOutlineCurrencyDollar,
   HiOutlineTrendingUp
 } from 'react-icons/hi'
 
 export default function Budgets() {
-  const [activeTab, setActiveTab] = useState('budgets') // 'budgets', 'departments', or 'spend-analysis'
+  const [activeTab, setActiveTab] = useState('budgets') // 'budgets', 'departments', 'lead-allocations', or 'spend-analysis'
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showAllocateModal, setShowAllocateModal] = useState(false)
   const [showDeptAllocateModal, setShowDeptAllocateModal] = useState(false)
@@ -65,10 +66,26 @@ export default function Budgets() {
     queryFn: () => tenantsAPI.getDepartments(),
   })
 
+  const { data: departmentLeads, isLoading: isLoadingLeads } = useQuery({
+    queryKey: ['departmentLeads'],
+    queryFn: async () => {
+      // Fetch all users with dept_lead role
+      const response = await usersAPI.getAll({ org_role: 'dept_lead' })
+      return response.data || response
+    },
+    enabled: activeTab === 'lead-allocations',
+  })
+
   const { data: departmentBudgets } = useQuery({
     queryKey: ['departmentBudgets', selectedBudget?.id],
     queryFn: () => budgetsAPI.getDepartmentBudgets(selectedBudget.id),
     enabled: !!selectedBudget,
+  })
+
+  const { data: leadBudgets } = useQuery({
+    queryKey: ['leadBudgets', selectedBudget?.id],
+    queryFn: () => budgetsAPI.getLeadBudgets(selectedBudget.id),
+    enabled: !!selectedBudget && activeTab === 'lead-allocations',
   })
 
   // Helper to format budget values
@@ -223,6 +240,7 @@ export default function Budgets() {
       user_id: selectedLead.id,
       total_points: parseFloat(formData.get('points')),
       description: formData.get('description'),
+      budget_id: selectedBudget?.id,
     })
   }
 
@@ -306,6 +324,19 @@ export default function Budgets() {
           <div className="flex items-center gap-2">
             <HiOutlineUsers className="w-5 h-5" />
             Department Allocation
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab('lead-allocations')}
+          className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'lead-allocations'
+              ? 'border-sparknode-purple text-sparknode-purple'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <HiOutlineUsers className="w-5 h-5" />
+            Lead Point Allocations
           </div>
         </button>
         <button
@@ -463,7 +494,7 @@ export default function Budgets() {
                             <div className="font-medium text-gray-900">{dept.name}</div>
                           </td>
                           <td className="px-4 py-4 text-sm font-medium">
-                            {budget ? Number(budget.allocated_points).toLocaleString() : '—'}
+                            {dept.budget_allocated ? formatBudgetValue(dept.budget_allocated) : (budget ? formatBudgetValue(budget.allocated_points) : '—')}
                           </td>
                           <td className="px-4 py-4">
                             {budget ? (
@@ -476,10 +507,20 @@ export default function Budgets() {
                                 </div>
                                 <span className="text-[10px] text-gray-500">{budget.allocated_points > 0 ? ((Number(budget.spent_points) / Number(budget.allocated_points)) * 100).toFixed(1) : 0}% used</span>
                               </div>
-                            ) : '—'}
+                            ) : (dept.budget_allocated > 0 ? (
+                               <div className="w-24">
+                                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                  <div 
+                                    className="h-full bg-sparknode-purple" 
+                                    style={{ width: `${((Number(dept.budget_allocated) - Number(dept.budget_balance)) / Number(dept.budget_allocated) * 100)}%` }} 
+                                  />
+                                </div>
+                                <span className="text-[10px] text-gray-500">{((Number(dept.budget_allocated) - Number(dept.budget_balance)) / Number(dept.budget_allocated) * 100).toFixed(1)}% used</span>
+                              </div>
+                            ) : '—')}
                           </td>
                           <td className="px-4 py-4 text-sm text-green-600 font-medium">
-                            {budget ? (Number(budget.allocated_points) - Number(budget.spent_points)).toLocaleString() : '—'}
+                            {dept.budget_balance ? formatBudgetValue(dept.budget_balance) : (budget ? formatBudgetValue(Number(budget.allocated_points) - Number(budget.spent_points)) : '—')}
                           </td>
                           <td className="px-4 py-4 text-right">
                             <button
@@ -507,6 +548,140 @@ export default function Budgets() {
           </div>
         </div>
       ) : null }
+
+      {activeTab === 'lead-allocations' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Lead Point Allocations</h2>
+              <p className="text-sm text-gray-500">Allocate points from organizational budgets to department leads</p>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Available Organizational Budgets</h3>
+              {!selectedBudget && budgets?.data?.filter(b => b.status === 'active')?.length > 0 && (
+                <span className="text-sm text-amber-600 font-medium animate-pulse">
+                  Please select a source budget below
+                </span>
+              )}
+            </div>
+            {isLoadingBudgets ? (
+              <div className="space-y-3">
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="h-20 bg-gray-200 rounded-lg animate-pulse" />
+                ))}
+              </div>
+            ) : budgets?.data?.filter(b => b.status === 'active')?.length > 0 ? (
+              <div className="space-y-3">
+                {budgets.data.filter(b => b.status === 'active').map((budget) => (
+                  <div 
+                    key={budget.id} 
+                    onClick={() => setSelectedBudget(budget)}
+                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                      selectedBudget?.id === budget.id 
+                        ? 'border-sparknode-purple bg-purple-50 ring-1 ring-sparknode-purple' 
+                        : 'border-gray-200 hover:border-sparknode-purple bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-semibold text-gray-900">{budget.name}</h4>
+                          {selectedBudget?.id === budget.id && (
+                            <span className="text-xs font-semibold bg-sparknode-purple text-white px-2 py-0.5 rounded-full">Selected Source</span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-500">
+                          Remaining: <span className="font-bold text-green-600">{formatBudgetValue(budget.remaining_points)}</span> / {formatBudgetValue(budget.total_points)} total
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {selectedBudget?.id === budget.id ? (
+                           <HiOutlineCheckCircle className="w-6 h-6 text-sparknode-purple" />
+                        ) : (
+                          <div className="w-6 h-6 border-2 border-gray-200 rounded-full" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No active budgets available. Create and activate a budget first.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Department Leads */}
+          <div className="card">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Department Leads</h3>
+            {isLoadingLeads ? (
+              <div className="space-y-3">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-20 bg-gray-200 rounded-lg animate-pulse" />
+                ))}
+              </div>
+            ) : departmentLeads?.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Name</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Department</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Email</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Current Balance</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {departmentLeads.map((lead) => {
+                      const dept = departments?.data?.find(d => d.id === lead.department_id)
+                      const leadBudget = leadBudgets?.data?.find(lb => lb.user_id === lead.id)
+                      return (
+                        <tr key={lead.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 px-4 text-sm font-medium text-gray-900">
+                            {lead.first_name} {lead.last_name}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-600">
+                            {dept?.name || '—'}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-600">
+                            {lead.corporate_email}
+                          </td>
+                          <td className="py-3 px-4 text-sm font-semibold text-sparknode-purple">
+                            {leadBudget ? formatBudgetValue(leadBudget.total_points) : '—'}
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              onClick={() => {
+                                setSelectedLead(lead)
+                                if (!selectedBudget && budgets?.data?.length > 0) {
+                                  setSelectedBudget(budgets.data[0])
+                                }
+                                setShowLeadAllocateModal(true)
+                              }}
+                              className="btn-secondary text-sm"
+                            >
+                              Allocate Points
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No department leads found. Create leads in the Users section first.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {activeTab === 'spend-analysis' && (
         <div className="space-y-6">
@@ -739,9 +914,15 @@ export default function Budgets() {
           <div className="bg-white rounded-2xl p-6 max-w-md w-full">
             <h2 className="text-xl font-semibold mb-2">Allocate Points to Lead</h2>
             <p className="text-gray-500 mb-4">
-              To: {selectedLead.first_name} {selectedLead.last_name} ({selectedLead.email})
+              To: {selectedLead.first_name} {selectedLead.last_name} ({selectedLead.corporate_email || selectedLead.email})
             </p>
             <form onSubmit={handleLeadAllocate} className="space-y-4">
+              {selectedBudget && (
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-4">
+                  <p className="text-sm font-medium text-gray-700">Source Budget: {selectedBudget.name}</p>
+                  <p className="text-xs text-gray-500">Available: {formatBudgetValue(selectedBudget.remaining_points)}</p>
+                </div>
+              )}
               <div>
                 <label className="label">Points to Allocate</label>
                 <input

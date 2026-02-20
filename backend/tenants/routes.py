@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
+from decimal import Decimal
 
 from database import get_db
 from models import Tenant, Department, User, AuditLog, ActorType
@@ -297,6 +298,7 @@ async def allocate_budget_to_department(
     # Update balances
     tenant.master_budget_balance -= amount
     department.budget_balance += amount
+    department.budget_allocated = Decimal(str(department.budget_allocated)) + Decimal(str(amount))
     
     db.commit()
     

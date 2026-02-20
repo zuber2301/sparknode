@@ -104,6 +104,7 @@ class LeadBudgetAllocateRequest(BaseModel):
     user_id: UUID
     total_points: Decimal
     description: Optional[str] = None
+    budget_id: Optional[UUID] = None
 
 
 # =====================================================

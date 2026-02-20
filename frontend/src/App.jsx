@@ -37,7 +37,6 @@ import TeamApprovals from './pages/TeamApprovals'
 import TeamAnalytics from './pages/TeamAnalytics'
 import InviteUsers from './pages/admin/InviteUsers'
 import PlatformAdminBudgetLedgerPage from './pages/PlatformAdminBudgetLedgerPage'
-import Departments from './pages/Departments'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 import { useParams } from 'react-router-dom'
@@ -134,11 +133,6 @@ function App() {
             <BudgetWorkflow />
           </AdminRoute>
         } />
-        <Route path="departments" element={
-          <TenantManagerRoute>
-            <Departments />
-          </TenantManagerRoute>
-        } />
         <Route path="users" element={
           <AdminRoute>
             <Users />
@@ -179,11 +173,11 @@ function App() {
           </AdminRoute>
         } />
         
-        {/* Settings - Tenant Manager Only */}
+        {/* Settings - Platform Admin Only */}
         <Route path="settings" element={
-          <TenantManagerRoute>
+          <PlatformAdminRoute>
             <Settings />
-          </TenantManagerRoute>
+          </PlatformAdminRoute>
         } />
         
         {/* Platform Admin Only */}

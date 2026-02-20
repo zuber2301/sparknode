@@ -1,6 +1,8 @@
 import { useRef, useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useCopilot } from '../context/copilotContext'
 import { useAuthStore } from '../store/authStore'
+import { tenantsAPI } from '../lib/api'
 import {
   HiOutlineTrash,
   HiOutlinePaperAirplane,
@@ -21,29 +23,42 @@ export default function RightSideCopilot() {
     pinned,
     togglePinned
   } = useCopilot()
-  const { user, tenantContext } = useAuthStore()
+  const { user, tenantContext, updateTenantContext } = useAuthStore()
   const [inputValue, setInputValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
 
+  // Fetch feature flags if not already in tenantContext
+  const { data: currentTenantResponse } = useQuery({
+    queryKey: ['currentTenant-copilot'],
+    queryFn: () => tenantsAPI.getCurrent(),
+    enabled: !tenantContext?.feature_flags,
+    onSuccess: (response) => {
+      if (response?.data?.feature_flags && !tenantContext?.feature_flags) {
+        updateTenantContext({ feature_flags: response.data.feature_flags })
+      }
+    },
+  })
+
   // Check if AI copilot is enabled for this tenant
-  const aiCopilotEnabled = tenantContext?.feature_flags?.ai_copilot || tenantContext?.feature_flags?.ai_module_enabled
+  const featureFlags = tenantContext?.feature_flags || currentTenantResponse?.data?.feature_flags
+  const aiCopilotEnabled = featureFlags?.ai_copilot || featureFlags?.ai_module_enabled
+
+  // Keep the panel open if pinned (must be before early return - Rules of Hooks)
+  useEffect(() => {
+    if (pinned) setIsOpen(true)
+  }, [pinned, setIsOpen])
+
+  // Auto-scroll to bottom when new messages arrive (must be before early return - Rules of Hooks)
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
   // Don't render anything if AI copilot is not enabled
   if (!aiCopilotEnabled) {
     return null
   }
-
-  // Keep the panel open if pinned
-  useEffect(() => {
-    if (pinned) setIsOpen(true)
-  }, [pinned, setIsOpen])
-
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
 
   const handleSendMessage = async (e) => {
     e.preventDefault()

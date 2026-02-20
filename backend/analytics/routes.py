@@ -30,7 +30,8 @@ from analytics.schemas import (
     RecognitionTrend, BadgeDistribution, AnalyticsQueryParams,
     PlatformMetricsResponse, TenantSummary, BenchmarkResponse, TenantBenchmark,
     ROIMetrics, InsightItem, InsightsResponse, SpendAnalysisResponse,
-    BurnRatePoint, DepartmentSpend, AwardTier
+    BurnRatePoint, DepartmentSpend, AwardTier,
+    DashboardSummaryResponse
 )
 from analytics.helpers import (
     get_period_dates,
@@ -594,3 +595,76 @@ async def get_spend_analysis(
         period_start=period_start,
         period_end=period_end
     )
+
+@router.get("/dashboard/summary", response_model=DashboardSummaryResponse)
+async def get_dashboard_summary(
+    current_user: User = Depends(get_tenant_manager),
+    db: Session = Depends(get_db)
+):
+    tenant_id = current_user.tenant_id
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    
+    # 1. Stats
+    master_pool = tenant.master_budget_balance
+    total_delegated = db.query(func.sum(Department.budget_allocated)).filter(Department.tenant_id == tenant_id).scalar() or Decimal('0')
+    total_in_wallets = db.query(func.sum(Wallet.balance)).filter(Wallet.tenant_id == tenant_id).scalar() or Decimal('0')
+    active_users_count = db.query(User).filter(User.tenant_id == tenant_id, User.status == 'ACTIVE').count()
+    
+    stats = {
+        "master_pool": master_pool,
+        "total_delegated": total_delegated,
+        "total_in_wallets": total_in_wallets,
+        "active_users_count": active_users_count
+    }
+    
+    # 2. Leads
+    leads_query = db.query(User, Department, Wallet).join(
+        Department, User.department_id == Department.id
+    ).outerjoin(
+        Wallet, User.id == Wallet.user_id
+    ).filter(
+        User.tenant_id == tenant_id,
+        User.org_role == 'dept_lead'
+    ).all()
+    
+    leads = [
+        {
+            "id": str(u.id),
+            "name": f"{u.first_name} {u.last_name}",
+            "email": u.corporate_email or u.email,
+            "department": d.name,
+            "balance": float(w.balance) if w else 0
+        } for u, d, w in leads_query
+    ]
+    
+    # 3. Recent Recognitions
+    recent_recognitions_query = db.query(Recognition).filter(
+        Recognition.tenant_id == tenant_id,
+        Recognition.status == 'active'
+    ).order_by(Recognition.created_at.desc()).limit(10).all()
+    
+    recent_recognitions = [
+        {
+            "id": str(r.id),
+            "from_user": f"{r.from_user.first_name} {r.from_user.last_name}" if r.from_user else "System",
+            "to_user": f"{r.to_user.first_name} {r.to_user.last_name}" if r.to_user else "Deleted User",
+            "points": float(r.points),
+            "message": r.message,
+            "created_at": r.created_at.isoformat()
+        } for r in recent_recognitions_query
+    ]
+    
+    # 4. Spending Analytics stub
+    spending_analytics = {
+        "total_spent": float(db.query(func.sum(Recognition.points)).filter(Recognition.tenant_id == tenant_id).scalar() or 0)
+    }
+    
+    return {
+        "tenant_id": tenant_id,
+        "tenant_name": tenant.name,
+        "currency": tenant.display_currency or "USD",
+        "stats": stats,
+        "leads": leads,
+        "recent_recognitions": recent_recognitions,
+        "spending_analytics": spending_analytics
+    }

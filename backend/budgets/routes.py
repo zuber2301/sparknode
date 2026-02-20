@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from database import get_db
 from core import append_impersonation_metadata, get_tenant_manager
-from models import Budget, DepartmentBudget, LeadBudget, User, AuditLog, ActorType
+from models import Budget, DepartmentBudget, LeadBudget, User, AuditLog, ActorType, Department
 from auth.utils import get_current_user, get_hr_admin
 from sqlalchemy import func
 from budgets.schemas import (
@@ -224,6 +224,10 @@ async def allocate_budget_to_departments(
     created = []
     for allocation in allocation_data.allocations:
         # Check if department budget already exists
+        dept = db.query(Department).filter(Department.id == allocation.department_id).first()
+        if not dept:
+            continue
+
         existing = db.query(DepartmentBudget).filter(
             DepartmentBudget.budget_id == budget_id,
             DepartmentBudget.department_id == allocation.department_id
@@ -245,6 +249,10 @@ async def allocate_budget_to_departments(
             )
             db.add(dept_budget)
             created.append(dept_budget)
+        
+        # Update Department master fields
+        dept.budget_allocated = Decimal(str(dept.budget_allocated)) + allocation.allocated_points
+        dept.budget_balance = Decimal(str(dept.budget_balance)) + allocation.allocated_points
     
     # Update budget allocated points
     budget.allocated_points = Decimal(str(budget.allocated_points)) + total_allocation
@@ -385,10 +393,19 @@ async def allocate_lead_budget(
             raise HTTPException(status_code=403, detail="Tenant managers can only allocate to Tenant Leads in their department")
     
     # 5. Find the active budget for the tenant
-    active_budget = db.query(Budget).filter(
-        Budget.tenant_id == current_user.tenant_id,
-        Budget.status == 'active'
-    ).first()
+    if request.budget_id:
+        active_budget = db.query(Budget).filter(
+            Budget.id == request.budget_id,
+            Budget.tenant_id == current_user.tenant_id
+        ).first()
+        if not active_budget:
+            raise HTTPException(status_code=404, detail="Selected budget not found")
+    else:
+        active_budget = db.query(Budget).filter(
+            Budget.tenant_id == current_user.tenant_id,
+            Budget.status == 'active'
+        ).first()
+        
     if not active_budget:
         raise HTTPException(status_code=400, detail="No active budget found for this tenant")
     

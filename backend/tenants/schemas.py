@@ -173,6 +173,7 @@ class DepartmentUpdate(BaseModel):
     name: Optional[str] = None
     parent_id: Optional[UUID] = None
     budget_balance: Optional[float] = None
+    budget_allocated: Optional[float] = None
 
 
 class DepartmentCreateWithAllocation(BaseModel):
@@ -196,6 +197,7 @@ class DepartmentResponse(DepartmentBase):
     id: UUID
     tenant_id: UUID
     budget_balance: float
+    budget_allocated: float
     created_at: datetime
 
     class Config:

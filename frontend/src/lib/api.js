@@ -140,6 +140,11 @@ export const budgetsAPI = {
   getPool: () => api.get('/budgets/pool'),
 }
 
+// Dashboard API
+export const dashboardApi = {
+  getSummary: () => api.get('/analytics/dashboard/summary'),
+}
+
 // Recognition API
 export const recognitionAPI = {
   getAll: (params) => api.get('/recognitions', { params }),

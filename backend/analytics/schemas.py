@@ -296,3 +296,24 @@ class SpendAnalysisResponse(BaseModel):
     total_spent: Decimal
     period_start: date
     period_end: date
+
+
+# =====================================================
+# DASHBOARD SUMMARY
+# =====================================================
+
+class DashboardStats(BaseModel):
+    master_pool: Decimal = Decimal("0")
+    total_delegated: Decimal = Decimal("0")
+    total_in_wallets: Decimal = Decimal("0")
+    active_users_count: int = 0
+
+
+class DashboardSummaryResponse(BaseModel):
+    tenant_id: UUID
+    tenant_name: str
+    currency: str
+    stats: DashboardStats
+    leads: List[Dict[str, Any]] = []
+    recent_recognitions: List[Dict[str, Any]] = []
+    spending_analytics: Dict[str, Any] = {}

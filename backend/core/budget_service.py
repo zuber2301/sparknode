@@ -21,7 +21,7 @@ from sqlalchemy import func
 from models import (
     Tenant, User, Wallet, WalletLedger, 
     BudgetAllocationLog, PlatformBudgetBillingLog, BudgetDistributionLog,
-    AuditLog, Feed
+    AuditLog, Feed, Department, Budget, DepartmentBudget
 )
 from core.audit_service import AuditService, AuditActions
 from core import append_impersonation_metadata
@@ -211,6 +211,30 @@ class BudgetService:
         previous_tenant_balance = tenant.budget_allocation_balance
         previous_wallet_balance = lead_wallet.balance
         
+        # Deduct from department budget if user belongs to one
+        if from_manager.department_id:
+            dept = db.query(Department).filter(Department.id == from_manager.department_id).first()
+            if dept:
+                if Decimal(str(dept.budget_balance)) < Decimal(str(amount)):
+                    raise BudgetAllocationError(
+                        f"Insufficient department budget. Available: {dept.budget_balance}, "
+                        f"Requested: {amount}"
+                    )
+                dept.budget_balance = Decimal(str(dept.budget_balance)) - Decimal(str(amount))
+                
+                # Also update the per-master-budget tracker if there's an active budget
+                active_budget = db.query(Budget).filter(
+                    Budget.tenant_id == tenant.id,
+                    Budget.status == 'active'
+                ).first()
+                if active_budget:
+                    dept_budget = db.query(DepartmentBudget).filter(
+                        DepartmentBudget.budget_id == active_budget.id,
+                        DepartmentBudget.department_id == dept.id
+                    ).first()
+                    if dept_budget:
+                        dept_budget.spent_points = Decimal(str(dept_budget.spent_points)) + Decimal(str(amount))
+        
         # Deduct from tenant pool
         tenant.budget_allocation_balance = Decimal(str(tenant.budget_allocation_balance)) - Decimal(str(amount))
         
@@ -349,6 +373,32 @@ class BudgetService:
         # Store previous balances
         previous_pool_balance = tenant.budget_allocation_balance
         previous_wallet_balance = wallet.balance
+        
+        # Deduct from department budget if user belongs to one
+        if from_user.department_id:
+            dept = db.query(Department).filter(Department.id == from_user.department_id).first()
+            if dept:
+                if Decimal(str(dept.budget_balance)) < Decimal(str(amount)):
+                    # Optional: Fall back to tenant pool or raise error
+                    # For now, let's strictly enforce department budget if they have one
+                    raise BudgetAllocationError(
+                        f"Insufficient department budget. Available: {dept.budget_balance}, "
+                        f"Requested: {amount}"
+                    )
+                dept.budget_balance = Decimal(str(dept.budget_balance)) - Decimal(str(amount))
+                
+                # Also update the per-master-budget tracker if there's an active budget
+                active_budget = db.query(Budget).filter(
+                    Budget.tenant_id == tenant.id,
+                    Budget.status == 'active'
+                ).first()
+                if active_budget:
+                    dept_budget = db.query(DepartmentBudget).filter(
+                        DepartmentBudget.budget_id == active_budget.id,
+                        DepartmentBudget.department_id == dept.id
+                    ).first()
+                    if dept_budget:
+                        dept_budget.spent_points = Decimal(str(dept_budget.spent_points)) + Decimal(str(amount))
         
         # Deduct from tenant pool
         tenant.budget_allocation_balance = Decimal(str(tenant.budget_allocation_balance)) - Decimal(str(amount))

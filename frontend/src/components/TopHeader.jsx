@@ -58,13 +58,13 @@ const platformAdminNavigation = [
   { name: 'Tenants', href: '/platform/tenants', icon: HiOutlineOfficeBuilding },
   { name: 'Users', href: '/users', icon: HiOutlineUsers },
   { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar },
-  { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
   { name: 'Event Management', href: '/events', icon: HiOutlineNewspaper },
   { name: 'Marketplace', href: '/marketplace', icon: HiOutlineShoppingCart },
   {
     name: 'Controls',
     icon: HiOutlineSettings,
     submenu: [
+      { name: 'Settings', href: '/settings', icon: HiOutlineCog },
       { name: 'AI Settings', href: '/ai-settings', icon: HiOutlineCog },
       { name: 'Templates', href: '/templates', icon: HiOutlineViewGrid },
       { name: 'Billing', href: '/billing', icon: HiOutlineCreditCard },
@@ -78,12 +78,9 @@ const tenantManagerNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
   { name: 'Event Management', href: '/events', icon: HiOutlineNewspaper },
   { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: true },
-  { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
-  { name: 'Departments', href: '/departments', icon: HiOutlineOfficeBuilding },
   { name: 'User Management', href: '/users', icon: HiOutlineUsers },
   { name: 'Marketplace & Rewards', href: '/marketplace', icon: HiOutlineShoppingCart },
   { name: 'Analytics & Reports', href: '/analytics', icon: HiOutlineChartBar },
-  { name: 'Settings', href: '/settings', icon: HiOutlineCog },
 ]
 
 // Tenant Lead specific navigation
@@ -729,6 +726,48 @@ export default function TopHeader() {
                   </NavLink>
                 )
               })}
+            </>
+          ) : !isPlatformUser && effectiveRole === 'tenant_manager' ? (
+            <>
+              {/* Tenant Manager mobile nav */}
+              {tenantManagerNavigation.filter(item => !item.featureFlag || salesEnabled || hasSalesRole).map((item) => (
+                <NavLink
+                  key={item.name}
+                  to={item.href}
+                  onClick={() => setMobileNavOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-sparknode-purple text-white'
+                        : 'text-gray-700 hover:bg-gray-200'
+                    }`
+                  }
+                >
+                  <item.icon className="w-4 h-4" />
+                  {item.name}
+                </NavLink>
+              ))}
+            </>
+          ) : !isPlatformUser && effectiveRole === 'dept_lead' ? (
+            <>
+              {/* Tenant Lead mobile nav */}
+              {tenantLeadNavigation.filter(item => !item.featureFlag || salesEnabled || hasSalesRole).map((item) => (
+                <NavLink
+                  key={item.name}
+                  to={item.href}
+                  onClick={() => setMobileNavOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-sparknode-purple text-white'
+                        : 'text-gray-700 hover:bg-gray-200'
+                    }`
+                  }
+                >
+                  <item.icon className="w-4 h-4" />
+                  {item.name}
+                </NavLink>
+              ))}
             </>
           ) : (
             navigation.filter(item => !item.featureFlag || salesEnabled || hasSalesRole).map((item) => (
