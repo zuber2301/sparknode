@@ -1,5 +1,9 @@
 FROM python:3.11-slim
 
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
 WORKDIR /app
 
 # Install system dependencies
@@ -17,6 +21,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
+
+# Clean up any potentially stale local bytecode if present
+RUN find . -type d -name "__pycache__" -exec rm -rf {} + \
+    && find . -name "*.pyc" -delete \
+    && find . -name "*.pyo" -delete \
+    && find . -name "*.pyd" -delete
 
 # Copy and make scripts executable
 RUN chmod +x ./scripts/*.sh || true

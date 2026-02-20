@@ -46,7 +46,7 @@ export default function TeamActivity() {
                   <div className="font-medium">{it.author_name || it.author_email}</div>
                   <div className="text-sm text-gray-600">{it.summary || it.content}</div>
                 </div>
-                <div className="text-xs text-gray-400 mt-2">{new Date(it.created_at).toLocaleString()}</div>
+                <div className="text-xs text-gray-400 mt-2">{new Date(it.created_at).toLocaleString('en-IN')}</div>
               </div>
             ))}
           </div>

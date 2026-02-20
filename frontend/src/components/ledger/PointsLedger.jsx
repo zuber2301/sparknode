@@ -197,7 +197,7 @@ export function PlatformAdminLedger() {
                   <td className="px-6 py-4 text-sm font-semibold text-right">
                     <span className={entry.transaction_type === 'CREDIT_INJECTION' ? 'text-green-600' : 'text-red-600'}>
                       {entry.transaction_type === 'CREDIT_INJECTION' ? '+' : '-'}
-                      {entry.amount.toLocaleString()} pts
+                      {entry.amount.toLocaleString('en-IN')} pts
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm">
@@ -267,16 +267,16 @@ function AllocationDetailModal({ entry }) {
                 <p className="text-sm text-gray-600">Amount</p>
                 <p className="font-medium text-lg">
                   {entry.transaction_type === 'CREDIT_INJECTION' ? '+' : '-'}
-                  {entry.amount.toLocaleString()} points
+                  {entry.amount.toLocaleString('en-IN')} points
                 </p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Previous Balance</p>
-                <p className="font-medium">{entry.previous_balance?.toLocaleString() || '-'}</p>
+                <p className="font-medium">{entry.previous_balance?.toLocaleString('en-IN') || '-'}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">New Balance</p>
-                <p className="font-medium">{entry.new_balance?.toLocaleString() || '-'}</p>
+                <p className="font-medium">{entry.new_balance?.toLocaleString('en-IN') || '-'}</p>
               </div>
               <div className="col-span-2">
                 <p className="text-sm text-gray-600">Reference/Notes</p>
@@ -451,7 +451,7 @@ export function TenantManagerLedger() {
         <div className="bg-white rounded-lg p-4 shadow-sm">
           <p className="text-sm text-gray-600">Total Distributed</p>
           <p className="text-2xl font-bold text-green-600">
-            {filteredData?.reduce((sum, e) => sum + e.amount, 0).toLocaleString()} pts
+            {filteredData?.reduce((sum, e) => sum + e.amount, 0).toLocaleString('en-IN')} pts
           </p>
         </div>
         <div className="bg-white rounded-lg p-4 shadow-sm">
@@ -462,7 +462,7 @@ export function TenantManagerLedger() {
           <p className="text-sm text-gray-600">Average Award</p>
           <p className="text-2xl font-bold text-blue-600">
             {filteredData?.length > 0 
-              ? Math.round(filteredData.reduce((sum, e) => sum + e.amount, 0) / filteredData.length).toLocaleString()
+              ? Math.round(filteredData.reduce((sum, e) => sum + e.amount, 0) / filteredData.length).toLocaleString('en-IN')
               : 0
             } pts
           </p>
@@ -503,7 +503,7 @@ export function TenantManagerLedger() {
                     {entry.to_user_name}
                   </td>
                   <td className="px-6 py-4 text-sm font-semibold text-right text-green-600">
-                    +{entry.amount.toLocaleString()}
+                    +{entry.amount.toLocaleString('en-IN')}
                   </td>
                   <td className="px-6 py-4 text-sm">
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -577,19 +577,19 @@ export function EmployeeWalletLedger() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-6 text-white shadow-lg">
           <p className="text-blue-100 mb-2">Current Balance</p>
-          <p className="text-4xl font-bold">{walletData?.balance?.toLocaleString() || 0}</p>
+          <p className="text-4xl font-bold">{walletData?.balance?.toLocaleString('en-IN') || 0}</p>
           <p className="text-blue-100 text-sm mt-2">points available to redeem</p>
         </div>
 
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-6 text-white shadow-lg">
           <p className="text-green-100 mb-2">Lifetime Earned</p>
-          <p className="text-4xl font-bold">{walletData?.lifetime_earned?.toLocaleString() || 0}</p>
+          <p className="text-4xl font-bold">{walletData?.lifetime_earned?.toLocaleString('en-IN') || 0}</p>
           <p className="text-green-100 text-sm mt-2">total points earned</p>
         </div>
 
         <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-6 text-white shadow-lg">
           <p className="text-orange-100 mb-2">Lifetime Spent</p>
-          <p className="text-4xl font-bold">{walletData?.lifetime_spent?.toLocaleString() || 0}</p>
+          <p className="text-4xl font-bold">{walletData?.lifetime_spent?.toLocaleString('en-IN') || 0}</p>
           <p className="text-orange-100 text-sm mt-2">total points redeemed</p>
         </div>
       </div>
@@ -643,18 +643,18 @@ export function EmployeeWalletLedger() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-green-50 rounded-lg p-4">
           <p className="text-sm text-gray-600">Credits</p>
-          <p className="text-xl font-bold text-green-600">+{credits.reduce((sum, e) => sum + e.points, 0).toLocaleString()}</p>
+          <p className="text-xl font-bold text-green-600">+{credits.reduce((sum, e) => sum + e.points, 0).toLocaleString('en-IN')}</p>
           <p className="text-xs text-gray-500">{credits.length} transactions</p>
         </div>
         <div className="bg-red-50 rounded-lg p-4">
           <p className="text-sm text-gray-600">Debits</p>
-          <p className="text-xl font-bold text-red-600">-{debits.reduce((sum, e) => sum + e.points, 0).toLocaleString()}</p>
+          <p className="text-xl font-bold text-red-600">-{debits.reduce((sum, e) => sum + e.points, 0).toLocaleString('en-IN')}</p>
           <p className="text-xs text-gray-500">{debits.length} transactions</p>
         </div>
         <div className="bg-blue-50 rounded-lg p-4">
           <p className="text-sm text-gray-600">Avg. Credit</p>
           <p className="text-xl font-bold text-blue-600">
-            {credits.length > 0 ? Math.round(credits.reduce((sum, e) => sum + e.points, 0) / credits.length).toLocaleString() : 0}
+            {credits.length > 0 ? Math.round(credits.reduce((sum, e) => sum + e.points, 0) / credits.length).toLocaleString('en-IN') : 0}
           </p>
           <p className="text-xs text-gray-500">per transaction</p>
         </div>
@@ -702,10 +702,10 @@ export function EmployeeWalletLedger() {
                   <td className={`px-6 py-4 text-sm font-semibold text-right ${
                     entry.transaction_type === 'credit' ? 'text-green-600' : 'text-red-600'
                   }`}>
-                    {entry.transaction_type === 'credit' ? '+' : '-'}{entry.points.toLocaleString()}
+                    {entry.transaction_type === 'credit' ? '+' : '-'}{entry.points.toLocaleString('en-IN')}
                   </td>
                   <td className="px-6 py-4 text-sm font-semibold text-right text-blue-600">
-                    {entry.balance_after.toLocaleString()}
+                    {entry.balance_after.toLocaleString('en-IN')}
                   </td>
                 </tr>
               ))}

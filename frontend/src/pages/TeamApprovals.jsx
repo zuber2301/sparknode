@@ -58,7 +58,7 @@ export default function TeamApprovals() {
                   <div>
                     <div className="font-medium">{it.title || it.summary || 'Recognition'}</div>
                     <div className="text-sm text-gray-600">From: {it.from_name || it.from_email} → To: {it.to_name || it.to_email}</div>
-                    <div className="text-xs text-gray-400">{new Date(it.created_at).toLocaleString()}</div>
+                    <div className="text-xs text-gray-400">{new Date(it.created_at).toLocaleString('en-IN')}</div>
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => handleAction(it.id, 'approve')} className="px-3 py-1 rounded-md bg-green-600 text-white text-sm">Approve</button>

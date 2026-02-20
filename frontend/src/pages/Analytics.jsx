@@ -61,7 +61,7 @@ export default function Analytics() {
             <div>
               <p className="text-sm font-medium text-gray-600">Total Spent</p>
               <p className="text-2xl font-bold text-gray-900">
-                ${spendAnalysis?.total_spent?.toLocaleString() || 0}
+                ${spendAnalysis?.total_spent?.toLocaleString('en-IN') || 0}
               </p>
             </div>
           </div>
@@ -75,7 +75,7 @@ export default function Analytics() {
             <div>
               <p className="text-sm font-medium text-gray-600">Recognitions</p>
               <p className="text-2xl font-bold text-gray-900">
-                {spendAnalysis?.total_recognitions?.toLocaleString() || 0}
+                {spendAnalysis?.total_recognitions?.toLocaleString('en-IN') || 0}
               </p>
             </div>
           </div>
@@ -89,7 +89,7 @@ export default function Analytics() {
             <div>
               <p className="text-sm font-medium text-gray-600">Active Users</p>
               <p className="text-2xl font-bold text-gray-900">
-                {spendAnalysis?.active_users?.toLocaleString() || 0}
+                {spendAnalysis?.active_users?.toLocaleString('en-IN') || 0}
               </p>
             </div>
           </div>

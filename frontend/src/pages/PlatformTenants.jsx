@@ -23,6 +23,7 @@ import TenantSettingsTab from '../components/TenantSettingsTab'
 import OrganizationInfoCard from '../components/OrganizationInfoCard'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
 import { useAuthStore } from '../store/authStore'
+import { formatDisplayValue } from '../lib/currency'
 
 export default function PlatformTenants() {
   const queryClient = useQueryClient()
@@ -238,6 +239,7 @@ export default function PlatformTenants() {
       max_users: parseInt(formData.get('max_users'), 10),
       master_budget_balance: parseFloat(formData.get('master_budget_balance') || '0'),
       display_currency: formData.get('display_currency'),
+      fx_rate: parseFloat(formData.get('fx_rate') || '1'),
       admin_email: formData.get('admin_email'),
       admin_first_name: formData.get('admin_first_name'),
       admin_last_name: formData.get('admin_last_name'),
@@ -462,7 +464,7 @@ export default function PlatformTenants() {
           </div>
           <div>
             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Total Balance</p>
-            <p className="text-xl font-bold text-gray-900">₹{stats.totalBalance.toLocaleString()}</p>
+            <p className="text-xl font-bold text-gray-900">{formatDisplayValue(stats.totalBalance, 'INR')}</p>
           </div>
         </div>
       </div>
@@ -561,9 +563,9 @@ export default function PlatformTenants() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                   {[
-                    { title: 'Total Budget Allocated', value: `₹${Number(selectedTenant?.total_allocated || 0).toLocaleString()}` , subtitle: 'Lifetime Allocations'},
-                    { title: 'Total Spent', value: `₹${Number(selectedTenant?.total_spent || 0).toLocaleString()}`, subtitle: 'Redeemed / Debited'},
-                    { title: 'Budget Remaining', value: `₹${Number(selectedTenant?.master_budget_balance || 0).toLocaleString()}`, subtitle: 'Current Master Balance'},
+                    { title: 'Total Budget Allocated', value: formatDisplayValue(Number(selectedTenant?.total_allocated || 0), selectedTenant?.display_currency || 'INR') , subtitle: 'Lifetime Allocations'},
+                    { title: 'Total Spent', value: formatDisplayValue(Number(selectedTenant?.total_spent || 0), selectedTenant?.display_currency || 'INR'), subtitle: 'Redeemed / Debited'},
+                    { title: 'Budget Remaining', value: formatDisplayValue(Number(selectedTenant?.master_budget_balance || 0), selectedTenant?.display_currency || 'INR'), subtitle: 'Current Master Balance'},
                     { title: 'Total Users', value: `${selectedTenant?.user_count || 0}`, subtitle: 'Managers / Leads / Employees'},
                   ].map((c) => (
                     <div key={c.title} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
@@ -608,7 +610,7 @@ export default function PlatformTenants() {
                           { title: 'ACTIVE USERS THIS WEEK', value: activeUsersThisWeek || '—', prev: activeUsersPrev, svg: (
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 11c1.657 0 3-1.567 3-3.5S17.657 4 16 4s-3 1.567-3 3.5S14.343 11 16 11zM8 11c1.657 0 3-1.567 3-3.5S9.657 4 8 4 5 5.567 5 7.5 6.343 11 8 11z" stroke="#6366f1" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 20c0-2.5 3-4 6-4s6 1.5 6 4" stroke="#6366f1" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M12 20c0-2.5 3-4 6-4s6 1.5 6 4" stroke="#6366f1" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                           )},
-                          { title: 'AVG POINTS PER EMPLOYEE', value: `₹${avgPointsPerEmployee}`, prev: null, svg: (
+                          { title: 'AVG POINTS PER EMPLOYEE', value: formatDisplayValue(avgPointsPerEmployee || 0, selectedTenant?.display_currency || 'INR'), prev: null, svg: (
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.62L12 2 9.19 8.62 2 9.24l5.46 4.73L5.82 21z" stroke="#f59e0b" strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
                           )}
                         ]
@@ -670,9 +672,9 @@ export default function PlatformTenants() {
                     )}
 
                     <div className="mt-3 text-sm text-gray-500 flex items-center justify-center gap-8">
-                      <div><div className="text-xs text-gray-500">Credits</div><div className="font-bold text-gray-900">{chartTotalsForSelected.credits.toLocaleString()}</div></div>
-                      <div><div className="text-xs text-gray-500">Debits</div><div className="font-bold text-gray-900">{chartTotalsForSelected.debits.toLocaleString()}</div></div>
-                      <div><div className="text-xs text-gray-500">Net</div><div className="font-bold text-gray-900">{chartTotalsForSelected.net.toLocaleString()}</div></div>
+                      <div><div className="text-xs text-gray-500">Credits</div><div className="font-bold text-gray-900">{chartTotalsForSelected.credits.toLocaleString('en-IN')}</div></div>
+                      <div><div className="text-xs text-gray-500">Debits</div><div className="font-bold text-gray-900">{chartTotalsForSelected.debits.toLocaleString('en-IN')}</div></div>
+                      <div><div className="text-xs text-gray-500">Net</div><div className="font-bold text-gray-900">{chartTotalsForSelected.net.toLocaleString('en-IN')}</div></div>
                     </div>
                   </div>
                 </div>
@@ -704,7 +706,7 @@ export default function PlatformTenants() {
 
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <p className="text-xs text-gray-500">Current Master Balance</p>
-                  <p className="text-lg font-bold text-gray-900">{Number(selectedTenant.master_budget_balance || 0).toLocaleString()}</p>
+                  <p className="text-lg font-bold text-gray-900">{formatDisplayValue(Number(selectedTenant.master_budget_balance || 0), selectedTenant?.display_currency || 'INR')}</p>
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4">
@@ -913,7 +915,7 @@ export default function PlatformTenants() {
                         {tenant.user_count || 0} / {tenant.max_users}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                        ₹{Number(tenant.master_budget_balance).toLocaleString()}
+                        {formatDisplayValue(Number(tenant.master_budget_balance || 0), tenant.display_currency || 'INR')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right relative">
                         <button onClick={() => setActionOpenFor(actionOpenFor === tenant.id ? null : tenant.id)} className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg">
@@ -1039,12 +1041,19 @@ export default function PlatformTenants() {
                 {/* Currency Configuration - Mandatory */}
                 <div>
                   <label className="label">Display Currency <span className="text-red-500">*</span></label>
-                  <select name="display_currency" className="input" defaultValue="USD" required>
+                  <select name="display_currency" className="input" defaultValue="INR" required>
+                    <option value="INR">INR (₹)</option>
                     <option value="USD">USD ($)</option>
                     <option value="EUR">EUR (€)</option>
-                    <option value="INR">INR (₹)</option>
                   </select>
                   <p className="text-xs text-gray-500 mt-1">This currency will be used across the tenant</p>
+                </div>
+
+                {/* FX Rate - for non-INR tenants */}
+                <div>
+                  <label className="label">FX Rate (Base → Display Currency)</label>
+                  <input name="fx_rate" type="number" className="input" defaultValue="1" min="0.0001" step="any" />
+                  <p className="text-xs text-gray-500 mt-1">Leave as 1 for INR. For USD base → INR display, enter ~83</p>
                 </div>
 
                 {/* Optional Modules */}

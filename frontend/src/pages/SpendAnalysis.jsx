@@ -62,7 +62,7 @@ export default function SpendAnalysis() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-purple-100 text-sm">Total Points Spent</p>
-              <h3 className="text-3xl font-bold mt-1">{total_spent ? Number(total_spent).toLocaleString() : '0'}</h3>
+              <h3 className="text-3xl font-bold mt-1">{total_spent ? Number(total_spent).toLocaleString('en-IN') : '0'}</h3>
             </div>
             <HiOutlineTrendingUp className="w-10 h-10 text-purple-300 opacity-50" />
           </div>
@@ -176,7 +176,7 @@ export default function SpendAnalysis() {
                    <div className="flex-1">
                      <div className="flex justify-between mb-1">
                        <span className="text-sm font-medium">{dept.department_name}</span>
-                       <span className="text-sm text-gray-500">{Number(dept.points_spent).toLocaleString()} pts</span>
+                       <span className="text-sm text-gray-500">{Number(dept.points_spent).toLocaleString('en-IN')} pts</span>
                      </div>
                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                        <div 

@@ -64,7 +64,7 @@ export default function Billing() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total Received</p>
-              <p className="text-3xl font-bold text-green-600 mt-1">${totalRevenue.toLocaleString()}</p>
+              <p className="text-3xl font-bold text-green-600 mt-1">${totalRevenue.toLocaleString('en-IN')}</p>
               <p className="text-xs text-gray-500 mt-2">{invoices.filter(inv => inv.status === 'paid').length} invoices paid</p>
             </div>
             <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
@@ -77,7 +77,7 @@ export default function Billing() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Pending</p>
-              <p className="text-3xl font-bold text-yellow-600 mt-1">${pendingRevenue.toLocaleString()}</p>
+              <p className="text-3xl font-bold text-yellow-600 mt-1">${pendingRevenue.toLocaleString('en-IN')}</p>
               <p className="text-xs text-gray-500 mt-2">{invoices.filter(inv => inv.status === 'pending').length} invoices</p>
             </div>
             <div className="w-12 h-12 rounded-lg bg-yellow-100 flex items-center justify-center">
@@ -90,7 +90,7 @@ export default function Billing() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Overdue</p>
-              <p className="text-3xl font-bold text-red-600 mt-1">${overdueRevenue.toLocaleString()}</p>
+              <p className="text-3xl font-bold text-red-600 mt-1">${overdueRevenue.toLocaleString('en-IN')}</p>
               <p className="text-xs text-gray-500 mt-2">{invoices.filter(inv => inv.status === 'overdue').length} invoices</p>
             </div>
             <div className="w-12 h-12 rounded-lg bg-red-100 flex items-center justify-center">
@@ -161,8 +161,8 @@ export default function Billing() {
                 <tr key={invoice.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">{invoice.id}</td>
                   <td className="px-6 py-4 text-sm text-gray-600">{invoice.tenant}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{invoice.pointsInjected.toLocaleString()}</td>
-                  <td className="px-6 py-4 text-sm font-semibold text-gray-900">${invoice.amount.toLocaleString()}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600">{invoice.pointsInjected.toLocaleString('en-IN')}</td>
+                  <td className="px-6 py-4 text-sm font-semibold text-gray-900">${invoice.amount.toLocaleString('en-IN')}</td>
                   <td className="px-6 py-4 text-sm text-gray-600">{invoice.dueDate}</td>
                   <td className="px-6 py-4 text-sm">
                     <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(invoice.status)}`}>
@@ -215,8 +215,8 @@ export default function Billing() {
                       {sub.tier}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{sub.pointAllocation.toLocaleString()} pts</td>
-                  <td className="px-6 py-4 text-sm font-semibold text-gray-900">${sub.monthlyFee.toLocaleString()}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600">{sub.pointAllocation.toLocaleString('en-IN')} pts</td>
+                  <td className="px-6 py-4 text-sm font-semibold text-gray-900">${sub.monthlyFee.toLocaleString('en-IN')}</td>
                   <td className="px-6 py-4 text-sm text-gray-600">{sub.renewalDate}</td>
                   <td className="px-6 py-4 text-sm">
                     <button className="text-sparknode-purple hover:text-sparknode-purple font-medium">Edit</button>

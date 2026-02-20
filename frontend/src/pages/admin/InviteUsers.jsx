@@ -113,7 +113,7 @@ export default function InviteUsers() {
 
   const getExpirationTime = (expiresAt) => {
     const date = new Date(expiresAt);
-    return date.toLocaleString();
+    return date.toLocaleString('en-IN');
   };
 
   const formatEmailTemplate = () => {

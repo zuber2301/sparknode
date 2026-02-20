@@ -65,7 +65,7 @@ export default function SalesEvents() {
                 <tr key={ev.id} className="border-t">
                   <td className="py-2">{ev.name}</td>
                   <td>{ev.event_type}</td>
-                  <td>{new Date(ev.start_at).toLocaleString()}</td>
+                  <td>{new Date(ev.start_at).toLocaleString('en-IN')}</td>
                   <td>{ev.status}</td>
                 </tr>
               ))}

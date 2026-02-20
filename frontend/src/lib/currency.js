@@ -39,13 +39,14 @@ export const CURRENCY_LOCALES = {
 
 /**
  * Decimal places for each currency
+ * All currencies display as whole numbers (no decimals) per product requirements.
  */
 export const DECIMAL_PLACES = {
-  USD: 2,
-  INR: 2,
-  EUR: 2,
-  GBP: 2,
-  JPY: 0 // JPY doesn't use decimals
+  USD: 0,
+  INR: 0,
+  EUR: 0,
+  GBP: 0,
+  JPY: 0
 }
 
 /**
@@ -124,7 +125,7 @@ export const formatCurrency = (baseValue, displayCurrency = 'USD', fxRate = 1) =
     // Fallback formatting
     const symbol = CURRENCY_SYMBOLS[displayCurrency] ?? displayCurrency
     const displayValue = convertToDisplayCurrency(baseValue, fxRate)
-    const decimals = DECIMAL_PLACES[displayCurrency] ?? 2
+    const decimals = DECIMAL_PLACES[displayCurrency] ?? 0
     return `${symbol}${displayValue.toFixed(decimals)}`
   }
 }
@@ -156,7 +157,7 @@ export const formatDisplayValue = (displayValue, currencyCode = 'USD') => {
   } catch (error) {
     console.error('Currency formatting error:', error)
     const symbol = CURRENCY_SYMBOLS[currencyCode] ?? currencyCode
-    const decimals = DECIMAL_PLACES[currencyCode] ?? 2
+    const decimals = DECIMAL_PLACES[currencyCode] ?? 0
     return `${symbol}${displayValue.toFixed(decimals)}`
   }
 }

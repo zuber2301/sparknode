@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { HiOutlineCurrencyRupee, HiOutlineExclamationCircle, HiOutlineTrendingUp, HiOutlineLightBulb } from 'react-icons/hi'
 import { tenantsAPI, usersApi, recognitionAPI } from '../lib/api'
 import { useAuthStore } from '../store/authStore'
+import { formatDisplayValue } from '../lib/currency'
 
 /**
  * Morning Briefing Component
@@ -91,7 +92,7 @@ export default function MorningBriefing() {
                 <div>
                   <p className="text-xs sm:text-sm text-gray-500 font-medium">Master Pool</p>
                   <p className="text-2xl sm:text-3xl font-bold text-blue-600 mt-1">
-                    ₹{masterPoolBudget?.toLocaleString('en-IN') || '0'}
+                    {formatDisplayValue(masterPoolBudget || 0, tenant?.display_currency || 'INR')}
                   </p>
                 </div>
                 <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -132,7 +133,7 @@ export default function MorningBriefing() {
                       </div>
                       <div className="text-right flex-shrink-0 ml-2">
                         <p className="text-xs sm:text-sm font-semibold text-gray-900">
-                          ₹{lead.balance?.toLocaleString('en-IN') || '0'}
+                          {formatDisplayValue(lead.balance || 0, tenant?.display_currency || 'INR')}
                         </p>
                         <p className="text-xs text-gray-500">remaining</p>
                       </div>

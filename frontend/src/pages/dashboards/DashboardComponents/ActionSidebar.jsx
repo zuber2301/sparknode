@@ -60,7 +60,7 @@ export default function ActionSidebar({ onDistributeClick, onTopupClick, onExpor
           </div>
           <div>
             <p className="text-[10px] font-bold text-blue-100 uppercase tracking-widest mb-1">Available to Distribute</p>
-            <p className="text-2xl font-black">{stats?.master_pool?.toLocaleString() || 0} <span className="text-xs font-medium">points</span></p>
+            <p className="text-2xl font-black">{stats?.master_pool?.toLocaleString('en-IN') || 0} <span className="text-xs font-medium">points</span></p>
           </div>
           <div>
             <div className="flex items-center justify-between text-[10px] font-bold text-blue-100 uppercase tracking-widest mb-2">

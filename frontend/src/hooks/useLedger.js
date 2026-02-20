@@ -174,7 +174,7 @@ export function useAllocatePoints() {
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['allocations'] })
       queryClient.invalidateQueries({ queryKey: ['allocations', 'stats', variables.tenant_id] })
-      toast.success(`Allocated ${variables.amount.toLocaleString()} points successfully`)
+      toast.success(`Allocated ${variables.amount.toLocaleString('en-IN')} points successfully`)
     },
     onError: (error) => {
       toast.error(error.message)
@@ -241,7 +241,7 @@ export function useAwardPoints() {
       queryClient.invalidateQueries({ queryKey: ['distributions'] })
       queryClient.invalidateQueries({ queryKey: ['allocations', 'pool'] })
       queryClient.invalidateQueries({ queryKey: ['wallet'] })
-      toast.success(`Awarded ${variables.amount.toLocaleString()} points`)
+      toast.success(`Awarded ${variables.amount.toLocaleString('en-IN')} points`)
     },
     onError: (error) => {
       toast.error(error.message)
@@ -274,7 +274,7 @@ export function useDistributeToLead() {
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['distributions'] })
       queryClient.invalidateQueries({ queryKey: ['allocations', 'pool'] })
-      toast.success(`Delegated ${variables.amount.toLocaleString()} points`)
+      toast.success(`Delegated ${variables.amount.toLocaleString('en-IN')} points`)
     },
     onError: (error) => {
       toast.error(error.message)
@@ -286,7 +286,7 @@ export function useDistributeToLead() {
  * Utility: Format large numbers with commas
  */
 export function formatNumber(num) {
-  return typeof num === 'number' ? num.toLocaleString() : '0'
+  return typeof num === 'number' ? num.toLocaleString('en-IN') : '0'
 }
 
 /**

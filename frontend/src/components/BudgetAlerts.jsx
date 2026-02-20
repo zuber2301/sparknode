@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { HiOutlineExclamationCircle, HiOutlineCheckCircle, HiOutlineBell, HiOutlineX } from 'react-icons/hi'
 import { platformAPI } from '../lib/api'
+import { formatDisplayValue } from '../lib/currency'
 
 /**
  * Budget Alert Display Component
@@ -83,10 +84,7 @@ export default function BudgetAlerts() {
               <h3 className="font-semibold mb-1">{alert.tenant_name}</h3>
               <p className="text-sm mb-2">{alert.message}</p>
               <div className="text-xs opacity-75">
-                Remaining: ₹{parseFloat(alert.unallocated_budget).toLocaleString('en-IN', { 
-                  minimumFractionDigits: 0, 
-                  maximumFractionDigits: 0 
-                })} ({alert.unallocated_percent.toFixed(1)}%)
+                Remaining: {formatDisplayValue(parseFloat(alert.unallocated_budget || 0), alert.display_currency || 'INR')} ({alert.unallocated_percent.toFixed(1)}%)
               </div>
             </div>
           </div>

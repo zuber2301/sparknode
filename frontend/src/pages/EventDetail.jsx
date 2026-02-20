@@ -356,7 +356,7 @@ export default function EventDetail() {
               <div className="bg-gradient-to-r from-sparknode-purple to-sparknode-blue text-white rounded-lg p-6">
                 <div className="text-sm opacity-90">Planned Budget</div>
                 <div className="text-4xl font-bold mt-2">
-                  {event.currency} {event.planned_budget.toLocaleString()}
+                  {event.currency} {event.planned_budget.toLocaleString('en-IN')}
                 </div>
               </div>
 

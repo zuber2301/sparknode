@@ -189,7 +189,7 @@ export default function PlatformTenantDetail() {
           <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
             <div className="flex-1">
               <p className="text-xs sm:text-sm text-white/80">Total Budget Allocated</p>
-              <p className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-1">₹{Number(totalAllocated || 0).toLocaleString()}</p>
+              <p className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-1">₹{Number(totalAllocated || 0).toLocaleString('en-IN')}</p>
             </div>
             <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
               <span className="text-sm font-semibold">💰</span>
@@ -204,7 +204,7 @@ export default function PlatformTenantDetail() {
           <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
             <div className="flex-1">
               <p className="text-xs sm:text-sm text-white/80">Total Spent</p>
-              <p className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-1">₹{Number(totalSpent || 0).toLocaleString()}</p>
+              <p className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-1">₹{Number(totalSpent || 0).toLocaleString('en-IN')}</p>
             </div>
             <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
               <span className="text-sm font-semibold">📊</span>
@@ -219,7 +219,7 @@ export default function PlatformTenantDetail() {
           <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
             <div className="flex-1">
               <p className="text-xs sm:text-sm text-white/80">Budget Remaining</p>
-              <p className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-1">₹{Number(budgetRemaining || 0).toLocaleString()}</p>
+              <p className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-1">₹{Number(budgetRemaining || 0).toLocaleString('en-IN')}</p>
             </div>
             <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
               <span className="text-sm font-semibold">✅</span>
@@ -296,7 +296,7 @@ export default function PlatformTenantDetail() {
             </div>
             <div>
               <label className="block text-sm text-gray-600">Master Budget Balance</label>
-              <div className="mt-2 text-lg font-bold">₹{Number(tenantResp.master_budget_balance || 0).toLocaleString()}</div>
+              <div className="mt-2 text-lg font-bold">₹{Number(tenantResp.master_budget_balance || 0).toLocaleString('en-IN')}</div>
             </div>
           </div>
         </div>
@@ -387,15 +387,15 @@ export default function PlatformTenantDetail() {
             <div className="flex items-center justify-center gap-6">
               <div>
                 <div className="text-xs text-gray-500">Credits</div>
-                <div className="font-bold text-gray-900">{chartTotals.credits.toLocaleString()}</div>
+                <div className="font-bold text-gray-900">{chartTotals.credits.toLocaleString('en-IN')}</div>
               </div>
               <div>
                 <div className="text-xs text-gray-500">Debits</div>
-                <div className="font-bold text-gray-900">{chartTotals.debits.toLocaleString()}</div>
+                <div className="font-bold text-gray-900">{chartTotals.debits.toLocaleString('en-IN')}</div>
               </div>
               <div>
                 <div className="text-xs text-gray-500">Net</div>
-                <div className="font-bold text-gray-900">{chartTotals.net.toLocaleString()}</div>
+                <div className="font-bold text-gray-900">{chartTotals.net.toLocaleString('en-IN')}</div>
               </div>
             </div>
           </div>

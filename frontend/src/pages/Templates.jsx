@@ -144,7 +144,7 @@ export default function Templates() {
                 <div>
                   <h3 className="font-semibold text-gray-900">{tier.name}</h3>
                   <p className="text-sm text-gray-600">
-                    {tier.minPoints.toLocaleString()} - {tier.maxPoints === Infinity ? '∞' : tier.maxPoints.toLocaleString()} points
+                    {tier.minPoints.toLocaleString('en-IN')} - {tier.maxPoints === Infinity ? '∞' : tier.maxPoints.toLocaleString('en-IN')} points
                   </p>
                 </div>
               </div>

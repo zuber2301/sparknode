@@ -881,7 +881,7 @@ export default function Budgets() {
               </div>
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <p className="text-xs text-blue-700">
-                  <strong>Budget Remaining:</strong> {activeBudget.remaining_points.toLocaleString()} points
+                  <strong>Budget Remaining:</strong> {activeBudget.remaining_points.toLocaleString('en-IN')} points
                 </p>
               </div>
               <div className="flex gap-3 pt-4">
