@@ -65,7 +65,7 @@ export const convertToDisplayCurrency = (baseValue, fxRate = 1) => {
     fxRate = 1
   }
   const converted = baseValue * fxRate
-  return Math.round(converted * 100) / 100 // Ensure 2 decimal precision
+  return Math.round(converted) // Return rounded integer for zero decimals
 }
 
 /**
@@ -84,7 +84,7 @@ export const convertFromDisplayCurrency = (displayValue, fxRate = 1) => {
     fxRate = 1
   }
   const converted = displayValue / fxRate
-  return Math.round(converted * 100) / 100
+  return Math.round(converted) // Return rounded integer for zero decimals
 }
 
 /**
@@ -106,7 +106,7 @@ export const formatCurrency = (baseValue, displayCurrency = 'USD', fxRate = 1) =
     const displayValue = convertToDisplayCurrency(baseValue, fxRate)
     
     // Get decimal places for this currency
-    const decimals = DECIMAL_PLACES[displayCurrency] ?? 2
+    const decimals = DECIMAL_PLACES[displayCurrency] ?? 0
     
     // Use Intl.NumberFormat for locale-aware formatting
     const formatter = new Intl.NumberFormat(
@@ -142,7 +142,7 @@ export const formatCurrency = (baseValue, displayCurrency = 'USD', fxRate = 1) =
  */
 export const formatDisplayValue = (displayValue, currencyCode = 'USD') => {
   try {
-    const decimals = DECIMAL_PLACES[currencyCode] ?? 2
+    const decimals = DECIMAL_PLACES[currencyCode] ?? 0
     const formatter = new Intl.NumberFormat(
       CURRENCY_LOCALES[currencyCode] ?? 'en-US',
       {
@@ -186,16 +186,27 @@ export function formatCurrencyCompact(amount) {
 }
 
 /**
- * Format a points value for display using the Rupee symbol and no decimals.
- * Ensures integer display with locale-aware grouping (en-IN).
+ * Format a points value for display using the appropriate currency symbol and no decimals.
+ * Ensures integer display with locale-aware grouping based on the provided currency.
  * @param {number|string} amount
+ * @param {string} currencyCode - The currency code for symbol/grouping (default: INR)
  * @returns {string}
  */
-export function formatPoints(amount) {
+export function formatPoints(amount, currencyCode = 'INR') {
   const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
-  if (isNaN(numAmount)) return `₹0`
-  const formatter = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 })
-  return `₹${formatter.format(Math.round(numAmount))}`
+  if (isNaN(numAmount)) return (CURRENCY_SYMBOLS[currencyCode] || '₹') + '0'
+  
+  const decimals = DECIMAL_PLACES[currencyCode] ?? 0
+  const locale = CURRENCY_LOCALES[currencyCode] ?? 'en-IN'
+  
+  const formatter = new Intl.NumberFormat(locale, { 
+    style: 'currency',
+    currency: currencyCode,
+    maximumFractionDigits: decimals,
+    minimumFractionDigits: decimals
+  })
+  
+  return formatter.format(Math.round(numAmount))
 }
 
 /**

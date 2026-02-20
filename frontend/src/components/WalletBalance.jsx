@@ -19,13 +19,12 @@ export default function WalletBalance({ wallet }) {
   }
 
   // Get currency display settings
-  const displayCurrency = tenantData?.display_currency || 'USD'
-  const fxRate = parseFloat(tenantData?.fx_rate) || 1.0
+  const displayCurrency = tenantData?.display_currency || 'INR'
 
-  // Format wallet values as points using Rupee symbol and integer values
-  const formattedBalance = formatPoints(wallet.balance)
-  const formattedEarned = formatPoints(wallet.lifetime_earned)
-  const formattedSpent = formatPoints(wallet.lifetime_spent)
+  // Format wallet values as points using appropriate currency symbol and integer values
+  const formattedBalance = formatPoints(wallet.balance, displayCurrency)
+  const formattedEarned = formatPoints(wallet.lifetime_earned, displayCurrency)
+  const formattedSpent = formatPoints(wallet.lifetime_spent, displayCurrency)
 
   return (
     <div className="stat-card stat-card-compact bg-gradient-to-r from-sparknode-purple to-sparknode-blue text-white">

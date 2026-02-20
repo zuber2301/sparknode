@@ -153,6 +153,16 @@ export default function TenantCurrencySettings({ tenantId = null }) {
         {/* Current Settings Display */}
         {!isEditing && (
           <div className="p-6 space-y-4">
+            <div className="flex items-center justify-between mb-4 pb-4 border-b">
+              <span className="text-sm font-medium text-gray-700">Organization Currency Settings</span>
+              <button 
+                onClick={() => setIsEditing(true)}
+                className="text-sm font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+              >
+                <HiOutlineCog className="w-4 h-4" />
+                Change Configuration
+              </button>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm font-medium text-gray-500">Current Currency</p>

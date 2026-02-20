@@ -23,7 +23,7 @@ import TenantSettingsTab from '../components/TenantSettingsTab'
 import OrganizationInfoCard from '../components/OrganizationInfoCard'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
 import { useAuthStore } from '../store/authStore'
-import { formatDisplayValue } from '../lib/currency'
+import { formatDisplayValue, CURRENCY_SYMBOLS, SUPPORTED_CURRENCIES } from '../lib/currency'
 
 export default function PlatformTenants() {
   const queryClient = useQueryClient()
@@ -264,7 +264,7 @@ export default function PlatformTenants() {
         max_users: full.max_users || 50,
         master_budget_balance: full.master_budget_balance || 0,
         currency_label: full.currency_label || full.currency || 'INR',
-        point_symbol: full.point_symbol || full.currency_symbol || '₹',
+        point_symbol: full.point_symbol || full.currency_symbol || CURRENCY_SYMBOLS.INR,
         redemption_markup: full.redemption_markup || 0,
         subscription_ends_at: full.subscription_ends_at || '',
         status: full.status || 'active',
@@ -672,9 +672,9 @@ export default function PlatformTenants() {
                     )}
 
                     <div className="mt-3 text-sm text-gray-500 flex items-center justify-center gap-8">
-                      <div><div className="text-xs text-gray-500">Credits</div><div className="font-bold text-gray-900">{chartTotalsForSelected.credits.toLocaleString('en-IN')}</div></div>
-                      <div><div className="text-xs text-gray-500">Debits</div><div className="font-bold text-gray-900">{chartTotalsForSelected.debits.toLocaleString('en-IN')}</div></div>
-                      <div><div className="text-xs text-gray-500">Net</div><div className="font-bold text-gray-900">{chartTotalsForSelected.net.toLocaleString('en-IN')}</div></div>
+                      <div><div className="text-xs text-gray-500">Credits</div><div className="font-bold text-gray-900">{formatDisplayValue(chartTotalsForSelected.credits, selectedTenant?.display_currency || 'INR')}</div></div>
+                      <div><div className="text-xs text-gray-500">Debits</div><div className="font-bold text-gray-900">{formatDisplayValue(chartTotalsForSelected.debits, selectedTenant?.display_currency || 'INR')}</div></div>
+                      <div><div className="text-xs text-gray-500">Net</div><div className="font-bold text-gray-900">{formatDisplayValue(chartTotalsForSelected.net, selectedTenant?.display_currency || 'INR')}</div></div>
                     </div>
                   </div>
                 </div>
@@ -694,14 +694,14 @@ export default function PlatformTenants() {
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Point Symbol</label>
-                    <input value={editForm.point_symbol || '₹'} onChange={(e) => setEditForm({ ...editForm, point_symbol: e.target.value })} className="w-full bg-gray-50 border-none rounded-lg text-sm py-3 px-4" />
+                    <input value={editForm.point_symbol || CURRENCY_SYMBOLS.INR} onChange={(e) => setEditForm({ ...editForm, point_symbol: e.target.value })} className="w-full bg-gray-50 border-none rounded-lg text-sm py-3 px-4" />
                   </div>
                 </div>
 
                 <div>
                   <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Redemption Markup (%)</label>
                   <input type="number" value={editForm.redemption_markup || 0} onChange={(e) => setEditForm({ ...editForm, redemption_markup: Number(e.target.value) })} className="w-40 bg-gray-50 border-none rounded-lg text-sm py-3 px-4" />
-                  <p className="text-xs text-gray-500 mt-2">Example: 10% means a ₹500 voucher costs 550 points.</p>
+                  <p className="text-xs text-gray-500 mt-2">Example: 10% means a {formatDisplayValue(500, editForm.currency_label || 'INR')} voucher costs 550 points.</p>
                 </div>
 
                 <div className="p-4 bg-gray-50 rounded-lg">
@@ -1042,9 +1042,9 @@ export default function PlatformTenants() {
                 <div>
                   <label className="label">Display Currency <span className="text-red-500">*</span></label>
                   <select name="display_currency" className="input" defaultValue="INR" required>
-                    <option value="INR">INR (₹)</option>
-                    <option value="USD">USD ($)</option>
-                    <option value="EUR">EUR (€)</option>
+                    <option value="INR">INR ({CURRENCY_SYMBOLS.INR})</option>
+                    <option value="USD">USD ({CURRENCY_SYMBOLS.USD})</option>
+                    <option value="EUR">EUR ({CURRENCY_SYMBOLS.EUR})</option>
                   </select>
                   <p className="text-xs text-gray-500 mt-1">This currency will be used across the tenant</p>
                 </div>

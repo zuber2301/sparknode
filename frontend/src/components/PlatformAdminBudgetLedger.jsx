@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { HiOutlineCurrencyRupee, HiOutlineArrowRight, HiOutlineChartBar, HiOutlineDownload } from 'react-icons/hi'
 import { platformAPI, tenantsAPI } from '../lib/api'
+import { formatDisplayValue } from '../lib/currency'
 
 /**
  * Platform Admin Budget Ledger
@@ -179,7 +180,7 @@ export default function PlatformAdminBudgetLedger() {
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
                 <span className="font-medium text-gray-700">Unallocated (Platform Reserve)</span>
-                <span className="text-lg font-bold text-gray-900">₹{budgetTiers.unallocated?.toLocaleString('en-IN')}</span>
+                <span className="text-lg font-bold text-gray-900">{formatDisplayValue(budgetTiers.unallocated || 0, 'INR')}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                 <div 
@@ -197,7 +198,7 @@ export default function PlatformAdminBudgetLedger() {
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
                 <span className="font-medium text-gray-700">Allocated (Tenant Pools)</span>
-                <span className="text-lg font-bold text-blue-600">₹{budgetTiers.allocated?.toLocaleString('en-IN')}</span>
+                <span className="text-lg font-bold text-blue-600">{formatDisplayValue(budgetTiers.allocated || 0, 'INR')}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                 <div 
@@ -215,7 +216,7 @@ export default function PlatformAdminBudgetLedger() {
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
                 <span className="font-medium text-gray-700">Delegated (With Leads)</span>
-                <span className="text-lg font-bold text-purple-600">₹{budgetTiers.delegated?.toLocaleString('en-IN')}</span>
+                <span className="text-lg font-bold text-purple-600">{formatDisplayValue(budgetTiers.delegated || 0, 'INR')}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                 <div 
@@ -233,7 +234,7 @@ export default function PlatformAdminBudgetLedger() {
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
                 <span className="font-medium text-gray-700">Spendable (User Wallets)</span>
-                <span className="text-lg font-bold text-green-600">₹{budgetTiers.spendable?.toLocaleString('en-IN')}</span>
+                <span className="text-lg font-bold text-green-600">{formatDisplayValue(budgetTiers.spendable || 0, 'INR')}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                 <div 
@@ -251,26 +252,26 @@ export default function PlatformAdminBudgetLedger() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg p-4 shadow-sm">
           <p className="text-sm text-gray-500 mb-1">Total Platform Budget</p>
-          <p className="text-2xl font-bold text-gray-900">₹{budgetTiers.platformTotal?.toLocaleString('en-IN')}</p>
+          <p className="text-2xl font-bold text-gray-900">{formatDisplayValue(budgetTiers.platformTotal || 0, 'INR')}</p>
           <p className="text-xs text-gray-500 mt-2">Across {budgetTiers.tenants?.length || 0} tenants</p>
         </div>
 
         <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-gray-400">
           <p className="text-sm text-gray-500 mb-1">Unallocated Reserve</p>
-          <p className="text-2xl font-bold text-gray-900">₹{budgetTiers.unallocated?.toLocaleString('en-IN')}</p>
+          <p className="text-2xl font-bold text-gray-900">{formatDisplayValue(budgetTiers.unallocated || 0, 'INR')}</p>
           <p className="text-xs text-gray-500 mt-2">Available to allocate</p>
         </div>
 
         <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-blue-400">
           <p className="text-sm text-gray-500 mb-1">Tenant Pools</p>
-          <p className="text-2xl font-bold text-blue-600">₹{budgetTiers.allocated?.toLocaleString('en-IN')}</p>
+          <p className="text-2xl font-bold text-blue-600">{formatDisplayValue(budgetTiers.allocated || 0, 'INR')}</p>
           <p className="text-xs text-gray-500 mt-2">Waiting for distribution</p>
         </div>
 
         <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-green-400">
           <p className="text-sm text-gray-500 mb-1">In Use</p>
-          <p className="text-2xl font-bold text-green-600">₹{(budgetTiers.delegated + budgetTiers.spendable)?.toLocaleString('en-IN')}</p>
-          <p className="text-xs text-gray-500 mt-2">{((budgetTiers.delegated + budgetTiers.spendable) / budgetTiers.platformTotal * 100).toFixed(1)}% deployed</p>
+          <p className="text-2xl font-bold text-green-600">{formatDisplayValue((budgetTiers.delegated + budgetTiers.spendable) || 0, 'INR')}</p>
+          <p className="text-xs text-gray-500 mt-2">{((budgetTiers.delegated + budgetTiers.spendable) / (budgetTiers.platformTotal || 1) * 100).toFixed(1)}% deployed</p>
         </div>
       </div>
 
@@ -328,16 +329,16 @@ export default function PlatformAdminBudgetLedger() {
                       {tenant.tenantName}
                     </td>
                     <td className="px-6 py-4 text-sm text-right text-gray-900">
-                      <span className="font-semibold text-blue-600">₹{tenant.allocated?.toLocaleString('en-IN')}</span>
+                      <span className="font-semibold text-blue-600">{formatDisplayValue(tenant.allocated || 0, 'INR')}</span>
                     </td>
                     <td className="px-6 py-4 text-sm text-right text-gray-900">
-                      <span className="font-semibold text-purple-600">₹{tenant.delegated?.toLocaleString('en-IN')}</span>
+                      <span className="font-semibold text-purple-600">{formatDisplayValue(tenant.delegated || 0, 'INR')}</span>
                     </td>
                     <td className="px-6 py-4 text-sm text-right text-gray-900">
-                      <span className="font-semibold text-green-600">₹{tenant.spendable?.toLocaleString('en-IN')}</span>
+                      <span className="font-semibold text-green-600">{formatDisplayValue(tenant.spendable || 0, 'INR')}</span>
                     </td>
                     <td className="px-6 py-4 text-sm text-right text-gray-900">
-                      <span className="font-semibold">₹{activeTotal?.toLocaleString('en-IN')}</span>
+                      <span className="font-semibold">{formatDisplayValue(activeTotal || 0, 'INR')}</span>
                     </td>
                     <td className="px-6 py-4 text-sm text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -362,15 +363,15 @@ export default function PlatformAdminBudgetLedger() {
           <div className="grid grid-cols-4 gap-4">
             <div>
               <p className="text-xs text-gray-500">Total Allocated</p>
-              <p className="text-lg font-bold text-blue-600">₹{budgetTiers.allocated?.toLocaleString('en-IN')}</p>
+              <p className="text-lg font-bold text-blue-600">{formatDisplayValue(budgetTiers.allocated || 0, 'INR')}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500">Total Delegated</p>
-              <p className="text-lg font-bold text-purple-600">₹{budgetTiers.delegated?.toLocaleString('en-IN')}</p>
+              <p className="text-lg font-bold text-purple-600">{formatDisplayValue(budgetTiers.delegated || 0, 'INR')}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500">Total Spendable</p>
-              <p className="text-lg font-bold text-green-600">₹{budgetTiers.spendable?.toLocaleString('en-IN')}</p>
+              <p className="text-lg font-bold text-green-600">{formatDisplayValue(budgetTiers.spendable || 0, 'INR')}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500">Deployment Rate</p>

@@ -6,6 +6,7 @@ import ConfirmModal from '../components/ConfirmModal'
 import AddBudgetModal from '../components/AddBudgetModal'
 import { useAuthStore } from '../store/authStore'
 import { tenantsAPI, platformAPI } from '../lib/api'
+import { formatDisplayValue } from '../lib/currency'
 import { HiOutlinePlus, HiOutlineSearch, HiOutlineDotsVertical, HiOutlineChevronLeft, HiOutlineX, HiOutlineCheckCircle, HiOutlineShieldCheck, HiOutlineCurrencyRupee, HiOutlineLockClosed } from 'react-icons/hi'
 
 export default function TenantDashboard() {
@@ -173,7 +174,7 @@ export default function TenantDashboard() {
           </div>
           <div className="bg-white p-4 rounded-2xl border shadow-sm">
             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Total Balance</p>
-            <p className="text-xl font-bold text-gray-900">₹{stats.totalBalance.toLocaleString('en-IN')}</p>
+            <p className="text-xl font-bold text-gray-900">{formatDisplayValue(stats.totalBalance || 0, 'INR')}</p>
           </div>
         </div>
 
@@ -210,7 +211,7 @@ export default function TenantDashboard() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{t.slug || t.domain}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{t.subscription_tier}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">₹{Number(t.master_budget_balance||0).toLocaleString('en-IN')}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">{formatDisplayValue(t.master_budget_balance || 0, 'INR')}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right relative">
                       <button className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg">
                         <HiOutlineDotsVertical className="w-5 h-5 transition-transform group-hover:scale-110" />

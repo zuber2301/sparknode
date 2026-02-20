@@ -6,6 +6,7 @@ import { platformAPI } from '../lib/api'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts'
 import OrganizationInfoCard from '../components/OrganizationInfoCard'
 import AddBudgetModal from '../components/AddBudgetModal'
+import { formatDisplayValue } from '../lib/currency'
 
 export default function PlatformTenantDetail() {
   const { tenantId } = useParams()
@@ -189,7 +190,7 @@ export default function PlatformTenantDetail() {
           <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
             <div className="flex-1">
               <p className="text-xs sm:text-sm text-white/80">Total Budget Allocated</p>
-              <p className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-1">₹{Number(totalAllocated || 0).toLocaleString('en-IN')}</p>
+              <p className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-1">{formatDisplayValue(totalAllocated || 0, tenantResp?.display_currency || 'INR')}</p>
             </div>
             <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
               <span className="text-sm font-semibold">💰</span>
@@ -204,7 +205,7 @@ export default function PlatformTenantDetail() {
           <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
             <div className="flex-1">
               <p className="text-xs sm:text-sm text-white/80">Total Spent</p>
-              <p className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-1">₹{Number(totalSpent || 0).toLocaleString('en-IN')}</p>
+              <p className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-1">{formatDisplayValue(totalSpent || 0, tenantResp?.display_currency || 'INR')}</p>
             </div>
             <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
               <span className="text-sm font-semibold">📊</span>
@@ -219,7 +220,7 @@ export default function PlatformTenantDetail() {
           <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
             <div className="flex-1">
               <p className="text-xs sm:text-sm text-white/80">Budget Remaining</p>
-              <p className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-1">₹{Number(budgetRemaining || 0).toLocaleString('en-IN')}</p>
+              <p className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-1">{formatDisplayValue(budgetRemaining || 0, tenantResp?.display_currency || 'INR')}</p>
             </div>
             <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
               <span className="text-sm font-semibold">✅</span>
@@ -296,7 +297,7 @@ export default function PlatformTenantDetail() {
             </div>
             <div>
               <label className="block text-sm text-gray-600">Master Budget Balance</label>
-              <div className="mt-2 text-lg font-bold">₹{Number(tenantResp.master_budget_balance || 0).toLocaleString('en-IN')}</div>
+              <div className="mt-2 text-lg font-bold">{formatDisplayValue(Number(tenantResp.master_budget_balance || 0), tenantResp.display_currency || 'INR')}</div>
             </div>
           </div>
         </div>
@@ -339,7 +340,7 @@ export default function PlatformTenantDetail() {
           </div>
           <div className="p-4 bg-gray-50 rounded-lg">
             <p className="text-xs text-gray-500">AVG POINTS PER EMPLOYEE</p>
-            <p className="text-lg font-bold text-gray-900 mt-2">₹0</p>
+            <p className="text-lg font-bold text-gray-900 mt-2">{formatDisplayValue(0, tenantResp?.display_currency || 'INR')}</p>
           </div>
         </div>
       </div>
