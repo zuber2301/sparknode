@@ -29,11 +29,13 @@ export default function RightSideCopilot() {
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
 
-  // Fetch feature flags if not already in tenantContext
+  const isPlatformAdmin = user?.org_role === 'platform_admin'
+
+  // Fetch feature flags if not already in tenantContext (skip for platform admin — no tenant)
   const { data: currentTenantResponse } = useQuery({
     queryKey: ['currentTenant-copilot'],
     queryFn: () => tenantsAPI.getCurrent(),
-    enabled: !tenantContext?.feature_flags,
+    enabled: !isPlatformAdmin && !tenantContext?.feature_flags,
     onSuccess: (response) => {
       if (response?.data?.feature_flags && !tenantContext?.feature_flags) {
         updateTenantContext({ feature_flags: response.data.feature_flags })
@@ -43,7 +45,7 @@ export default function RightSideCopilot() {
 
   // Check if AI copilot is enabled for this tenant
   const featureFlags = tenantContext?.feature_flags || currentTenantResponse?.data?.feature_flags
-  const aiCopilotEnabled = featureFlags?.ai_copilot || featureFlags?.ai_module_enabled
+  const aiCopilotEnabled = isPlatformAdmin || featureFlags?.ai_copilot || featureFlags?.ai_module_enabled
 
   // Keep the panel open if pinned (must be before early return - Rules of Hooks)
   useEffect(() => {
