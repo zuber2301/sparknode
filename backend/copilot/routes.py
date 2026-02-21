@@ -1,11 +1,17 @@
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
+import json
+import logging
 from datetime import datetime
 from typing import Optional, Dict, Any, List
-import logging
+
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
 from auth.utils import get_current_user
+from database import get_db
 from models import User
 from copilot.llm_service import LLMService
+from copilot.tools import detect_intent, dispatch_tool, format_tool_result_as_text
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -38,18 +44,15 @@ class CopilotMessageResponse(BaseModel):
 @router.post("/chat", response_model=CopilotMessageResponse)
 async def chat(
     request: CopilotMessageRequest,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """
     Handle copilot chat requests with LLM or keyword-based fallback.
     
-    The copilot can help users understand:
-    - Recognition events and trends
-    - Budget allocation and spending
-    - User achievements and statistics
-    - Contextual information based on current page
-    
-    Uses GPT-4 if OpenAI API is configured, falls back to keyword matching.
+    Intent detection runs first; if a tool matches the request it queries
+    the DB and injects live data into the LLM prompt (or returns a direct
+    text response when no LLM is configured).
     """
     if not request.message or not request.message.strip():
         raise HTTPException(status_code=400, detail="Message is required")
@@ -57,43 +60,63 @@ async def chat(
     try:
         user_message = request.message.strip()
         context = request.context or {}
-        
-        # Try LLM if available
+
+        # ── 1. Intent detection + tool dispatch ──────────────────────────
+        tool_name, params = detect_intent(user_message)
+        tool_result: Optional[Dict[str, Any]] = None
+
+        if tool_name:
+            tool_result = dispatch_tool(tool_name, params, current_user, db)
+
+        # ── 2. Build tool data string (injected into LLM prompt) ─────────
+        tool_data_str: Optional[str] = None
+        if tool_result and tool_result.get("ok"):
+            tool_data_str = json.dumps(tool_result["data"], default=str)
+        elif tool_result and not tool_result.get("ok"):
+            # Error from tool (e.g. permission denied) — surface directly
+            return CopilotMessageResponse(
+                response=tool_result.get("error", "Permission denied."),
+                timestamp=datetime.utcnow(),
+                model="tool-error",
+            )
+
+        # ── 3. Try LLM ────────────────────────────────────────────────────
         model_used = "keyword-matching"
         tokens = None
-        
+
         if llm_service and llm_service.is_available:
             try:
+                # Inject tool data into context so build_system_prompt can use it
+                enriched_context = {**context, "tool_name": tool_name, "tool_data": tool_data_str}
                 llm_response = await llm_service.get_response(
                     message=user_message,
                     user=current_user,
-                    context=context,
+                    context=enriched_context,
                     conversation_history=request.conversation_history,
-                    max_tokens=500,
+                    max_tokens=600,
                 )
                 response_text = llm_response["response"]
                 model_used = llm_response["model"]
                 tokens = llm_response["tokens"]
-                
+
                 logger.info(
-                    f"LLM response generated for user {current_user.id} "
-                    f"(tokens: {tokens['total']})"
+                    f"LLM response for user {current_user.id} "
+                    f"(tool={tool_name}, tokens={tokens['total']})"
                 )
-            
+
             except Exception as e:
-                logger.warning(
-                    f"LLM request failed: {str(e)}. "
-                    f"Falling back to keyword matching."
-                )
-                response_text = generate_copilot_response(
-                    user_message, context, current_user
-                )
+                logger.warning(f"LLM request failed: {str(e)}. Falling back to tool/keyword matching.")
+                if tool_name and tool_result:
+                    response_text = format_tool_result_as_text(tool_name, tool_result, current_user)
+                else:
+                    response_text = generate_copilot_response(user_message, context, current_user)
         else:
-            # Use keyword-based response
-            response_text = generate_copilot_response(
-                user_message, context, current_user
-            )
-        
+            # No LLM — use tool formatter or keyword fallback
+            if tool_name and tool_result:
+                response_text = format_tool_result_as_text(tool_name, tool_result, current_user)
+            else:
+                response_text = generate_copilot_response(user_message, context, current_user)
+
         return CopilotMessageResponse(
             response=response_text,
             timestamp=datetime.utcnow(),
@@ -102,7 +125,7 @@ async def chat(
         )
     
     except Exception as e:
-        logger.error(f"Copilot error: {str(e)}")
+        logger.error(f"Copilot error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to process copilot request")
 
 

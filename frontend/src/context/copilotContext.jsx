@@ -42,16 +42,25 @@ export function CopilotProvider({ children }) {
     setIsLoading(true)
 
     try {
-      // TODO: Connect to actual API endpoint for AI responses
-      // For now, return a placeholder response
+      const token = localStorage.getItem('token')
+      // Build last-6-message conversation history for LLM context window
+      const conversation_history = messages
+        .slice(-6)
+        .map((m) => ({
+          role: m.type === 'user' ? 'user' : 'assistant',
+          content: m.content,
+        }))
+
       const response = await fetch('/api/copilot/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           message: userMessage,
-          context, // Pass contextual information (current page, visible data, etc.)
+          context,
+          conversation_history,
         }),
       }).then((res) => res.json())
       
@@ -69,7 +78,7 @@ export function CopilotProvider({ children }) {
     } finally {
       setIsLoading(false)
     }
-  }, [addMessage])
+  }, [addMessage, messages])
 
   const clearMessages = useCallback(() => {
     setMessages([

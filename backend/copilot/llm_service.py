@@ -56,72 +56,55 @@ class LLMService:
     
     def build_system_prompt(self, user: Any, context: Dict[str, Any]) -> str:
         """
-        Build a system prompt tailored to SparkNode and current context
-        
-        Args:
-            user: Current user object
-            context: Context information (page, visible_data, etc.)
-        
-        Returns:
-            System prompt string
+        Build a system prompt tailored to SparkNode and current context.
+        When 'tool_data' is present in context, it is injected as live DB data
+        and the model is instructed to answer using only that data.
         """
         page = context.get('page', 'general')
-        user_role = context.get('user_role', 'tenant_user')
-        
-        base_prompt = f"""You are SparkNode's AI Copilot, an intelligent assistant helping with employee recognition and rewards.
+        user_role = context.get('user_role', user.org_role if hasattr(user, 'org_role') else 'tenant_user')
+        tool_data: Optional[str] = context.get('tool_data')
+        tool_name: Optional[str] = context.get('tool_name')
+
+        base_prompt = f"""You are SNPilot, SparkNode's read-only AI analytics copilot.
+
+You help employees and managers understand their recognition, wallet, budget, and rewards data.
+You always rely on the LIVE DATA provided below — never fabricate numbers, names, or dates.
+You are read-only: never suggest, imply, or describe making changes to data.
 
 User Context:
 - Name: {user.first_name} {user.last_name}
 - Role: {user_role}
-- Current Page: {page}
+- Current page: {page}
 
-Your capabilities:
-1. Explain recognition trends and data
-2. Answer questions about employee achievements
-3. Provide insights on budget allocation and spending
-4. Suggest reward recommendations based on points
-5. Clarify recognition policies and redemption processes
-6. Analyze team performance and engagement metrics
+Capabilities (read-only):
+• Balance & points expiry
+• Reward catalogue browsing
+• Recent redemption history
+• Recognitions sent/received
+• Department budget summaries (managers only)
+• Budget utilization analysis (managers only)
+• Unrecognised employee reports (managers only)
+• Lead/manager budget availability (managers only)
+• Recognition statistics by department (managers only)
 
-Guidelines:
-- Be helpful, friendly, and professional
-- Provide specific examples when possible
-- Acknowledge when you don't have specific data
-- Keep responses concise (2-3 sentences typically)
-- Use the user's first name occasionally
-- Provide actionable insights, not just summaries
-- Ask clarifying questions if the request is ambiguous
-
-Page-Specific Context:
+Response style:
+- Be concise, friendly, and use the user's first name occasionally
+- Format lists with bullet points where helpful  
+- If no data is available, say so clearly — do not guess
+- Keep answers to 3-6 sentences unless presenting a list
 """
-        
-        if page == 'dashboard':
-            base_prompt += """- User is viewing company-wide recognition metrics and trends
-- Can explain charts, metrics, and KPIs
-- Provide insights on recognition patterns"""
-        
-        elif page == 'feed':
-            base_prompt += """- User is viewing a social feed of recognition events
-- Can explain specific recognitions, recipients, and achievements
-- Provide context about team dynamics and recognition impact"""
-        
-        elif page == 'wallet':
-            base_prompt += """- User is viewing their points and redemption options
-- Can explain point values and redemption tiers
-- Suggest rewards based on point balance and preferences"""
-        
-        elif page == 'budgets':
-            base_prompt += """- User is managing team or department budget
-- Can explain spending patterns and projections
-- Provide recommendations for budget allocation"""
-        
-        elif page == 'users':
-            base_prompt += """- User is managing employees and team members
-- Can explain user roles and permissions
-- Provide insights on user engagement and participation"""
-        
-        base_prompt += "\n\nRespond conversationally and naturally. If you don't have specific data, suggest how the user could find it."
-        
+
+        if tool_data:
+            base_prompt += f"""
+══════════════════════════════════════
+LIVE DATA FROM DATABASE (tool: {tool_name or 'unknown'})
+Use ONLY this data to answer. Do not fabricate or supplement with invented values.
+{tool_data}
+══════════════════════════════════════
+"""
+        else:
+            base_prompt += "\nNo specific database query was run for this message — use general knowledge about SparkNode features.\n"
+
         return base_prompt
     
     def count_tokens(self, text: str) -> int:

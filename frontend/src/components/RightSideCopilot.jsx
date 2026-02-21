@@ -30,6 +30,25 @@ export default function RightSideCopilot() {
   const inputRef = useRef(null)
 
   const isPlatformAdmin = user?.org_role === 'platform_admin'
+  const isManager = isPlatformAdmin || ['tenant_manager', 'hr_admin', 'dept_lead'].includes(user?.org_role)
+
+  // Role-aware suggested prompts shown before first message
+  const SUGGESTED_PROMPTS_EMPLOYEE = [
+    'What is my points balance?',
+    'When are my points expiring?',
+    'What can I buy with 500 points?',
+    'Show my last 10 redemptions',
+    'Show my recent recognitions',
+  ]
+  const SUGGESTED_PROMPTS_MANAGER = [
+    'Top 5 departments by budget',
+    'Which departments have under-utilised budgets?',
+    'Which employees haven\'t been recognised in 60 days?',
+    'How many recognitions last 30 days?',
+  ]
+  const suggestedPrompts = isManager
+    ? [...SUGGESTED_PROMPTS_EMPLOYEE, ...SUGGESTED_PROMPTS_MANAGER]
+    : SUGGESTED_PROMPTS_EMPLOYEE
 
   // Fetch feature flags if not already in tenantContext (skip for platform admin — no tenant)
   const { data: currentTenantResponse } = useQuery({
@@ -165,7 +184,7 @@ export default function RightSideCopilot() {
                   : 'bg-white border border-gray-200 text-gray-900 rounded-bl-none'
               }`}
             >
-              <p className="leading-relaxed">
+              <p className="leading-relaxed whitespace-pre-wrap">
                 <span className="font-semibold">{displayName}:</span> {message.content} <span className={`text-xs ml-1 ${
                   message.type === 'user'
                     ? 'text-purple-200'
@@ -174,7 +193,29 @@ export default function RightSideCopilot() {
               </p>
             </div>
           </div>
-        )})}
+          )
+        })}
+
+        {/* Suggested prompts — shown only before first user message */}
+        {messages.length <= 1 && !isLoading && (
+          <div className="space-y-2 mt-2">
+            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide px-1">Try asking…</p>
+            <div className="flex flex-wrap gap-2">
+              {suggestedPrompts.map((prompt) => (
+                <button
+                  key={prompt}
+                  onClick={() => {
+                    setInputValue(prompt)
+                    setTimeout(() => inputRef.current?.focus(), 50)
+                  }}
+                  className="text-xs bg-white border border-sparknode-purple/30 text-sparknode-purple rounded-full px-3 py-1.5 hover:bg-sparknode-purple/5 hover:border-sparknode-purple/60 transition-colors text-left"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {isLoading && (
           <div className="flex justify-start">
