@@ -34,36 +34,56 @@ function PoolBadge({ balance, currency }) {
   )
 }
 
-function ConfirmationModal({ isOpen, onClose, onConfirm, title, lines, isLoading }) {
+function ConfirmationModal({ isOpen, onClose, onConfirm, title, subtitle, summary, isLoading }) {
   if (!isOpen) return null
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 rounded-xl bg-amber-50">
-            <HiOutlineExclamationTriangle className="w-6 h-6 text-amber-500" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-br from-sparknode-purple to-sparknode-blue px-6 pt-6 pb-8">
+          <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center mb-4">
+            <HiOutlineBanknotes className="w-6 h-6 text-white" />
           </div>
-          <h3 className="text-lg font-black text-gray-900">{title}</h3>
+          <h3 className="text-xl font-black text-white">{title}</h3>
+          {subtitle && <p className="text-white/70 text-sm mt-1">{subtitle}</p>}
         </div>
-        <div className="space-y-2 mb-6">
-          {lines.map((l, i) => (
-            <p key={i} className="text-sm text-gray-700">
-              {l}
-            </p>
+
+        {/* Summary card — overlaps header */}
+        <div className="mx-5 -mt-4 bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden mb-5">
+          {summary.map((row, i) => (
+            <div
+              key={i}
+              className={`flex items-center justify-between px-4 py-3 ${
+                i < summary.length - 1 ? 'border-b border-gray-50' : ''
+              } ${row.highlight ? 'bg-sparknode-purple/5' : ''}`}
+            >
+              <span className="text-xs font-semibold text-gray-500">{row.label}</span>
+              <span className={`text-sm font-black ${
+                row.highlight ? 'text-sparknode-purple' : 'text-gray-900'
+              }`}>{row.value}</span>
+            </div>
           ))}
         </div>
-        <div className="flex gap-3">
+
+        {/* Warning note */}
+        <div className="mx-5 mb-5 flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+          <HiOutlineExclamationTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-800 font-medium">This action cannot be undone. Points will be deducted from the company pool immediately.</p>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3 px-5 pb-5">
           <button
             onClick={onClose}
             disabled={isLoading}
-            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition disabled:opacity-50"
+            className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
             disabled={isLoading}
-            className="flex-1 py-2.5 rounded-xl bg-sparknode-purple text-white text-sm font-bold hover:bg-sparknode-purple/90 transition disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 py-3 rounded-xl bg-sparknode-purple text-white text-sm font-bold hover:bg-sparknode-purple/90 transition disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {isLoading ? (
               <>
@@ -71,7 +91,10 @@ function ConfirmationModal({ isOpen, onClose, onConfirm, title, lines, isLoading
                 Processing…
               </>
             ) : (
-              'Confirm & Distribute'
+              <>
+                <HiOutlineCheckCircle className="w-4 h-4" />
+                Confirm & Distribute
+              </>
             )}
           </button>
         </div>
@@ -132,7 +155,6 @@ function DeptDistributionTab({ currency }) {
   const [selectedDept, setSelectedDept] = useState(null)
   const [pointsPerUser, setPointsPerUser] = useState('')
   const [showConfirm, setShowConfirm] = useState(false)
-  const [successResult, setSuccessResult] = useState(null)
   const qc = useQueryClient()
 
   const { data: previewRes, isLoading } = useQuery({
@@ -152,9 +174,10 @@ function DeptDistributionTab({ currency }) {
 
   const mutation = useMutation({
     mutationFn: (data) => tmDistributeApi.distributeToDeptPerUser(data),
-    onSuccess: (res) => {
+    onSuccess: () => {
       setShowConfirm(false)
-      setSuccessResult(res.data)
+      setSelectedDept(null)
+      setPointsPerUser('')
       toast.success('Distribution complete!')
       qc.invalidateQueries(['tmDeptPreview'])
       qc.invalidateQueries(['deptDashboardSummary'])
@@ -172,14 +195,6 @@ function DeptDistributionTab({ currency }) {
       description: `Per-user distribution: ${ppu} pts × ${userCount} users`,
     })
   }
-
-  const handleReset = () => {
-    setSuccessResult(null)
-    setSelectedDept(null)
-    setPointsPerUser('')
-  }
-
-  if (successResult) return <SuccessResult result={successResult} onReset={handleReset} />
 
   if (isLoading) {
     return (
@@ -225,21 +240,23 @@ function DeptDistributionTab({ currency }) {
                   }`}
                 >
                   {/* Gradient header */}
-                  <div className={`bg-gradient-to-br ${gradient} px-4 pt-4 pb-3`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
-                        <span className="text-white font-black text-sm">{initials}</span>
+                  <div className={`bg-gradient-to-br ${gradient} px-3 py-3`}>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-black text-xs">{initials}</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-white font-bold text-sm leading-tight truncate">{dept.name}</p>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <HiOutlineUsers className="w-3 h-3 text-white/70" />
+                          <span className="text-white/80 text-xs">{dept.active_user_count} active users</span>
+                        </div>
                       </div>
                       {isSelected && (
-                        <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center">
+                        <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center flex-shrink-0">
                           <HiOutlineCheckCircle className="w-4 h-4 text-sparknode-purple" />
                         </div>
                       )}
-                    </div>
-                    <p className="text-white font-bold text-sm leading-snug">{dept.name}</p>
-                    <div className="flex items-center gap-1 mt-1.5">
-                      <HiOutlineUsers className="w-3 h-3 text-white/70" />
-                      <span className="text-white/80 text-xs">{dept.active_user_count} active users</span>
                     </div>
                   </div>
                   {/* Balance footer */}
@@ -366,13 +383,14 @@ function DeptDistributionTab({ currency }) {
       onClose={() => setShowConfirm(false)}
       onConfirm={handleConfirm}
       isLoading={mutation.isPending}
-      title="Confirm Department Distribution"
-      lines={[
-        `Department: ${selectedDept?.name}`,
-        `Active employees: ${userCount}`,
-        `Points per employee: ${ppu.toLocaleString()} pts`,
-        `Total to allocate: ${totalPoints.toLocaleString()} pts`,
-        `This will be deducted from the tenant pool.`,
+      title="Confirm Distribution"
+      subtitle={`Allocating points to ${selectedDept?.name}`}
+      summary={[
+        { label: 'Department', value: selectedDept?.name },
+        { label: 'Active employees', value: `${userCount} users` },
+        { label: 'Points per employee', value: `${ppu.toLocaleString()} pts`, highlight: true },
+        { label: 'Total to allocate', value: `${totalPoints.toLocaleString()} pts`, highlight: true },
+        { label: 'Pool balance after', value: `${(poolBalance - totalPoints).toLocaleString()} pts` },
       ]}
     />
   </>
@@ -384,7 +402,6 @@ function DeptDistributionTab({ currency }) {
 function AllUsersDistributionTab({ currency }) {
   const [pointsPerUser, setPointsPerUser] = useState('')
   const [showConfirm, setShowConfirm] = useState(false)
-  const [successResult, setSuccessResult] = useState(null)
   const qc = useQueryClient()
 
   const { data: previewRes, isLoading } = useQuery({
@@ -403,9 +420,9 @@ function AllUsersDistributionTab({ currency }) {
 
   const mutation = useMutation({
     mutationFn: (data) => tmDistributeApi.distributeToAllUsers(data),
-    onSuccess: (res) => {
+    onSuccess: () => {
       setShowConfirm(false)
-      setSuccessResult(res.data)
+      setPointsPerUser('')
       toast.success('Distributed to all users!')
       qc.invalidateQueries(['tmAllUsersPreview'])
     },
@@ -421,13 +438,6 @@ function AllUsersDistributionTab({ currency }) {
       description: `Tenant-wide distribution: ${ppu} pts/user`,
     })
   }
-
-  const handleReset = () => {
-    setSuccessResult(null)
-    setPointsPerUser('')
-  }
-
-  if (successResult) return <SuccessResult result={successResult} onReset={handleReset} />
 
   if (isLoading) {
     return (
@@ -592,13 +602,13 @@ function AllUsersDistributionTab({ currency }) {
         onClose={() => setShowConfirm(false)}
         onConfirm={handleConfirm}
         isLoading={mutation.isPending}
-        title="Confirm Tenant-Wide Distribution"
-        lines={[
-          `This will credit ${ppu.toLocaleString()} pts to every active user.`,
-          `Total users: ${totalUsers}`,
-          `Total deducted from pool: ${totalPoints.toLocaleString()} pts`,
-          `Points will be immediately available in employee wallets.`,
-          `This action cannot be undone.`,
+        title="Confirm Distribution"
+        subtitle="Crediting points to all active employees"
+        summary={[
+          { label: 'Recipients', value: `${totalUsers} active users` },
+          { label: 'Points per employee', value: `${ppu.toLocaleString()} pts`, highlight: true },
+          { label: 'Total deducted from pool', value: `${totalPoints.toLocaleString()} pts`, highlight: true },
+          { label: 'Pool balance after', value: `${Math.max(0, poolBalance - totalPoints).toLocaleString()} pts` },
         ]}
       />
     </div>
