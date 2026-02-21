@@ -38,6 +38,8 @@ import TeamApprovals from './pages/TeamApprovals'
 import TeamAnalytics from './pages/TeamAnalytics'
 import InviteUsers from './pages/admin/InviteUsers'
 import PlatformAdminBudgetLedgerPage from './pages/PlatformAdminBudgetLedgerPage'
+import PlatformCatalog from './pages/PlatformCatalog'
+import TenantCatalog from './pages/TenantCatalog'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 import { useParams } from 'react-router-dom'
@@ -234,11 +236,21 @@ function App() {
             <PlatformAdminBudgetLedgerPage />
           </PlatformAdminRoute>
         } />
+        <Route path="platform/catalog" element={
+          <PlatformAdminRoute>
+            <PlatformCatalog />
+          </PlatformAdminRoute>
+        } />
         
         {/* Platform Admin Controls */}
         <Route path="marketplace" element={
           <AdminRoute>
             <Marketplace />
+          </AdminRoute>
+        } />
+        <Route path="catalog" element={
+          <AdminRoute>
+            <TenantCatalog />
           </AdminRoute>
         } />
         <Route path="ai-settings" element={

@@ -29,6 +29,8 @@ from platform_admin.alert_routes import router as platform_alert_router
 from copilot.routes import router as copilot_router
 from sales.routes import router as sales_router
 from crm.routes import router as crm_router
+from catalog.platform_routes import router as catalog_platform_router
+from catalog.tenant_routes import router as catalog_tenant_router
 
 
 @asynccontextmanager
@@ -98,6 +100,8 @@ app.include_router(platform_ledger_router, tags=["Platform Budget Ledger"])
 app.include_router(platform_ledger_export_router, tags=["Platform Budget Ledger Export"])
 app.include_router(platform_alert_router, tags=["Platform Budget Alerts"])
 app.include_router(copilot_router, prefix="/api", tags=["AI Copilot"])
+app.include_router(catalog_platform_router, prefix="/api/catalog/admin", tags=["Catalog — Platform Admin"])
+app.include_router(catalog_tenant_router, prefix="/api/catalog", tags=["Catalog — Tenant & Browse"])
 
 
 @app.get("/")

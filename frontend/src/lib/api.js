@@ -422,6 +422,36 @@ export const analyticsAPI = {
   }),
 }
 
+// ── Catalog API ──────────────────────────────────────────────────────────────
+export const catalogAPI = {
+  // Employee-facing browse
+  browse: (params) => api.get('/catalog/browse', { params }),
+  browseCategories: () => api.get('/catalog/browse/categories'),
+
+  // Tenant Manager — master catalog overlay
+  getTenantItems: (params) => api.get('/catalog/tenant/items', { params }),
+  getTenantCategories: () => api.get('/catalog/tenant/categories'),
+  upsertTenantItem: (masterItemId, data) => api.put(`/catalog/tenant/items/${masterItemId}`, data),
+  toggleTenantItem: (masterItemId) => api.patch(`/catalog/tenant/items/${masterItemId}/toggle`),
+
+  // Tenant Manager — custom items
+  getCustomItems: () => api.get('/catalog/tenant/custom'),
+  createCustomItem: (data) => api.post('/catalog/tenant/custom', data),
+  updateCustomItem: (id, data) => api.patch(`/catalog/tenant/custom/${id}`, data),
+  deleteCustomItem: (id) => api.delete(`/catalog/tenant/custom/${id}`),
+
+  // Platform Admin — master catalog CRUD
+  adminListItems: (params) => api.get('/catalog/admin/items', { params }),
+  adminGetItem: (id) => api.get(`/catalog/admin/items/${id}`),
+  adminCreateItem: (data) => api.post('/catalog/admin/items', data),
+  adminUpdateItem: (id, data) => api.patch(`/catalog/admin/items/${id}`, data),
+  adminDeleteItem: (id) => api.delete(`/catalog/admin/items/${id}`),
+  adminToggleItem: (id) => api.patch(`/catalog/admin/items/${id}/toggle`),
+  adminCategories: () => api.get('/catalog/admin/categories'),
+  adminItemTenants: (id) => api.get(`/catalog/admin/items/${id}/tenants`),
+}
+export const catalogApi = catalogAPI
+
 // Alias exports for component compatibility
 export const recognitionApi = recognitionAPI
 export const usersApi = usersAPI

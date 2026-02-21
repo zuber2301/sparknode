@@ -753,6 +753,97 @@ class Redemption(Base):
     voucher = relationship("Voucher", back_populates="redemptions")
 
 
+# ---------------------------------------------------------------------------
+# Reward Catalog — three-layer model
+# ---------------------------------------------------------------------------
+
+class RewardCatalogMaster(Base):
+    """Platform Admin-owned global catalog: every possible rewardable item."""
+    __tablename__ = "reward_catalog_master"
+
+    id             = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    brand          = Column(String(255), nullable=False)           # display brand (Amazon, Zomato…)
+    name           = Column(String(255), nullable=False)           # item name / denomination label
+    category       = Column(String(100), nullable=False)           # food, shopping, experiences, merchandise…
+    provider_code  = Column(String(255))                           # Xoxoday/GiftPort SKU or internal SKU
+    fulfillment_type = Column(String(50), default='voucher')       # voucher | merchandise | experience | custom
+    min_points     = Column(Numeric(15, 2), nullable=False)
+    max_points     = Column(Numeric(15, 2), nullable=False)
+    step_points    = Column(Numeric(15, 2), default=1)
+    image_url      = Column(String(500))
+    description    = Column(Text)
+    terms_conditions = Column(Text)
+    validity_days  = Column(Integer, default=365)
+    country_codes  = Column(JSONB, default=list)                   # ["IN","US"] — compliance scope
+    tags           = Column(JSONB, default=list)
+    is_active_global = Column(Boolean, default=True)
+    source_voucher_id = Column(UUID(as_uuid=True), ForeignKey("vouchers.id"), nullable=True)  # legacy bridge
+    created_by     = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at     = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at     = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    tenant_entries  = relationship("RewardCatalogTenant", back_populates="master_item", cascade="all, delete-orphan")
+    creator         = relationship("User", foreign_keys=[created_by])
+    source_voucher  = relationship("Voucher", foreign_keys=[source_voucher_id])
+
+
+class RewardCatalogTenant(Base):
+    """Tenant Manager-controlled view: which master items are visible + point overrides."""
+    __tablename__ = "reward_catalog_tenant"
+
+    id               = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id        = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    master_item_id   = Column(UUID(as_uuid=True), ForeignKey("reward_catalog_master.id", ondelete="CASCADE"), nullable=False)
+    is_enabled       = Column(Boolean, default=True)
+    # Point overrides — must stay within master min/max band
+    custom_min_points  = Column(Numeric(15, 2))
+    custom_max_points  = Column(Numeric(15, 2))
+    custom_step_points = Column(Numeric(15, 2))
+    visibility_scope   = Column(String(50), default='all')        # all | dept | location
+    sort_order         = Column(Integer, default=0)
+    created_by         = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at         = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at         = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    master_item  = relationship("RewardCatalogMaster", back_populates="tenant_entries")
+    tenant       = relationship("Tenant")
+    creator      = relationship("User", foreign_keys=[created_by])
+
+    __table_args__ = (
+        # Each master item can appear at most once per tenant
+        __import__('sqlalchemy').UniqueConstraint('tenant_id', 'master_item_id', name='uq_catalog_tenant_master'),
+    )
+
+
+class RewardCatalogCustom(Base):
+    """Tenant-created bespoke items: company swag, extra leave, internal perks."""
+    __tablename__ = "reward_catalog_custom"
+
+    id               = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id        = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    name             = Column(String(255), nullable=False)
+    category         = Column(String(100), nullable=False, default='custom')
+    description      = Column(Text)
+    image_url        = Column(String(500))
+    fulfillment_type = Column(String(50), default='custom')
+    points_cost      = Column(Numeric(15, 2), nullable=False)
+    inventory_count  = Column(Integer)                             # NULL = unlimited
+    is_active        = Column(Boolean, default=True)
+    sort_order       = Column(Integer, default=0)
+    terms_conditions = Column(Text)
+    created_by       = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at       = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at       = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    tenant  = relationship("Tenant")
+    creator = relationship("User", foreign_keys=[created_by])
+
+
+# ---------------------------------------------------------------------------
+
 class AuditLog(Base):
     __tablename__ = "audit_log"
     

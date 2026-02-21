@@ -59,6 +59,7 @@ const platformAdminNavigation = [
   { name: 'Users', href: '/users', icon: HiOutlineUsers },
   { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar },
   { name: 'Event Management', href: '/events', icon: HiOutlineNewspaper },
+  { name: 'Global Catalog', href: '/platform/catalog', icon: HiOutlineShoppingCart },
   { name: 'Marketplace', href: '/marketplace', icon: HiOutlineShoppingCart },
   {
     name: 'Controls',
@@ -79,6 +80,7 @@ const tenantManagerNavigation = [
   { name: 'Event Management', href: '/events', icon: HiOutlineNewspaper },
   { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: true },
   { name: 'User Management', href: '/users', icon: HiOutlineUsers },
+  { name: 'Company Catalog', href: '/catalog', icon: HiOutlineShoppingCart },
   { name: 'Marketplace & Rewards', href: '/marketplace', icon: HiOutlineShoppingCart },
   { name: 'Analytics & Reports', href: '/analytics', icon: HiOutlineChartBar },
 ]
