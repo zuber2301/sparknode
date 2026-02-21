@@ -206,7 +206,7 @@ async def get_hr_admin(current_user: User = Depends(get_current_user)) -> User:
 
 
 async def get_manager_or_above(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.org_role not in ['dept_lead', 'tenant_manager', 'platform_admin']:
+    if current_user.org_role not in ['dept_lead', 'tenant_manager', 'platform_admin', 'tenant_lead', 'manager', 'hr_admin']:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Manager access required"

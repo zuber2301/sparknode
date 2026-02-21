@@ -39,10 +39,11 @@ export default function DepartmentManager({ onRefresh }) {
 
   const queryClient = useQueryClient()
 
-  const { data: tenant } = useQuery({
+  const { data: tenantResponse } = useQuery({
     queryKey: ['tenant', 'current'],
     queryFn: () => tenantsAPI.getCurrent(),
   })
+  const tenant = tenantResponse?.data
 
   const { data: deptManagement, isLoading, refetch } = useQuery({
     queryKey: ['departments', 'management'],
@@ -257,7 +258,7 @@ export default function DepartmentManager({ onRefresh }) {
   }
 
   const formatBudgetValue = (value) => {
-    const displayCurrency = tenant?.display_currency || 'USD'
+    const displayCurrency = tenant?.display_currency || 'INR'
     const fxRate = parseFloat(tenant?.fx_rate) || 1.0
     return formatCurrency(value, displayCurrency, fxRate)
   }
@@ -337,25 +338,25 @@ export default function DepartmentManager({ onRefresh }) {
                     {formatBudgetValue(dept.total_liability)}
                   </td>
                   <td className="py-4 px-6 text-right">
-                    <div className="flex items-center justify-end gap-3">
+                    <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => handleAddPoints(dept)}
-                        className="text-[10px] font-bold uppercase tracking-wider text-sparknode-purple hover:text-sparknode-purple/80 flex items-center gap-1"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-sparknode-purple bg-sparknode-purple/10 hover:bg-sparknode-purple hover:text-white rounded-lg transition-all"
                       >
-                        <HiOutlinePlus className="w-3 h-3" />
+                        <HiOutlinePlus className="w-3.5 h-3.5" />
                         Add Points
                       </button>
                       
                       {dept.dept_lead_name ? (
                         <button 
-                          className="text-[10px] font-bold uppercase tracking-wider text-gray-400 hover:text-gray-600 flex items-center gap-1"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all"
                         >
                           View Users
                         </button>
                       ) : (
                         <button
                           onClick={() => handleAssignLead(dept)}
-                          className="text-[10px] font-bold uppercase tracking-wider text-amber-600 hover:text-amber-600/80 flex items-center gap-1"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-500 hover:text-white rounded-lg transition-all"
                         >
                           Assign Lead
                         </button>
@@ -424,12 +425,13 @@ export default function DepartmentManager({ onRefresh }) {
       {showAddPointsModal && selectedDept && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-[100]">
           <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-gray-100">
-            <h3 className="text-xl font-black text-gray-900 mb-6">Allocate Points</h3>
-            <p className="text-sm text-gray-500 mb-4 font-medium italic">Adding points to <span className="text-sparknode-purple font-bold">"{selectedDept.name}"</span></p>
+            <h3 className="text-xl font-black text-gray-900 mb-2">Allocate Points</h3>
+            <p className="text-sm text-gray-500 mb-5 font-medium italic">Adding points to <span className="text-sparknode-purple font-bold">"{selectedDept.name}"</span></p>
             
-            <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-100">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Available Master Pool</p>
-              <p className="text-2xl font-black text-sparknode-purple">
+            <div className="mb-5 p-4 bg-gradient-to-r from-sparknode-purple/5 to-sparknode-blue/5 rounded-xl border border-sparknode-purple/10">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Available to Distribute</p>
+              <p className="text-xs text-gray-400 mb-2">(Company Pool − Already Delegated)</p>
+              <p className="text-3xl font-black text-sparknode-purple">
                 {formatBudgetValue(tenant?.master_budget_balance || 0)}
               </p>
             </div>

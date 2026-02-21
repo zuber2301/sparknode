@@ -11,6 +11,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../store/authStore'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
+import { formatDisplayValue } from '../lib/currency'
 import {
   HiOutlinePlus,
   HiOutlineChevronRight,
@@ -138,10 +139,13 @@ const usersAPI = {
 }
 
 export default function BudgetWorkflow() {
-  const { user } = useAuthStore()
+  const { user, tenantContext } = useAuthStore()
   const [activeLevel, setActiveLevel] = useState(1) // 1, 2, or 3
   const [selectedDeptAllocation, setSelectedDeptAllocation] = useState(null)
   const queryClient = useQueryClient()
+
+  // Use currency from tenant settings if available
+  const currencyCode = tenantContext?.settings?.currency || user?.display_currency || 'INR'
 
   // Fetch current tenant's allocation (Total Allocated Budget)
   const { data: tenantAllocation, isLoading: loadingTenantAlloc } = useQuery({
@@ -196,6 +200,7 @@ export default function BudgetWorkflow() {
         departments={departments}
         loading={loadingTenantAlloc || loadingDeptAlloc}
         queryClient={queryClient}
+        currencyCode={currencyCode}
       />
     )
   }
@@ -211,6 +216,7 @@ export default function BudgetWorkflow() {
         selectedDeptAllocation={selectedDeptAllocation}
         setSelectedDeptAllocation={setSelectedDeptAllocation}
         queryClient={queryClient}
+        currencyCode={currencyCode}
       />
     )
   }
@@ -304,7 +310,7 @@ function PlatformAdminView() {
 }
 
 // ======== TENANT MANAGER VIEW ========
-function TenantManagerView({ tenantAllocation, deptAllocations, departments, loading, queryClient }) {
+function TenantManagerView({ tenantAllocation, deptAllocations, departments, loading, queryClient, currencyCode }) {
   const [showAllocateModal, setShowAllocateModal] = useState(false)
   const [selectedDept, setSelectedDept] = useState(null)
 
@@ -358,6 +364,7 @@ function TenantManagerView({ tenantAllocation, deptAllocations, departments, loa
         distributed={tenantAllocation.total_allocated_budget - tenantAllocation.remaining_balance}
         remaining={tenantAllocation.remaining_balance}
         percentage={(((tenantAllocation.total_allocated_budget - tenantAllocation.remaining_balance) / tenantAllocation.total_allocated_budget) * 100).toFixed(1)}
+        currencyCode={currencyCode}
       />
 
       <div className="mt-8 mb-6 flex justify-end">
@@ -377,6 +384,7 @@ function TenantManagerView({ tenantAllocation, deptAllocations, departments, loa
           onSubmit={(data) => allocateMutation.mutate(data)}
           loading={allocateMutation.isPending}
           maxBudget={tenantAllocation.remaining_balance}
+          currencyCode={currencyCode}
         />
       )}
 
@@ -384,6 +392,7 @@ function TenantManagerView({ tenantAllocation, deptAllocations, departments, loa
       <DepartmentAllocationsGrid
         allocations={deptAllocations || []}
         departments={departments || []}
+        currencyCode={currencyCode}
       />
     </div>
   )
@@ -398,7 +407,8 @@ function DepartmentLeadView({
   loading,
   selectedDeptAllocation,
   setSelectedDeptAllocation,
-  queryClient
+  queryClient,
+  currencyCode
 }) {
   const [showAllocateModal, setShowAllocateModal] = useState(false)
 
@@ -455,6 +465,7 @@ function DepartmentLeadView({
         distributed={myDeptAllocation.distributed_budget}
         remaining={myDeptAllocation.remaining_budget}
         percentage={(((myDeptAllocation.distributed_budget) / (myDeptAllocation.allocated_budget)) * 100).toFixed(1)}
+        currencyCode={currencyCode}
       />
 
       <div className="mt-8 mb-6 flex justify-end">
@@ -474,6 +485,7 @@ function DepartmentLeadView({
           onSubmit={(data) => allocateMutation.mutate(data)}
           loading={allocateMutation.isPending}
           maxPoints={myDeptAllocation.remaining_budget}
+          currencyCode={currencyCode}
         />
       )}
 
@@ -481,6 +493,7 @@ function DepartmentLeadView({
       <EmployeeAllocationsGrid
         allocations={employeeAllocations || []}
         employees={deptUsers || []}
+        currencyCode={currencyCode}
       />
     </div>
   )
@@ -488,7 +501,7 @@ function DepartmentLeadView({
 
 // ======== COMPONENTS ========
 
-function BudgetAllocationCard({ title, total, distributed, remaining, percentage }) {
+function BudgetAllocationCard({ title, total, distributed, remaining, percentage, currencyCode = 'INR' }) {
   return (
     <div className="bg-white rounded-lg shadow p-6 mb-6">
       <h3 className="text-lg font-semibold text-gray-900 mb-6">{title}</h3>
@@ -496,15 +509,15 @@ function BudgetAllocationCard({ title, total, distributed, remaining, percentage
       <div className="grid grid-cols-4 gap-4 mb-6">
         <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg p-4">
           <p className="text-sm text-indigo-600 font-medium mb-1">Total Allocated</p>
-          <p className="text-2xl font-bold text-indigo-900">{total.toFixed(0)}</p>
+          <p className="text-2xl font-bold text-indigo-900">{formatDisplayValue(total, currencyCode)}</p>
         </div>
         <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
           <p className="text-sm text-green-600 font-medium mb-1">Distributed</p>
-          <p className="text-2xl font-bold text-green-900">{distributed.toFixed(0)}</p>
+          <p className="text-2xl font-bold text-green-900">{formatDisplayValue(distributed, currencyCode)}</p>
         </div>
         <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4">
           <p className="text-sm text-orange-600 font-medium mb-1">Remaining</p>
-          <p className="text-2xl font-bold text-orange-900">{remaining.toFixed(0)}</p>
+          <p className="text-2xl font-bold text-orange-900">{formatDisplayValue(remaining, currencyCode)}</p>
         </div>
         <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4">
           <p className="text-sm text-purple-600 font-medium mb-1">Utilization</p>
@@ -523,7 +536,7 @@ function BudgetAllocationCard({ title, total, distributed, remaining, percentage
   )
 }
 
-function DepartmentAllocationsGrid({ allocations, departments }) {
+function DepartmentAllocationsGrid({ allocations, departments, currencyCode = 'INR' }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {allocations.map((allocation) => {
@@ -545,15 +558,15 @@ function DepartmentAllocationsGrid({ allocations, departments }) {
             <div className="space-y-2 mb-4">
               <div className="flex justify-between">
                 <span className="text-gray-600">Allocated:</span>
-                <span className="font-semibold">{allocation.allocated_budget.toFixed(0)}</span>
+                <span className="font-semibold">{formatDisplayValue(allocation.allocated_budget, currencyCode)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Distributed:</span>
-                <span className="font-semibold text-green-600">{allocation.distributed_budget.toFixed(0)}</span>
+                <span className="font-semibold text-green-600">{formatDisplayValue(allocation.distributed_budget, currencyCode)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Remaining:</span>
-                <span className="font-semibold text-orange-600">{allocation.remaining_budget.toFixed(0)}</span>
+                <span className="font-semibold text-orange-600">{formatDisplayValue(allocation.remaining_budget, currencyCode)}</span>
               </div>
             </div>
 
@@ -575,7 +588,7 @@ function DepartmentAllocationsGrid({ allocations, departments }) {
   )
 }
 
-function EmployeeAllocationsGrid({ allocations, employees }) {
+function EmployeeAllocationsGrid({ allocations, employees, currencyCode = 'INR' }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
@@ -603,13 +616,13 @@ function EmployeeAllocationsGrid({ allocations, employees }) {
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                  <span className="font-semibold">{allocation.allocated_points.toFixed(0)}</span>
+                  <span className="font-semibold">{formatDisplayValue(allocation.allocated_points, currencyCode)}</span>
                 </td>
                 <td className="px-6 py-4">
-                  <span className="text-green-600 font-medium">{allocation.spent_points.toFixed(0)}</span>
+                  <span className="text-green-600 font-medium">{formatDisplayValue(allocation.spent_points, currencyCode)}</span>
                 </td>
                 <td className="px-6 py-4">
-                  <span className="text-orange-600 font-medium">{allocation.remaining_points.toFixed(0)}</span>
+                  <span className="text-orange-600 font-medium">{formatDisplayValue(allocation.remaining_points, currencyCode)}</span>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
@@ -678,17 +691,17 @@ function TenantsAllocationGrid({ allocations, loading }) {
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">{alloc.tenant_id}</td>
                   <td className="px-6 py-4 text-sm text-gray-700">
                     <span className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full font-semibold">
-                      {alloc.total_allocated_budget.toFixed(0)}
+                      {formatDisplayValue(alloc.total_allocated_budget, 'INR')}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-700">
                     <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full font-semibold">
-                      {(alloc.total_allocated_budget - alloc.remaining_balance).toFixed(0)}
+                      {formatDisplayValue(alloc.total_allocated_budget - alloc.remaining_balance, 'INR')}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-700">
                     <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full font-semibold">
-                      {alloc.remaining_balance.toFixed(0)}
+                      {formatDisplayValue(alloc.remaining_balance, 'INR')}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm">
@@ -787,7 +800,7 @@ function AllocateTenantBudgetModal({ onClose, onSubmit, loading }) {
   )
 }
 
-function AllocateDepartmentBudgetModal({ departments, onClose, onSubmit, loading, maxBudget }) {
+function AllocateDepartmentBudgetModal({ departments, onClose, onSubmit, loading, maxBudget, currencyCode = 'INR' }) {
   const [formData, setFormData] = useState({
     department_id: '',
     allocated_budget: ''
@@ -800,7 +813,7 @@ function AllocateDepartmentBudgetModal({ departments, onClose, onSubmit, loading
       return
     }
     if (parseFloat(formData.allocated_budget) > maxBudget) {
-      toast.error(`Budget cannot exceed available ${maxBudget.toFixed(0)}`)
+      toast.error(`Budget cannot exceed available ${formatDisplayValue(maxBudget, currencyCode)}`)
       return
     }
     onSubmit(formData)
@@ -810,7 +823,7 @@ function AllocateDepartmentBudgetModal({ departments, onClose, onSubmit, loading
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Allocate Budget to Department</h2>
-        <p className="text-sm text-gray-600 mb-4">Available: {maxBudget.toFixed(0)}</p>
+        <p className="text-sm text-gray-600 mb-4">Available: {formatDisplayValue(maxBudget, currencyCode)}</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -866,7 +879,7 @@ function AllocateDepartmentBudgetModal({ departments, onClose, onSubmit, loading
   )
 }
 
-function AllocateEmployeePointsModal({ employees, onClose, onSubmit, loading, maxPoints }) {
+function AllocateEmployeePointsModal({ employees, onClose, onSubmit, loading, maxPoints, currencyCode = 'INR' }) {
   const [formData, setFormData] = useState({
     employee_id: '',
     allocated_points: ''
@@ -879,7 +892,7 @@ function AllocateEmployeePointsModal({ employees, onClose, onSubmit, loading, ma
       return
     }
     if (parseFloat(formData.allocated_points) > maxPoints) {
-      toast.error(`Points cannot exceed available ${maxPoints.toFixed(0)}`)
+      toast.error(`Points cannot exceed available ${formatDisplayValue(maxPoints, currencyCode)}`)
       return
     }
     onSubmit(formData)
@@ -889,7 +902,7 @@ function AllocateEmployeePointsModal({ employees, onClose, onSubmit, loading, ma
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Allocate Points to Employee</h2>
-        <p className="text-sm text-gray-600 mb-4">Available: {maxPoints.toFixed(0)} points</p>
+        <p className="text-sm text-gray-600 mb-4">Available: {formatDisplayValue(maxPoints, currencyCode)}</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

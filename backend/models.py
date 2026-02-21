@@ -145,7 +145,7 @@ class Tenant(Base):
     
     # Multi-Currency Support
     base_currency = Column(String(3), default='USD')  # Internal base currency (USD)
-    display_currency = Column(String(3), default='USD')  # Currency for tenant display (USD, INR, EUR)
+    display_currency = Column(String(3), default='INR')  # Currency for tenant display (USD, INR, EUR)
     fx_rate = Column(Numeric(10, 4), default=1.0)  # Exchange rate: 1 USD = fx_rate * display_currency
 
     # Recognition Laws Config

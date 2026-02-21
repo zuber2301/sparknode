@@ -1,7 +1,8 @@
 import React from 'react'
 import { HiOutlineBanknotes, HiOutlineUsers, HiOutlineWallet, HiOutlineArrowTrendingUp } from 'react-icons/hi2'
+import { formatDisplayValue } from '../../../lib/currency'
 
-export default function HeroSection({ stats, currency = 'USD' }) {
+export default function HeroSection({ stats, currency = 'INR' }) {
   const cards = [
     {
       title: 'COMPANY POOL (MASTER)',
@@ -39,7 +40,7 @@ export default function HeroSection({ stats, currency = 'USD' }) {
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-xs font-bold text-gray-500 tracking-wider mb-1 uppercase">{card.title}</p>
-              <h3 className="text-3xl font-black text-gray-900">{card.value.toLocaleString('en-IN')}</h3>
+              <h3 className="text-3xl font-black text-gray-900">{formatDisplayValue(card.value, currency)}</h3>
             </div>
             <div className={`p-3 rounded-xl ${card.bgColor}`}>
               <card.icon className={`w-6 h-6 ${card.color}`} />

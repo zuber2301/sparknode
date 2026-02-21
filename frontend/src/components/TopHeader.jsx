@@ -335,21 +335,21 @@ export default function TopHeader() {
                     // Render Controls dropdown
                     return (
                       <div key={item.name} className="relative group">
-                        <button className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors">
+                        <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all border border-transparent hover:border-gray-200">
                           <item.icon className="w-4 h-4" />
                           {item.name}
-                          <HiOutlineChevronDown className="w-4 h-4" />
+                          <HiOutlineChevronDown className="w-3.5 h-3.5 opacity-60" />
                         </button>
-                        <div className="absolute left-0 mt-0 w-48 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        <div className="absolute left-0 mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 py-1">
                           {item.submenu.map((subitem) => (
                             <NavLink
                               key={subitem.name}
                               to={subitem.href}
                               className={({ isActive }) =>
-                                `flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                                `flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
                                   isActive
-                                    ? 'bg-sparknode-purple/10 text-sparknode-purple'
-                                    : 'text-gray-700 hover:bg-gray-50'
+                                    ? 'bg-sparknode-purple/10 text-sparknode-purple font-semibold'
+                                    : 'text-gray-700 hover:bg-gray-50 font-medium'
                                 }`
                               }
                             >
@@ -366,14 +366,14 @@ export default function TopHeader() {
                       key={item.name}
                       to={item.href}
                       className={({ isActive }) =>
-                        `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        `flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all ${
                           isActive
-                            ? 'bg-sparknode-purple/10 text-sparknode-purple'
-                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                            ? 'bg-sparknode-purple text-white font-semibold shadow-sm'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-medium'
                         }`
                       }
                     >
-                      <item.icon className="w-4 h-4" />
+                      <item.icon className="w-4 h-4 flex-shrink-0" />
                       {item.name}
                     </NavLink>
                   )
@@ -387,33 +387,33 @@ export default function TopHeader() {
                     key={item.name}
                     to={item.href}
                     className={({ isActive }) =>
-                      `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      `flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all ${
                         isActive
-                          ? 'bg-sparknode-purple/10 text-sparknode-purple'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                          ? 'bg-sparknode-purple text-white font-semibold shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-medium'
                       }`
                     }
                   >
-                    <item.icon className="w-4 h-4" />
+                    <item.icon className="w-4 h-4 flex-shrink-0" />
                     {item.name}
                   </NavLink>
                 ))}
 
                 {/* Admin Dropdown */}
                 <div className="relative group">
-                  <button className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors">
+                  <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all border border-transparent hover:border-gray-200">
                     <HiOutlineClipboardList className="w-4 h-4" />
                     Admin
-                    <HiOutlineChevronDown className="w-4 h-4" />
+                    <HiOutlineChevronDown className="w-3.5 h-3.5 opacity-60" />
                   </button>
-                  <div className="absolute left-0 mt-0 w-48 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                  <div className="absolute left-0 mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 py-1">
                     <NavLink
                       to="/budgets"
                       className={({ isActive }) =>
-                        `flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                        `flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
                           isActive
-                            ? 'bg-sparknode-purple/10 text-sparknode-purple'
-                            : 'text-gray-700 hover:bg-gray-50'
+                            ? 'bg-sparknode-purple/10 text-sparknode-purple font-semibold'
+                            : 'text-gray-700 hover:bg-gray-50 font-medium'
                         }`
                       }
                     >
@@ -423,10 +423,10 @@ export default function TopHeader() {
                     <NavLink
                       to="/users"
                       className={({ isActive }) =>
-                        `flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                        `flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
                           isActive
-                            ? 'bg-sparknode-purple/10 text-sparknode-purple'
-                            : 'text-gray-700 hover:bg-gray-50'
+                            ? 'bg-sparknode-purple/10 text-sparknode-purple font-semibold'
+                            : 'text-gray-700 hover:bg-gray-50 font-medium'
                         }`
                       }
                     >
@@ -436,10 +436,10 @@ export default function TopHeader() {
                     <NavLink
                       to="/audit"
                       className={({ isActive }) =>
-                        `flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                        `flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
                           isActive
-                            ? 'bg-sparknode-purple/10 text-sparknode-purple'
-                            : 'text-gray-700 hover:bg-gray-50'
+                            ? 'bg-sparknode-purple/10 text-sparknode-purple font-semibold'
+                            : 'text-gray-700 hover:bg-gray-50 font-medium'
                         }`
                       }
                     >
@@ -457,33 +457,33 @@ export default function TopHeader() {
                     key={item.name}
                     to={item.href}
                     className={({ isActive }) =>
-                      `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      `flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all ${
                         isActive
-                          ? 'bg-sparknode-purple/10 text-sparknode-purple'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                          ? 'bg-sparknode-purple text-white font-semibold shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-medium'
                       }`
                     }
                   >
-                    <item.icon className="w-4 h-4" />
+                    <item.icon className="w-4 h-4 flex-shrink-0" />
                     {item.name}
                   </NavLink>
                 ))}
 
                 {/* Admin Dropdown */}
                 <div className="relative group">
-                  <button className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors">
+                  <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all border border-transparent hover:border-gray-200">
                     <HiOutlineClipboardList className="w-4 h-4" />
                     Admin
-                    <HiOutlineChevronDown className="w-4 h-4" />
+                    <HiOutlineChevronDown className="w-3.5 h-3.5 opacity-60" />
                   </button>
-                  <div className="absolute left-0 mt-0 w-48 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                  <div className="absolute left-0 mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 py-1">
                     <NavLink
                       to="/budgets"
                       className={({ isActive }) =>
-                        `flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                        `flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
                           isActive
-                            ? 'bg-sparknode-purple/10 text-sparknode-purple'
-                            : 'text-gray-700 hover:bg-gray-50'
+                            ? 'bg-sparknode-purple/10 text-sparknode-purple font-semibold'
+                            : 'text-gray-700 hover:bg-gray-50 font-medium'
                         }`
                       }
                     >
@@ -493,10 +493,10 @@ export default function TopHeader() {
                     <NavLink
                       to="/users"
                       className={({ isActive }) =>
-                        `flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                        `flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
                           isActive
-                            ? 'bg-sparknode-purple/10 text-sparknode-purple'
-                            : 'text-gray-700 hover:bg-gray-50'
+                            ? 'bg-sparknode-purple/10 text-sparknode-purple font-semibold'
+                            : 'text-gray-700 hover:bg-gray-50 font-medium'
                         }`
                       }
                     >
@@ -506,10 +506,10 @@ export default function TopHeader() {
                     <NavLink
                       to="/audit"
                       className={({ isActive }) =>
-                        `flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                        `flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
                           isActive
-                            ? 'bg-sparknode-purple/10 text-sparknode-purple'
-                            : 'text-gray-700 hover:bg-gray-50'
+                            ? 'bg-sparknode-purple/10 text-sparknode-purple font-semibold'
+                            : 'text-gray-700 hover:bg-gray-50 font-medium'
                         }`
                       }
                     >
@@ -525,14 +525,14 @@ export default function TopHeader() {
                   key={item.name}
                   to={item.href}
                   className={({ isActive }) =>
-                    `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    `flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all ${
                       isActive
-                        ? 'bg-sparknode-purple/10 text-sparknode-purple'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                        ? 'bg-sparknode-purple text-white font-semibold shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-medium'
                     }`
                   }
                 >
-                  <item.icon className="w-4 h-4" />
+                  <item.icon className="w-4 h-4 flex-shrink-0" />
                   {item.name}
                 </NavLink>
               ))
@@ -547,14 +547,14 @@ export default function TopHeader() {
                       key={item.name}
                       to={item.href}
                       className={({ isActive }) =>
-                        `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        `flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all ${
                           isActive
-                            ? 'bg-sparknode-purple/10 text-sparknode-purple'
-                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                            ? 'bg-sparknode-purple text-white font-semibold shadow-sm'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-medium'
                         }`
                       }
                     >
-                      <item.icon className="w-4 h-4" />
+                      <item.icon className="w-4 h-4 flex-shrink-0" />
                       {item.name}
                     </NavLink>
                   ) : null

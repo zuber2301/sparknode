@@ -662,7 +662,7 @@ async def get_dashboard_summary(
     return {
         "tenant_id": tenant_id,
         "tenant_name": tenant.name,
-        "currency": tenant.display_currency or "USD",
+        "currency": tenant.display_currency or "INR",
         "stats": stats,
         "leads": leads,
         "recent_recognitions": recent_recognitions,

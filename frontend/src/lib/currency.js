@@ -42,10 +42,10 @@ export const CURRENCY_LOCALES = {
  * All currencies display as whole numbers (no decimals) per product requirements.
  */
 export const DECIMAL_PLACES = {
-  USD: 0,
-  INR: 0,
-  EUR: 0,
-  GBP: 0,
+  USD: 2,
+  INR: 2,
+  EUR: 2,
+  GBP: 2,
   JPY: 0
 }
 
@@ -64,8 +64,7 @@ export const convertToDisplayCurrency = (baseValue, fxRate = 1) => {
     console.warn('Invalid FX rate provided:', fxRate)
     fxRate = 1
   }
-  const converted = baseValue * fxRate
-  return Math.round(converted) // Return rounded integer for zero decimals
+  return baseValue * fxRate
 }
 
 /**
@@ -83,8 +82,7 @@ export const convertFromDisplayCurrency = (displayValue, fxRate = 1) => {
     console.warn('Invalid FX rate provided:', fxRate)
     fxRate = 1
   }
-  const converted = displayValue / fxRate
-  return Math.round(converted) // Return rounded integer for zero decimals
+  return displayValue / fxRate
 }
 
 /**
@@ -100,7 +98,7 @@ export const convertFromDisplayCurrency = (displayValue, fxRate = 1) => {
  * formatCurrency(100, 'INR', 83.12) // Returns "₹8,312.00"
  * formatCurrency(100, 'USD') // Returns "$100.00"
  */
-export const formatCurrency = (baseValue, displayCurrency = 'USD', fxRate = 1) => {
+export const formatCurrency = (baseValue, displayCurrency = 'INR', fxRate = 1) => {
   try {
     // Convert to display currency
     const displayValue = convertToDisplayCurrency(baseValue, fxRate)
@@ -140,8 +138,9 @@ export const formatCurrency = (baseValue, displayCurrency = 'USD', fxRate = 1) =
  * @example
  * formatDisplayValue(8312, 'INR') // Returns "₹8,312.00"
  */
-export const formatDisplayValue = (displayValue, currencyCode = 'USD') => {
+export const formatDisplayValue = (displayValue, currencyCode = 'INR') => {
   try {
+    const val = typeof displayValue === 'string' ? parseFloat(displayValue) : displayValue
     const decimals = DECIMAL_PLACES[currencyCode] ?? 0
     const formatter = new Intl.NumberFormat(
       CURRENCY_LOCALES[currencyCode] ?? 'en-US',
@@ -153,12 +152,13 @@ export const formatDisplayValue = (displayValue, currencyCode = 'USD') => {
       }
     )
     
-    return formatter.format(displayValue)
+    return formatter.format(val)
   } catch (error) {
     console.error('Currency formatting error:', error)
     const symbol = CURRENCY_SYMBOLS[currencyCode] ?? currencyCode
     const decimals = DECIMAL_PLACES[currencyCode] ?? 0
-    return `${symbol}${displayValue.toFixed(decimals)}`
+    const val = typeof displayValue === 'string' ? parseFloat(displayValue) : displayValue
+    return `${symbol}${val.toFixed(decimals)}`
   }
 }
 

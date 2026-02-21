@@ -120,6 +120,8 @@ class TenantResponse(TenantBase):
 
     # Point Economy
     currency: str
+    display_currency: str
+    fx_rate: Decimal
     markup_percent: Decimal
     enabled_rewards: list
     currency_label: str
@@ -146,6 +148,7 @@ class TenantResponse(TenantBase):
     # Budget fields for tenant managers
     budget_allocated: Decimal
     budget_allocation_balance: Decimal
+    master_budget_balance: Optional[Decimal] = None
 
     created_at: datetime
     updated_at: datetime

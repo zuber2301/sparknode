@@ -274,7 +274,7 @@ async def allocate_budget_to_department(
 ):
     """Allocate points from tenant master pool to department budget (Tenant Manager or Platform Admin)"""
     
-    amount = budget_data.amount
+    amount = Decimal(str(budget_data.amount))
     
     # Get tenant and check master pool balance
     tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
@@ -298,7 +298,7 @@ async def allocate_budget_to_department(
     # Update balances
     tenant.master_budget_balance -= amount
     department.budget_balance += amount
-    department.budget_allocated = Decimal(str(department.budget_allocated)) + Decimal(str(amount))
+    department.budget_allocated = Decimal(str(department.budget_allocated)) + amount
     
     db.commit()
     
@@ -384,8 +384,9 @@ async def recall_department_budget(
     try:
         # Start transaction
         # Update balances
-        department.budget_balance -= amount
-        tenant.master_budget_balance += amount
+        dec_amount = Decimal(str(amount))
+        department.budget_balance -= dec_amount
+        tenant.master_budget_balance += dec_amount
         
         # Create audit log entry
         budget_log = AuditLog(
