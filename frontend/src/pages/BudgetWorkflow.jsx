@@ -348,12 +348,12 @@ function TenantManagerView({ tenantAllocation, deptAllocations, departments, loa
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Budget Distribution</h1>
-        <p className="text-gray-600">Distribute budget from total allocation to departments</p>
+        <p className="text-gray-600">Distribute budget from Company Pool (Master) to departments</p>
       </div>
 
-      {/* Total Allocated Budget Card */}
+      {/* Company Pool (Master) Card */}
       <BudgetAllocationCard
-        title="Total Allocated Budget"
+        title="Company Pool (Master)"
         total={tenantAllocation.total_allocated_budget}
         distributed={tenantAllocation.total_allocated_budget - tenantAllocation.remaining_balance}
         remaining={tenantAllocation.remaining_balance}

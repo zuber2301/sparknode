@@ -19,7 +19,7 @@ from models import (
     Tenant, Department, User, AuditLog, 
     TenantBudgetAllocation, DepartmentBudgetAllocation, 
     EmployeePointsAllocation, BudgetAllocationLedger,
-    ActorType
+    ActorType, Wallet, WalletLedger
 )
 from auth.utils import get_current_user
 from sqlalchemy import func
@@ -41,13 +41,13 @@ def is_platform_admin(current_user: User) -> bool:
 
 
 def is_tenant_manager(current_user: User) -> bool:
-    """Check if user is tenant manager"""
-    return current_user.org_role == "tenant_manager"
+    """Check if user is tenant manager or hr admin"""
+    return current_user.org_role in ["tenant_manager", "hr_admin"]
 
 
 def is_dept_lead(current_user: User) -> bool:
-    """Check if user is department lead"""
-    return current_user.org_role == "dept_lead"
+    """Check if user is department lead, tenant lead, or manager"""
+    return current_user.org_role in ["dept_lead", "tenant_lead", "manager"]
 
 
 # =====================================================
@@ -126,8 +126,9 @@ async def allocate_budget_to_tenant(
         )
     
     # Update tenant model
-    tenant.total_allocated_budget = allocation_data.total_allocated_budget
-    tenant.remaining_allocated_budget = allocation_data.total_allocated_budget
+    tenant.master_budget_balance = allocation_data.total_allocated_budget
+    tenant.budget_allocated = allocation_data.total_allocated_budget
+    tenant.budget_allocation_balance = allocation_data.total_allocated_budget
     
     db.add(ledger)
     
@@ -264,10 +265,12 @@ async def allocate_budget_to_department(
         DepartmentBudgetAllocation.department_id == allocation_data.department_id
     ).first()
     
+    amount_to_subtract = Decimal('0')
     if existing:
         # Update existing allocation
         old_allocated = existing.allocated_budget
         difference = allocation_data.allocated_budget - old_allocated
+        amount_to_subtract = difference
         
         # Check remaining budget
         if difference > tenant_allocation.remaining_balance:
@@ -306,6 +309,7 @@ async def allocate_budget_to_department(
                 detail=f"Insufficient budget. Available: {float(tenant_allocation.remaining_balance)}"
             )
         
+        amount_to_subtract = allocation_data.allocated_budget
         allocation = DepartmentBudgetAllocation(
             tenant_id=current_user.tenant_id,
             department_id=allocation_data.department_id,
@@ -338,7 +342,15 @@ async def allocate_budget_to_department(
         )
     
     # Update department model
-    department.allocated_budget = allocation_data.allocated_budget
+    department.budget_allocated = allocation_data.allocated_budget
+    department.budget_balance = allocation_data.allocated_budget
+    
+    # Update tenant master pool balance
+    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+    if tenant:
+        # Subtract the amount from master pool
+        tenant.master_budget_balance = Decimal(str(tenant.master_budget_balance)) - amount_to_subtract
+        tenant.budget_allocation_balance = Decimal(str(tenant.budget_allocation_balance)) - amount_to_subtract
     
     db.add(ledger)
     
@@ -577,6 +589,43 @@ async def allocate_points_to_employee(
         )
     
     db.add(ledger)
+
+    # Update employee wallet: the allocation gives spendable points to the employee
+    wallet = db.query(Wallet).filter(Wallet.user_id == allocation_data.employee_id).first()
+    if not wallet:
+        wallet = Wallet(
+            tenant_id=current_user.tenant_id,
+            user_id=allocation_data.employee_id,
+            balance=Decimal('0'),
+            lifetime_earned=Decimal('0'),
+            lifetime_spent=Decimal('0')
+        )
+        db.add(wallet)
+        db.flush()
+    
+    # Calculate amount to add to wallet (difference if updating, full amount if new)
+    amount_to_add = Decimal('0')
+    if existing:
+        # difference was calculated as allocation_data.allocated_points - old_allocated
+        amount_to_add = allocation_data.allocated_points - old_allocated
+    else:
+        amount_to_add = allocation_data.allocated_points
+    
+    wallet.balance = Decimal(str(wallet.balance)) + amount_to_add
+    wallet.lifetime_earned = Decimal(str(wallet.lifetime_earned)) + amount_to_add
+    
+    # Wallet Ledger entry
+    wallet_ledger = WalletLedger(
+        tenant_id=current_user.tenant_id,
+        wallet_id=wallet.id,
+        transaction_type='credit',
+        source='budget_allocation',
+        points=amount_to_add,
+        balance_after=wallet.balance,
+        description=f"Points allocated from department budget: {allocation_data.description or ''}",
+        created_by=current_user.id
+    )
+    db.add(wallet_ledger)
     
     # Audit
     audit = AuditLog(
