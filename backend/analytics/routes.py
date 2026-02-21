@@ -23,7 +23,7 @@ from models import (
     Department, Badge, Tenant
 )
 from auth.utils import get_current_user
-from core.rbac import get_tenant_manager, get_platform_admin, RolePermissions
+from core.rbac import get_tenant_manager, get_platform_admin, get_dept_lead, RolePermissions
 from analytics.schemas import (
     TenantAnalyticsResponse, EngagementMetrics, BudgetMetrics, RedemptionMetrics,
     DepartmentMetrics, LeaderboardEntry, CultureHeatmap, CultureHeatmapCell,
@@ -667,4 +667,164 @@ async def get_dashboard_summary(
         "leads": leads,
         "recent_recognitions": recent_recognitions,
         "spending_analytics": spending_analytics
+    }
+
+
+# =====================================================
+# DEPARTMENT LEAD DASHBOARD ENDPOINT
+# =====================================================
+
+@router.get("/dashboard/dept-summary")
+async def get_dept_dashboard_summary(
+    current_user: User = Depends(get_dept_lead),
+    db: Session = Depends(get_db)
+):
+    """
+    Department Lead Dashboard Summary.
+    Returns metrics scoped strictly to the logged-in lead's own department:
+    - Budget pool, consumed, in-wallets
+    - Team member list with wallet balances and recognition stats
+    - Top consumers (by points received)
+    - Recent team recognitions
+    """
+    dept_id = current_user.department_id
+    tenant_id = current_user.tenant_id
+
+    # Department record
+    dept = db.query(Department).filter(
+        Department.id == dept_id,
+        Department.tenant_id == tenant_id
+    ).first()
+    if not dept:
+        raise HTTPException(status_code=404, detail="Department not found for this user")
+
+    # Tenant (for currency)
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    currency = (tenant.display_currency if tenant else None) or "INR"
+
+    # ── Budget metrics ───────────────────────────────
+    budget_pool = float(dept.budget_balance or 0)       # available for lead to distribute
+    budget_allocated = float(dept.budget_allocated or 0) # total received from master pool
+    budget_consumed = max(0.0, budget_allocated - budget_pool)  # sent to member wallets
+    utilization_pct = round(budget_consumed / budget_allocated * 100, 1) if budget_allocated > 0 else 0.0
+
+    # ── Department members ───────────────────────────
+    members_q = db.query(User).filter(
+        User.department_id == dept_id,
+        User.tenant_id == tenant_id,
+        User.status == 'ACTIVE'
+    ).all()
+    member_ids = [m.id for m in members_q]
+    total_members = len(members_q)
+
+    # Member wallet balances
+    wallet_rows = db.query(
+        Wallet.user_id,
+        Wallet.balance,
+        Wallet.lifetime_earned,
+        Wallet.lifetime_spent
+    ).filter(
+        Wallet.user_id.in_(member_ids),
+        Wallet.tenant_id == tenant_id
+    ).all()
+    wallet_map = {
+        str(r.user_id): {
+            "balance": float(r.balance or 0),
+            "lifetime_earned": float(r.lifetime_earned or 0),
+            "lifetime_spent": float(r.lifetime_spent or 0),
+        }
+        for r in wallet_rows
+    }
+    total_in_wallets = sum(w["balance"] for w in wallet_map.values())
+
+    # Recognitions received per member
+    rec_received_q = db.query(
+        Recognition.to_user_id,
+        func.count(Recognition.id).label('cnt'),
+        func.sum(Recognition.points).label('pts')
+    ).filter(
+        Recognition.to_user_id.in_(member_ids),
+        Recognition.tenant_id == tenant_id,
+        Recognition.status == 'active'
+    ).group_by(Recognition.to_user_id).all()
+    rec_received_map = {
+        str(r.to_user_id): {"count": r.cnt, "points": float(r.pts or 0)}
+        for r in rec_received_q
+    }
+
+    # Recognitions given per member
+    rec_given_q = db.query(
+        Recognition.from_user_id,
+        func.count(Recognition.id).label('cnt')
+    ).filter(
+        Recognition.from_user_id.in_(member_ids),
+        Recognition.tenant_id == tenant_id,
+        Recognition.status == 'active'
+    ).group_by(Recognition.from_user_id).all()
+    rec_given_map = {str(r.from_user_id): r.cnt for r in rec_given_q}
+
+    # Build full member list
+    members_list = []
+    for m in members_q:
+        mid = str(m.id)
+        w = wallet_map.get(mid, {"balance": 0, "lifetime_earned": 0, "lifetime_spent": 0})
+        rr = rec_received_map.get(mid, {"count": 0, "points": 0})
+        rg = rec_given_map.get(mid, 0)
+        members_list.append({
+            "id": mid,
+            "name": f"{m.first_name} {m.last_name}",
+            "email": m.corporate_email or "",
+            "org_role": m.org_role,
+            "wallet_balance": w["balance"],
+            "lifetime_earned": w["lifetime_earned"],
+            "lifetime_spent": w["lifetime_spent"],
+            "recognitions_received": rr["count"],
+            "points_received": rr["points"],
+            "recognitions_given": rg,
+        })
+
+    # Top consumers by points received
+    top_consumers = sorted(
+        members_list, key=lambda x: x["points_received"], reverse=True
+    )[:5]
+
+    # ── Recent recognitions in this department ───────
+    recent_recs_q = db.query(Recognition).filter(
+        Recognition.tenant_id == tenant_id,
+        Recognition.status == 'active',
+        or_(
+            Recognition.to_user_id.in_(member_ids),
+            Recognition.from_user_id.in_(member_ids)
+        )
+    ).order_by(Recognition.created_at.desc()).limit(10).all()
+
+    recent_recognitions = []
+    for r in recent_recs_q:
+        recent_recognitions.append({
+            "id": str(r.id),
+            "from_user": f"{r.from_user.first_name} {r.from_user.last_name}" if r.from_user else "System",
+            "to_user": f"{r.to_user.first_name} {r.to_user.last_name}" if r.to_user else "Deleted User",
+            "points": float(r.points),
+            "message": r.message or "",
+            "created_at": r.created_at.isoformat(),
+        })
+
+    return {
+        "department": {
+            "id": str(dept.id),
+            "name": dept.name,
+            "budget_pool": budget_pool,
+            "budget_allocated": budget_allocated,
+            "budget_consumed": budget_consumed,
+            "utilization_pct": utilization_pct,
+            "total_in_wallets": total_in_wallets,
+        },
+        "members": {
+            "total": total_members,
+            "list": members_list,
+        },
+        "top_consumers": top_consumers,
+        "recent_recognitions": recent_recognitions,
+        "currency": currency,
+        "lead_name": f"{current_user.first_name} {current_user.last_name}",
     }

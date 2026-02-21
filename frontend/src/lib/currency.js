@@ -42,10 +42,10 @@ export const CURRENCY_LOCALES = {
  * All currencies display as whole numbers (no decimals) per product requirements.
  */
 export const DECIMAL_PLACES = {
-  USD: 2,
-  INR: 2,
-  EUR: 2,
-  GBP: 2,
+  USD: 0,
+  INR: 0,
+  EUR: 0,
+  GBP: 0,
   JPY: 0
 }
 

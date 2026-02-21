@@ -145,6 +145,11 @@ export const dashboardApi = {
   getSummary: () => api.get('/analytics/dashboard/summary'),
 }
 
+// Dept Lead Dashboard API
+export const deptDashboardApi = {
+  getDeptSummary: () => api.get('/analytics/dashboard/dept-summary'),
+}
+
 // Recognition API
 export const recognitionAPI = {
   getAll: (params) => api.get('/recognitions', { params }),

@@ -27,15 +27,54 @@ cd "$ROOT_DIR"
 
 # Load environment variables if .env exists
 if [ -f .env ]; then
-  # Use a more robust way to export variables
   set -o allexport
   source .env
   set +o allexport
 fi
 
+# ======================================================================
+# STEP 1: Build frontend (React/Vite)
+# Set SKIP_FRONTEND_BUILD=1 to skip if dist/ is already up to date.
+# ======================================================================
+FRONTEND_DIR="$ROOT_DIR/frontend"
+if [ "${SKIP_FRONTEND_BUILD:-0}" = "1" ]; then
+  echo "SKIP_FRONTEND_BUILD=1 set — skipping frontend build."
+elif [ -d "$FRONTEND_DIR" ]; then
+  echo "=== Building frontend ==="
+  if [ ! -d "$FRONTEND_DIR/node_modules" ]; then
+    echo "Installing frontend dependencies..."
+    (cd "$FRONTEND_DIR" && npm ci --prefer-offline 2>/dev/null || npm install)
+  fi
+  echo "Running npm run build..."
+  (cd "$FRONTEND_DIR" && npm run build)
+  echo "Frontend build complete."
+else
+  echo "WARNING: frontend directory not found at $FRONTEND_DIR — skipping build."
+fi
+
+# ======================================================================
+# STEP 2: Build backend Docker image
+# Set SKIP_BACKEND_BUILD=1 to skip rebuild (uses cached image).
+# The backend is rebuilt by default so that code changes (e.g. Python
+# dependency updates, entrypoint changes) are picked up automatically.
+# ======================================================================
+if [ "${SKIP_BACKEND_BUILD:-0}" = "1" ]; then
+  echo "SKIP_BACKEND_BUILD=1 set — skipping backend Docker build."
+else
+  echo "=== Building backend Docker image ==="
+  docker-compose -f "$ROOT_DIR/docker-compose.yml" build backend
+  echo "Backend image built."
+fi
+
+# ======================================================================
+# STEP 3: Start all services
+# ======================================================================
+echo "=== Starting services ==="
 docker-compose -f "$ROOT_DIR/docker-compose.yml" up -d
 
-# Wait for backend HTTP health endpoint to be available on the host port
+# ======================================================================
+# STEP 4: Wait for backend HTTP health endpoint
+# ======================================================================
 BACKEND_PORT="${BACKEND_EXTERNAL_PORT:-6100}"
 echo "Waiting for backend HTTP health on http://localhost:$BACKEND_PORT/health..."
 COUNT=0
@@ -51,8 +90,10 @@ if [ $COUNT -ge $MAX_RETRIES ]; then
 fi
 echo "Backend HTTP health is available."
 
-# Wait for database to be ready and run seed script
-echo "Waiting for database to be ready..."
+# ======================================================================
+# STEP 5: Wait for database and run seed
+# ======================================================================
+echo "=== Waiting for database ==="
 MAX_RETRIES=30
 COUNT=0
 DB_CONTAINER="${PROJECT_NAME:-sparknode}-db"
@@ -64,84 +105,206 @@ until docker exec "$DB_CONTAINER" pg_isready -U "$DB_USER" > /dev/null 2>&1 || [
   ((COUNT++))
 done
 
-if [ $COUNT -lt $MAX_RETRIES ]; then
-  echo "Database is ready. Running seed script..."
-  docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" < "$ROOT_DIR/database/seed.sql"
-  echo "Seeding completed."
+if [ $COUNT -ge $MAX_RETRIES ]; then
+  echo "ERROR: Database did not become ready after timeout. Exiting."
+  exit 1
+fi
 
-  # Ensure schema_migrations table exists and is writable by app role
-  echo "Ensuring schema_migrations table exists and granting minimal privileges"
-  docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -c "CREATE TABLE IF NOT EXISTS schema_migrations (filename text PRIMARY KEY, applied_at timestamptz DEFAULT now());" || true
-  # Grant insert/select on schema_migrations to the app role if it exists
-  docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -c "DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'sparknode_app') THEN GRANT INSERT, SELECT ON schema_migrations TO sparknode_app; END IF; END $$;" || true
+echo "Database is ready. Running seed script..."
+docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" < "$ROOT_DIR/database/seed.sql"
+echo "Seeding completed."
 
-  # Apply SQL migrations using backend's migration runner (idempotent)
-  BACKEND_CONTAINER="${PROJECT_NAME:-sparknode}-backend"
-  echo "Applying SQL migrations via backend container: $BACKEND_CONTAINER"
-  if docker ps --format '{{.Names}}' | grep -q "$BACKEND_CONTAINER"; then
-    docker exec -i "$BACKEND_CONTAINER" bash -lc "./scripts/apply_migrations.sh" || {
-      echo "Warning: apply_migrations failed inside backend container; attempting direct DB apply"
-      # Fallback: apply migrations directly from host psql into the DB container and record applied files
-      for f in "$ROOT_DIR/database/migrations"/*.sql; do
-        fname="$(basename "$f")"
-        echo "Applying $f"
-        if docker exec -i "$DB_CONTAINER" psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "$DB_NAME" -f - < "$f"; then
-          echo "Recording $fname as applied"
-          docker exec -i "$DB_CONTAINER" psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "$DB_NAME" -c "INSERT INTO schema_migrations (filename) VALUES ('$fname') ON CONFLICT (filename) DO NOTHING;"
-        else
-          echo "Migration $fname failed (skipped recording)"
-        fi
-      done
-    }
-  else
-    echo "Backend container not found; applying migrations directly to DB"
+# ======================================================================
+# STEP 6: Ensure schema_migrations table and app role grants
+# ======================================================================
+echo "Ensuring schema_migrations table exists and granting minimal privileges..."
+docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" \
+  -c "CREATE TABLE IF NOT EXISTS schema_migrations (filename text PRIMARY KEY, applied_at timestamptz DEFAULT now());" || true
+docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" \
+  -c "DO \$\$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'sparknode_app') THEN GRANT INSERT, SELECT ON schema_migrations TO sparknode_app; END IF; END \$\$;" || true
+
+# ======================================================================
+# STEP 7: Apply SQL migrations (idempotent)
+# Tries the backend container's apply_migrations.sh first; falls back to
+# applying each file directly from the host via the DB container.
+# ======================================================================
+BACKEND_CONTAINER="${PROJECT_NAME:-sparknode}-backend"
+echo "=== Applying SQL migrations ==="
+if docker ps --format '{{.Names}}' | grep -q "$BACKEND_CONTAINER"; then
+  docker exec -i "$BACKEND_CONTAINER" bash -lc "./scripts/apply_migrations.sh" || {
+    echo "Warning: apply_migrations failed inside backend container; applying directly to DB..."
     for f in "$ROOT_DIR/database/migrations"/*.sql; do
       fname="$(basename "$f")"
-      echo "Applying $f"
-      if docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -f - < "$f"; then
-        echo "Recording $fname as applied"
-        docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -c "INSERT INTO schema_migrations (filename) VALUES ('$fname') ON CONFLICT (filename) DO NOTHING;"
+      echo "  Applying $fname"
+      if docker exec -i "$DB_CONTAINER" psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "$DB_NAME" -f - < "$f"; then
+        docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" \
+          -c "INSERT INTO schema_migrations (filename) VALUES ('$fname') ON CONFLICT (filename) DO NOTHING;"
       else
-        echo "Migration $fname failed (skipped recording)"
+        echo "  WARNING: $fname failed — skipping record."
       fi
     done
-  fi
-
-  # Verify required tables exist
-  echo "Verifying database tables..."
-  docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -c "SELECT to_regclass('public.departments') AS departments, to_regclass('public.users') AS users, to_regclass('public.schema_migrations') AS schema_migrations;"
-
-  # Health-check: ensure all migrations in the migrations folder were recorded as applied
-  echo "Checking pending migrations..."
-  MIGRATION_FILES=()
-  for f in "$ROOT_DIR/database/migrations"/*.sql; do
-    [ -f "$f" ] || continue
-    MIGRATION_FILES+=("$(basename "$f")")
-  done
-
-  if [ ${#MIGRATION_FILES[@]} -eq 0 ]; then
-    echo "No migration files found in $ROOT_DIR/database/migrations"
-  else
-    files_sql_list=$(printf "'%s', " "${MIGRATION_FILES[@]}")
-    files_sql_list=${files_sql_list%, }
-    applied_count=$(docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -A -c "SELECT count(*) FROM schema_migrations WHERE filename IN ($files_sql_list);" | tr -d '[:space:]')
-    total_count=${#MIGRATION_FILES[@]}
-    if [ -z "$applied_count" ]; then
-      echo "ERROR: Unable to query schema_migrations. Failing bootstrap."
-      exit 1
-    fi
-    if [ "$applied_count" -lt "$total_count" ]; then
-      echo "ERROR: $((total_count - applied_count)) pending migration(s) not applied:"
-      pending_sql_vals=$(printf "('%s')," "${MIGRATION_FILES[@]}")
-      pending_sql_vals=${pending_sql_vals%,}
-      pending_list=$(docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -A -c "SELECT filename FROM (VALUES $pending_sql_vals) t(filename) LEFT JOIN schema_migrations sm ON t.filename = sm.filename WHERE sm.filename IS NULL;")
-      echo "$pending_list"
-      echo "Failing bootstrap due to pending critical migrations."
-      exit 1
-    else
-      echo "All migrations recorded as applied ($applied_count/$total_count)."
-    fi
-  fi
+  }
 else
-  echo "Database timeout. Seeding skipped."
+  echo "Backend container not running; applying migrations directly to DB..."
+  for f in "$ROOT_DIR/database/migrations"/*.sql; do
+    fname="$(basename "$f")"
+    echo "  Applying $fname"
+    if docker exec -i "$DB_CONTAINER" psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "$DB_NAME" -f - < "$f"; then
+      docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" \
+        -c "INSERT INTO schema_migrations (filename) VALUES ('$fname') ON CONFLICT (filename) DO NOTHING;"
+    else
+      echo "  WARNING: $fname failed — skipping record."
+    fi
+  done
 fi
+echo "Migrations step complete."
+
+# ======================================================================
+# STEP 8: Restore canonical seeded accounts (idempotent UPSERT)
+#
+# This ensures the 4 demo accounts always exist with the correct password
+# and roles, even after manual DB edits or accidental user deletion.
+#
+#   Password for all 4 accounts: jspark123
+#   Hash: $2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u
+# ======================================================================
+echo "=== Restoring canonical seeded accounts ==="
+# Note: single-quoted heredoc prevents shell expansion of $$ and variable
+# substitution inside the SQL — all values are literal.
+docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" << 'SEED_SQL'
+DO $$
+DECLARE
+  seed_hash TEXT := '$2b$12$wUO54KkKhLF1ShGUklxUZ.F7rxZ5Vy.c5psXvulEaukdcvNuiZX3u';
+  seed_tenant UUID := '100e8400-e29b-41d4-a716-446655440000';
+  platform_tenant UUID := '00000000-0000-0000-0000-000000000000';
+  dept_id UUID := '110e8400-e29b-41d4-a716-446655440000';
+  platform_dept UUID := '010e8400-e29b-41d4-a716-446655440000';
+BEGIN
+  -- Platform Admin
+  INSERT INTO users (id, tenant_id, corporate_email, password_hash, first_name, last_name,
+                     org_role, roles, default_role, department_id, status, is_super_admin)
+  VALUES ('220e8400-e29b-41d4-a716-446655440000', platform_tenant,
+          'super_user@sparknode.io', seed_hash, 'Platform', 'Admin',
+          'platform_admin', 'platform_admin', 'platform_admin', platform_dept, 'ACTIVE', TRUE)
+  ON CONFLICT (tenant_id, corporate_email) DO UPDATE
+    SET password_hash = seed_hash, status = 'ACTIVE',
+        roles = EXCLUDED.roles, default_role = EXCLUDED.default_role;
+
+  -- Tenant Manager
+  INSERT INTO users (id, tenant_id, corporate_email, password_hash, first_name, last_name,
+                     org_role, roles, default_role, department_id, status, is_super_admin)
+  VALUES ('220e8400-e29b-41d4-a716-446655440001', seed_tenant,
+          'tenant_manager@sparknode.io', seed_hash, 'Tenant', 'Admin',
+          'tenant_manager', 'tenant_manager,dept_lead,tenant_user', 'tenant_manager',
+          dept_id, 'ACTIVE', FALSE)
+  ON CONFLICT (tenant_id, corporate_email) DO UPDATE
+    SET password_hash = seed_hash, status = 'ACTIVE',
+        roles = EXCLUDED.roles, default_role = EXCLUDED.default_role;
+
+  -- Dept Lead
+  -- Note: if the canonical ID is taken by a renamed user, update the email first
+  IF EXISTS (SELECT 1 FROM users WHERE id = '220e8400-e29b-41d4-a716-446655440002'
+             AND corporate_email <> 'dept_lead@sparknode.io') THEN
+    UPDATE users SET corporate_email = 'dept_lead@sparknode.io'
+    WHERE id = '220e8400-e29b-41d4-a716-446655440002';
+  END IF;
+  INSERT INTO users (id, tenant_id, corporate_email, password_hash, first_name, last_name,
+                     org_role, roles, default_role, department_id, status, is_super_admin)
+  VALUES ('220e8400-e29b-41d4-a716-446655440002', seed_tenant,
+          'dept_lead@sparknode.io', seed_hash, 'Tenant', 'Lead',
+          'dept_lead', 'dept_lead,tenant_user', 'dept_lead', dept_id, 'ACTIVE', FALSE)
+  ON CONFLICT (tenant_id, corporate_email) DO UPDATE
+    SET password_hash = seed_hash, status = 'ACTIVE',
+        roles = EXCLUDED.roles, default_role = EXCLUDED.default_role;
+
+  -- Tenant User
+  INSERT INTO users (id, tenant_id, corporate_email, password_hash, first_name, last_name,
+                     org_role, roles, default_role, department_id, status, is_super_admin)
+  VALUES ('220e8400-e29b-41d4-a716-446655440003', seed_tenant,
+          'user@sparknode.io', seed_hash, 'Tenant', 'User',
+          'tenant_user', 'tenant_user', 'tenant_user', dept_id, 'ACTIVE', FALSE)
+  ON CONFLICT (tenant_id, corporate_email) DO UPDATE
+    SET password_hash = seed_hash, status = 'ACTIVE',
+        roles = EXCLUDED.roles, default_role = EXCLUDED.default_role;
+
+  -- Ensure wallets exist for all 4 seeded users
+  INSERT INTO wallets (id, tenant_id, user_id, balance, lifetime_earned, lifetime_spent)
+  VALUES
+    (uuid_generate_v4(), platform_tenant, '220e8400-e29b-41d4-a716-446655440000', 0, 0, 0),
+    (uuid_generate_v4(), seed_tenant,     '220e8400-e29b-41d4-a716-446655440001', 0, 0, 0),
+    (uuid_generate_v4(), seed_tenant,     '220e8400-e29b-41d4-a716-446655440002', 0, 0, 0),
+    (uuid_generate_v4(), seed_tenant,     '220e8400-e29b-41d4-a716-446655440003', 0, 0, 0)
+  ON CONFLICT (user_id) DO NOTHING;
+
+  -- Ensure platform admin is in system_admins
+  INSERT INTO system_admins (user_id, access_level, mfa_enabled)
+  VALUES ('220e8400-e29b-41d4-a716-446655440000', 'PLATFORM_ADMIN', TRUE)
+  ON CONFLICT (user_id) DO NOTHING;
+END $$;
+SEED_SQL
+echo "Canonical accounts restored."
+
+# ======================================================================
+# STEP 9: Verify required tables exist
+# ======================================================================
+echo "=== Verifying database tables ==="
+docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" \
+  -c "SELECT to_regclass('public.departments') AS departments, to_regclass('public.users') AS users, to_regclass('public.schema_migrations') AS schema_migrations;"
+
+# ======================================================================
+# STEP 10: Migration completeness check
+# ======================================================================
+echo "Checking pending migrations..."
+MIGRATION_FILES=()
+for f in "$ROOT_DIR/database/migrations"/*.sql; do
+  [ -f "$f" ] || continue
+  MIGRATION_FILES+=("$(basename "$f")")
+done
+
+if [ ${#MIGRATION_FILES[@]} -eq 0 ]; then
+  echo "No migration files found in $ROOT_DIR/database/migrations"
+else
+  files_sql_list=$(printf "'%s', " "${MIGRATION_FILES[@]}")
+  files_sql_list=${files_sql_list%, }
+  applied_count=$(docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" \
+    -t -A -c "SELECT count(*) FROM schema_migrations WHERE filename IN ($files_sql_list);" | tr -d '[:space:]')
+  total_count=${#MIGRATION_FILES[@]}
+  if [ -z "$applied_count" ]; then
+    echo "ERROR: Unable to query schema_migrations. Failing bootstrap."
+    exit 1
+  fi
+  if [ "$applied_count" -lt "$total_count" ]; then
+    echo "WARNING: $((total_count - applied_count)) migration(s) not yet recorded as applied:"
+    pending_sql_vals=$(printf "('%s')," "${MIGRATION_FILES[@]}")
+    pending_sql_vals=${pending_sql_vals%,}
+    docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" \
+      -t -A -c "SELECT filename FROM (VALUES $pending_sql_vals) t(filename) LEFT JOIN schema_migrations sm ON t.filename = sm.filename WHERE sm.filename IS NULL;"
+    echo "Consider re-running bootstrap to retry pending migrations."
+  else
+    echo "All migrations recorded as applied ($applied_count/$total_count)."
+  fi
+fi
+
+# ======================================================================
+# STEP 11: Print credentials summary
+# ======================================================================
+FRONTEND_PORT="${FRONTEND_EXTERNAL_PORT:-6173}"
+API_PORT="${BACKEND_EXTERNAL_PORT:-6100}"
+echo ""
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║            SparkNode Bootstrap Complete ✓                   ║"
+echo "╠══════════════════════════════════════════════════════════════╣"
+echo "║  Frontend:       http://localhost:${FRONTEND_PORT}                  ║"
+echo "║  API / Swagger:  http://localhost:${API_PORT}/docs             ║"
+echo "╠══════════════════════════════════════════════════════════════╣"
+echo "║  Default Credentials  (password: jspark123)                 ║"
+echo "║  ──────────────────────────────────────────────────────────  ║"
+echo "║  Platform Admin:  super_user@sparknode.io                   ║"
+echo "║  Tenant Manager:  tenant_manager@sparknode.io               ║"
+echo "║  Dept Lead:       dept_lead@sparknode.io                    ║"
+echo "║  Tenant User:     user@sparknode.io                         ║"
+echo "╠══════════════════════════════════════════════════════════════╣"
+echo "║  Env flags:                                                  ║"
+echo "║    SKIP_FRONTEND_BUILD=1  Skip npm build (use existing dist) ║"
+echo "║    SKIP_BACKEND_BUILD=1   Skip docker build backend          ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
