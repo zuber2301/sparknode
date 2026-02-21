@@ -30,7 +30,7 @@ from platform_admin.schemas import (
     SubscriptionTiersResponse, SUBSCRIPTION_TIERS,
     PlatformHealthResponse, SystemHealthCheck,
     PlatformAuditEntry, PlatformAuditResponse, FeatureFlagsUpdate, BudgetActivityResponse,
-    MasterBudgetAdjustRequest
+    MasterBudgetAdjustRequest, RecallMasterBudgetRequest
 )
 
 router = APIRouter()
@@ -75,6 +75,7 @@ async def list_tenants(
         result.append(TenantListResponse(
             id=tenant.id,
             name=tenant.name,
+            slug=tenant.slug,
             domain=tenant.domain,
             logo_url=tenant.logo_url,
             status=tenant.status,
@@ -82,7 +83,11 @@ async def list_tenants(
             subscription_status=tenant.subscription_status,
             max_users=tenant.max_users or 50,
             user_count=user_count,
-            created_at=tenant.created_at
+            created_at=tenant.created_at,
+            master_budget_balance=Decimal(str(tenant.master_budget_balance or 0)),
+            budget_allocated=Decimal(str(tenant.budget_allocated or 0)),
+            display_currency=tenant.display_currency or 'INR',
+            feature_flags=tenant.feature_flags or {},
         ))
     
     return result
@@ -442,6 +447,69 @@ async def get_budget_activity(
             results.append({'period': label, 'credits': Decimal(str(credits)), 'debits': Decimal(str(debits)), 'net': Decimal(str(credits - debits))})
 
     return BudgetActivityResponse(data=results)
+
+
+@router.post("/tenants/{tenant_id}/recall-budget")
+async def recall_master_budget(
+    tenant_id: UUID,
+    payload: RecallMasterBudgetRequest,
+    current_user: User = Depends(get_platform_admin),
+    db: Session = Depends(get_db)
+):
+    """Recall budget from tenant's unallocated master pool back to platform (Platform Admin only)."""
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    remaining = Decimal(str(tenant.master_budget_balance or 0))
+    amount = Decimal(str(payload.amount))
+
+    if amount > remaining:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot recall {amount} — only {remaining} is available in the unallocated pool"
+        )
+
+    new_balance = remaining - amount
+
+    ledger_entry = MasterBudgetLedger(
+        tenant_id=tenant.id,
+        transaction_type='debit',
+        source='recall',
+        points=amount,
+        balance_after=new_balance,
+        description=f"Platform recall: {payload.justification}",
+        created_by=current_user.id,
+        created_by_type=ActorType.SYSTEM_ADMIN
+    )
+    db.add(ledger_entry)
+
+    tenant.master_budget_balance = new_balance
+
+    audit = AuditLog(
+        tenant_id=tenant.id,
+        actor_id=current_user.id,
+        actor_type=ActorType.SYSTEM_ADMIN,
+        action='master_budget_recalled',
+        entity_type='tenant',
+        entity_id=tenant.id,
+        new_values=append_impersonation_metadata({
+            'recalled_amount': str(amount),
+            'balance_after': str(new_balance),
+            'justification': payload.justification
+        })
+    )
+    db.add(audit)
+
+    db.commit()
+    db.refresh(tenant)
+
+    return {
+        "message": f"Successfully recalled {amount} points from {tenant.name}",
+        "recalled_amount": str(amount),
+        "new_balance": str(new_balance),
+        "tenant_name": tenant.name
+    }
 
 
 @router.post("/tenants/{tenant_id}/master-budget", response_model=TenantDetailResponse)

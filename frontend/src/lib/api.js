@@ -263,6 +263,7 @@ export const platformAPI = {
   recalculateBalances: (tenantId) => api.post(`/platform/tenants/${tenantId}/recalculate-balances`, null, { headers: { 'X-Skip-Tenant': '1' } }),
   getBudgetActivity: (tenantId, params = {}) => api.get(`/platform/tenants/${tenantId}/budget-activity`, { params, headers: { 'X-Skip-Tenant': '1' } }),
   addMasterBudget: (tenantId, data) => api.post(`/platform/tenants/${tenantId}/master-budget`, data, { headers: { 'X-Skip-Tenant': '1' } }),
+  recallMasterBudget: (tenantId, data) => api.post(`/platform/tenants/${tenantId}/recall-budget`, data, { headers: { 'X-Skip-Tenant': '1' } }),
   getTenantUsers: (tenantId, params = {}) => api.get(`/users/tenant/${tenantId}/users`, { params, headers: { 'X-Skip-Tenant': '1' } }),
   getMetrics: (params) => api.get('/analytics/platform', { params }),
   getHealth: () => api.get('/platform/health'),

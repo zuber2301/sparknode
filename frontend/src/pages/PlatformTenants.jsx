@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { 
   HiOutlinePlus, 
@@ -13,7 +13,8 @@ import {
   HiOutlineCurrencyRupee,
   HiOutlineDotsVertical,
   HiOutlineLockClosed,
-  HiOutlineLockOpen
+  HiOutlineLockOpen,
+  HiOutlineArrowNarrowLeft
 } from 'react-icons/hi'
 import ConfirmModal from '../components/ConfirmModal'
 import AddBudgetModal from '../components/AddBudgetModal'
@@ -24,6 +25,145 @@ import OrganizationInfoCard from '../components/OrganizationInfoCard'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
 import { useAuthStore } from '../store/authStore'
 import { formatDisplayValue, CURRENCY_SYMBOLS, SUPPORTED_CURRENCIES } from '../lib/currency'
+
+// ── Recall Budget Modal ───────────────────────────────────────────────────────
+function RecallBudgetModal({ tenant, onClose, onConfirm, isPending }) {
+  const [amount, setAmount] = useState('')
+  const [justification, setJustification] = useState('')
+
+  const remaining = Number(tenant.master_budget_balance || 0)
+  const currency   = tenant.display_currency || 'INR'
+  const parsedAmt  = parseFloat(amount) || 0
+
+  const amountErr = parsedAmt > remaining
+    ? `Exceeds available balance (${formatDisplayValue(remaining, currency)})`
+    : parsedAmt <= 0 && amount !== ''
+    ? 'Amount must be greater than 0'
+    : null
+  const justErr = justification.length > 0 && justification.length < 10
+    ? 'Justification must be at least 10 characters'
+    : null
+  const canSubmit = parsedAmt > 0 && parsedAmt <= remaining && justification.length >= 10 && !isPending
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (!canSubmit) return
+    onConfirm({ amount: parsedAmt, justification })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center">
+              <HiOutlineArrowNarrowLeft className="w-5 h-5 text-orange-500" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900">Recall Budget</h3>
+              <p className="text-xs text-gray-400">{tenant.name}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100">
+            <HiOutlineX className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
+          {/* Warning banner */}
+          <div className="rounded-xl bg-orange-50 border border-orange-100 px-4 py-3">
+            <p className="text-xs font-semibold text-orange-700 mb-0.5">Unallocated pool only</p>
+            <p className="text-xs text-orange-600">
+              Only budget that has not been distributed to departments can be recalled.
+              Allocated department budgets are unaffected.
+            </p>
+          </div>
+
+          {/* Current balance display */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-gray-50 rounded-xl px-4 py-3">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Budget Remaining</p>
+              <p className="text-lg font-black text-gray-800">{formatDisplayValue(remaining, currency)}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl px-4 py-3">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">After Recall</p>
+              <p className={`text-lg font-black ${parsedAmt > 0 && !amountErr ? 'text-orange-600' : 'text-gray-400'}`}>
+                {parsedAmt > 0 && !amountErr
+                  ? formatDisplayValue(remaining - parsedAmt, currency)
+                  : '—'}
+              </p>
+            </div>
+          </div>
+
+          {/* Amount */}
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+              Amount to Recall <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              className={`w-full border rounded-xl px-4 py-2.5 text-sm font-mono font-semibold focus:outline-none focus:ring-2 transition-colors ${
+                amountErr ? 'border-red-300 bg-red-50 focus:ring-red-300' : 'border-gray-200 focus:ring-orange-300'
+              }`}
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              autoFocus
+            />
+            {amountErr && <p className="mt-1 text-xs text-red-500">{amountErr}</p>}
+          </div>
+
+          {/* Justification */}
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+              Justification <span className="text-red-500">*</span>
+              <span className="ml-2 font-normal text-gray-400 normal-case">(min 10 chars)</span>
+            </label>
+            <textarea
+              rows={3}
+              className={`w-full border rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 transition-colors ${
+                justErr ? 'border-red-300 bg-red-50 focus:ring-red-300' : 'border-gray-200 focus:ring-orange-300'
+              }`}
+              placeholder="e.g. Recalling unused Q4 budget as per finance review on 21-Feb-2026…"
+              value={justification}
+              onChange={(e) => setJustification(e.target.value)}
+            />
+            <div className="flex justify-between mt-1">
+              {justErr
+                ? <p className="text-xs text-red-500">{justErr}</p>
+                : <span />}
+              <span className={`text-xs ${justification.length < 10 ? 'text-gray-400' : 'text-green-600'}`}>
+                {justification.length} / 1000
+              </span>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!canSubmit}
+              className="flex-1 px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold transition-colors shadow-sm"
+            >
+              {isPending ? 'Recalling…' : 'Confirm Recall'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
 
 export default function PlatformTenants() {
   const queryClient = useQueryClient()
@@ -40,6 +180,8 @@ export default function PlatformTenants() {
   const [actionOpenFor, setActionOpenFor] = useState(null)
   const [isAddBudgetOpen, setIsAddBudgetOpen] = useState(false)
   const [budgetTarget, setBudgetTarget] = useState(null)
+  const [isRecallOpen, setIsRecallOpen] = useState(false)
+  const [recallTarget, setRecallTarget] = useState(null)
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [confirmProps, setConfirmProps] = useState({})
   
@@ -77,12 +219,13 @@ export default function PlatformTenants() {
   })
 
   // Fetch all tenants by default for dashboard overview
-  const { data: tenantsResponse, isLoading } = useQuery({
+  const { data: tenantsResponse, isLoading, isFetching } = useQuery({
     queryKey: ['platformTenants', { searchQuery }],
     queryFn: () => platformAPI.getTenants({
       search: searchQuery || undefined,
     }),
     enabled: isPlatformOwner(),
+    placeholderData: keepPreviousData,
   })
 
   const { data: metricsResponse } = useQuery({
@@ -124,6 +267,18 @@ export default function PlatformTenants() {
       setBudgetTarget(null)
     },
     onError: (err) => toast.error(err.response?.data?.detail || 'Failed to add budget')
+  })
+
+  const recallMutation = useMutation({
+    mutationFn: ({ tenantId, payload }) => platformAPI.recallMasterBudget(tenantId, payload),
+    onSuccess: (data) => {
+      const resp = data?.data || data
+      toast.success(resp?.message || 'Budget recalled successfully')
+      queryClient.invalidateQueries(['platformTenants'])
+      setIsRecallOpen(false)
+      setRecallTarget(null)
+    },
+    onError: (err) => toast.error(err.response?.data?.detail || 'Failed to recall budget')
   })
 
   const activateMutation = useMutation({
@@ -849,13 +1004,21 @@ export default function PlatformTenants() {
       ) : (
         <div className="space-y-6">
           <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3">
-            <HiOutlineSearch className="w-5 h-5 text-gray-400" />
+            {isFetching && !isLoading ? (
+              <svg className="w-5 h-5 text-indigo-400 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+              </svg>
+            ) : (
+              <HiOutlineSearch className="w-5 h-5 text-gray-400 shrink-0" />
+            )}
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex-1 bg-transparent border-none focus:ring-0 text-gray-900 placeholder-gray-400 text-sm"
               placeholder="Search organizations by name, domain, or slug..."
+              autoComplete="off"
             />
             <div className="h-6 w-px bg-gray-200 mx-2" />
             <select
@@ -870,7 +1033,7 @@ export default function PlatformTenants() {
             </select>
           </div>
 
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-100">
                 <thead className="bg-gray-100">
@@ -879,7 +1042,8 @@ export default function PlatformTenants() {
                       <th className="px-6 py-5 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Status</th>
                       <th className="px-6 py-5 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Tier</th>
                       <th className="px-6 py-5 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Users</th>
-                      <th className="px-6 py-5 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Balance</th>
+                      <th className="px-6 py-5 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Budget Allocated</th>
+                      <th className="px-6 py-5 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Budget Remaining</th>
                       <th className="px-6 py-5 text-right text-sm font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
@@ -915,6 +1079,9 @@ export default function PlatformTenants() {
                         {tenant.user_count || 0} / {tenant.max_users}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                        {formatDisplayValue(Number(tenant.budget_allocated || 0), tenant.display_currency || 'INR')}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-700">
                         {formatDisplayValue(Number(tenant.master_budget_balance || 0), tenant.display_currency || 'INR')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right relative">
@@ -928,6 +1095,11 @@ export default function PlatformTenants() {
                             <button onClick={() => { setActionOpenFor(null); setBudgetTarget(tenant); setIsAddBudgetOpen(true) }} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md">
                               <HiOutlineCurrencyRupee className="w-4 h-4 text-gray-400" />
                               <span>Load Budget</span>
+                            </button>
+
+                            <button onClick={() => { setActionOpenFor(null); setRecallTarget(tenant); setIsRecallOpen(true) }} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-orange-600 hover:bg-orange-50 rounded-md">
+                              <HiOutlineArrowNarrowLeft className="w-4 h-4 text-orange-400" />
+                              <span>Recall Budget</span>
                             </button>
 
                             <button onClick={async () => {
@@ -978,7 +1150,7 @@ export default function PlatformTenants() {
                   ))}
                   {(tierFilter ? tenantsByTier : tenants).length === 0 && (
                     <tr>
-                      <td colSpan="6" className="px-6 py-12 text-center text-gray-400 italic">
+                      <td colSpan="7" className="px-6 py-12 text-center text-gray-400 italic">
                         No organizations found matching criteria
                       </td>
                     </tr>
@@ -1120,6 +1292,16 @@ export default function PlatformTenants() {
         onClose={() => { setIsAddBudgetOpen(false); setBudgetTarget(null) }}
         tenantId={budgetTarget?.id}
       />
+
+      {/* Recall Budget Modal */}
+      {isRecallOpen && recallTarget && (
+        <RecallBudgetModal
+          tenant={recallTarget}
+          onClose={() => { setIsRecallOpen(false); setRecallTarget(null) }}
+          onConfirm={(payload) => recallMutation.mutate({ tenantId: recallTarget.id, payload })}
+          isPending={recallMutation.isPending}
+        />
+      )}
 
       <ConfirmModal
         open={isConfirmOpen}

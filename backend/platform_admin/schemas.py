@@ -104,6 +104,7 @@ class TenantListResponse(BaseModel):
     """Summary tenant response for listing."""
     id: UUID
     name: str
+    slug: Optional[str] = None
     domain: Optional[str]
     logo_url: Optional[str]
     status: str
@@ -112,9 +113,28 @@ class TenantListResponse(BaseModel):
     max_users: int
     user_count: Optional[int] = 0
     created_at: datetime
-    
+    # Budget fields
+    master_budget_balance: Optional[Decimal] = Decimal('0')
+    budget_allocated: Optional[Decimal] = Decimal('0')
+    display_currency: Optional[str] = 'INR'
+    feature_flags: Optional[Dict[str, Any]] = {}
+
     class Config:
         from_attributes = True
+
+
+class RecallMasterBudgetRequest(BaseModel):
+    """Request to recall budget from tenant's remaining master pool."""
+    amount: Decimal = Field(..., gt=0, description='Amount to recall from master pool')
+    justification: str = Field(..., min_length=10, max_length=1000, description='Mandatory justification for recall')
+
+    class Config:
+        schema_extra = {
+            'example': {
+                'amount': '500.00',
+                'justification': 'Recalling unused Q4 budget per finance policy'
+            }
+        }
 
 
 class TenantDetailResponse(BaseModel):
