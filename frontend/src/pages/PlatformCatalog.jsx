@@ -38,7 +38,7 @@ function ItemFormModal({ item, onClose, onSaved }) {
     fulfillment_type: item?.fulfillment_type || 'voucher',
     min_points: item?.min_points ?? '',
     max_points: item?.max_points ?? '',
-    step_points: item?.step_points ?? 1,
+    step_points: item?.step_points ?? 50,
     image_url: item?.image_url || '',
     description: item?.description || '',
     validity_days: item?.validity_days ?? 365,
@@ -103,18 +103,18 @@ function ItemFormModal({ item, onClose, onSaved }) {
           </div>
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Min Points *</label>
-            <input type="number" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
-              value={form.min_points} onChange={e => set('min_points', e.target.value)} placeholder="100" />
+            <input type="number" step="1" min="0" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+              value={form.min_points} onChange={e => set('min_points', Math.floor(Number(e.target.value)) || '')} placeholder="100" />
           </div>
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Max Points *</label>
-            <input type="number" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
-              value={form.max_points} onChange={e => set('max_points', e.target.value)} placeholder="5000" />
+            <input type="number" step="1" min="0" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+              value={form.max_points} onChange={e => set('max_points', Math.floor(Number(e.target.value)) || '')} placeholder="5000" />
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Step Points</label>
-            <input type="number" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
-              value={form.step_points} onChange={e => set('step_points', e.target.value)} />
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Step Points <span className="text-gray-400 normal-case font-normal">(multiples of 50)</span></label>
+            <input type="number" step="50" min="50" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+              value={form.step_points} onChange={e => set('step_points', Math.floor(Number(e.target.value) / 50) * 50 || 50)} />
           </div>
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Validity (days)</label>

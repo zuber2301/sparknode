@@ -1,13 +1,26 @@
 import React, { useState } from 'react'
 import { HiX } from 'react-icons/hi'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { platformAPI } from '../lib/api'
 
-export default function AddBudgetModal({ isOpen, onClose, tenantId }) {
+export default function AddBudgetModal({ isOpen, onClose, tenantId, tenant: tenantProp }) {
   const [points, setPoints] = useState('1000')
   const [description, setDescription] = useState('')
   const queryClient = useQueryClient()
+
+  const { data: tenantFetched } = useQuery({
+    queryKey: ['platformTenant-budget-modal', tenantId],
+    queryFn: () => platformAPI.getTenantById(tenantId),
+    enabled: isOpen && !!tenantId && !tenantProp,
+    select: (res) => res.data,
+  })
+
+  const tenantData = tenantProp || tenantFetched
+  const masterBalance = Number(tenantData?.master_budget_balance ?? 0)
+  const currency = tenantData?.display_currency || 'pts'
+  const addAmount = Number(points) || 0
+  const afterAddition = masterBalance + addAmount
 
   const mutation = useMutation({
     mutationFn: (payload) => {
@@ -70,14 +83,34 @@ export default function AddBudgetModal({ isOpen, onClose, tenantId }) {
             <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
               <svg className="w-5 h-5 text-green-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v8m4-4H8"/></svg>
             </div>
-            <h2 className="text-xl font-semibold text-gray-900">Add Budget</h2>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Add Budget</h2>
+              {tenantData?.name && <p className="text-sm text-gray-500 mt-0.5">{tenantData.name}</p>}
+            </div>
+          </div>
+
+          {/* Master Pool Balance Banner */}
+          <div className="rounded-xl bg-gray-50 border border-gray-200 px-4 py-3 mb-4 flex items-center justify-between">
+            <span className="text-sm text-gray-500">Master Pool Balance</span>
+            <span className="text-sm font-semibold text-gray-900">
+              {masterBalance.toLocaleString()} {currency}
+            </span>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Amount</label>
-              <input type="number" value={points} onChange={(e)=>setPoints(e.target.value)} className="mt-2 input-field w-full" min="1" step="0.01" />
+              <label className="block text-sm font-medium text-gray-700">Amount to Add</label>
+              <input type="number" value={points} onChange={(e)=>setPoints(e.target.value)} className="mt-2 input-field w-full" min="1" step="1" />
             </div>
+
+            {addAmount > 0 && (
+              <div className="rounded-xl bg-green-50 border border-green-200 px-4 py-3 flex items-center justify-between">
+                <span className="text-sm text-green-700">After Addition</span>
+                <span className="text-sm font-bold text-green-700">
+                  {afterAddition.toLocaleString()} {currency}
+                </span>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700">Description (optional)</label>

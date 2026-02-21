@@ -113,6 +113,15 @@ const budgetWorkflowAPI = {
     })
     if (!response.ok) throw new Error(await response.text())
     return response.json()
+  },
+
+  // Get all department allocations across all tenants (platform admin)
+  getAllDepartmentAllocations: async () => {
+    const response = await fetch(`${API_BASE}/budget-workflow/all-department-allocations`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    })
+    if (!response.ok) throw new Error(await response.text())
+    return response.json()
   }
 }
 
@@ -237,6 +246,7 @@ export default function BudgetWorkflow() {
 function PlatformAdminView() {
   const { user } = useAuthStore()
   const [showAllocateModal, setShowAllocateModal] = useState(false)
+  const [activeTab, setActiveTab] = useState('tenants') // 'tenants' | 'tenant-manager'
   const queryClient = useQueryClient()
 
   // Fetch all tenant allocations
@@ -244,6 +254,13 @@ function PlatformAdminView() {
     queryKey: ['budget-workflow', 'all-tenant-allocations'],
     queryFn: () => budgetWorkflowAPI.getAllTenantAllocations(),
     enabled: true
+  })
+
+  // Fetch all department allocations (tenant_manager tasks)
+  const { data: allDeptAllocations, isLoading: loadingDeptAllocs } = useQuery({
+    queryKey: ['budget-workflow', 'all-department-allocations'],
+    queryFn: () => budgetWorkflowAPI.getAllDepartmentAllocations(),
+    enabled: activeTab === 'tenant-manager'
   })
 
   const allocateMutation = useMutation({
@@ -273,38 +290,70 @@ function PlatformAdminView() {
         <p className="text-gray-600">Allocate budgets to tenants</p>
       </div>
 
-      <div className="mb-6 flex justify-end gap-2">
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl w-fit">
         <button
-          onClick={() => refetch()}
-          disabled={isRefetching}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={() => setActiveTab('tenants')}
+          className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
+            activeTab === 'tenants' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
         >
-          <HiOutlineRefresh className={`w-5 h-5 ${isRefetching ? 'animate-spin' : ''}`} />
-          Load Allocated Budget
+          Platform → Tenant
         </button>
         <button
-          onClick={() => setShowAllocateModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+          onClick={() => setActiveTab('tenant-manager')}
+          className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
+            activeTab === 'tenant-manager' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
         >
-          <HiOutlinePlus className="w-5 h-5" />
-          Allocate Budget to Tenant
+          Tenant Manager Tasks
+          {allDeptAllocations?.length > 0 && (
+            <span className="ml-2 bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-0.5 rounded-full">{allDeptAllocations.length}</span>
+          )}
         </button>
       </div>
 
-      {/* Allocation Modal */}
-      {showAllocateModal && (
-        <AllocateTenantBudgetModal
-          onClose={() => setShowAllocateModal(false)}
-          onSubmit={(data) => allocateMutation.mutate(data)}
-          loading={allocateMutation.isPending}
-        />
+      {activeTab === 'tenants' && (
+        <>
+          <div className="mb-6 flex justify-end gap-2">
+            <button
+              onClick={() => refetch()}
+              disabled={isRefetching}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <HiOutlineRefresh className={`w-5 h-5 ${isRefetching ? 'animate-spin' : ''}`} />
+              Load Allocated Budget
+            </button>
+            <button
+              onClick={() => setShowAllocateModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+            >
+              <HiOutlinePlus className="w-5 h-5" />
+              Allocate Budget to Tenant
+            </button>
+          </div>
+
+          {showAllocateModal && (
+            <AllocateTenantBudgetModal
+              onClose={() => setShowAllocateModal(false)}
+              onSubmit={(data) => allocateMutation.mutate(data)}
+              loading={allocateMutation.isPending}
+            />
+          )}
+
+          <TenantsAllocationGrid
+            allocations={tenantAllocations || []}
+            loading={isLoading}
+          />
+        </>
       )}
 
-      {/* Tenants Grid */}
-      <TenantsAllocationGrid 
-        allocations={tenantAllocations || []} 
-        loading={isLoading}
-      />
+      {activeTab === 'tenant-manager' && (
+        <AllDeptAllocationsGrid
+          allocations={allDeptAllocations || []}
+          loading={loadingDeptAllocs}
+        />
+      )}
     </div>
   )
 }
@@ -645,6 +694,99 @@ function EmployeeAllocationsGrid({ allocations, employees, currencyCode = 'INR' 
           })}
         </tbody>
       </table>
+    </div>
+  )
+}
+
+function AllDeptAllocationsGrid({ allocations, loading }) {
+  if (loading) return <LoadingSpinner />
+
+  if (!allocations || allocations.length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <HiOutlineUsers className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500 text-lg">No department allocations yet</p>
+            <p className="text-gray-400 text-sm">Tenant managers haven't distributed to departments yet</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Tenant</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Department</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Allocated</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Distributed</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Remaining</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Utilization</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Date</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {allocations.map((alloc) => {
+              const utilization = alloc.allocated_budget > 0
+                ? ((alloc.distributed_budget / alloc.allocated_budget) * 100).toFixed(1)
+                : 0
+              const statusColors = {
+                active: 'bg-green-100 text-green-800',
+                pending: 'bg-yellow-100 text-yellow-800',
+                completed: 'bg-blue-100 text-blue-800',
+                inactive: 'bg-gray-100 text-gray-700',
+              }
+
+              return (
+                <tr key={alloc.id} className="hover:bg-gray-50 transition">
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{alloc.tenant_name}</td>
+                  <td className="px-6 py-4 text-sm text-gray-700">{alloc.department_name}</td>
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    <span className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full font-semibold">
+                      {formatDisplayValue(alloc.allocated_budget, 'INR')}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full font-semibold">
+                      {formatDisplayValue(alloc.distributed_budget, 'INR')}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-700">
+                    <span className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full font-semibold">
+                      {formatDisplayValue(alloc.remaining_budget, 'INR')}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-24 bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-indigo-600 h-2 rounded-full transition-all"
+                          style={{ width: `${Math.min(utilization, 100)}%` }}
+                        />
+                      </div>
+                      <span className="text-gray-700 font-semibold whitespace-nowrap">{utilization}%</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm">
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusColors[alloc.status] || 'bg-gray-100 text-gray-700'}`}>
+                      {alloc.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {alloc.created_at ? format(new Date(alloc.created_at), 'MMM dd, yyyy') : '—'}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

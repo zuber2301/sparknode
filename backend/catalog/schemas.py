@@ -13,9 +13,9 @@ class MasterItemCreate(BaseModel):
     category: str
     provider_code: Optional[str] = None
     fulfillment_type: str = "voucher"
-    min_points: Decimal
-    max_points: Decimal
-    step_points: Decimal = Decimal("1")
+    min_points: int
+    max_points: int
+    step_points: int = 50
     image_url: Optional[str] = None
     description: Optional[str] = None
     terms_conditions: Optional[str] = None
@@ -24,9 +24,16 @@ class MasterItemCreate(BaseModel):
     tags: List[str] = []
     is_active_global: bool = True
 
+    @field_validator("step_points")
+    @classmethod
+    def step_must_be_multiple_of_50(cls, v: int) -> int:
+        if v <= 0 or v % 50 != 0:
+            raise ValueError("step_points must be a positive multiple of 50")
+        return v
+
     @field_validator("max_points")
     @classmethod
-    def max_gte_min(cls, v: Decimal, info: Any) -> Decimal:
+    def max_gte_min(cls, v: int, info: Any) -> int:
         if "min_points" in (info.data or {}) and v < info.data["min_points"]:
             raise ValueError("max_points must be >= min_points")
         return v
@@ -38,9 +45,9 @@ class MasterItemUpdate(BaseModel):
     category: Optional[str] = None
     provider_code: Optional[str] = None
     fulfillment_type: Optional[str] = None
-    min_points: Optional[Decimal] = None
-    max_points: Optional[Decimal] = None
-    step_points: Optional[Decimal] = None
+    min_points: Optional[int] = None
+    max_points: Optional[int] = None
+    step_points: Optional[int] = None
     image_url: Optional[str] = None
     description: Optional[str] = None
     terms_conditions: Optional[str] = None
@@ -57,9 +64,9 @@ class MasterItemResponse(BaseModel):
     category: str
     provider_code: Optional[str] = None
     fulfillment_type: str
-    min_points: Decimal
-    max_points: Decimal
-    step_points: Decimal
+    min_points: int
+    max_points: int
+    step_points: int
     image_url: Optional[str] = None
     description: Optional[str] = None
     terms_conditions: Optional[str] = None

@@ -224,6 +224,44 @@ async def get_all_tenant_allocations(
     return result
 
 
+@router.get("/all-department-allocations")
+async def get_all_department_allocations(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all department budget allocations across all tenants (Platform Admin only)"""
+    if not is_platform_admin(current_user):
+        raise HTTPException(status_code=403, detail="Only platform admins can view all department allocations")
+
+    rows = (
+        db.query(DepartmentBudgetAllocation, Tenant, Department)
+        .outerjoin(Tenant, Tenant.id == DepartmentBudgetAllocation.tenant_id)
+        .outerjoin(Department, Department.id == DepartmentBudgetAllocation.department_id)
+        .order_by(DepartmentBudgetAllocation.created_at.desc())
+        .all()
+    )
+
+    result = []
+    for allocation, tenant, department in rows:
+        result.append({
+            "id": str(allocation.id),
+            "tenant_id": str(allocation.tenant_id),
+            "tenant_name": tenant.name if tenant else str(allocation.tenant_id),
+            "department_id": str(allocation.department_id),
+            "department_name": department.name if department else str(allocation.department_id),
+            "tenant_budget_allocation_id": str(allocation.tenant_budget_allocation_id) if allocation.tenant_budget_allocation_id else None,
+            "allocated_budget": float(allocation.allocated_budget),
+            "distributed_budget": float(allocation.distributed_budget),
+            "remaining_budget": float(allocation.remaining_budget),
+            "status": allocation.status,
+            "allocation_date": allocation.allocation_date,
+            "created_at": allocation.created_at,
+            "updated_at": allocation.updated_at,
+        })
+
+    return result
+
+
 # =====================================================
 # LEVEL 2: Tenant Manager distributes to Departments
 # =====================================================

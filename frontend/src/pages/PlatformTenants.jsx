@@ -1291,6 +1291,7 @@ export default function PlatformTenants() {
         isOpen={isAddBudgetOpen}
         onClose={() => { setIsAddBudgetOpen(false); setBudgetTarget(null) }}
         tenantId={budgetTarget?.id}
+        tenant={budgetTarget}
       />
 
       {/* Recall Budget Modal */}
