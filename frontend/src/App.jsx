@@ -78,6 +78,20 @@ function TenantManagerRoute({ children }) {
 }
 
 /**
+ * NonUserRoute - Blocks regular tenant_user role; accessible to dept_lead and above.
+ * Used for Feed, Events management, and other pages users should not access.
+ */
+function NonUserRoute({ children }) {
+  const { isAuthenticated, getEffectiveRole } = useAuthStore()
+  if (!isAuthenticated) return <Navigate to="/login" />
+
+  const effectiveRole = getEffectiveRole()
+  const isRegularUser = effectiveRole === 'tenant_user'
+
+  return isRegularUser ? <Navigate to="/dashboard" /> : children
+}
+
+/**
  * ManagerRoute - Visible to dept_lead and above (includes tenant_manager & platform_admin)
  * Used for pages accessible to managers
  */
@@ -117,7 +131,11 @@ function App() {
         <Route index element={<Navigate to="/dashboard" />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="admin-dashboard" element={<AdminDashboard />} />
-        <Route path="feed" element={<Feed />} />
+        <Route path="feed" element={
+          <NonUserRoute>
+            <Feed />
+          </NonUserRoute>
+        } />
         <Route path="recognize" element={<Recognize />} />
         <Route path="redeem" element={<Redeem />} />
         <Route path="wallet" element={<Wallet />} />
@@ -154,10 +172,22 @@ function App() {
         <Route path="profile" element={<Profile />} />
         
         {/* Event Management */}
-        <Route path="events" element={<Events />} />
-        <Route path="events/create" element={<EventCreateWizard />} />
+        <Route path="events" element={
+          <NonUserRoute>
+            <Events />
+          </NonUserRoute>
+        } />
+        <Route path="events/create" element={
+          <ManagerRoute>
+            <EventCreateWizard />
+          </ManagerRoute>
+        } />
         <Route path="events/:eventId" element={<EventDetail />} />
-        <Route path="events/:eventId/edit" element={<EventCreateWizardEdit />} />
+        <Route path="events/:eventId/edit" element={
+          <ManagerRoute>
+            <EventCreateWizardEdit />
+          </ManagerRoute>
+        } />
         {/* Sales & Marketing */}
         <Route path="sales-events" element={<SalesEvents />} />
         <Route path="e/sales/:eventId" element={<SalesEventRegistration />} />

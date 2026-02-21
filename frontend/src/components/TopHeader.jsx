@@ -94,6 +94,15 @@ const tenantLeadNavigation = [
   { name: 'Analytics & Reports', href: '/analytics', icon: HiOutlineChartBar },
 ]
 
+// Regular user navigation — limited to core actions only
+const userNavigation = [
+  { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
+  { name: 'Recognize', href: '/recognize', icon: HiOutlineSparkles },
+  { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
+  { name: 'Wallet', href: '/wallet', icon: HiOutlineCash },
+  { name: 'Events', href: '/events/browse', icon: HiOutlineCalendar },
+]
+
 export default function TopHeader() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
@@ -519,6 +528,24 @@ export default function TopHeader() {
                   </div>
                 </div>
               </>
+            ) : effectiveRole === 'tenant_user' ? (
+              // Regular user — restricted nav: Recognize, Redeem, Wallet, Events (browse only)
+              userNavigation.map((item) => (
+                <NavLink
+                  key={item.name}
+                  to={item.href}
+                  className={({ isActive }) =>
+                    `flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all ${
+                      isActive
+                        ? 'bg-sparknode-purple text-white font-semibold shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-medium'
+                    }`
+                  }
+                >
+                  <item.icon className="w-4 h-4 flex-shrink-0" />
+                  {item.name}
+                </NavLink>
+              ))
             ) : (
               navigation.filter(item => !item.featureFlag || salesEnabled || hasSalesRole).map((item) => (
                 <NavLink
@@ -769,6 +796,25 @@ export default function TopHeader() {
                 </NavLink>
               ))}
             </>
+          ) : effectiveRole === 'tenant_user' ? (
+            // Regular user mobile nav — restricted to core actions
+            userNavigation.map((item) => (
+              <NavLink
+                key={item.name}
+                to={item.href}
+                onClick={() => setMobileNavOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-sparknode-purple text-white'
+                      : 'text-gray-700 hover:bg-gray-200'
+                  }`
+                }
+              >
+                <item.icon className="w-4 h-4" />
+                {item.name}
+              </NavLink>
+            ))
           ) : (
             navigation.filter(item => !item.featureFlag || salesEnabled || hasSalesRole).map((item) => (
               <NavLink
