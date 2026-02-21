@@ -190,65 +190,50 @@ function DeptDistributionTab({ currency }) {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Dept selection */}
-      <div>
-        <h3 className="text-sm font-black text-gray-700 uppercase tracking-widest mb-4">
-          1. Select Department
-        </h3>
+    <>
+    <div className="flex gap-6 min-h-[460px]">
+
+      {/* ── Left: compact department list ─────────────────── */}
+      <div className="w-64 flex-shrink-0">
+        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">
+          Departments
+        </p>
         {departments.length === 0 ? (
           <p className="text-sm text-gray-400 py-8 text-center">No departments found</p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-1.5">
             {departments.map((dept, idx) => {
               const isSelected = selectedDept?.id === dept.id
-              const gradients = [
-                'from-violet-500 via-purple-500 to-indigo-600',
-                'from-blue-500 via-cyan-500 to-teal-500',
-                'from-emerald-400 via-green-500 to-teal-600',
-                'from-orange-400 via-amber-500 to-yellow-500',
-                'from-pink-500 via-rose-500 to-red-500',
-                'from-indigo-500 via-blue-600 to-cyan-600',
+              const dotColors = [
+                'bg-violet-500', 'bg-blue-500', 'bg-emerald-500',
+                'bg-amber-500', 'bg-pink-500', 'bg-indigo-500',
               ]
-              const gradient = gradients[idx % gradients.length]
+              const dotColor = dotColors[idx % dotColors.length]
               const initials = dept.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
               return (
                 <button
                   key={dept.id}
-                  onClick={() => setSelectedDept(isSelected ? null : dept)}
-                  className={`relative text-left rounded-2xl overflow-hidden transition-all duration-200 ${
+                  onClick={() => { setSelectedDept(isSelected ? null : dept); setPointsPerUser('') }}
+                  className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
                     isSelected
-                      ? 'ring-4 ring-offset-2 ring-sparknode-purple shadow-xl scale-[1.02]'
-                      : 'hover:shadow-xl hover:scale-[1.01] shadow-md'
+                      ? 'bg-sparknode-purple text-white shadow-md'
+                      : 'hover:bg-gray-100 text-gray-700'
                   }`}
                 >
-                  {/* Gradient background */}
-                  <div className={`bg-gradient-to-br ${gradient} p-5`}>
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                        <span className="text-white font-black text-sm">{initials}</span>
-                      </div>
-                      {isSelected && (
-                        <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center">
-                          <HiOutlineCheckCircle className="w-5 h-5 text-sparknode-purple" />
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-white font-black text-base leading-tight mb-1 drop-shadow-sm">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-black text-white ${
+                    isSelected ? 'bg-white/25' : dotColor
+                  }`}>
+                    {initials}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-sm font-bold truncate leading-tight ${isSelected ? 'text-white' : 'text-gray-800'}`}>
                       {dept.name}
                     </p>
-                    <div className="flex items-center gap-1.5 bg-white/20 rounded-full px-2.5 py-0.5 w-fit">
-                      <HiOutlineUsers className="w-3 h-3 text-white/90" />
-                      <span className="text-white/90 text-xs font-semibold">{dept.active_user_count} active users</span>
-                    </div>
-                  </div>
-                  {/* Balance footer */}
-                  <div className="bg-white px-5 py-3 flex items-center justify-between">
-                    <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Balance</p>
-                    <p className="text-sm font-black text-gray-800">
-                      {formatDisplayValue(dept.current_balance, currency)}
+                    <p className={`text-xs mt-0.5 ${isSelected ? 'text-white/70' : 'text-gray-400'}`}>
+                      {dept.active_user_count} users · {formatDisplayValue(dept.current_balance, currency)}
                     </p>
                   </div>
+                  {isSelected && <HiOutlineCheckCircle className="w-4 h-4 text-white/80 flex-shrink-0" />}
                 </button>
               )
             })}
@@ -256,151 +241,128 @@ function DeptDistributionTab({ currency }) {
         )}
       </div>
 
-      {/* Points input */}
-      <div>
-        <h3 className="text-sm font-black text-gray-700 uppercase tracking-widest mb-4">
-          2. Set Points Per Employee
-        </h3>
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm max-w-lg">
-          <label className="block text-sm font-bold text-gray-700 mb-2">Points per user</label>
-          <div className="relative">
-            <input
-              type="number"
-              min="1"
-              step="1"
-              value={pointsPerUser}
-              onChange={(e) => setPointsPerUser(e.target.value)}
-              placeholder="e.g. 500"
-              className="w-full px-4 py-3 pr-16 rounded-xl border border-gray-200 text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-sparknode-purple/30 focus:border-sparknode-purple transition"
-            />
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 uppercase">
-              pts
-            </span>
+      {/* ── Divider ────────────────────────────────────────── */}
+      <div className="w-px bg-gray-100 self-stretch flex-shrink-0" />
+
+      {/* ── Right: form + preview ──────────────────────────── */}
+      <div className="flex-1 min-w-0">
+        {!selectedDept ? (
+          <div className="flex flex-col items-center justify-center h-full text-center py-16">
+            <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
+              <HiOutlineBuildingOffice2 className="w-7 h-7 text-gray-300" />
+            </div>
+            <p className="text-gray-400 font-semibold text-sm">Select a department</p>
+            <p className="text-gray-300 text-xs mt-1">Choose from the list on the left</p>
           </div>
-          <p className="text-xs text-gray-400 mt-2">
-            Each active employee in the selected department will receive this many points
-          </p>
-        </div>
-      </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Selected dept banner */}
+            <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black text-white ${
+                ['bg-violet-500','bg-blue-500','bg-emerald-500','bg-amber-500','bg-pink-500','bg-indigo-500'][
+                  departments.findIndex(d => d.id === selectedDept.id) % 6
+                ]
+              }`}>
+                {selectedDept.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase()}
+              </div>
+              <div>
+                <p className="font-black text-gray-900 text-sm">{selectedDept.name}</p>
+                <p className="text-xs text-gray-400">{selectedDept.active_user_count} active employees · Balance: {formatDisplayValue(selectedDept.current_balance, currency)}</p>
+              </div>
+            </div>
 
-      {/* Live preview panel */}
-      {selectedDept && ppu > 0 && (
-        <div>
-          <h3 className="text-sm font-black text-gray-700 uppercase tracking-widest mb-4">
-            3. Preview & Confirm
-          </h3>
-          <div
-            className={`rounded-2xl p-6 border-2 ${
-              hasEnoughPool
-                ? 'bg-gradient-to-br from-purple-50 to-blue-50 border-purple-200'
-                : 'bg-red-50 border-red-200'
-            }`}
-          >
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-              <div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
-                  Department
-                </p>
-                <p className="text-base font-black text-gray-900 truncate">{selectedDept.name}</p>
+            {/* Points input */}
+            <div>
+              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">
+                Points per employee
+              </label>
+              <div className="relative max-w-xs">
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={pointsPerUser}
+                  onChange={(e) => setPointsPerUser(e.target.value)}
+                  placeholder="e.g. 500"
+                  className="w-full px-4 py-3 pr-14 rounded-xl border border-gray-200 text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-sparknode-purple/30 focus:border-sparknode-purple transition text-lg"
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 uppercase">pts</span>
               </div>
-              <div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
-                  Active Users
-                </p>
-                <p className="text-base font-black text-gray-900">{userCount}</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
-                  Per User
-                </p>
-                <p className="text-base font-black text-sparknode-purple">
-                  {ppu.toLocaleString()} pts
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
-                  Total to Allocate
-                </p>
-                <p
-                  className={`text-base font-black ${
-                    hasEnoughPool ? 'text-gray-900' : 'text-red-600'
-                  }`}
+            </div>
+
+            {/* Live preview */}
+            {ppu > 0 && (
+              <div className={`rounded-2xl p-5 border-2 ${hasEnoughPool ? 'bg-gradient-to-br from-purple-50 to-blue-50 border-purple-200' : 'bg-red-50 border-red-200'}`}>
+                {/* Equation */}
+                <div className="flex items-center gap-2 mb-4 flex-wrap">
+                  <span className="px-3 py-1.5 bg-white rounded-lg text-sm font-bold text-gray-700 shadow-sm">
+                    {ppu.toLocaleString()} pts/user
+                  </span>
+                  <span className="text-gray-400 font-black text-lg">×</span>
+                  <span className="px-3 py-1.5 bg-white rounded-lg text-sm font-bold text-gray-700 shadow-sm">
+                    {userCount} users
+                  </span>
+                  <span className="text-gray-400 font-black text-lg">=</span>
+                  <span className={`px-3 py-1.5 rounded-lg text-sm font-black shadow-sm ${hasEnoughPool ? 'bg-sparknode-purple text-white' : 'bg-red-500 text-white'}`}>
+                    {totalPoints.toLocaleString()} pts total
+                  </span>
+                </div>
+
+                {/* Stats row */}
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="bg-white rounded-xl p-3">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Per User</p>
+                    <p className="text-base font-black text-sparknode-purple">{ppu.toLocaleString()} pts</p>
+                  </div>
+                  <div className="bg-white rounded-xl p-3">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Total</p>
+                    <p className={`text-base font-black ${hasEnoughPool ? 'text-gray-900' : 'text-red-600'}`}>{totalPoints.toLocaleString()} pts</p>
+                  </div>
+                  <div className="bg-white rounded-xl p-3">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Pool After</p>
+                    <p className="text-base font-black text-gray-700">{(poolBalance - totalPoints).toLocaleString()}</p>
+                  </div>
+                </div>
+
+                {!hasEnoughPool && (
+                  <div className="flex items-center gap-2 text-red-700 bg-red-100 rounded-xl px-4 py-3 mb-4">
+                    <HiOutlineExclamationTriangle className="w-4 h-4 flex-shrink-0" />
+                    <p className="text-xs font-semibold">
+                      Need {totalPoints.toLocaleString()} pts — pool only has {poolBalance.toLocaleString()} pts.
+                    </p>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => setShowConfirm(true)}
+                  disabled={!canSubmit}
+                  className="w-full py-3 rounded-xl bg-sparknode-purple text-white font-bold text-sm hover:bg-sparknode-purple/90 transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {totalPoints.toLocaleString()} pts
-                </p>
-              </div>
-            </div>
-
-            {/* Calculation display */}
-            <div className="flex items-center gap-3 mb-5 flex-wrap">
-              <span className="px-3 py-1.5 bg-white rounded-lg text-sm font-bold text-gray-700 shadow-sm">
-                {ppu.toLocaleString()} pts/user
-              </span>
-              <span className="text-gray-400 font-black">×</span>
-              <span className="px-3 py-1.5 bg-white rounded-lg text-sm font-bold text-gray-700 shadow-sm">
-                {userCount} users
-              </span>
-              <span className="text-gray-400 font-black">=</span>
-              <span
-                className={`px-3 py-1.5 rounded-lg text-sm font-black shadow-sm ${
-                  hasEnoughPool
-                    ? 'bg-sparknode-purple text-white'
-                    : 'bg-red-500 text-white'
-                }`}
-              >
-                {totalPoints.toLocaleString()} pts total
-              </span>
-            </div>
-
-            {!hasEnoughPool && (
-              <div className="flex items-center gap-2 text-red-700 bg-red-100 rounded-xl px-4 py-3 mb-5">
-                <HiOutlineExclamationTriangle className="w-5 h-5 flex-shrink-0" />
-                <p className="text-sm font-semibold">
-                  Insufficient pool balance. Need {totalPoints.toLocaleString()} pts, available{' '}
-                  {poolBalance.toLocaleString()} pts.
-                </p>
+                  <HiOutlineBanknotes className="w-5 h-5" />
+                  Distribute to {selectedDept.name}
+                </button>
               </div>
             )}
-
-            <div className="flex items-center justify-between text-xs text-gray-500 pt-4 border-t border-gray-200/50 mb-5">
-              <span>
-                Pool balance after: <strong>{(poolBalance - totalPoints).toLocaleString()} pts</strong>
-              </span>
-              <span>
-                Dept balance after:{' '}
-                <strong>
-                  {(Number(selectedDept.current_balance) + totalPoints).toLocaleString()} pts
-                </strong>
-              </span>
-            </div>
-
-            <button
-              onClick={() => setShowConfirm(true)}
-              disabled={!canSubmit}
-              className="w-full py-3 rounded-xl bg-sparknode-purple text-white font-bold text-sm hover:bg-sparknode-purple/90 transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              <HiOutlineBanknotes className="w-5 h-5" />
-              Distribute to {selectedDept.name}
-            </button>
           </div>
-        </div>
-      )}
-
-      <ConfirmationModal
-        isOpen={showConfirm}
-        onClose={() => setShowConfirm(false)}
-        onConfirm={handleConfirm}
-        isLoading={mutation.isPending}
-        title="Confirm Department Distribution"
-        lines={[
-          `Department: ${selectedDept?.name}`,
-          `Active employees: ${userCount}`,
-          `Points per employee: ${ppu.toLocaleString()} pts`,
-          `Total to allocate: ${totalPoints.toLocaleString()} pts`,
-          `This will be deducted from the tenant pool.`,
-        ]}
-      />
+        )}
+      </div>
     </div>
+
+    <ConfirmationModal
+      isOpen={showConfirm}
+      onClose={() => setShowConfirm(false)}
+      onConfirm={handleConfirm}
+      isLoading={mutation.isPending}
+      title="Confirm Department Distribution"
+      lines={[
+        `Department: ${selectedDept?.name}`,
+        `Active employees: ${userCount}`,
+        `Points per employee: ${ppu.toLocaleString()} pts`,
+        `Total to allocate: ${totalPoints.toLocaleString()} pts`,
+        `This will be deducted from the tenant pool.`,
+      ]}
+    />
+  </>
   )
 }
 
