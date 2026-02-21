@@ -13,6 +13,7 @@ from tenants.routes import router as tenant_public_router
 from users.routes import router as users_router
 from budgets.routes import router as budgets_router
 from budgets.workflow_routes import router as budget_workflow_router
+from tenants.distribution_routes import router as budget_distribution_router
 from wallets.routes import router as wallets_router
 from recognition.routes import router as recognition_router
 from redemption.routes import router as redemption_router
@@ -79,6 +80,7 @@ app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(public_router, prefix="/tenant", tags=["Public Tenant Access"])
 app.include_router(tenants_router, prefix="/api/tenants", tags=["Tenants"])
 app.include_router(users_router, prefix="/api/users", tags=["Users"])
+app.include_router(budget_distribution_router, tags=["Tenant Budget Distribution"])
 app.include_router(budgets_router, prefix="/api/budgets", tags=["Budgets"])
 app.include_router(budget_workflow_router, prefix="/api", tags=["Budget Workflow"])
 app.include_router(wallets_router, prefix="/api/wallets", tags=["Wallets"])

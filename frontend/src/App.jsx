@@ -32,6 +32,7 @@ import Templates from './pages/Templates'
 import Billing from './pages/Billing'
 import TeamHub from './pages/TeamHub'
 import TeamDistribute from './pages/TeamDistribute'
+import TenantDistributeWorkflow from './pages/TenantDistributeWorkflow'
 import TeamActivity from './pages/TeamActivity'
 import TeamApprovals from './pages/TeamApprovals'
 import TeamAnalytics from './pages/TeamAnalytics'
@@ -265,6 +266,13 @@ function App() {
           </ManagerRoute>
         } />
         
+        {/* Budget Distribution - Tenant Manager Only */}
+        <Route path="budget/distribute" element={
+          <TenantManagerRoute>
+            <TenantDistributeWorkflow />
+          </TenantManagerRoute>
+        } />
+
         {/* Admin Invite Users - Tenant Manager Only */}
         <Route path="admin/invite-users" element={
           <TenantManagerRoute>

@@ -150,6 +150,16 @@ export const deptDashboardApi = {
   getDeptSummary: () => api.get('/analytics/dashboard/dept-summary'),
 }
 
+// Tenant Manager Budget Distribution API
+export const tmDistributeApi = {
+  // Dept per-user workflow
+  getDeptPreview: () => api.get('/budgets/dept-per-user-preview'),
+  distributeToDeptPerUser: (data) => api.post('/budgets/distribute-dept-per-user', data),
+  // All-users workflow
+  getAllUsersPreview: () => api.get('/budgets/all-users-preview'),
+  distributeToAllUsers: (data) => api.post('/budgets/distribute-all-users', data),
+}
+
 // Recognition API
 export const recognitionAPI = {
   getAll: (params) => api.get('/recognitions', { params }),

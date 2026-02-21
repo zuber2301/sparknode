@@ -1,7 +1,9 @@
 import React from 'react'
-import { HiOutlinePlusCircle, HiOutlineDocumentArrowDown, HiOutlineArrowUpCircle } from 'react-icons/hi2'
+import { useNavigate } from 'react-router-dom'
+import { HiOutlinePlusCircle, HiOutlineDocumentArrowDown, HiOutlineArrowUpCircle, HiOutlineChartPie } from 'react-icons/hi2'
 
 export default function ActionSidebar({ onDistributeClick, onTopupClick, onExportReport, stats }) {
+  const navigate = useNavigate()
   const actions = [
     {
       title: 'Distribute Points',
@@ -9,6 +11,13 @@ export default function ActionSidebar({ onDistributeClick, onTopupClick, onExpor
       icon: HiOutlinePlusCircle,
       color: 'bg-blue-600',
       onClick: onDistributeClick,
+    },
+    {
+      title: 'Budget Distribution',
+      description: 'Dept per-user or tenant-wide allocations',
+      icon: HiOutlineChartPie,
+      color: 'bg-sparknode-purple',
+      onClick: () => navigate('/budget/distribute'),
     },
     {
       title: 'Top-up Request',
