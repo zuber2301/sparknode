@@ -195,45 +195,58 @@ function DeptDistributionTab({ currency }) {
 
       {/* ── Left: compact department list ─────────────────── */}
       <div className="w-64 flex-shrink-0">
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">
+        <p className="text-sm font-bold text-gray-700 mb-3">
           Departments
         </p>
         {departments.length === 0 ? (
           <p className="text-sm text-gray-400 py-8 text-center">No departments found</p>
         ) : (
-          <div className="space-y-1.5">
+          <div className="space-y-2.5">
             {departments.map((dept, idx) => {
               const isSelected = selectedDept?.id === dept.id
-              const dotColors = [
-                'bg-violet-500', 'bg-blue-500', 'bg-emerald-500',
-                'bg-amber-500', 'bg-pink-500', 'bg-indigo-500',
+              const gradients = [
+                ['from-violet-500 to-indigo-600', 'bg-violet-500'],
+                ['from-blue-500 to-cyan-600', 'bg-blue-500'],
+                ['from-emerald-500 to-teal-600', 'bg-emerald-500'],
+                ['from-amber-500 to-orange-500', 'bg-amber-500'],
+                ['from-pink-500 to-rose-600', 'bg-pink-500'],
+                ['from-indigo-500 to-blue-700', 'bg-indigo-500'],
               ]
-              const dotColor = dotColors[idx % dotColors.length]
+              const [gradient, dotColor] = gradients[idx % gradients.length]
               const initials = dept.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
               return (
                 <button
                   key={dept.id}
                   onClick={() => { setSelectedDept(isSelected ? null : dept); setPointsPerUser('') }}
-                  className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
+                  className={`w-full text-left rounded-2xl overflow-hidden transition-all duration-200 ${
                     isSelected
-                      ? 'bg-sparknode-purple text-white shadow-md'
-                      : 'hover:bg-gray-100 text-gray-700'
+                      ? 'ring-2 ring-offset-2 ring-sparknode-purple shadow-lg scale-[1.02]'
+                      : 'hover:shadow-lg hover:scale-[1.01] shadow-sm'
                   }`}
                 >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-black text-white ${
-                    isSelected ? 'bg-white/25' : dotColor
-                  }`}>
-                    {initials}
+                  {/* Gradient header */}
+                  <div className={`bg-gradient-to-br ${gradient} px-4 pt-4 pb-3`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+                        <span className="text-white font-black text-sm">{initials}</span>
+                      </div>
+                      {isSelected && (
+                        <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center">
+                          <HiOutlineCheckCircle className="w-4 h-4 text-sparknode-purple" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-white font-bold text-sm leading-snug">{dept.name}</p>
+                    <div className="flex items-center gap-1 mt-1.5">
+                      <HiOutlineUsers className="w-3 h-3 text-white/70" />
+                      <span className="text-white/80 text-xs">{dept.active_user_count} active users</span>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className={`text-sm font-bold truncate leading-tight ${isSelected ? 'text-white' : 'text-gray-800'}`}>
-                      {dept.name}
-                    </p>
-                    <p className={`text-xs mt-0.5 ${isSelected ? 'text-white/70' : 'text-gray-400'}`}>
-                      {dept.active_user_count} users · {formatDisplayValue(dept.current_balance, currency)}
-                    </p>
+                  {/* Balance footer */}
+                  <div className="bg-white px-4 py-2.5 flex items-center justify-between border border-t-0 border-gray-100 rounded-b-2xl">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Balance</p>
+                    <p className="text-sm font-black text-gray-800">{formatDisplayValue(dept.current_balance, currency)}</p>
                   </div>
-                  {isSelected && <HiOutlineCheckCircle className="w-4 h-4 text-white/80 flex-shrink-0" />}
                 </button>
               )
             })}
