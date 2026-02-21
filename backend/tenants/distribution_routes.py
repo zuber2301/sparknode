@@ -582,6 +582,7 @@ async def distribute_to_all_users(
             created_by=current_user.id,
         )
         db.add(ledger)
+        db.flush()  # flush each row individually to avoid bulk-insert sentinel mismatch
         credited += 1
 
     # Deduct from tenant pool

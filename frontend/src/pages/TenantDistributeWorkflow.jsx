@@ -200,48 +200,52 @@ function DeptDistributionTab({ currency }) {
           <p className="text-sm text-gray-400 py-8 text-center">No departments found</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {departments.map((dept) => {
+            {departments.map((dept, idx) => {
               const isSelected = selectedDept?.id === dept.id
+              const gradients = [
+                'from-violet-500 via-purple-500 to-indigo-600',
+                'from-blue-500 via-cyan-500 to-teal-500',
+                'from-emerald-400 via-green-500 to-teal-600',
+                'from-orange-400 via-amber-500 to-yellow-500',
+                'from-pink-500 via-rose-500 to-red-500',
+                'from-indigo-500 via-blue-600 to-cyan-600',
+              ]
+              const gradient = gradients[idx % gradients.length]
+              const initials = dept.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
               return (
                 <button
                   key={dept.id}
                   onClick={() => setSelectedDept(isSelected ? null : dept)}
-                  className={`text-left p-5 rounded-2xl border-2 transition hover:shadow-md ${
+                  className={`relative text-left rounded-2xl overflow-hidden transition-all duration-200 ${
                     isSelected
-                      ? 'border-sparknode-purple bg-purple-50 shadow-md'
-                      : 'border-gray-100 bg-white hover:border-purple-200'
+                      ? 'ring-4 ring-offset-2 ring-sparknode-purple shadow-xl scale-[1.02]'
+                      : 'hover:shadow-xl hover:scale-[1.01] shadow-md'
                   }`}
                 >
-                  <div className="flex items-start justify-between mb-3">
-                    <div
-                      className={`p-2 rounded-xl ${isSelected ? 'bg-sparknode-purple' : 'bg-gray-100'}`}
-                    >
-                      <HiOutlineBuildingOffice2
-                        className={`w-5 h-5 ${isSelected ? 'text-white' : 'text-gray-500'}`}
-                      />
+                  {/* Gradient background */}
+                  <div className={`bg-gradient-to-br ${gradient} p-5`}>
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                        <span className="text-white font-black text-sm">{initials}</span>
+                      </div>
+                      {isSelected && (
+                        <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center">
+                          <HiOutlineCheckCircle className="w-5 h-5 text-sparknode-purple" />
+                        </div>
+                      )}
                     </div>
-                    {isSelected && (
-                      <HiOutlineCheckCircle className="w-5 h-5 text-sparknode-purple" />
-                    )}
-                  </div>
-                  <p
-                    className={`text-sm font-black mb-1 ${
-                      isSelected ? 'text-sparknode-purple' : 'text-gray-900'
-                    }`}
-                  >
-                    {dept.name}
-                  </p>
-                  <div className="flex items-center gap-3 text-xs text-gray-500">
-                    <span className="flex items-center gap-1">
-                      <HiOutlineUsers className="w-3.5 h-3.5" />
-                      {dept.active_user_count} active users
-                    </span>
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <p className="text-[10px] text-gray-400 uppercase tracking-wide font-bold mb-0.5">
-                      Current Balance
+                    <p className="text-white font-black text-base leading-tight mb-1 drop-shadow-sm">
+                      {dept.name}
                     </p>
-                    <p className="text-sm font-black text-gray-700">
+                    <div className="flex items-center gap-1.5 bg-white/20 rounded-full px-2.5 py-0.5 w-fit">
+                      <HiOutlineUsers className="w-3 h-3 text-white/90" />
+                      <span className="text-white/90 text-xs font-semibold">{dept.active_user_count} active users</span>
+                    </div>
+                  </div>
+                  {/* Balance footer */}
+                  <div className="bg-white px-5 py-3 flex items-center justify-between">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Balance</p>
+                    <p className="text-sm font-black text-gray-800">
                       {formatDisplayValue(dept.current_balance, currency)}
                     </p>
                   </div>

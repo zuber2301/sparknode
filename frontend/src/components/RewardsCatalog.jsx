@@ -6,8 +6,8 @@ export default function RewardsCatalog({
   vouchers, 
   onRedeem, 
   isRedeeming, 
-  walletBalance = 0,
-  displayCurrency = 'USD',
+  balance = 0,
+  displayCurrency = 'INR',
   fxRate = 1
 }) {
   const [search, setSearch] = useState('')
@@ -24,9 +24,9 @@ export default function RewardsCatalog({
   }).sort((a, b) => {
     switch (sortBy) {
       case 'points_asc':
-        return a.points_cost - b.points_cost
+        return a.points_required - b.points_required
       case 'points_desc':
-        return b.points_cost - a.points_cost
+        return b.points_required - a.points_required
       case 'name':
         return a.name.localeCompare(b.name)
       default:
@@ -130,20 +130,21 @@ export default function RewardsCatalog({
                   <div className="flex items-center justify-between pt-4 border-t">
                     <div>
                       <span className="text-2xl font-bold text-sparknode-purple">
-                        {formatCurrency(voucher.points_cost, displayCurrency, fxRate)}
+                        {Number(voucher.points_required).toLocaleString()}
                       </span>
+                      <span className="text-sm text-gray-500 ml-1">pts</span>
                     </div>
 
                     <button
                       onClick={() => onRedeem(voucher)}
-                      disabled={isRedeeming || walletBalance < voucher.points_cost}
+                      disabled={isRedeeming || balance < voucher.points_required}
                       className={`btn-primary text-sm ${
-                        walletBalance < voucher.points_cost
+                        balance < voucher.points_required
                           ? 'opacity-50 cursor-not-allowed'
                           : ''
                       }`}
                     >
-                      {walletBalance < voucher.points_cost ? 'Not Enough Points' : 'Redeem'}
+                      {balance < voucher.points_required ? 'Not Enough Points' : 'Redeem'}
                     </button>
                   </div>
                 </div>
