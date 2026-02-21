@@ -77,12 +77,12 @@ const platformAdminNavigation = [
 // Tenant Manager specific navigation - "Nerve Center"
 const tenantManagerNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
+  { name: 'Users', href: '/users', icon: HiOutlineUsers },
+  { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar },
+  { name: 'Company Catalog', href: '/catalog', icon: HiOutlineShoppingCart },
+  { name: 'Analytics & Reports', href: '/analytics', icon: HiOutlineChartBar },
   { name: 'Event Management', href: '/events', icon: HiOutlineNewspaper },
   { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: true },
-  { name: 'User Management', href: '/users', icon: HiOutlineUsers },
-  { name: 'Company Catalog', href: '/catalog', icon: HiOutlineShoppingCart },
-  { name: 'Marketplace & Rewards', href: '/marketplace', icon: HiOutlineShoppingCart },
-  { name: 'Analytics & Reports', href: '/analytics', icon: HiOutlineChartBar },
 ]
 
 // Tenant Lead specific navigation
@@ -410,16 +410,16 @@ export default function TopHeader() {
                   </NavLink>
                 ))}
 
-                {/* Admin Dropdown */}
+                {/* Settings Dropdown */}
                 <div className="relative group">
                   <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all border border-transparent hover:border-gray-200">
-                    <HiOutlineClipboardList className="w-4 h-4" />
-                    Admin
+                    <HiOutlineCog className="w-4 h-4" />
+                    Settings
                     <HiOutlineChevronDown className="w-3.5 h-3.5 opacity-60" />
                   </button>
                   <div className="absolute left-0 mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 py-1">
                     <NavLink
-                      to="/budgets"
+                      to="/admin/invite-users"
                       className={({ isActive }) =>
                         `flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
                           isActive
@@ -428,21 +428,8 @@ export default function TopHeader() {
                         }`
                       }
                     >
-                      <HiOutlineChartBar className="w-4 h-4" />
-                      Budgets
-                    </NavLink>
-                    <NavLink
-                      to="/users"
-                      className={({ isActive }) =>
-                        `flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
-                          isActive
-                            ? 'bg-sparknode-purple/10 text-sparknode-purple font-semibold'
-                            : 'text-gray-700 hover:bg-gray-50 font-medium'
-                        }`
-                      }
-                    >
-                      <HiOutlineUsers className="w-4 h-4" />
-                      Users
+                      <HiOutlineMailOpen className="w-4 h-4" />
+                      Invite Users
                     </NavLink>
                     <NavLink
                       to="/audit"
@@ -455,7 +442,7 @@ export default function TopHeader() {
                       }
                     >
                       <HiOutlineClipboardList className="w-4 h-4" />
-                      Audit
+                      Audit Log
                     </NavLink>
                   </div>
                 </div>
@@ -776,6 +763,34 @@ export default function TopHeader() {
                   {item.name}
                 </NavLink>
               ))}
+              {/* Tenant Manager Settings section */}
+              <div className="my-2 border-t border-gray-200 pt-2">
+                <p className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Settings</p>
+              </div>
+              <NavLink
+                to="/admin/invite-users"
+                onClick={() => setMobileNavOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive ? 'bg-sparknode-purple text-white' : 'text-gray-700 hover:bg-gray-200'
+                  }`
+                }
+              >
+                <HiOutlineMailOpen className="w-4 h-4" />
+                Invite Users
+              </NavLink>
+              <NavLink
+                to="/audit"
+                onClick={() => setMobileNavOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive ? 'bg-sparknode-purple text-white' : 'text-gray-700 hover:bg-gray-200'
+                  }`
+                }
+              >
+                <HiOutlineClipboardList className="w-4 h-4" />
+                Audit Log
+              </NavLink>
             </>
           ) : !isPlatformUser && effectiveRole === 'dept_lead' ? (
             <>
