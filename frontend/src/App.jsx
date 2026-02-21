@@ -237,9 +237,9 @@ function App() {
         
         {/* Platform Admin Controls */}
         <Route path="marketplace" element={
-          <PlatformAdminRoute>
+          <AdminRoute>
             <Marketplace />
-          </PlatformAdminRoute>
+          </AdminRoute>
         } />
         <Route path="ai-settings" element={
           <PlatformAdminRoute>
