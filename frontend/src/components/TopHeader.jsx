@@ -54,7 +54,6 @@ const adminNavigation = [
 
 // Platform Admin specific navigation - displayed in top nav with Controls dropdown
 const platformAdminNavigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
   { name: 'Tenants', href: '/platform/tenants', icon: HiOutlineOfficeBuilding },
   { name: 'Users', href: '/users', icon: HiOutlineUsers },
   { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar },

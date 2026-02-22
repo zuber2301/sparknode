@@ -1,6 +1,5 @@
 import { useAuthStore } from '../store/authStore'
 import { Navigate } from 'react-router-dom'
-import PlatformAdminDashboard from './dashboards/PlatformAdminDashboard'
 import TenantManagerDashboard from './dashboards/TenantManagerDashboard'
 import DeptLeadDashboard from './dashboards/DeptLeadDashboard'
 import EmployeeDashboard from './dashboards/EmployeeDashboard'
@@ -15,9 +14,9 @@ export default function Dashboard() {
   const effectiveRole = getEffectiveRole()
   const isPlatformUser = isPlatformOwnerUser()
 
-  // Route to appropriate dashboard based on role
+  // Platform admins go directly to Tenants — Dashboard is redundant
   if (isPlatformUser) {
-    return <PlatformAdminDashboard />
+    return <Navigate to="/platform/tenants" replace />
   }
 
   switch (effectiveRole) {

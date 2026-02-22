@@ -1003,9 +1003,9 @@ export default function PlatformTenants() {
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3">
+          <div className="bg-white px-5 py-3 rounded-full border-2 border-violet-500 flex items-center gap-3">
             {isFetching && !isLoading ? (
-              <svg className="w-5 h-5 text-indigo-400 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-violet-400 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
               </svg>
@@ -1016,8 +1016,8 @@ export default function PlatformTenants() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 bg-transparent border-none focus:ring-0 text-gray-900 placeholder-gray-400 text-sm"
-              placeholder="Search organizations by name, domain, or slug..."
+              className="flex-1 bg-transparent border-none outline-none focus:ring-0 text-gray-900 placeholder-gray-400 text-sm"
+              placeholder="Search tenants by name or slug..."
               autoComplete="off"
             />
             <div className="h-6 w-px bg-gray-200 mx-2" />
