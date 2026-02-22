@@ -75,7 +75,7 @@ function BrandLogo({ brand, imageUrl, size = 'w-8 h-8' }) {
 
   if (failed) {
     return (
-      <div className={`${size} rounded-lg bg-gradient-to-br from-violet-100 to-indigo-100 flex items-center justify-center text-xs font-bold text-violet-600 border border-violet-100 shrink-0`}>
+      <div className={`${size} rounded-xl bg-blue-600 flex items-center justify-center text-sm font-bold text-white shrink-0`}>
         {(brand || '?').charAt(0).toUpperCase()}
       </div>
     )
@@ -86,7 +86,7 @@ function BrandLogo({ brand, imageUrl, size = 'w-8 h-8' }) {
       src={src}
       alt={brand}
       onError={handleError}
-      className={`${size} rounded-lg object-contain bg-white border border-gray-100 shrink-0`}
+      className={`${size} rounded-xl object-contain bg-white border border-slate-200 shrink-0`}
     />
   )
 }
@@ -295,163 +295,175 @@ export default function PlatformCatalog() {
   const inactive = items.length - active
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      {/* Header */}
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
-              <HiOutlineGlobeAlt className="w-4 h-4 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900">Global Rewards Catalog</h1>
+    <div className="min-h-screen bg-slate-100 p-6">
+
+      {/* ── Page header ─────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 px-6 py-5 mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center shadow-sm shrink-0">
+            <HiOutlineGlobeAlt className="w-6 h-6 text-white" />
           </div>
-          <p className="text-sm text-gray-500">Platform-wide master catalog. Tenants configure visibility & point ranges from this library.</p>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 leading-tight">Global Rewards Catalog</h1>
+            <p className="text-sm text-gray-500 mt-0.5">Platform-wide master catalog — tenants configure visibility &amp; point ranges from this library.</p>
+          </div>
         </div>
         <button
           onClick={() => { setEditItem(null); setShowModal(true) }}
-          className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 shadow-sm"
+          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 shadow-sm transition-colors"
         >
           <HiOutlinePlus className="w-4 h-4" />
           Add Item
         </button>
       </div>
 
-      {/* Stats bar */}
+      {/* ── Stats bar ────────────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         {[
-          { label: 'Total Items', value: items.length, color: 'text-gray-800' },
-          { label: 'Active Globally', value: active, color: 'text-green-600' },
-          { label: 'Paused', value: inactive, color: 'text-red-500' },
+          { label: 'Total Items',     value: items.length, bg: 'bg-blue-600',  text: 'text-white',      sub: 'text-blue-100' },
+          { label: 'Active Globally', value: active,       bg: 'bg-emerald-600', text: 'text-white',    sub: 'text-emerald-100' },
+          { label: 'Paused',          value: inactive,     bg: 'bg-white',     text: 'text-slate-800',  sub: 'text-slate-400', border: 'border border-slate-200' },
         ].map(s => (
-          <div key={s.label} className="bg-white rounded-2xl border border-gray-100 px-5 py-4 shadow-sm">
-            <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
-            <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
+          <div key={s.label} className={`${s.bg} ${s.border || ''} rounded-2xl px-6 py-5 shadow-sm`}>
+            <div className={`text-4xl font-extrabold leading-none ${s.text}`}>{s.value}</div>
+            <div className={`text-sm font-medium mt-2 ${s.sub}`}>{s.label}</div>
           </div>
         ))}
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 mb-4 flex items-center gap-3">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <HiMagnifyingGlass className="w-4 h-4 text-gray-400 shrink-0" />
+      {/* ── Filter bar ───────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm px-5 py-3.5 mb-5 flex items-center gap-4">
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          <HiMagnifyingGlass className="w-5 h-5 text-slate-400 shrink-0" />
           <input
-            className="w-full text-sm outline-none text-gray-700 placeholder-gray-400"
+            className="w-full text-sm outline-none text-slate-700 placeholder-slate-400 bg-transparent"
             placeholder="Search brand or item name…"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
           {search && (
-            <button onClick={() => setSearch('')} className="text-gray-400 hover:text-gray-600">
+            <button onClick={() => setSearch('')} className="text-slate-400 hover:text-slate-600">
               <HiXMark className="w-4 h-4" />
             </button>
           )}
         </div>
-        <div className="h-5 w-px bg-gray-200" />
-        <div className="flex gap-2 shrink-0">
+        <div className="h-6 w-px bg-slate-200 shrink-0" />
+        <div className="flex gap-2 shrink-0 flex-wrap">
           <button
             onClick={() => setCategoryFilter('')}
-            className={`px-3 py-1 text-xs rounded-full font-medium transition-all ${!categoryFilter ? 'bg-violet-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+            className={`px-4 py-1.5 text-sm rounded-lg font-medium transition-all ${!categoryFilter ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
           >All</button>
           {categories.map(c => (
             <button key={c}
               onClick={() => setCategoryFilter(c === categoryFilter ? '' : c)}
-              className={`px-3 py-1 text-xs rounded-full font-medium capitalize transition-all ${categoryFilter === c ? 'bg-violet-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              className={`px-4 py-1.5 text-sm rounded-lg font-medium capitalize transition-all ${categoryFilter === c ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
             >{c}</button>
           ))}
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="py-16 text-center text-gray-400 text-sm">Loading catalog…</div>
-        ) : items.length === 0 ? (
-          <div className="py-16 text-center">
-            <HiOutlineSparkles className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-            <p className="text-gray-400 text-sm">No catalog items yet. Add the first one!</p>
-          </div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Brand / Item</th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Category</th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Type</th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Points Band</th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Provider SKU</th>
-                <th className="text-center px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-                <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {items.map(item => (
-                <tr key={item.id} className={`hover:bg-gray-50 transition-colors ${!item.is_active_global ? 'opacity-50' : ''}`}>
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-3">
-                      <BrandLogo brand={item.brand} imageUrl={item.image_url} />
-                      <div>
-                        <div className="font-semibold text-gray-800">{item.brand}</div>
-                        <div className="text-xs text-gray-400 mt-0.5">{item.name}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-3 py-3.5">
-                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${catClass(item.category)}`}>
-                      {item.category}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3.5 text-xs text-gray-600">
+      {/* ── Card Grid ────────────────────────────────────────── */}
+      {isLoading ? (
+        <div className="py-20 text-center text-slate-400 text-base">Loading catalog…</div>
+      ) : items.length === 0 ? (
+        <div className="py-20 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
+          <HiOutlineSparkles className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+          <p className="text-slate-400 text-base font-medium">No catalog items yet.</p>
+          <p className="text-slate-300 text-sm mt-1">Click "Add Item" to get started.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
+          {items.map(item => (
+            <div
+              key={item.id}
+              className={`bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden ${
+                !item.is_active_global ? 'opacity-50' : ''
+              }`}
+            >
+              {/* Brand header */}
+              <div className="px-5 pt-5 pb-4 flex items-center gap-3">
+                <BrandLogo brand={item.brand} imageUrl={item.image_url} size="w-12 h-12" />
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold text-gray-900 truncate text-base leading-snug">{item.brand}</div>
+                  <div className="text-sm text-gray-500 truncate mt-0.5 leading-snug">{item.name}</div>
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="h-px bg-slate-100 mx-0" />
+
+              {/* Body */}
+              <div className="px-5 py-4 flex-1 space-y-3">
+                {/* Category + type row */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold capitalize ${catClass(item.category)}`}>
+                    {item.category}
+                  </span>
+                  <span className="px-2.5 py-1 text-xs font-medium text-slate-500 bg-slate-100 rounded-lg">
                     {FULFILLMENT_LABELS[item.fulfillment_type] || item.fulfillment_type}
-                  </td>
-                  <td className="px-3 py-3.5">
-                    <span className="font-mono text-xs text-violet-600 bg-violet-50 px-2 py-0.5 rounded-md">
-                      {Number(item.min_points).toLocaleString()} – {Number(item.max_points).toLocaleString()} pts
-                    </span>
-                  </td>
-                  <td className="px-3 py-3.5 text-xs text-gray-400 font-mono">
-                    {item.provider_code || <span className="italic">—</span>}
-                  </td>
-                  <td className="px-3 py-3.5 text-center">
-                    <button
-                      onClick={() => toggleMutation.mutate(item.id)}
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
-                        item.is_active_global
-                          ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                          : 'bg-red-100 text-red-600 hover:bg-red-200'
-                      }`}
-                    >
-                      {item.is_active_global ? <HiOutlineEye className="w-3 h-3" /> : <HiOutlineEyeSlash className="w-3 h-3" />}
-                      {item.is_active_global ? 'Active' : 'Paused'}
-                    </button>
-                  </td>
-                  <td className="px-5 py-3.5 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => { setEditItem(item); setShowModal(true) }}
-                        className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
-                        title="Edit"
-                      >
-                        <HiOutlinePencil className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (confirm(`Delete "${item.name}"? This will also remove all tenant overrides.`)) {
-                            deleteMutation.mutate(item.id)
-                          }
-                        }}
-                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete"
-                      >
-                        <HiOutlineTrash className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+                  </span>
+                </div>
+
+                {/* Points band — prominent */}
+                <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5">
+                  <div className="text-xs text-blue-500 font-semibold uppercase tracking-wide mb-0.5">Points Range</div>
+                  <div className="font-bold text-blue-700 text-base font-mono">
+                    {Number(item.min_points).toLocaleString()} – {Number(item.max_points).toLocaleString()}
+                    <span className="text-blue-400 font-normal text-sm ml-1">pts</span>
+                  </div>
+                </div>
+
+                {/* SKU */}
+                {item.provider_code ? (
+                  <div className="text-sm text-slate-400 font-mono truncate" title={item.provider_code}>
+                    SKU: {item.provider_code}
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-300 italic">No provider SKU</div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="h-px bg-slate-100" />
+              <div className="px-5 py-3 flex items-center justify-between">
+                <button
+                  onClick={() => toggleMutation.mutate(item.id)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                    item.is_active_global
+                      ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                      : 'bg-red-50 text-red-600 hover:bg-red-100'
+                  }`}
+                >
+                  {item.is_active_global
+                    ? <HiOutlineEye className="w-4 h-4" />
+                    : <HiOutlineEyeSlash className="w-4 h-4" />}
+                  {item.is_active_global ? 'Active' : 'Paused'}
+                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => { setEditItem(item); setShowModal(true) }}
+                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Edit"
+                  >
+                    <HiOutlinePencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Delete "${item.name}"? This will also remove all tenant overrides.`)) {
+                        deleteMutation.mutate(item.id)
+                      }
+                    }}
+                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete"
+                  >
+                    <HiOutlineTrash className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Modal */}
       {showModal && (

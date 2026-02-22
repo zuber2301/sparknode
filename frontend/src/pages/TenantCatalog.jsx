@@ -31,7 +31,7 @@ function Toggle({ checked, onChange, loading }) {
       onClick={onChange}
       disabled={loading}
       className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
-        checked ? 'bg-violet-600' : 'bg-gray-200'
+        checked ? 'bg-blue-600' : 'bg-gray-200'
       } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
     >
       <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
@@ -98,7 +98,7 @@ function OverrideDrawer({ item, onClose, onSaved }) {
               <div key={k}>
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</label>
                 <input type="number"
-                  className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+                  className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                   value={form[k]}
                   onChange={e => set(k, e.target.value)}
                   placeholder="(global)"
@@ -109,7 +109,7 @@ function OverrideDrawer({ item, onClose, onSaved }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Visibility</label>
-              <select className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"
+              <select className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
                 value={form.visibility_scope} onChange={e => set('visibility_scope', e.target.value)}>
                 <option value="all">All employees</option>
                 <option value="dept">By Department</option>
@@ -128,7 +128,7 @@ function OverrideDrawer({ item, onClose, onSaved }) {
           <button
             onClick={() => saveMutation.mutate()}
             disabled={saveMutation.isPending}
-            className="px-5 py-2 text-sm rounded-lg bg-violet-600 text-white font-semibold hover:bg-violet-700 disabled:opacity-50"
+            className="px-5 py-2 text-sm rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-50"
           >
             {saveMutation.isPending ? 'Saving…' : 'Save Overrides'}
           </button>
@@ -176,17 +176,17 @@ function CustomItemModal({ item, onClose }) {
         <div className="px-6 py-5 grid grid-cols-2 gap-4 max-h-[65vh] overflow-y-auto">
           <div className="col-span-2">
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Item Name *</label>
-            <input className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+            <input className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
               value={form.name} onChange={e => set('name', e.target.value)} placeholder="Company Swag Bag, Extra Day Off…" />
           </div>
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Category</label>
-            <input className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+            <input className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
               value={form.category} onChange={e => set('category', e.target.value)} />
           </div>
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Fulfillment</label>
-            <select className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"
+            <select className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
               value={form.fulfillment_type} onChange={e => set('fulfillment_type', e.target.value)}>
               <option value="custom">Custom / Internal</option>
               <option value="merchandise">Merchandise</option>
@@ -195,27 +195,27 @@ function CustomItemModal({ item, onClose }) {
           </div>
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Points Cost *</label>
-            <input type="number" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+            <input type="number" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
               value={form.points_cost} onChange={e => set('points_cost', e.target.value)} placeholder="500" />
           </div>
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Inventory</label>
-            <input type="number" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+            <input type="number" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
               value={form.inventory_count} onChange={e => set('inventory_count', e.target.value)} placeholder="(unlimited)" />
           </div>
           <div className="col-span-2">
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Image URL</label>
-            <input className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+            <input className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
               value={form.image_url} onChange={e => set('image_url', e.target.value)} placeholder="https://…" />
           </div>
           <div className="col-span-2">
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Description</label>
-            <textarea rows={2} className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 resize-none"
+            <textarea rows={2} className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
               value={form.description} onChange={e => set('description', e.target.value)} />
           </div>
           <div className="col-span-2">
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Terms & Conditions</label>
-            <textarea rows={2} className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 resize-none"
+            <textarea rows={2} className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
               value={form.terms_conditions} onChange={e => set('terms_conditions', e.target.value)} />
           </div>
         </div>
@@ -224,7 +224,7 @@ function CustomItemModal({ item, onClose }) {
           <button
             onClick={() => saveMutation.mutate({ ...form, points_cost: Number(form.points_cost), inventory_count: form.inventory_count !== '' ? Number(form.inventory_count) : null })}
             disabled={saveMutation.isPending || !form.name || !form.points_cost}
-            className="px-5 py-2 text-sm rounded-lg bg-violet-600 text-white font-semibold hover:bg-violet-700 disabled:opacity-50"
+            className="px-5 py-2 text-sm rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-50"
           >
             {saveMutation.isPending ? 'Saving…' : 'Save'}
           </button>
@@ -338,12 +338,12 @@ function GlobalCatalogTab() {
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4 mb-5">
         {[
-          { label: 'Total Rewards',          value: items.length,  color: 'text-gray-800'   },
-          { label: 'Enabled for Employees',  value: enabledCount,  color: 'text-green-600'  },
-          { label: 'Hidden',                 value: items.length - enabledCount, color: 'text-gray-400' },
-          { label: 'Custom Points Set',      value: customCount,   color: 'text-amber-600'  },
+          { label: 'Total Rewards',          value: items.length,  color: 'text-blue-700',  border: 'border-blue-200'  },
+          { label: 'Enabled for Employees',  value: enabledCount,  color: 'text-green-600', border: 'border-green-200' },
+          { label: 'Hidden',                 value: items.length - enabledCount, color: 'text-gray-400', border: 'border-gray-200' },
+          { label: 'Custom Points Set',      value: customCount,   color: 'text-amber-600', border: 'border-amber-200' },
         ].map(s => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-100 px-4 py-3 shadow-sm">
+          <div key={s.label} className={`bg-white rounded-xl border ${s.border} px-4 py-3 shadow-sm`}>
             <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
             <div className="text-xs text-gray-400 mt-0.5">{s.label}</div>
           </div>
@@ -351,7 +351,7 @@ function GlobalCatalogTab() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-100 px-4 py-3 mb-4 flex items-center gap-3">
+      <div className="bg-white rounded-xl border border-blue-100 px-4 py-3 mb-4 flex items-center gap-3">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <HiMagnifyingGlass className="w-4 h-4 text-gray-400 shrink-0" />
           <input className="w-full text-sm outline-none placeholder-gray-400"
@@ -365,12 +365,12 @@ function GlobalCatalogTab() {
         <div className="h-5 w-px bg-gray-200" />
         <div className="flex gap-2 shrink-0 flex-wrap">
           <button onClick={() => setCatFilter('')}
-            className={`px-3 py-1 text-xs rounded-full font-medium ${!catFilter ? 'bg-violet-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+            className={`px-3 py-1 text-xs rounded-full font-medium ${!catFilter ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'}`}>
             All
           </button>
           {cats.map(c => (
             <button key={c} onClick={() => setCatFilter(c === catFilter ? '' : c)}
-              className={`px-3 py-1 text-xs rounded-full font-medium capitalize ${catFilter === c ? 'bg-violet-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+              className={`px-3 py-1 text-xs rounded-full font-medium capitalize ${catFilter === c ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'}`}>
               {c}
             </button>
           ))}
@@ -423,7 +423,7 @@ function GlobalCatalogTab() {
                 className={`relative flex flex-col bg-white rounded-2xl border shadow-sm overflow-hidden transition-all duration-200 ${
                   dirty
                     ? 'border-amber-300 ring-2 ring-amber-100 shadow-amber-100'
-                    : 'border-gray-100 hover:border-gray-200 hover:shadow-md'
+                    : 'border-blue-100 hover:border-blue-300 hover:shadow-md'
                 } ${!item.is_enabled ? 'opacity-60' : ''}`}
               >
                 {/* Unsaved badge */}
@@ -434,7 +434,7 @@ function GlobalCatalogTab() {
                 )}
 
                 {/* Brand image / placeholder */}
-                <div className="h-28 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center relative overflow-hidden">
+                <div className="h-28 bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center relative overflow-hidden">
                   {item.image_url ? (
                     <img
                       src={item.image_url}
@@ -443,7 +443,7 @@ function GlobalCatalogTab() {
                       onError={e => { e.currentTarget.style.display = 'none' }}
                     />
                   ) : (
-                    <span className="text-4xl font-extrabold text-gray-200 select-none">
+                    <span className="text-4xl font-extrabold text-blue-200 select-none">
                       {item.brand?.charAt(0)}
                     </span>
                   )}
@@ -489,7 +489,7 @@ function GlobalCatalogTab() {
                             ? 'border-amber-300 bg-amber-50 text-amber-800 focus:ring-amber-300'
                             : hasCustom
                             ? 'border-amber-200 bg-amber-50 text-amber-700 focus:ring-amber-300'
-                            : 'border-gray-200 text-gray-800 focus:ring-violet-400'
+                            : 'border-blue-200 text-gray-800 focus:ring-blue-400'
                         }`}
                         value={inputVal}
                         onChange={e => setDraftPoints(item.master_item_id, e.target.value)}
@@ -543,7 +543,7 @@ function GlobalCatalogTab() {
                   </div>
 
                   {/* Visibility toggle */}
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                  <div className="flex items-center justify-between pt-2 border-t border-blue-50">
                     <span className="text-xs text-gray-500">Employee Visible</span>
                     <Toggle
                       checked={item.is_enabled}
@@ -599,7 +599,7 @@ function CustomItemsTab() {
         </p>
         <button
           onClick={() => { setEditItem(null); setShowModal(true) }}
-          className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white text-xs font-semibold rounded-xl hover:bg-violet-700 shadow-sm"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 shadow-sm"
         >
           <HiOutlinePlus className="w-4 h-4" />
           Add Custom Item
@@ -609,21 +609,21 @@ function CustomItemsTab() {
       {isLoading ? (
         <div className="py-12 text-center text-gray-400 text-sm">Loading…</div>
       ) : items.length === 0 ? (
-        <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-gray-200">
-          <HiOutlineSparkles className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+        <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-blue-200">
+          <HiOutlineSparkles className="w-10 h-10 text-blue-200 mx-auto mb-3" />
           <p className="text-gray-400 text-sm font-medium">No custom items yet</p>
           <p className="text-gray-300 text-xs mt-1">Add company-specific perks your employees can redeem</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           {items.map(item => (
-            <div key={item.id} className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden transition-opacity ${!item.is_active ? 'opacity-50' : ''}`}>
+            <div key={item.id} className={`bg-white rounded-2xl border border-blue-100 shadow-sm overflow-hidden transition-opacity hover:shadow-md hover:border-blue-300 ${!item.is_active ? 'opacity-50' : ''}`}>
               {/* Image / placeholder */}
-              <div className="h-28 bg-gradient-to-br from-violet-50 to-indigo-50 flex items-center justify-center relative">
+              <div className="h-28 bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center relative">
                 {item.image_url ? (
                   <img src={item.image_url} alt={item.name} className="h-full w-full object-cover" />
                 ) : (
-                  <HiOutlineSparkles className="w-10 h-10 text-violet-200" />
+                  <HiOutlineSparkles className="w-10 h-10 text-blue-200" />
                 )}
                 <span className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-xs font-medium capitalize ${catClass(item.category)}`}>
                   {item.category}
@@ -636,7 +636,7 @@ function CustomItemsTab() {
                   <div className="text-xs text-gray-400 mt-0.5 line-clamp-1">{item.description}</div>
                 )}
                 <div className="mt-2 flex items-center justify-between">
-                  <span className="font-mono text-sm font-bold text-violet-600">
+                  <span className="font-mono text-sm font-bold text-blue-600">
                     {Number(item.points_cost).toLocaleString()} pts
                   </span>
                   {item.inventory_count !== null ? (
@@ -647,7 +647,7 @@ function CustomItemsTab() {
                 </div>
               </div>
               {/* Actions */}
-              <div className="px-4 py-2 border-t border-gray-100 flex items-center justify-between">
+              <div className="px-4 py-2 border-t border-blue-50 flex items-center justify-between">
                 <Toggle
                   checked={item.is_active}
                   onChange={() => toggleActiveMutation.mutate(item)}
@@ -656,7 +656,7 @@ function CustomItemsTab() {
                 <div className="flex gap-1">
                   <button
                     onClick={() => { setEditItem(item); setShowModal(true) }}
-                    className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
+                    className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                   >
                     <HiOutlinePencil className="w-4 h-4" />
                   </button>
@@ -692,11 +692,11 @@ export default function TenantCatalog() {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-blue-50/40 p-6">
       {/* Page Header */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
             <HiOutlineShoppingBag className="w-4 h-4 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Company Rewards Catalog</h1>
@@ -716,7 +716,7 @@ export default function TenantCatalog() {
               onClick={() => setTab(t.id)}
               className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
                 tab === t.id
-                  ? 'bg-white border border-violet-200 text-violet-700 shadow-sm'
+                  ? 'bg-white border border-blue-200 text-blue-700 shadow-sm'
                   : 'text-gray-500 hover:text-gray-700 hover:bg-white hover:shadow-sm border border-transparent'
               }`}
             >

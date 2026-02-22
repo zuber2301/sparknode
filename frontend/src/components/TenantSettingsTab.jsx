@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { platformAPI } from '../lib/api';
 import toast from 'react-hot-toast';
+import { formatDisplayValue } from '../lib/currency';
 import './TenantSettingsTab.css';
 
 export default function TenantSettingsTab({ tenant, onUpdate, setMessage }) {

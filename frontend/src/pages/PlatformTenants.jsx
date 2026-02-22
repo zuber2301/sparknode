@@ -583,44 +583,44 @@ export default function PlatformTenants() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-blue-50 rounded-xl">
-            <HiOutlineOfficeBuilding className="w-6 h-6 text-blue-600" />
+        <div className="bg-blue-50 border border-blue-100 p-5 rounded-2xl shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+              <HiOutlineOfficeBuilding className="w-4 h-4 text-blue-600" />
+            </div>
+            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Total Tenants</p>
           </div>
-          <div>
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Total Tenants</p>
-            <p className="text-xl font-bold text-gray-900">{stats.totalTenants}</p>
-          </div>
+          <p className="text-3xl font-extrabold text-blue-700 leading-none">{stats.totalTenants}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-green-50 rounded-xl">
-            <HiOutlineCheckCircle className="w-6 h-6 text-green-600" />
+        <div className="bg-emerald-50 border border-emerald-100 p-5 rounded-2xl shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+              <HiOutlineCheckCircle className="w-4 h-4 text-emerald-600" />
+            </div>
+            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Active Orgs</p>
           </div>
-          <div>
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Active Orgs</p>
-            <p className="text-xl font-bold text-gray-900">{stats.activeTenants}</p>
-          </div>
+          <p className="text-3xl font-extrabold text-emerald-700 leading-none">{stats.activeTenants}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-purple-50 rounded-xl">
-            <HiOutlinePlus className="w-6 h-6 text-purple-600" />
+        <div className="bg-purple-50 border border-purple-100 p-5 rounded-2xl shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+              <HiOutlineShieldCheck className="w-4 h-4 text-purple-600" />
+            </div>
+            <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest">Enterprise Tier</p>
           </div>
-          <div>
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Enterprise Tier</p>
-            <p className="text-xl font-bold text-gray-900">{stats.enterpriseTenants}</p>
-          </div>
+          <p className="text-3xl font-extrabold text-purple-700 leading-none">{stats.enterpriseTenants}</p>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-indigo-50 rounded-xl">
-            <HiOutlineCurrencyRupee className="w-6 h-6 text-indigo-600" />
+        <div className="bg-indigo-50 border border-indigo-100 p-5 rounded-2xl shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+              <HiOutlineCurrencyRupee className="w-4 h-4 text-indigo-600" />
+            </div>
+            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Total Balance</p>
           </div>
-          <div>
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Total Balance</p>
-            <p className="text-xl font-bold text-gray-900">{formatDisplayValue(stats.totalBalance, 'INR')}</p>
-          </div>
+          <p className="text-2xl font-extrabold text-indigo-700 leading-none">{formatDisplayValue(stats.totalBalance, 'INR')}</p>
         </div>
       </div>
 
@@ -716,39 +716,40 @@ export default function PlatformTenants() {
               <div className="space-y-6 max-w-4xl">
                 <OrganizationInfoCard tenant={selectedTenant} />
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                  {[
-                    { title: 'Total Budget Allocated', value: formatDisplayValue(Number(selectedTenant?.total_allocated || 0), selectedTenant?.display_currency || 'INR') , subtitle: 'Lifetime Allocations'},
-                    { title: 'Total Spent', value: formatDisplayValue(Number(selectedTenant?.total_spent || 0), selectedTenant?.display_currency || 'INR'), subtitle: 'Redeemed / Debited'},
-                    { title: 'Budget Remaining', value: formatDisplayValue(Number(selectedTenant?.master_budget_balance || 0), selectedTenant?.display_currency || 'INR'), subtitle: 'Current Master Balance'},
-                    { title: 'Total Users', value: `${selectedTenant?.user_count || 0}`, subtitle: 'Managers / Leads / Employees'},
-                  ].map((c) => (
-                    <div key={c.title} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
-                      <div>
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wider">{c.title}</p>
-                        <div className="mt-3 flex items-center gap-3">
-                          <p className="text-2xl font-extrabold text-gray-900 leading-none">{c.value}</p>
-                        </div>
+                {/* ── Tenant Financials ──────────────────────────────────── */}
+                <div>
+                  <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Financial Position</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                    {[
+                      { title: 'Budget Remaining', value: formatDisplayValue(Number(selectedTenant?.master_budget_balance || 0), selectedTenant?.display_currency || 'INR'), sub: 'Available to distribute', bg: 'bg-indigo-50', border: 'border-indigo-100', label: 'text-indigo-400', val: 'text-indigo-700' },
+                      { title: 'Total Allocated', value: formatDisplayValue(Number(selectedTenant?.total_allocated || 0), selectedTenant?.display_currency || 'INR'), sub: 'Lifetime allocations', bg: 'bg-gray-50', border: 'border-gray-200', label: 'text-gray-400', val: 'text-gray-800' },
+                      { title: 'Total Spent', value: formatDisplayValue(Number(selectedTenant?.total_spent || 0), selectedTenant?.display_currency || 'INR'), sub: 'Redeemed / debited', bg: 'bg-orange-50', border: 'border-orange-100', label: 'text-orange-400', val: 'text-orange-700' },
+                      { title: 'Total Users', value: `${selectedTenant?.user_count || 0}`, sub: 'Managers · Employees', bg: 'bg-blue-50', border: 'border-blue-100', label: 'text-blue-400', val: 'text-blue-700' },
+                    ].map((c) => (
+                      <div key={c.title} className={`${c.bg} border ${c.border} p-5 rounded-2xl shadow-sm`}>
+                        <p className={`text-[10px] font-bold ${c.label} uppercase tracking-widest`}>{c.title}</p>
+                        <p className={`text-xl font-extrabold ${c.val} mt-2 leading-none`}>{c.value}</p>
+                        <p className={`text-xs ${c.label} mt-1.5`}>{c.sub}</p>
                       </div>
-                      <p className="mt-3 text-xs text-gray-500">{c.subtitle}</p>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
 
                 {/* Budget quick actions shortcut */}
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setActiveTab('economic')}
-                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2.5 px-4 rounded-lg shadow-sm shadow-indigo-200 transition-all"
+                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold py-3 px-5 rounded-xl shadow-sm shadow-indigo-200 transition-all"
                   >
                     <HiOutlineCurrencyRupee className="w-4 h-4" />
                     Manage Budget
                   </button>
-                  <span className="text-xs text-gray-400">Load or recall budget, configure currency &amp; markup</span>
+                  <span className="text-sm text-gray-400">Load or recall budget, configure currency &amp; markup</span>
                 </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-                  <h3 className="text-sm font-bold text-gray-800 mb-3">Engagement Metrics</h3>
+                {/* ── Engagement Metrics ───────────────────────────────── */}
+                <div>
+                  <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Engagement Metrics</h3>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       {(() => {
                         const recognitionsThisMonth = selectedTenant?.recent_recognitions_count ?? selectedTenant?.total_recognitions ?? 0
@@ -785,29 +786,22 @@ export default function PlatformTenants() {
                         return cards.map((c) => {
                           const change = pct(c.value === '—' ? 0 : Number(String(c.value).replace(/[^0-9.-]+/g, '')), c.prev)
                           return (
-                            <div key={c.title} className="p-4 bg-gray-50 rounded-lg border border-gray-100 flex items-center gap-3 justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-md bg-white shadow-sm flex items-center justify-center">{c.svg}</div>
-                                <div>
-                                  <p className="text-xs text-gray-400 uppercase tracking-wider">{c.title}</p>
-                                  <p className="mt-2 text-sm font-semibold text-gray-900">{c.value}</p>
-                                </div>
-                              </div>
-                              <div>
+                            <div key={c.title} className="bg-gray-50 border border-gray-100 p-5 rounded-2xl shadow-sm flex flex-col gap-3">
+                              <div className="flex items-center justify-between">
+                                <div className="w-9 h-9 rounded-xl bg-white border border-gray-100 shadow-sm flex items-center justify-center shrink-0">{c.svg}</div>
                                 {change !== null ? (
-                                  <div className={`inline-flex items-center gap-1 text-sm font-semibold ${change > 0 ? 'text-green-600' : change < 0 ? 'text-red-600' : 'text-gray-500'}`}>
-                                    {change > 0 ? (
-                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 5v14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 12l7-7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                    ) : change < 0 ? (
-                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 19V5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M19 12l-7 7-7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                    ) : (
-                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>
-                                    )}
-                                    <span>{Math.abs(change)}%</span>
+                                  <div className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg ${
+                                    change > 0 ? 'bg-emerald-50 text-emerald-600' : change < 0 ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'
+                                  }`}>
+                                    {change > 0 ? '↑' : change < 0 ? '↓' : '·'} {Math.abs(change)}%
                                   </div>
                                 ) : (
-                                  <div className="text-xs text-gray-400">—</div>
+                                  <div className="text-xs text-gray-300">—</div>
                                 )}
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{c.title}</p>
+                                <p className="text-xl font-extrabold text-gray-800 mt-1 leading-none">{c.value}</p>
                               </div>
                             </div>
                           )
@@ -816,9 +810,11 @@ export default function PlatformTenants() {
                     </div>
                 </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm mt-4">
-                  <h3 className="text-sm font-bold text-gray-800 mb-3">Burn Rate Trend</h3>
-                  <div>
+                {/* ── Burn Rate Trend ──────────────────────────────────── */}
+                <div>
+                  <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Burn Rate Trend</h3>
+                  <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5">
+                    <div>
                     {chartDataForSelected && chartDataForSelected.length > 0 ? (
                       <div style={{ width: '100%', height: 220 }}>
                         <ResponsiveContainer width="100%" height="100%">
@@ -838,10 +834,20 @@ export default function PlatformTenants() {
                       </div>
                     )}
 
-                    <div className="mt-3 text-sm text-gray-500 flex items-center justify-center gap-8">
-                      <div><div className="text-xs text-gray-500">Credits</div><div className="font-bold text-gray-900">{formatDisplayValue(chartTotalsForSelected.credits, selectedTenant?.display_currency || 'INR')}</div></div>
-                      <div><div className="text-xs text-gray-500">Debits</div><div className="font-bold text-gray-900">{formatDisplayValue(chartTotalsForSelected.debits, selectedTenant?.display_currency || 'INR')}</div></div>
-                      <div><div className="text-xs text-gray-500">Net</div><div className="font-bold text-gray-900">{formatDisplayValue(chartTotalsForSelected.net, selectedTenant?.display_currency || 'INR')}</div></div>
+                    <div className="mt-4 flex items-center justify-center gap-8">
+                      <div className="text-center">
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Credits</div>
+                        <div className="text-base font-extrabold text-gray-800 mt-0.5">{formatDisplayValue(chartTotalsForSelected.credits, selectedTenant?.display_currency || 'INR')}</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Debits</div>
+                        <div className="text-base font-extrabold text-gray-800 mt-0.5">{formatDisplayValue(chartTotalsForSelected.debits, selectedTenant?.display_currency || 'INR')}</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Net</div>
+                        <div className="text-base font-extrabold text-gray-800 mt-0.5">{formatDisplayValue(chartTotalsForSelected.net, selectedTenant?.display_currency || 'INR')}</div>
+                      </div>
+                    </div>
                     </div>
                   </div>
                 </div>
