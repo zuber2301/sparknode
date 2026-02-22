@@ -320,7 +320,6 @@ class User(Base):
     wallet = relationship("Wallet", back_populates="user", uselist=False)
     recognitions_given = relationship("Recognition", foreign_keys="Recognition.from_user_id", back_populates="from_user")
     recognitions_received = relationship("Recognition", foreign_keys="Recognition.to_user_id", back_populates="to_user")
-    lead_budgets = relationship("LeadBudget", back_populates="user")
     system_admin = relationship("SystemAdmin", back_populates="user", uselist=False)
     
     @property
@@ -458,59 +457,11 @@ class DepartmentBudget(Base):
     # Relationships
     budget = relationship("Budget", back_populates="department_budgets")
     department = relationship("Department", back_populates="department_budgets")
-    lead_budgets = relationship("LeadBudget", back_populates="department_budget")
     
     @property
     def remaining_points(self):
         return float(self.allocated_points) - float(self.spent_points)
 
-
-class LeadBudget(Base):
-    """
-    Budget allocation for individual Tenant Leads or Managers.
-    Allows tracking how points from a department budget are sliced for specific leads.
-    """
-    __tablename__ = "lead_budgets"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
-    department_budget_id = Column(UUID(as_uuid=True), ForeignKey("department_budgets.id", ondelete="CASCADE"), nullable=False)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    
-    total_points = Column(Numeric(15, 2), nullable=False, default=0)
-    spent_points = Column(Numeric(15, 2), nullable=False, default=0)
-    
-    status = Column(String(50), default='active')
-    expiry_date = Column(Date)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
-    # Relationships
-    department_budget = relationship("DepartmentBudget", back_populates="lead_budgets")
-    user = relationship("User", back_populates="lead_budgets")
-    recognitions_given = relationship("Recognition", back_populates="lead_budget")
-
-    @property
-    def remaining_points(self):
-        return float(self.total_points) - float(self.spent_points)
-
-    @property
-    def usage_percentage(self):
-        """Returns how much of the budget has been used in %"""
-        if float(self.total_points) == 0:
-            return 0
-        return (float(self.spent_points) / float(self.total_points)) * 100
-
-    @property
-    def remaining_percentage(self):
-        """Returns how much of the budget is remaining in %"""
-        if float(self.total_points) == 0:
-            return 0
-        return (self.remaining_points / float(self.total_points)) * 100
-
-    @property
-    def user_name(self):
-        return f"{self.user.first_name} {self.user.last_name}" if self.user else "Unknown"
 
 
 class Wallet(Base):
@@ -606,7 +557,6 @@ class Recognition(Base):
     visibility = Column(String(20), default='public')  # public/private/department
     status = Column(String(50), default='active')  # pending/active/rejected/revoked
     department_budget_id = Column(UUID(as_uuid=True), ForeignKey("department_budgets.id"))
-    lead_budget_id = Column(UUID(as_uuid=True), ForeignKey("lead_budgets.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
@@ -616,7 +566,6 @@ class Recognition(Base):
     badge = relationship("Badge", back_populates="recognitions")
     comments = relationship("RecognitionComment", back_populates="recognition")
     reactions = relationship("RecognitionReaction", back_populates="recognition")
-    lead_budget = relationship("LeadBudget", back_populates="recognitions_given")
 
 
 class RecognitionComment(Base):

@@ -10,7 +10,6 @@ import { formatDisplayValue } from '../lib/currency'
  * Master view of budget distribution across the entire platform:
  * - Unallocated: Budget sitting in platform reserve
  * - Allocated: Budget in tenant pools (ready to distribute)
- * - Delegated: Budget with team leads
  * - Spendable: Budget in employee wallets
  */
 export default function PlatformAdminBudgetLedger() {
@@ -38,25 +37,21 @@ export default function PlatformAdminBudgetLedger() {
     const platformTotal = Number(stats.total_platform_budget) || 0
     
     let allocatedTotal = 0
-    let delegatedTotal = 0
     let spendableTotal = 0
 
     const tenantBreakdown = tenants.map(tenant => {
       const tenantAllocated = Number(tenant.budget_allocated) || 0
-      const tenantDelegated = Number(tenant.total_lead_budgets) || 0
       const tenantSpendable = Number(tenant.total_wallet_balance) || 0
       
       allocatedTotal += tenantAllocated
-      delegatedTotal += tenantDelegated
       spendableTotal += tenantSpendable
 
       return {
         tenantId: tenant.tenant_id,
         tenantName: tenant.tenant_name,
         allocated: tenantAllocated,
-        delegated: tenantDelegated,
         spendable: tenantSpendable,
-        total: tenantAllocated + tenantDelegated + tenantSpendable
+        total: tenantAllocated + tenantSpendable
       }
     })
 
@@ -67,12 +62,11 @@ export default function PlatformAdminBudgetLedger() {
       return b.total - a.total
     })
 
-    const unallocated = Math.max(0, platformTotal - (allocatedTotal + delegatedTotal + spendableTotal))
+    const unallocated = Math.max(0, platformTotal - (allocatedTotal + spendableTotal))
 
     return {
       unallocated,
       allocated: allocatedTotal,
-      delegated: delegatedTotal,
       spendable: spendableTotal,
       platformTotal,
       tenants: sorted
@@ -129,7 +123,6 @@ export default function PlatformAdminBudgetLedger() {
   const totalBudget = budgetTiers.platformTotal
   const unallocPct = (budgetTiers.unallocated / totalBudget) * 100
   const allocPct = (budgetTiers.allocated / totalBudget) * 100
-  const delegPct = (budgetTiers.delegated / totalBudget) * 100
   const spendPct = (budgetTiers.spendable / totalBudget) * 100
 
   return (
@@ -211,24 +204,6 @@ export default function PlatformAdminBudgetLedger() {
             <HiOutlineArrowRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
           </div>
 
-          {/* Delegated */}
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-medium text-gray-700">Delegated (With Leads)</span>
-                <span className="text-lg font-bold text-purple-600">{formatDisplayValue(budgetTiers.delegated || 0, 'INR')}</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                <div 
-                  className="bg-purple-500 h-full rounded-full"
-                  style={{ width: `${Math.max(delegPct, 2)}%` }}
-                ></div>
-              </div>
-              <p className="text-sm text-gray-500 mt-1">{delegPct.toFixed(1)}% of total • Distributed to department leads</p>
-            </div>
-            <HiOutlineArrowRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
-          </div>
-
           {/* Spendable */}
           <div className="flex items-center gap-4">
             <div className="flex-1">
@@ -270,8 +245,8 @@ export default function PlatformAdminBudgetLedger() {
 
         <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-green-400">
           <p className="text-sm text-gray-500 mb-1">In Use</p>
-          <p className="text-2xl font-bold text-green-600">{formatDisplayValue((budgetTiers.delegated + budgetTiers.spendable) || 0, 'INR')}</p>
-          <p className="text-xs text-gray-500 mt-2">{((budgetTiers.delegated + budgetTiers.spendable) / (budgetTiers.platformTotal || 1) * 100).toFixed(1)}% deployed</p>
+          <p className="text-2xl font-bold text-green-600">{formatDisplayValue(budgetTiers.spendable || 0, 'INR')}</p>
+          <p className="text-xs text-gray-500 mt-2">{(budgetTiers.spendable / (budgetTiers.platformTotal || 1) * 100).toFixed(1)}% deployed</p>
         </div>
       </div>
 
@@ -310,7 +285,6 @@ export default function PlatformAdminBudgetLedger() {
               <tr>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Tenant Name</th>
                 <th className="px-6 py-3 text-right text-sm font-semibold text-gray-700">Allocated</th>
-                <th className="px-6 py-3 text-right text-sm font-semibold text-gray-700">Delegated</th>
                 <th className="px-6 py-3 text-right text-sm font-semibold text-gray-700">Spendable</th>
                 <th className="px-6 py-3 text-right text-sm font-semibold text-gray-700">Total Active</th>
                 <th className="px-6 py-3 text-right text-sm font-semibold text-gray-700">Utilization</th>
@@ -318,7 +292,7 @@ export default function PlatformAdminBudgetLedger() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {budgetTiers.tenants?.map(tenant => {
-                const activeTotal = tenant.delegated + tenant.spendable
+                const activeTotal = tenant.spendable
                 const utilizationPct = tenant.allocated > 0 
                   ? Math.round((activeTotal / (tenant.allocated + activeTotal)) * 100)
                   : 0
@@ -330,9 +304,6 @@ export default function PlatformAdminBudgetLedger() {
                     </td>
                     <td className="px-6 py-4 text-sm text-right text-gray-900">
                       <span className="font-semibold text-blue-600">{formatDisplayValue(tenant.allocated || 0, 'INR')}</span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-right text-gray-900">
-                      <span className="font-semibold text-purple-600">{formatDisplayValue(tenant.delegated || 0, 'INR')}</span>
                     </td>
                     <td className="px-6 py-4 text-sm text-right text-gray-900">
                       <span className="font-semibold text-green-600">{formatDisplayValue(tenant.spendable || 0, 'INR')}</span>
@@ -360,14 +331,10 @@ export default function PlatformAdminBudgetLedger() {
 
         {/* Footer Stats */}
         <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <p className="text-xs text-gray-500">Total Allocated</p>
               <p className="text-lg font-bold text-blue-600">{formatDisplayValue(budgetTiers.allocated || 0, 'INR')}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">Total Delegated</p>
-              <p className="text-lg font-bold text-purple-600">{formatDisplayValue(budgetTiers.delegated || 0, 'INR')}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500">Total Spendable</p>
@@ -376,7 +343,7 @@ export default function PlatformAdminBudgetLedger() {
             <div>
               <p className="text-xs text-gray-500">Deployment Rate</p>
               <p className="text-lg font-bold text-gray-900">
-                {((budgetTiers.allocated + budgetTiers.delegated + budgetTiers.spendable) / budgetTiers.platformTotal * 100).toFixed(1)}%
+                {((budgetTiers.allocated + budgetTiers.spendable) / budgetTiers.platformTotal * 100).toFixed(1)}%
               </p>
             </div>
           </div>
@@ -388,8 +355,7 @@ export default function PlatformAdminBudgetLedger() {
         <h3 className="font-semibold text-blue-900 mb-2">How This Works</h3>
         <ul className="text-sm text-blue-800 space-y-1">
           <li>✓ <strong>Unallocated:</strong> Budget held in platform reserve, ready to allocate to tenants</li>
-          <li>✓ <strong>Allocated:</strong> Budget in tenant pools, waiting for managers to distribute to leads</li>
-          <li>✓ <strong>Delegated:</strong> Budget distributed to department leads, ready to award to employees</li>
+          <li>✓ <strong>Allocated:</strong> Budget in tenant pools, waiting for managers to distribute to departments</li>
           <li>✓ <strong>Spendable:</strong> Budget in employee wallets, ready to redeem in marketplace</li>
         </ul>
       </div>

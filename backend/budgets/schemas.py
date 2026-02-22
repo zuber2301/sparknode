@@ -70,41 +70,8 @@ class DepartmentBudgetResponse(BaseModel):
         from_attributes = True
 
 
-class LeadBudgetBase(BaseModel):
-    department_budget_id: UUID
-    user_id: UUID
-    total_points: Decimal
-    expiry_date: Optional[datetime] = None
-
-
-class LeadBudgetCreate(LeadBudgetBase):
-    pass
-
-
-class LeadBudgetResponse(LeadBudgetBase):
-    id: UUID
-    tenant_id: UUID
-    user_name: Optional[str] = None
-    spent_points: Decimal
-    remaining_points: Decimal
-    usage_percentage: float
-    remaining_percentage: float
-    status: str
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
 class BudgetAllocationRequest(BaseModel):
     allocations: List[DepartmentBudgetCreate]
-
-
-class LeadBudgetAllocateRequest(BaseModel):
-    user_id: UUID
-    total_points: Decimal
-    description: Optional[str] = None
-    budget_id: Optional[UUID] = None
 
 
 # =====================================================
