@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback } from 'react'
+import { trySnpilotIntent } from '../lib/snpilotClient'
 
 const CopilotContext = createContext(undefined)
 
@@ -42,6 +43,14 @@ export function CopilotProvider({ children }) {
     setIsLoading(true)
 
     try {
+      // ── 1. Try structured SNPilot intent first (no LLM needed) ──────────
+      const snpilotResponse = await trySnpilotIntent(userMessage)
+      if (snpilotResponse !== null) {
+        addMessage(snpilotResponse, 'assistant')
+        return
+      }
+
+      // ── 2. Fall through to LLM / keyword copilot ────────────────────────
       const token = localStorage.getItem('token')
       // Build last-6-message conversation history for LLM context window
       const conversation_history = messages

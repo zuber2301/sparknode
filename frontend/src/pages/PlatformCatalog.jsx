@@ -8,6 +8,89 @@ import {
 } from 'react-icons/hi2'
 import { catalogAPI } from '../lib/api'
 
+// ── Brand logo with Clearbit fallback ──────────────────────────────────────────
+function brandToDomain(brand) {
+  // Known overrides for non-obvious domains
+  const overrides = {
+    'amazon':     'amazon.com',
+    'amazon pay': 'amazon.com',
+    'apple':      'apple.com',
+    'google':     'google.com',
+    'google pay': 'google.com',
+    'netflix':    'netflix.com',
+    'zomato':     'zomato.com',
+    'swiggy':     'swiggy.com',
+    'starbucks':  'starbucks.com',
+    'flipkart':   'flipkart.com',
+    'myntra':     'myntra.com',
+    'ajio':       'ajio.com',
+    'nykaa':      'nykaa.com',
+    'uber':       'uber.com',
+    'ola':        'olacabs.com',
+    'makemytrip': 'makemytrip.com',
+    'cleartrip':  'cleartrip.com',
+    'bookmyshow': 'bookmyshow.com',
+    'paytm':      'paytm.com',
+    'phonepe':    'phonepe.com',
+    'croma':      'croma.com',
+    'reliance':   'reliancedigital.in',
+    'bigbasket':  'bigbasket.com',
+    'blinkit':    'blinkit.com',
+    'zepto':      'zeptonow.com',
+    'dominos':    'dominos.co.in',
+    'domino\'s':  'dominos.co.in',
+    'pizza hut':  'pizzahut.co.in',
+    'kfc':        'kfc.co.in',
+    'mcdonalds':  'mcdonalds.com',
+    'spotify':    'spotify.com',
+    'microsoft':  'microsoft.com',
+    'samsung':    'samsung.com',
+    'boat':       'boat-lifestyle.com',
+    'sony':       'sony.com',
+    'nike':       'nike.com',
+    'adidas':     'adidas.com',
+    'puma':       'puma.com',
+  }
+  const key = (brand || '').toLowerCase().trim()
+  if (overrides[key]) return overrides[key]
+  // Generic: strip spaces/special chars, append .com
+  return key.replace(/[^a-z0-9]/g, '') + '.com'
+}
+
+function BrandLogo({ brand, imageUrl, size = 'w-8 h-8' }) {
+  const [src, setSrc] = useState(imageUrl || `https://logo.clearbit.com/${brandToDomain(brand)}`)
+  const [failed, setFailed] = useState(false)
+
+  const handleError = () => {
+    if (!failed && src !== imageUrl) {
+      // imageUrl was not the first attempt — already on Clearbit, give up
+      setFailed(true)
+    } else if (imageUrl && src === imageUrl) {
+      // imageUrl failed, try Clearbit
+      setSrc(`https://logo.clearbit.com/${brandToDomain(brand)}`)
+    } else {
+      setFailed(true)
+    }
+  }
+
+  if (failed) {
+    return (
+      <div className={`${size} rounded-lg bg-gradient-to-br from-violet-100 to-indigo-100 flex items-center justify-center text-xs font-bold text-violet-600 border border-violet-100 shrink-0`}>
+        {(brand || '?').charAt(0).toUpperCase()}
+      </div>
+    )
+  }
+
+  return (
+    <img
+      src={src}
+      alt={brand}
+      onError={handleError}
+      className={`${size} rounded-lg object-contain bg-white border border-gray-100 shrink-0`}
+    />
+  )
+}
+
 // ── Category color map ────────────────────────────────────────────────────────
 const CAT_COLOR = {
   shopping:     'bg-blue-100 text-blue-700',
@@ -305,13 +388,7 @@ export default function PlatformCatalog() {
                 <tr key={item.id} className={`hover:bg-gray-50 transition-colors ${!item.is_active_global ? 'opacity-50' : ''}`}>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-3">
-                      {item.image_url ? (
-                        <img src={item.image_url} alt="" className="w-8 h-8 rounded-lg object-contain bg-gray-50 border border-gray-100" />
-                      ) : (
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-xs font-bold text-gray-500">
-                          {item.brand?.charAt(0)}
-                        </div>
-                      )}
+                      <BrandLogo brand={item.brand} imageUrl={item.image_url} />
                       <div>
                         <div className="font-semibold text-gray-800">{item.brand}</div>
                         <div className="text-xs text-gray-400 mt-0.5">{item.name}</div>
