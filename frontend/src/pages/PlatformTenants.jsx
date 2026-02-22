@@ -658,7 +658,7 @@ export default function PlatformTenants() {
                   { key: 'features', label: 'Features', Icon: HiOutlineDotsVertical },
                   { key: 'branding', label: 'Settings', Icon: HiOutlineShieldCheck },
                   { key: 'security', label: 'Security', Icon: HiOutlineCheckCircle },
-                  { key: 'economy', label: 'Financials', Icon: HiOutlineCurrencyRupee },
+                  { key: 'economic', label: 'Budget Management', Icon: HiOutlineCurrencyRupee },
                   { key: 'danger', label: 'Danger Zone', Icon: HiOutlineLockClosed }
                 ].map(({ key, label, Icon }) => (
                   <button
@@ -733,6 +733,18 @@ export default function PlatformTenants() {
                       <p className="mt-3 text-xs text-gray-500">{c.subtitle}</p>
                     </div>
                   ))}
+                </div>
+
+                {/* Budget quick actions shortcut */}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setActiveTab('economic')}
+                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2.5 px-4 rounded-lg shadow-sm shadow-indigo-200 transition-all"
+                  >
+                    <HiOutlineCurrencyRupee className="w-4 h-4" />
+                    Manage Budget
+                  </button>
+                  <span className="text-xs text-gray-400">Load or recall budget, configure currency &amp; markup</span>
                 </div>
 
                 <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
@@ -837,39 +849,84 @@ export default function PlatformTenants() {
             )}
 
             {activeTab === 'economic' && (
-              <form onSubmit={(e) => { e.preventDefault(); updateMutation.mutate({ tenantId: selectedTenant.id, payload: { currency_label: editForm.currency_label, point_symbol: editForm.point_symbol, redemption_markup: editForm.redemption_markup } }) }} className="space-y-6 max-w-3xl">
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Tenant Currency</label>
-                    <select value={editForm.currency_label} onChange={(e) => setEditForm({ ...editForm, currency_label: e.target.value })} className="w-full bg-gray-50 border-none rounded-lg text-sm py-3 px-4">
-                      <option>INR</option>
-                      <option>USD</option>
-                      <option>EUR</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Point Symbol</label>
-                    <input value={editForm.point_symbol || CURRENCY_SYMBOLS.INR} onChange={(e) => setEditForm({ ...editForm, point_symbol: e.target.value })} className="w-full bg-gray-50 border-none rounded-lg text-sm py-3 px-4" />
-                  </div>
-                </div>
+              <div className="space-y-8 max-w-3xl">
 
+                {/* ── Budget Summary ──────────────────────────────────────── */}
                 <div>
-                  <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Redemption Markup (%)</label>
-                  <input type="number" value={editForm.redemption_markup || 0} onChange={(e) => setEditForm({ ...editForm, redemption_markup: Number(e.target.value) })} className="w-40 bg-gray-50 border-none rounded-lg text-sm py-3 px-4" />
-                  <p className="text-xs text-gray-500 mt-2">Example: 10% means a {formatDisplayValue(500, editForm.currency_label || 'INR')} voucher costs 550 points.</p>
+                  <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Current Budget Position</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl">
+                      <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Master Balance</p>
+                      <p className="text-xl font-extrabold text-indigo-700 mt-2 leading-none">{formatDisplayValue(Number(selectedTenant.master_budget_balance || 0), selectedTenant?.display_currency || 'INR')}</p>
+                      <p className="text-xs text-indigo-400 mt-1">Available to distribute</p>
+                    </div>
+                    <div className="bg-gray-50 border border-gray-100 p-4 rounded-2xl">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Allocated</p>
+                      <p className="text-xl font-extrabold text-gray-800 mt-2 leading-none">{formatDisplayValue(Number(selectedTenant.total_allocated || 0), selectedTenant?.display_currency || 'INR')}</p>
+                      <p className="text-xs text-gray-400 mt-1">Lifetime allocations</p>
+                    </div>
+                    <div className="bg-orange-50 border border-orange-100 p-4 rounded-2xl">
+                      <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">Total Spent</p>
+                      <p className="text-xl font-extrabold text-orange-700 mt-2 leading-none">{formatDisplayValue(Number(selectedTenant.total_spent || 0), selectedTenant?.display_currency || 'INR')}</p>
+                      <p className="text-xs text-orange-400 mt-1">Redeemed / debited</p>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-xs text-gray-500">Current Master Balance</p>
-                  <p className="text-lg font-bold text-gray-900">{formatDisplayValue(Number(selectedTenant.master_budget_balance || 0), selectedTenant?.display_currency || 'INR')}</p>
+                {/* ── Budget Actions ──────────────────────────────────────── */}
+                <div>
+                  <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Budget Actions</h3>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => { setBudgetTarget(selectedTenant); setIsAddBudgetOpen(true) }}
+                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl text-sm shadow-sm shadow-indigo-200 transition-all"
+                    >
+                      <HiOutlineCurrencyRupee className="w-4 h-4" />
+                      Load Budget
+                    </button>
+                    <button
+                      onClick={() => { setRecallTarget(selectedTenant); setIsRecallOpen(true) }}
+                      disabled={Number(selectedTenant.master_budget_balance || 0) <= 0}
+                      className="flex items-center gap-2 border border-orange-300 text-orange-600 hover:bg-orange-50 font-bold py-3 px-6 rounded-xl text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <HiOutlineArrowNarrowLeft className="w-4 h-4" />
+                      Recall Budget
+                    </button>
+                  </div>
+                  {Number(selectedTenant.master_budget_balance || 0) <= 0 && (
+                    <p className="text-xs text-gray-400 mt-2">Recall is disabled — no unallocated balance available.</p>
+                  )}
                 </div>
 
-                <div className="flex justify-end gap-3 pt-4">
-                  <button type="button" onClick={() => setSelectedTenant(null)} className="px-6 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-widest hover:text-gray-700">Discard</button>
-                  <button type="submit" disabled={updateMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs uppercase tracking-widest">{updateMutation.isPending ? 'Saving...' : 'Save Economic Config'}</button>
+                {/* ── Economic Configuration ──────────────────────────────── */}
+                <div className="border-t border-gray-100 pt-6">
+                  <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Economic Configuration</h3>
+                  <form onSubmit={(e) => { e.preventDefault(); updateMutation.mutate({ tenantId: selectedTenant.id, payload: { currency_label: editForm.currency_label, point_symbol: editForm.point_symbol, redemption_markup: editForm.redemption_markup } }) }} className="space-y-6">
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Tenant Currency</label>
+                        <select value={editForm.currency_label} onChange={(e) => setEditForm({ ...editForm, currency_label: e.target.value })} className="w-full bg-gray-50 border-none rounded-lg text-sm py-3 px-4">
+                          <option>INR</option>
+                          <option>USD</option>
+                          <option>EUR</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Point Symbol</label>
+                        <input value={editForm.point_symbol || CURRENCY_SYMBOLS.INR} onChange={(e) => setEditForm({ ...editForm, point_symbol: e.target.value })} className="w-full bg-gray-50 border-none rounded-lg text-sm py-3 px-4" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Redemption Markup (%)</label>
+                      <input type="number" value={editForm.redemption_markup || 0} onChange={(e) => setEditForm({ ...editForm, redemption_markup: Number(e.target.value) })} className="w-40 bg-gray-50 border-none rounded-lg text-sm py-3 px-4" />
+                      <p className="text-xs text-gray-500 mt-2">Example: 10% means a {formatDisplayValue(500, editForm.currency_label || 'INR')} voucher costs 550 points.</p>
+                    </div>
+                    <div className="flex justify-end gap-3 pt-2">
+                      <button type="submit" disabled={updateMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs uppercase tracking-widest">{updateMutation.isPending ? 'Saving...' : 'Save Economic Config'}</button>
+                    </div>
+                  </form>
                 </div>
-              </form>
-
+              </div>
             )}
 
             {activeTab === 'tier' && (
@@ -982,7 +1039,7 @@ export default function PlatformTenants() {
             )}
 
             {/* Save Actions */}
-            {activeTab !== 'danger' && activeTab !== 'overview' && (
+            {activeTab !== 'danger' && activeTab !== 'overview' && activeTab !== 'economic' && (
               <div className="mt-12 pt-8 border-t border-gray-100 flex justify-end gap-3">
                 <button
                   onClick={() => setSelectedTenant(null)}
@@ -1092,26 +1149,14 @@ export default function PlatformTenants() {
                         {actionOpenFor === tenant.id && (
                           <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-lg shadow-lg z-50 p-1">
                             
-                            <button onClick={() => { setActionOpenFor(null); setBudgetTarget(tenant); setIsAddBudgetOpen(true) }} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md">
-                              <HiOutlineCurrencyRupee className="w-4 h-4 text-gray-400" />
-                              <span>Load Budget</span>
-                            </button>
-
-                            <button onClick={() => { setActionOpenFor(null); setRecallTarget(tenant); setIsRecallOpen(true) }} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-orange-600 hover:bg-orange-50 rounded-md">
-                              <HiOutlineArrowNarrowLeft className="w-4 h-4 text-orange-400" />
-                              <span>Recall Budget</span>
-                            </button>
-
-                            <button onClick={async () => {
+                          <button onClick={async () => {
                               setActionOpenFor(null)
                               try {
                                 const currentFlagsResp = await platformAPI.getFeatureFlags(tenant.id)
                                 const current = currentFlagsResp.data ? currentFlagsResp.data.feature_flags || {} : currentFlagsResp.feature_flags || {}
                                 const newVal = !Boolean(current.sales_marketing || current.sales_marketting_enabled)
                                 toggleFeatureMutation.mutate({ tenantId: tenant.id, key: 'sales_marketing', value: newVal })
-                              } catch (e) {
-                                toast.error('Failed to toggle Sales Events')
-                              }
+                              } catch (e) { toast.error('Failed to toggle Sales Events') }
                             }} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md">
                               <HiOutlineOfficeBuilding className="w-4 h-4 text-gray-400" />
                               <span>{(tenant.feature_flags?.sales_marketing || tenant.feature_flags?.sales_marketting_enabled) ? 'Disable' : 'Enable'} Sales Events</span>
