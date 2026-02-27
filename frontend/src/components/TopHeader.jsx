@@ -262,10 +262,9 @@ export default function TopHeader() {
     onSuccess: (response) => {
       const { access_token, current_role, available_roles } = response.data
       
-      // Update the token in store and local storage
+      // Update the token in store (Zustand persist handles localStorage)
       const { updateToken } = useAuthStore.getState()
       updateToken(access_token)
-      localStorage.setItem('token', access_token)
       
       // Update the auth store with new role
       switchRole(current_role)

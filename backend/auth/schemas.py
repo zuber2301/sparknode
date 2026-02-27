@@ -24,6 +24,8 @@ class TokenData(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+    tenant_slug: Optional[str] = None  # Optional: scope login to a specific tenant
+    tenant_id: Optional[UUID] = None   # Alternative: direct tenant ID
 
 
 class UserResponse(BaseModel):

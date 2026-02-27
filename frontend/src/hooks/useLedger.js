@@ -1,10 +1,12 @@
 /**
  * Points Ledger Integration
- * Hooks and utilities for integrating Points Ledger components with the app
+ * Hooks and utilities for integrating Points Ledger components with the app.
+ * All API calls use the centralized axios client to ensure auth tokens
+ * and X-Tenant-ID headers are always sent.
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useAuth } from '../auth/AuthContext'
+import api from '../lib/api'
 import toast from 'react-hot-toast'
 
 /**
@@ -18,18 +20,12 @@ export function useAllocationHistory(tenantId, filters = {}) {
     queryKey: ['allocations', 'history', tenantId, filterType, dateRange, sortBy],
     queryFn: async () => {
       if (!tenantId) return { allocations: [], billing: [] }
-      
-      const params = new URLSearchParams({
-        tenant_id: tenantId,
-        type: filterType,
-        range: dateRange,
-        sort: sortBy
-      })
 
-      const res = await fetch(`/api/platform/allocations/history/${tenantId}?${params}`)
-      if (!res.ok) throw new Error('Failed to fetch allocation history')
-      
-      return res.json()
+      const res = await api.get(`/platform/allocations/history/${tenantId}`, {
+        params: { tenant_id: tenantId, type: filterType, range: dateRange, sort: sortBy },
+        headers: { 'X-Skip-Tenant': '1' }
+      })
+      return res.data
     },
     enabled: !!tenantId,
     staleTime: 60000 // 1 minute
@@ -44,9 +40,10 @@ export function useAllocationStats(tenantId) {
   return useQuery({
     queryKey: ['allocations', 'stats', tenantId],
     queryFn: async () => {
-      const res = await fetch(`/api/platform/allocations/stats/${tenantId}`)
-      if (!res.ok) throw new Error('Failed to fetch allocation stats')
-      return res.json()
+      const res = await api.get(`/platform/allocations/stats/${tenantId}`, {
+        headers: { 'X-Skip-Tenant': '1' }
+      })
+      return res.data
     },
     enabled: !!tenantId,
     staleTime: 120000 // 2 minutes
@@ -63,15 +60,10 @@ export function useDistributionHistory(filters = {}) {
   return useQuery({
     queryKey: ['distributions', 'tenant', filterType, dateRange, sortBy],
     queryFn: async () => {
-      const params = new URLSearchParams({
-        type: filterType,
-        range: dateRange,
-        sort: sortBy
+      const res = await api.get('/allocations/history/tenant', {
+        params: { type: filterType, range: dateRange, sort: sortBy }
       })
-
-      const res = await fetch(`/api/allocations/history/tenant?${params}`)
-      if (!res.ok) throw new Error('Failed to fetch distribution history')
-      return res.json()
+      return res.data
     },
     staleTime: 60000
   })
@@ -87,14 +79,10 @@ export function useMyDistributionHistory(filters = {}) {
   return useQuery({
     queryKey: ['distributions', 'my', filterType, dateRange],
     queryFn: async () => {
-      const params = new URLSearchParams({
-        type: filterType,
-        range: dateRange
+      const res = await api.get('/allocations/history', {
+        params: { type: filterType, range: dateRange }
       })
-
-      const res = await fetch(`/api/allocations/history?${params}`)
-      if (!res.ok) throw new Error('Failed to fetch distribution history')
-      return res.json()
+      return res.data
     },
     staleTime: 60000
   })
@@ -108,9 +96,8 @@ export function useAllocationPool() {
   return useQuery({
     queryKey: ['allocations', 'pool'],
     queryFn: async () => {
-      const res = await fetch('/api/allocations/pool')
-      if (!res.ok) throw new Error('Failed to fetch pool status')
-      return res.json()
+      const res = await api.get('/allocations/pool')
+      return res.data
     },
     staleTime: 30000 // 30 seconds - more frequent updates
   })
@@ -124,10 +111,8 @@ export function useWalletLedger(dateRange = 'all') {
   return useQuery({
     queryKey: ['wallet', 'ledger', dateRange],
     queryFn: async () => {
-      const params = new URLSearchParams({ range: dateRange })
-      const res = await fetch(`/api/wallets/me/ledger?${params}`)
-      if (!res.ok) throw new Error('Failed to fetch wallet ledger')
-      return res.json()
+      const res = await api.get('/wallets/me/ledger', { params: { range: dateRange } })
+      return res.data
     },
     staleTime: 60000
   })
@@ -141,9 +126,8 @@ export function useWalletBalance() {
   return useQuery({
     queryKey: ['wallet', 'balance'],
     queryFn: async () => {
-      const res = await fetch('/api/wallets/me')
-      if (!res.ok) throw new Error('Failed to fetch wallet balance')
-      return res.json()
+      const res = await api.get('/wallets/me')
+      return res.data
     },
     staleTime: 30000
   })
@@ -158,18 +142,10 @@ export function useAllocatePoints() {
 
   return useMutation({
     mutationFn: async (data) => {
-      const res = await fetch('/api/platform/allocations/allocate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+      const res = await api.post('/platform/allocations/allocate', data, {
+        headers: { 'X-Skip-Tenant': '1' }
       })
-      
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.detail || 'Failed to allocate points')
-      }
-      
-      return res.json()
+      return res.data
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['allocations'] })
@@ -191,18 +167,10 @@ export function useClawbackPoints() {
 
   return useMutation({
     mutationFn: async (data) => {
-      const res = await fetch('/api/platform/allocations/clawback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+      const res = await api.post('/platform/allocations/clawback', data, {
+        headers: { 'X-Skip-Tenant': '1' }
       })
-      
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.detail || 'Failed to clawback points')
-      }
-      
-      return res.json()
+      return res.data
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['allocations'] })
@@ -224,18 +192,8 @@ export function useAwardPoints() {
 
   return useMutation({
     mutationFn: async (data) => {
-      const res = await fetch('/api/allocations/award-points', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
-      
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.detail || 'Failed to award points')
-      }
-      
-      return res.json()
+      const res = await api.post('/allocations/award-points', data)
+      return res.data
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['distributions'] })
@@ -258,18 +216,8 @@ export function useDistributeToLead() {
 
   return useMutation({
     mutationFn: async (data) => {
-      const res = await fetch('/api/allocations/distribute-to-lead', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
-      
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.detail || 'Failed to distribute points')
-      }
-      
-      return res.json()
+      const res = await api.post('/allocations/distribute-to-lead', data)
+      return res.data
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['distributions'] })

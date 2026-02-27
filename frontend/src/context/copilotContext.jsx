@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback } from 'react'
 import { trySnpilotIntent } from '../lib/snpilotClient'
+import { useAuthStore } from '../store/authStore'
 
 const CopilotContext = createContext(undefined)
 
@@ -51,7 +52,9 @@ export function CopilotProvider({ children }) {
       }
 
       // ── 2. Fall through to LLM / keyword copilot ────────────────────────
-      const token = localStorage.getItem('token')
+      const state = useAuthStore.getState()
+      const token = state.token
+      const tenantId = state.getTenantId?.() || state.tenantContext?.tenant_id
       // Build last-6-message conversation history for LLM context window
       const conversation_history = messages
         .slice(-6)
@@ -60,12 +63,17 @@ export function CopilotProvider({ children }) {
           content: m.content,
         }))
 
+      const fetchHeaders = {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(tenantId && tenantId !== '00000000-0000-0000-0000-000000000000'
+          ? { 'X-Tenant-ID': tenantId }
+          : {}),
+      }
+
       const response = await fetch('/api/copilot/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: fetchHeaders,
         body: JSON.stringify({
           message: userMessage,
           context,

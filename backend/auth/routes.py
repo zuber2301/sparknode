@@ -85,11 +85,45 @@ async def login(
     login_data: LoginRequest,
     db: Session = Depends(get_db)
 ):
-    """Authenticate user and return JWT token"""
-    # 1. Try to find in User table
-    user = db.query(User).filter(
-        (User.corporate_email == login_data.email)
-    ).first()
+    """Authenticate user and return JWT token.
+    
+    For multi-tenant SaaS: when tenant_slug or tenant_id is provided,
+    the login is scoped to that tenant. Otherwise, the query searches
+    across all tenants (backward compatible). If the email exists in
+    multiple tenants and no slug/id is provided, returns an error
+    asking the user to specify their organization.
+    """
+    # Build user query with optional tenant scoping
+    query = db.query(User).filter(User.corporate_email == login_data.email)
+    
+    # Scope to tenant if provided
+    if login_data.tenant_slug:
+        tenant = db.query(Tenant).filter(Tenant.slug == login_data.tenant_slug).first()
+        if not tenant:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Organization not found"
+            )
+        query = query.filter(User.tenant_id == tenant.id)
+    elif login_data.tenant_id:
+        query = query.filter(User.tenant_id == login_data.tenant_id)
+    
+    users = query.all()
+    
+    # If multiple users found across tenants and no tenant specified, require disambiguation
+    if len(users) > 1 and not login_data.tenant_slug and not login_data.tenant_id:
+        tenant_slugs = []
+        for u in users:
+            t = db.query(Tenant).filter(Tenant.id == u.tenant_id).first()
+            if t:
+                tenant_slugs.append({"slug": t.slug, "name": t.name})
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email exists in multiple organizations. Please specify your organization.",
+            headers={"X-Tenants": str(tenant_slugs)}
+        )
+    
+    user = users[0] if users else None
     
     if user:
         # If there's no stored password hash, treat as invalid credentials

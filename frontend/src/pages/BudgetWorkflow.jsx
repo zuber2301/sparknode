@@ -12,6 +12,7 @@ import { useAuthStore } from '../store/authStore'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { formatDisplayValue } from '../lib/currency'
+import api from '../lib/api'
 import {
   HiOutlinePlus,
   HiOutlineChevronRight,
@@ -24,126 +25,82 @@ import {
   HiOutlineChartBar
 } from 'react-icons/hi'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
-
-// API Functions
+// API Functions — uses centralized api client for tenant isolation
 const budgetWorkflowAPI = {
   // Level 1: Tenant Allocation
   allocateTenantBudget: async (tenantId, data) => {
-    const response = await fetch(`${API_BASE}/budget-workflow/tenant-allocation?tenant_id=${tenantId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-      body: JSON.stringify(data)
-    })
-    if (!response.ok) throw new Error(await response.text())
-    return response.json()
+    const response = await api.post(`/budget-workflow/tenant-allocation?tenant_id=${tenantId}`, data)
+    return response.data
   },
 
   getTenantAllocation: async (tenantId) => {
-    const response = await fetch(`${API_BASE}/budget-workflow/tenant-allocation/${tenantId}`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    })
-    if (!response.ok) throw new Error(await response.text())
-    return response.json()
+    const response = await api.get(`/budget-workflow/tenant-allocation/${tenantId}`)
+    return response.data
   },
 
   // Level 2: Department Allocation
   allocateDepartmentBudget: async (data) => {
-    const response = await fetch(`${API_BASE}/budget-workflow/department-allocation`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-      body: JSON.stringify(data)
-    })
-    if (!response.ok) throw new Error(await response.text())
-    return response.json()
+    const response = await api.post('/budget-workflow/department-allocation', data)
+    return response.data
   },
 
   getDepartmentAllocations: async (tenantAllocationId = null) => {
-    let url = `${API_BASE}/budget-workflow/department-allocations`
+    let url = '/budget-workflow/department-allocations'
     if (tenantAllocationId) url += `?tenant_budget_allocation_id=${tenantAllocationId}`
-    const response = await fetch(url, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    })
-    if (!response.ok) throw new Error(await response.text())
-    return response.json()
+    const response = await api.get(url)
+    return response.data
   },
 
   // Level 3: Employee Allocation
   allocateEmployeePoints: async (data) => {
-    const response = await fetch(`${API_BASE}/budget-workflow/employee-allocation`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-      body: JSON.stringify(data)
-    })
-    if (!response.ok) throw new Error(await response.text())
-    return response.json()
+    const response = await api.post('/budget-workflow/employee-allocation', data)
+    return response.data
   },
 
   getEmployeeAllocations: async (deptAllocationId = null) => {
-    let url = `${API_BASE}/budget-workflow/employee-allocations`
+    let url = '/budget-workflow/employee-allocations'
     if (deptAllocationId) url += `?department_budget_allocation_id=${deptAllocationId}`
-    const response = await fetch(url, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    })
-    if (!response.ok) throw new Error(await response.text())
-    return response.json()
+    const response = await api.get(url)
+    return response.data
   },
 
   // Summaries
   getTenantSummary: async (tenantId) => {
-    const response = await fetch(`${API_BASE}/budget-workflow/summary/tenant/${tenantId}`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    })
-    if (!response.ok) throw new Error(await response.text())
-    return response.json()
+    const response = await api.get(`/budget-workflow/summary/tenant/${tenantId}`)
+    return response.data
   },
 
   getDepartmentSummary: async (deptAllocationId) => {
-    const response = await fetch(`${API_BASE}/budget-workflow/summary/department/${deptAllocationId}`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    })
-    if (!response.ok) throw new Error(await response.text())
-    return response.json()
+    const response = await api.get(`/budget-workflow/summary/department/${deptAllocationId}`)
+    return response.data
   },
 
   // Get all tenant allocations (for platform admin)
   getAllTenantAllocations: async () => {
-    const response = await fetch(`${API_BASE}/budget-workflow/tenant-allocations`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    })
-    if (!response.ok) throw new Error(await response.text())
-    return response.json()
+    const response = await api.get('/budget-workflow/tenant-allocations')
+    return response.data
   },
 
   // Get all department allocations across all tenants (platform admin)
   getAllDepartmentAllocations: async () => {
-    const response = await fetch(`${API_BASE}/budget-workflow/all-department-allocations`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    })
-    if (!response.ok) throw new Error(await response.text())
-    return response.json()
+    const response = await api.get('/budget-workflow/all-department-allocations')
+    return response.data
   }
 }
 
 // Tenant API for departments
 const tenantsAPI = {
   getDepartments: async () => {
-    const response = await fetch(`${API_BASE}/tenants/departments`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    })
-    if (!response.ok) throw new Error(await response.text())
-    return response.json()
+    const response = await api.get('/tenants/departments')
+    return response.data
   }
 }
 
 // Users API
 const usersAPI = {
   getUsersByDepartment: async (departmentId) => {
-    const response = await fetch(`${API_BASE}/users?department_id=${departmentId}`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    })
-    if (!response.ok) throw new Error(await response.text())
-    return response.json()
+    const response = await api.get(`/users?department_id=${departmentId}`)
+    return response.data
   }
 }
 
@@ -265,13 +222,10 @@ function PlatformAdminView() {
 
   const allocateMutation = useMutation({
     mutationFn: async (data) => {
-      const response = await fetch(`${API_BASE}/budget-workflow/tenant-allocation?tenant_id=${data.tenant_id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ total_allocated_budget: parseFloat(data.total_allocated_budget) })
+      const response = await api.post(`/budget-workflow/tenant-allocation?tenant_id=${data.tenant_id}`, {
+        total_allocated_budget: parseFloat(data.total_allocated_budget)
       })
-      if (!response.ok) throw new Error(await response.text())
-      return response.json()
+      return response.data
     },
     onSuccess: () => {
       toast.success('Budget allocated successfully')
@@ -365,17 +319,12 @@ function TenantManagerView({ tenantAllocation, deptAllocations, departments, loa
 
   const allocateMutation = useMutation({
     mutationFn: async (data) => {
-      const response = await fetch(`${API_BASE}/budget-workflow/department-allocation`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({
-          tenant_budget_allocation_id: tenantAllocation.id,
-          department_id: data.department_id,
-          allocated_budget: parseFloat(data.allocated_budget)
-        })
+      const response = await api.post('/budget-workflow/department-allocation', {
+        tenant_budget_allocation_id: tenantAllocation.id,
+        department_id: data.department_id,
+        allocated_budget: parseFloat(data.allocated_budget)
       })
-      if (!response.ok) throw new Error(await response.text())
-      return response.json()
+      return response.data
     },
     onSuccess: () => {
       toast.success('Department budget allocated successfully')
@@ -463,17 +412,12 @@ function DepartmentLeadView({
 
   const allocateMutation = useMutation({
     mutationFn: async (data) => {
-      const response = await fetch(`${API_BASE}/budget-workflow/employee-allocation`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({
-          department_budget_allocation_id: selectedDeptAllocation.id,
-          employee_id: data.employee_id,
-          allocated_points: parseFloat(data.allocated_points)
-        })
+      const response = await api.post('/budget-workflow/employee-allocation', {
+        department_budget_allocation_id: selectedDeptAllocation.id,
+        employee_id: data.employee_id,
+        allocated_points: parseFloat(data.allocated_points)
       })
-      if (!response.ok) throw new Error(await response.text())
-      return response.json()
+      return response.data
     },
     onSuccess: () => {
       toast.success('Points allocated to employee successfully')

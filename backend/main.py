@@ -7,9 +7,11 @@ import logging
 from config import settings
 from database import engine, Base
 from core.tenant import TenantMiddleware
+from core.subscription import TenantRateLimitMiddleware, SubscriptionEnforcementMiddleware
 from auth.routes import router as auth_router
 from tenants.routes import router as tenants_router, public_router
 from tenants.routes import router as tenant_public_router
+from tenants.self_service import router as tenant_register_router
 from users.routes import router as users_router
 from budgets.routes import router as budgets_router
 from budgets.workflow_routes import router as budget_workflow_router
@@ -50,8 +52,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Tenant Context Middleware
+# Tenant Context Middleware (outermost — runs first, cleans up last)
 app.add_middleware(TenantMiddleware)
+
+# Per-tenant rate limiting
+app.add_middleware(TenantRateLimitMiddleware)
+
+# Subscription tier enforcement (feature gates, user limits, tenant status)
+app.add_middleware(SubscriptionEnforcementMiddleware)
 
 # CORS Configuration
 cors_origins = settings.cors_origins
@@ -81,6 +89,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Include routers
 app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(public_router, prefix="/tenant", tags=["Public Tenant Access"])
+app.include_router(tenant_register_router, prefix="/api/tenants", tags=["Tenant Self-Service"])
 app.include_router(tenants_router, prefix="/api/tenants", tags=["Tenants"])
 app.include_router(users_router, prefix="/api/users", tags=["Users"])
 app.include_router(budget_distribution_router, tags=["Tenant Budget Distribution"])

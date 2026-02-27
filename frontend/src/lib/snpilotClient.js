@@ -13,10 +13,21 @@
 const API_URL = import.meta.env.VITE_API_URL || ''
 
 function authHeaders() {
-  const token = localStorage.getItem('token')
-  return {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  // Use the Zustand store for consistent token + tenant header management
+  try {
+    const { useAuthStore } = require('../store/authStore')
+    const state = useAuthStore.getState()
+    const token = state.token
+    const tenantId = state.getTenantId?.() || state.tenantContext?.tenant_id
+    const headers = { 'Content-Type': 'application/json' }
+    if (token) headers.Authorization = `Bearer ${token}`
+    if (tenantId && tenantId !== '00000000-0000-0000-0000-000000000000') {
+      headers['X-Tenant-ID'] = tenantId
+    }
+    return headers
+  } catch {
+    // Fallback if store isn't available
+    return { 'Content-Type': 'application/json' }
   }
 }
 

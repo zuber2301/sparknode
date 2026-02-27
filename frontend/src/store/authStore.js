@@ -293,6 +293,20 @@ export const useAuthStore = create(
         currentRole: state.currentRole,
         availableRoles: state.availableRoles,
       }),
+      // Migrate storage: on rehydration, also store tenant-scoped copy to prevent
+      // cross-tenant state leaks when the same browser is used for multiple tenants.
+      onRehydrateStorage: () => (state) => {
+        if (state?.tenantContext?.tenant_id) {
+          const tenantKey = `sparknode-auth-${state.tenantContext.tenant_id}`
+          try {
+            localStorage.setItem(tenantKey, JSON.stringify({
+              user: state.user,
+              token: state.token,
+              tenantContext: state.tenantContext,
+            }))
+          } catch { /* ignore storage errors */ }
+        }
+      },
     }
   )
 )

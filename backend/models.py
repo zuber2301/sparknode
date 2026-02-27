@@ -277,8 +277,10 @@ class Department(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
-    # Removed strict CHECK constraint to allow tests and external data to define departments.
-    __table_args__ = ()
+    # Tenant-scoped uniqueness: same department name can exist in different tenants
+    __table_args__ = (
+        __import__('sqlalchemy').UniqueConstraint('tenant_id', 'name', name='uq_departments_tenant_name'),
+    )
     
     # Relationships
     tenant = relationship("Tenant", back_populates="departments")
@@ -313,6 +315,11 @@ class User(Base):
     invitation_sent_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Tenant-scoped uniqueness: same email can exist in different tenants
+    __table_args__ = (
+        __import__('sqlalchemy').UniqueConstraint('tenant_id', 'corporate_email', name='uq_users_tenant_email'),
+    )
     
     # Relationships
     tenant = relationship("Tenant", back_populates="users")
@@ -572,6 +579,7 @@ class RecognitionComment(Base):
     __tablename__ = "recognition_comments"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
     recognition_id = Column(UUID(as_uuid=True), ForeignKey("recognitions.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     content = Column(Text, nullable=False)
@@ -580,12 +588,14 @@ class RecognitionComment(Base):
     # Relationships
     recognition = relationship("Recognition", back_populates="comments")
     user = relationship("User")
+    tenant = relationship("Tenant")
 
 
 class RecognitionReaction(Base):
     __tablename__ = "recognition_reactions"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
     recognition_id = Column(UUID(as_uuid=True), ForeignKey("recognitions.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     reaction_type = Column(String(20), default='like')
@@ -594,6 +604,7 @@ class RecognitionReaction(Base):
     # Relationships
     recognition = relationship("Recognition", back_populates="reactions")
     user = relationship("User")
+    tenant = relationship("Tenant")
 
 
 class Feed(Base):
@@ -797,7 +808,7 @@ class AuditLog(Base):
     __tablename__ = "audit_log"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"))
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
     actor_id = Column(UUID(as_uuid=True))
     actor_type = Column(SQLEnum(ActorType), default=ActorType.USER)
     action = Column(String(100), nullable=False)
@@ -1207,6 +1218,7 @@ class SalesEventRegistration(Base):
     __tablename__ = "sales_event_registrations"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
     event_id = Column(UUID(as_uuid=True), ForeignKey("sales_events.id", ondelete="CASCADE"), nullable=False)
     email = Column(String(255), nullable=False)
     full_name = Column(Text)
@@ -1226,6 +1238,7 @@ class SalesEventLead(Base):
     __tablename__ = "sales_event_leads"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
     event_id = Column(UUID(as_uuid=True), ForeignKey("sales_events.id", ondelete="CASCADE"), nullable=False)
     registration_id = Column(UUID(as_uuid=True), ForeignKey("sales_event_registrations.id"))
     owner_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
@@ -1242,6 +1255,7 @@ class SalesEventLead(Base):
 class SalesEventMetrics(Base):
     __tablename__ = "sales_event_metrics"
 
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
     event_id = Column(UUID(as_uuid=True), ForeignKey("sales_events.id", ondelete="CASCADE"), primary_key=True)
     registrations = Column(Integer, default=0)
     attendees = Column(Integer, default=0)
