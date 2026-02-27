@@ -1,0 +1,126 @@
+# ──────────────────────────────────────────────────────────────
+# SparkNode — Terraform-only CI/CD Pipeline
+# Manages infrastructure changes separately from app deploys
+#
+# Triggers:
+#   - Push changes to deployment_sparknode/terraform/** on main
+#   - Manual dispatch
+#
+# Required GitHub Secrets:
+#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+# ──────────────────────────────────────────────────────────────
+
+name: Terraform Infrastructure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'deployment_sparknode/terraform/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'deployment_sparknode/terraform/**'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform action'
+        required: true
+        default: 'plan'
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+
+concurrency:
+  group: terraform
+  cancel-in-progress: false
+
+env:
+  TF_DIR: deployment_sparknode/terraform
+  TF_VERSION: '1.7.0'
+
+jobs:
+  terraform:
+    name: Terraform ${{ github.event.inputs.action || 'plan' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        working-directory: ${{ env.TF_DIR }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION || 'ap-south-1' }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan -no-color -out=tfplan \
+            -var="postgres_password=${{ secrets.POSTGRES_PASSWORD }}" \
+            -var="app_secret_key=${{ secrets.APP_SECRET_KEY }}" \
+            -var="smtp_password=${{ secrets.SMTP_PASSWORD || '' }}" \
+            -var="github_deploy_token=${{ secrets.GH_DEPLOY_TOKEN || '' }}"
+
+      - name: Comment Plan on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `#### Terraform Plan 📋
+            \`\`\`
+            ${{ steps.plan.outputs.stdout }}
+            \`\`\`
+            *Pushed by: @${{ github.actor }}*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
+
+      - name: Terraform Apply
+        if: >
+          (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+          (github.event.inputs.action == 'apply')
+        run: terraform apply -auto-approve tfplan
+
+      - name: Terraform Destroy
+        if: github.event.inputs.action == 'destroy'
+        run: |
+          terraform destroy -auto-approve \
+            -var="postgres_password=${{ secrets.POSTGRES_PASSWORD }}" \
+            -var="app_secret_key=${{ secrets.APP_SECRET_KEY }}" \
+            -var="smtp_password=${{ secrets.SMTP_PASSWORD || '' }}" \
+            -var="github_deploy_token=${{ secrets.GH_DEPLOY_TOKEN || '' }}"
+
+      - name: Output summary
+        if: success() && (github.event.inputs.action == 'apply' || (github.ref == 'refs/heads/main' && github.event_name == 'push'))
+        run: |
+          echo "### Infrastructure Outputs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          terraform output -no-color >> $GITHUB_STEP_SUMMARY

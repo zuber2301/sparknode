@@ -1,0 +1,40 @@
+# ──────────────────────────────────────────────────────────────
+# Traefik — Dynamic middleware configuration
+# ──────────────────────────────────────────────────────────────
+
+http:
+  middlewares:
+    # ── Security headers ─────────────────────────────────────
+    security-headers:
+      headers:
+        browserXssFilter: true
+        contentTypeNosniff: true
+        frameDeny: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000
+        customFrameOptionsValue: "SAMEORIGIN"
+        referrerPolicy: "strict-origin-when-cross-origin"
+        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:;"
+        customResponseHeaders:
+          X-Powered-By: ""
+          Server: ""
+
+    # ── Global rate limit ────────────────────────────────────
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 200
+        period: "1m"
+
+    # ── Compression ──────────────────────────────────────────
+    compress:
+      compress:
+        excludedContentTypes:
+          - "text/event-stream"
+
+    # ── Retry on transient failures ──────────────────────────
+    retry:
+      retry:
+        attempts: 3
+        initialInterval: "100ms"

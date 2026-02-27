@@ -1,0 +1,38 @@
+# ──────────────────────────────────────────────────────────────
+# SparkNode — Example terraform.tfvars
+# Copy to terraform.tfvars and fill in your values.
+# ──────────────────────────────────────────────────────────────
+
+aws_region     = "ap-south-1"
+aws_profile    = ""                        # leave empty for env-var auth
+
+# ─── EC2 ──────────────────────────────────────────────────────
+instance_type    = "t3.medium"
+key_name         = "sparknode-prod"        # name of your SSH key pair in AWS
+root_volume_size = 40
+
+# ─── Access control ──────────────────────────────────────────
+ssh_allowed_cidrs = ["0.0.0.0/0"]          # restrict to your office IP
+
+# ─── Domain & TLS ────────────────────────────────────────────
+domain     = "app.sparknode.io"
+acme_email = "devops@sparknode.io"
+
+# ─── Application secrets ─────────────────────────────────────
+postgres_password = "CHANGE_ME_strong_password_here"
+app_secret_key    = "CHANGE_ME_random_64_char_string"
+
+# ─── SMTP (optional) ─────────────────────────────────────────
+smtp_host     = "smtp.gmail.com"
+smtp_port     = 587
+smtp_user     = ""
+smtp_password = ""
+
+# ─── Deployment ──────────────────────────────────────────────
+project_name  = "sparknode"
+environment   = "production"
+app_version   = "latest"
+
+# ─── GitHub (for cloning the repo onto the VM) ──────────────
+github_repo         = "https://github.com/your-org/sparknode.git"
+github_deploy_token = ""                   # PAT for private repos

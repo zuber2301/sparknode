@@ -1,0 +1,21 @@
+# Terraform
+*.tfstate
+*.tfstate.backup
+*.tfplan
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Environment files with secrets
+docker/.env
+*.pem
+*.key
+
+# OS
+.DS_Store
+Thumbs.db
