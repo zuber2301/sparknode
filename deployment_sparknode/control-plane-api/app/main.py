@@ -31,7 +31,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -122,20 +122,83 @@ async def get_infra_config(env_id: str, provider: str, db: Session = Depends(get
     
     return {"variables": last_approval.variables or {}}
 
+import os
+from azure.identity import ClientSecretCredential
+from azure.mgmt.resource import ResourceManagementClient
+from azure.core.exceptions import ClientAuthenticationError
+
 @app.post("/api/infra/validate")
 async def validate_credentials(data: Dict, db: Session = Depends(get_db)):
     provider = data.get("provider", "").lower()
     config = data.get("config", {})
     
-    # Validation logic now checks .env directly
-    import os
-    if provider == "azure":
-        client_id = os.getenv("AZURE_CLIENT_ID")
-        client_secret = os.getenv("AZURE_CLIENT_SECRET")
-        if not client_id or not client_secret:
-            raise HTTPException(status_code=401, detail="Azure Service Principal secrets not found in system storage")
+    logs = [
+        {"msg": f"Starting validation for provider: {provider.upper()}", "status": "info"},
+        {"msg": f"Target Environment: {data.get('env_id', 'unknown')}", "status": "info"}
+    ]
     
-    return {"status": "validated", "iam_role": "SparkNode-Provisioner", "permission": "FullAccess"}
+    def run_azure_validation_sync():
+        """Synchronous Azure validation - runs in a thread pool to avoid blocking the event loop."""
+        from azure.identity import ClientSecretCredential
+        from azure.mgmt.resource import ResourceManagementClient
+        from azure.core.exceptions import ClientAuthenticationError
+        
+        inner_logs = []
+        try:
+            inner_logs.append({"msg": "Fetching Service Principal from system store...", "status": "info"})
+            client_id = os.getenv("AZURE_CLIENT_ID")
+            client_secret = os.getenv("AZURE_CLIENT_SECRET")
+            tenant_id = config.get("tenant_id") or os.getenv("AZURE_TENANT_ID")
+            subscription_id = config.get("subscription_id") or os.getenv("AZURE_SUBSCRIPTION_ID")
+
+            if not all([client_id, client_secret, tenant_id, subscription_id]):
+                inner_logs.append({"msg": "Validation Failed: Missing ID Mappings", "status": "error"})
+                return {"status": "failed", "logs": inner_logs, "error": "Missing Required IDs"}
+
+            inner_logs.append({"msg": f"Authenticating with Tenant {tenant_id[:8]}...", "status": "progress"})
+            credential = ClientSecretCredential(
+                tenant_id=tenant_id,
+                client_id=client_id,
+                client_secret=client_secret
+            )
+            
+            inner_logs.append({"msg": f"Connecting to Subscription {subscription_id[:8]}...", "status": "progress"})
+            client = ResourceManagementClient(credential, subscription_id)
+            
+            inner_logs.append({"msg": "Probing Azure Resource Manager API...", "status": "progress"})
+            list(client.resource_groups.list(top=1))
+            
+            inner_logs.append({"msg": "Successfully verified SPN permissions", "status": "success"})
+            return {
+                "status": "validated", 
+                "logs": inner_logs,
+                "iam_role": "Azure-SPN-Verified", 
+                "details": f"Authenticated for Tenant {tenant_id[:8]}..."
+            }
+        except ClientAuthenticationError:
+            inner_logs.append({"msg": "Auth Error: Invalid Client/Secret or Tenant", "status": "error"})
+            return {"status": "failed", "logs": inner_logs, "error": "Authentication Failed"}
+        except Exception as e:
+            inner_logs.append({"msg": f"API Error: {str(e)}", "status": "error"})
+            return {"status": "failed", "logs": inner_logs, "error": str(e)}
+
+    if provider == "azure":
+        try:
+            # Run blocking Azure SDK calls in a thread pool so the event loop
+            # stays free and asyncio.wait_for timeout can actually fire
+            loop = asyncio.get_event_loop()
+            result = await asyncio.wait_for(
+                loop.run_in_executor(None, run_azure_validation_sync),
+                timeout=15.0
+            )
+            logs.extend(result.get("logs", []))
+            return {**result, "logs": logs}
+        except asyncio.TimeoutError:
+            logs.append({"msg": "Validation TIMEOUT: Azure API response exceeded 15s", "status": "error"})
+            return {"status": "failed", "logs": logs, "error": "Timeout"}
+
+    logs.append({"msg": "Generic provider validation successful", "status": "success"})
+    return {"status": "validated", "logs": logs}
 
 @app.post("/api/infra/review")
 async def review_infrastructure(data: Dict, db: Session = Depends(get_db)):

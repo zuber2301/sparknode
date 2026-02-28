@@ -37,6 +37,7 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion 
   const [reviewData, setReviewData] = useState(null);
   const [error, setError] = useState(null);
   const [deploymentId, setDeploymentId] = useState(null);
+  const [validationLogs, setValidationLogs] = useState([]);
 
   useEffect(() => {
     if (deploymentMode === 'update') {
@@ -84,17 +85,50 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion 
 
   const handleValidate = async () => {
     setStatus('validating');
+    setError(null);
+    setValidationLogs([{ msg: `Connecting to SparkNode API (${API_BASE})...`, status: 'info' }]);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
+    
     try {
       const resp = await fetch(`${API_BASE}/infra/validate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ env_id: envName, provider, config: formData })
+        body: JSON.stringify({ env_id: envName, provider, config: formData }),
+        signal: controller.signal
       });
-      if (!resp.ok) throw new Error("IAM Permission Validation FAILED");
+      clearTimeout(timeoutId);
+
+      if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(`Server error ${resp.status}: ${errText}`);
+      }
+      
+      const data = await resp.json();
+      
+      if (data.logs) setValidationLogs(data.logs);
+
+      if (data.status !== 'validated') {
+        throw new Error(data.error || "IAM Permission Validation FAILED");
+      }
+
       setStatus('validated');
       setError(null);
     } catch (e) {
-      setError(e.message);
+      clearTimeout(timeoutId);
+      if (e.name === 'AbortError') {
+        const msg = "Request timed out after 20 seconds — check API reachability.";
+        setValidationLogs(prev => [...prev, { msg, status: 'error' }]);
+        setError(msg);
+      } else if (e.message === 'Failed to fetch') {
+        const msg = `Cannot reach API at ${API_BASE} — verify the server is running.`;
+        setValidationLogs(prev => [...prev, { msg, status: 'error' }]);
+        setError(msg);
+      } else {
+        setValidationLogs(prev => [...prev, { msg: e.message, status: 'error' }]);
+        setError(e.message);
+      }
       setStatus('idle');
     }
   };
@@ -199,22 +233,6 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion 
               </p>
             </section>
 
-            <section>
-              <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <Globe size={14} className="text-indigo-500" /> Deployment Region
-              </h4>
-              <select 
-                value={formData.region}
-                onChange={e => setFormData({...formData, region: e.target.value})}
-                disabled={status !== 'idle'}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none mb-2"
-              >
-                {regions[provider.toLowerCase()].map(r => (
-                  <option key={r.id} value={r.id}>{r.label} ({r.id})</option>
-                ))}
-              </select>
-            </section>
-
             {provider.toLowerCase() === 'azure' && (
               <section className="space-y-4">
                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -249,6 +267,22 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion 
                 </div>
               </section>
             )}
+
+            <section>
+              <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <Globe size={14} className="text-indigo-500" /> Deployment Region
+              </h4>
+              <select 
+                value={formData.region}
+                onChange={e => setFormData({...formData, region: e.target.value})}
+                disabled={status !== 'idle'}
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none mb-2"
+              >
+                {regions[provider.toLowerCase()].map(r => (
+                  <option key={r.id} value={r.id}>{r.label} ({r.id})</option>
+                ))}
+              </select>
+            </section>
 
             <section>
               <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Node Class Selection</h4>
@@ -331,12 +365,38 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion 
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-full text-center py-20">
-                <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 mb-6">
-                  <RotateCcw className="text-slate-200 animate-spin-slow" size={48} />
-                </div>
-                <h5 className="text-slate-800 font-bold mb-2">Awaiting Generation</h5>
-                <p className="text-xs text-slate-500 max-w-sm">Complete the configuration and validate connection to generate the destructive execution plan.</p>
+              <div className="flex flex-col items-center justify-center h-full text-center py-10">
+                {validationLogs.length > 0 ? (
+                  <div className="w-full max-w-lg bg-slate-900 rounded-2xl p-6 shadow-2xl border border-slate-800 text-left font-mono">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Terminal size={16} className="text-indigo-400" />
+                      <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Connectivity & Validation Progress</span>
+                    </div>
+                    <div className="space-y-2 max-h-[250px] overflow-y-auto">
+                      {validationLogs.map((log, i) => (
+                        <div key={i} className="flex gap-3 text-xs leading-relaxed">
+                          <span className="text-slate-600">[{new Date().toLocaleTimeString([], { hour12: false })}]</span>
+                          <span className={
+                            log.status === 'error' ? 'text-red-400' : 
+                            log.status === 'success' ? 'text-green-400' : 
+                            log.status === 'progress' ? 'text-indigo-300 animate-pulse' : 
+                            'text-slate-300'
+                          }>
+                            {log.msg}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 mb-6">
+                      <RotateCcw className="text-slate-200 animate-spin-slow" size={48} />
+                    </div>
+                    <h5 className="text-slate-800 font-bold mb-2">Awaiting Generation</h5>
+                    <p className="text-xs text-slate-500 max-w-sm">Complete the configuration and validate connection to generate the destructive execution plan.</p>
+                  </>
+                )}
               </div>
             )}
             {error && <div className="mt-4 p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl text-xs font-black">{error}</div>}
