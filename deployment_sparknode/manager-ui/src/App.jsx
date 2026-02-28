@@ -544,7 +544,7 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion,
                     {status === 'reviewing' && <LucideRefreshCw size={12} className="text-indigo-400 animate-spin ml-auto" />}
                   </div>
                   {/* scrollable log body — grows to fill terminal card */}
-                  <div ref={terminalRef} className="flex-1 overflow-y-auto p-4 space-y-0.5 font-mono text-[11px]">
+                  <div ref={terminalRef} className="flex-1 overflow-y-auto p-4 space-y-0.5 font-mono text-[13px] custom-scrollbar">
                     {terminalLogs.map((log, i) => (
                       <div key={i} className="flex gap-3 leading-5">
                         <span className={
@@ -601,7 +601,7 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion,
                 </div>
 
                 {reviewData.resources?.length > 0 && (
-                  <div className="bg-slate-800 rounded-xl px-4 py-3 border border-slate-700 max-h-28 overflow-y-auto">
+                  <div className="bg-slate-800 rounded-xl px-4 py-3 border border-slate-700 max-h-28 overflow-y-auto custom-scrollbar">
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Resources to Provision</p>
                       <span className="text-[10px] text-slate-500 font-mono">~{reviewData.time}</span>
