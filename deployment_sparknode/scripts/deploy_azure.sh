@@ -7,16 +7,23 @@ APP_DIR="/opt/sparknode"
 COMPOSE_FILE="docker-compose.prod.yml"
 ENV_FILE=".env"
 VERSION="${APP_VERSION:-latest}"
+SKIP_TERRAFORM="${SKIP_TERRAFORM:-false}"
 
-echo ">>> Step 1: Provisioning Foundational Infrastructure on Azure (Terraform)..."
-cd "$TF_DIR"
-terraform init > /dev/null
-# Pass any TF_VAR_* environment variables automatically
-terraform apply -auto-approve > /dev/null
+if [ "$SKIP_TERRAFORM" = "true" ]; then
+    echo ">>> Bypassing Step 1 (SKIP_TERRAFORM=true)..."
+else
+    echo ">>> Step 1: Provisioning Foundational Infrastructure on Azure (Terraform)..."
+    cd "$TF_DIR"
+    terraform init > /dev/null
+    # Pass any TF_VAR_* environment variables automatically
+    terraform apply -auto-approve > /dev/null
+fi
 
 # ─── Fetch Infrastructure Metadata ──────────────────────────
-HOST=$(terraform output -raw public_ip)
-SSH_USER=$(terraform output -raw ssh_user)
+# We still need metadata from TF to know where to deploy the containers
+cd "$TF_DIR"
+HOST=$(terraform output -raw public_ip || echo "localhost")
+SSH_USER=$(terraform output -raw ssh_user || echo "root")
 SSH_KEY="${DEPLOY_SSH_KEY:-~/.ssh/sparknode_azure.pem}"
 
 echo ">>> Infrastructure Ready at $HOST"

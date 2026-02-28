@@ -19,7 +19,7 @@ def stream_log(deployment_id, message, step=None):
     logging.info(f"[{deployment_id}] {payload}")
 
 @celery_app.task(bind=True)
-def run_deployment_v2(self, deployment_id, env_id, release_tag, host=None, provider=None, config=None):
+def run_deployment_v2(self, deployment_id, env_id, release_tag, host=None, provider=None, config=None, skip_infra=False):
     """
     Control Plane Execution Engine - Wraps the physical shell scripts
     """
@@ -35,6 +35,10 @@ def run_deployment_v2(self, deployment_id, env_id, release_tag, host=None, provi
         for key, value in config.items():
             env_vars[f"TF_VAR_{key}"] = str(value)
             stream_log(deployment_id, f"Injected TF_VAR_{key} from UI config", "CONFIG")
+            
+    if skip_infra:
+        env_vars["SKIP_TERRAFORM"] = "true"
+        stream_log(deployment_id, "Injected SKIP_TERRAFORM=true (Bypassing Phase 1)", "CONFIG")
 
     # 3. Execute provider-specific deploy script
     script_name = f"deploy_{target_provider.lower()}.sh"

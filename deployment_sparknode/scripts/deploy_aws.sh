@@ -8,12 +8,17 @@ COMPOSE_FILE="docker-compose.prod.yml"
 ENV_FILE=".env"
 VERSION="${APP_VERSION:-latest}"
 DOCKERHUB_ORG="zuber2301"
+SKIP_TERRAFORM="${SKIP_TERRAFORM:-false}"
 
-echo ">>> Step 1: Provisioning Foundational Infrastructure (Terraform)..."
-cd "$TF_DIR"
-terraform init > /dev/null
-# Pass any TF_VAR_* environment variables automatically
-terraform apply -auto-approve > /dev/null
+if [ "$SKIP_TERRAFORM" = "true" ]; then
+    echo ">>> Bypassing Step 1 (SKIP_TERRAFORM=true)..."
+else
+    echo ">>> Step 1: Provisioning Foundational Infrastructure (Terraform)..."
+    cd "$TF_DIR"
+    terraform init > /dev/null
+    # Pass any TF_VAR_* environment variables automatically
+    terraform apply -auto-approve > /dev/null
+fi
 
 # ─── Fetch Infrastructure Metadata ──────────────────────────
 HOST=$(terraform output -raw public_ip)
