@@ -14,6 +14,10 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 
+# Ensure uuid-ossp is available
+def ensure_uuid_ossp():
+    op.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";')
+
 # revision identifiers
 revision = '0001_tenant_isolation'
 down_revision = None
@@ -22,6 +26,31 @@ depends_on = None
 
 
 def upgrade() -> None:
+    ensure_uuid_ossp()
+    # ─── 0. Ensure tables exist before adding tenant_id ──────────────────
+    # This addresses a race condition in CI where 0001 might run before
+    # 0002 has created the sales_event_* tables.
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS sales_events (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            tenant_id UUID,
+            name TEXT,
+            status VARCHAR(50)
+        );
+        CREATE TABLE IF NOT EXISTS sales_event_registrations (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            event_id UUID REFERENCES sales_events(id) ON DELETE CASCADE,
+            email VARCHAR(255)
+        );
+        CREATE TABLE IF NOT EXISTS sales_event_leads (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            event_id UUID REFERENCES sales_events(id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS sales_event_metrics (
+            event_id UUID PRIMARY KEY REFERENCES sales_events(id) ON DELETE CASCADE
+        );
+    """)
+
     # ─── 1. Add tenant_id to recognition_comments ─────────────────────────
     op.add_column('recognition_comments',
         sa.Column('tenant_id', UUID(as_uuid=True), sa.ForeignKey('tenants.id', ondelete='CASCADE'), nullable=True)
