@@ -10,15 +10,6 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-class CloudConnection(Base):
-    __tablename__ = "cloud_connections"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True) # e.g., "Prod-AWS", "Sandbox-Azure"
-    provider = Column(String) # aws, azure, gcp
-    credentials = Column(JSON) # Encrypted at rest (pseudo for now)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
 class InfrastructureApproval(Base):
     __tablename__ = "infra_approvals"
 

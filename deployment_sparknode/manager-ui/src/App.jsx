@@ -27,12 +27,12 @@ const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
 const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion }) => {
   const [deploymentMode, setDeploymentMode] = useState('new'); // 'new' | 'update'
   const [formData, setFormData] = useState({
-    connection_id: '',
     node_class: 'burstable',
-    region: envRegion || (provider === 'aws' ? 'us-east-1' : provider === 'azure' ? 'eastus' : 'us-central1')
+    region: envRegion || (provider === 'aws' ? 'us-east-1' : provider === 'azure' ? 'eastus' : 'us-central1'),
+    tenant_id: '',
+    subscription_id: ''
   });
   
-  const [connections, setConnections] = useState([]);
   const [status, setStatus] = useState('idle'); // idle -> validated -> reviewed -> approved
   const [reviewData, setReviewData] = useState(null);
   const [error, setError] = useState(null);
@@ -83,7 +83,6 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion 
   }, [provider]);
 
   const handleValidate = async () => {
-    if (!formData.connection_id) return setError("Please select a Cloud Connection Profile");
     setStatus('validating');
     try {
       const resp = await fetch(`${API_BASE}/infra/validate`, {
@@ -202,23 +201,6 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion 
 
             <section>
               <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <Shield size={14} className="text-indigo-500" /> Connection Profile
-              </h4>
-              <select 
-                value={formData.connection_id}
-                onChange={e => setFormData({...formData, connection_id: e.target.value})}
-                disabled={status !== 'idle'}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none"
-              >
-                <option value="">Select Account Connection...</option>
-                {connections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                {connections.length === 0 && <option value="mock">Injected Provider Keys (From .env)</option>}
-              </select>
-              <p className="text-[10px] text-slate-400 mt-2 italic">Credentials are referenced via Profile ID for audit compliance.</p>
-            </section>
-
-            <section>
-              <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                 <Globe size={14} className="text-indigo-500" /> Deployment Region
               </h4>
               <select 
@@ -232,6 +214,41 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion 
                 ))}
               </select>
             </section>
+
+            {provider.toLowerCase() === 'azure' && (
+              <section className="space-y-4">
+                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <Server size={14} className="text-indigo-500" /> Azure Auth Context
+                </h4>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Tenant ID</label>
+                  <input 
+                    type="text" 
+                    placeholder="00000000-0000-0000-0000-000000000000"
+                    value={formData.tenant_id}
+                    onChange={e => setFormData({...formData, tenant_id: e.target.value})}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Subscription ID</label>
+                  <input 
+                    type="text" 
+                    placeholder="00000000-0000-0000-0000-000000000000"
+                    value={formData.subscription_id}
+                    onChange={e => setFormData({...formData, subscription_id: e.target.value})}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none"
+                  />
+                </div>
+                <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Shield size={12} className="text-indigo-600" />
+                    <span className="text-[10px] font-bold text-indigo-900 uppercase">SPN Discovery</span>
+                  </div>
+                  <p className="text-[10px] text-indigo-700 leading-tight">Service Principal (Client ID/Secret) will be automatically retrieved from the platform security (.env) for this session.</p>
+                </div>
+              </section>
+            )}
 
             <section>
               <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Node Class Selection</h4>

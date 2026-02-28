@@ -48,6 +48,26 @@ def run_deployment_v2(self, deployment_id, env_id, release_tag, host=None, provi
             elif target_provider.lower() == "gcp":
                 env_vars["TF_VAR_region"] = region
 
+        # Azure Auth Context Integration
+        if target_provider.lower() == "azure":
+            # 1. User Inputs (Tenant/Sub)
+            if config.get("tenant_id"):
+                env_vars["AZURE_TENANT_ID"] = config.get("tenant_id")
+                env_vars["TF_VAR_azure_tenant_id"] = config.get("tenant_id")
+            if config.get("subscription_id"):
+                env_vars["AZURE_SUBSCRIPTION_ID"] = config.get("subscription_id")
+                env_vars["TF_VAR_azure_subscription_id"] = config.get("subscription_id")
+            
+            # 2. Server-side SPN Retrieval (Client ID/Secret) from .env
+            env_vars["AZURE_CLIENT_ID"] = os.getenv("AZURE_CLIENT_ID", "")
+            env_vars["AZURE_CLIENT_SECRET"] = os.getenv("AZURE_CLIENT_SECRET", "")
+            
+            # Also inject for Terraform
+            env_vars["TF_VAR_azure_client_id"] = os.getenv("AZURE_CLIENT_ID", "")
+            env_vars["TF_VAR_azure_client_secret"] = os.getenv("AZURE_CLIENT_SECRET", "")
+            
+            stream_log(deployment_id, "Injected Azure Service Principal credentials from secure store (.env)", "AUTH")
+
         for key, value in config.items():
             if key == "region": continue # Handled above
             env_vars[f"TF_VAR_{key}"] = str(value)

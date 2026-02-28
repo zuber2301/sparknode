@@ -9,7 +9,7 @@ from typing import List, Dict, Optional
 import redis.asyncio as redis
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from app.database import get_db, init_db, InfrastructureApproval, CloudConnection
+from app.database import get_db, init_db, InfrastructureApproval
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -108,44 +108,6 @@ class ConnectionCreate(BaseModel):
     provider: str
     credentials: Dict
 
-@app.get("/api/infra/connections")
-async def list_connections(db: Session = Depends(get_db)):
-    conns = db.query(CloudConnection).all()
-    return [{"id": c.id, "name": c.name, "provider": c.provider} for c in conns]
-
-@app.post("/api/infra/connections")
-async def create_connection(data: ConnectionCreate, db: Session = Depends(get_db)):
-    new_conn = CloudConnection(
-        name=data.name,
-        provider=data.provider,
-        credentials=data.credentials
-    )
-    db.add(new_conn)
-    db.commit()
-    db.refresh(new_conn)
-    return {"status": "success", "id": new_conn.id}
-
-@app.post("/api/infra/validate")
-async def validate_credentials(data: Dict, db: Session = Depends(get_db)):
-    provider = data.get("provider", "").lower()
-    config = data.get("config", {})
-    conn_id = config.get("connection_id")
-
-    # In a real system, we'd use the connection_id to fetch secrets
-    # For this demo, we validate if secrets are in .env or if a mock conn exists
-    import os
-    provider_keys = {
-        "aws": "AWS_ACCESS_KEY_ID",
-        "azure": "AZURE_SUBSCRIPTION_ID",
-        "gcp": "GCP_PROJECT_ID"
-    }
-
-    key = provider_keys.get(provider)
-    if not os.getenv(key) and not conn_id:
-        raise HTTPException(status_code=401, detail=f"No {provider} credentials found in Profile or .env")
-
-    return {"status": "validated", "iam_role": "SparkNode-Provisioner", "permission": "FullAccess"}
-
 @app.get("/api/infra/config")
 async def get_infra_config(env_id: str, provider: str, db: Session = Depends(get_db)):
     # Retrieve the last successful approval/config for this environment
@@ -153,12 +115,27 @@ async def get_infra_config(env_id: str, provider: str, db: Session = Depends(get
         InfrastructureApproval.env_id == env_id,
         InfrastructureApproval.provider == provider.lower(),
         InfrastructureApproval.status == "approved"
-    ).order_by(InfrastructureApproval.approved_at.desc()).first()
+    ).order_by(InfrastructureApproval.created_at.desc()).first()
     
     if not last_approval:
         return {"variables": {}}
     
     return {"variables": last_approval.variables or {}}
+
+@app.post("/api/infra/validate")
+async def validate_credentials(data: Dict, db: Session = Depends(get_db)):
+    provider = data.get("provider", "").lower()
+    config = data.get("config", {})
+    
+    # Validation logic now checks .env directly
+    import os
+    if provider == "azure":
+        client_id = os.getenv("AZURE_CLIENT_ID")
+        client_secret = os.getenv("AZURE_CLIENT_SECRET")
+        if not client_id or not client_secret:
+            raise HTTPException(status_code=401, detail="Azure Service Principal secrets not found in system storage")
+    
+    return {"status": "validated", "iam_role": "SparkNode-Provisioner", "permission": "FullAccess"}
 
 @app.post("/api/infra/review")
 async def review_infrastructure(data: Dict, db: Session = Depends(get_db)):
