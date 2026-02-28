@@ -75,6 +75,10 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+  packages: write
+
 env:
   DOCKERHUB_ORG: zuber2301
   BACKEND_IMAGE: zuber2301/sparknode-backend
