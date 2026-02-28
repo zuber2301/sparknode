@@ -38,12 +38,27 @@ jobs:
           psql "postgresql://postgres:postgres@localhost:5432/sparknode" -f database/init.sql
           psql "postgresql://postgres:postgres@localhost:5432/sparknode" -f database/seed.sql
 
-      - name: Apply migrations
-        env:
-          APP_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sparknode
-        run: bash backend/scripts/apply_migrations.sh
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Check pending migrations
+      - name: Apply Alembic migrations
         env:
-          APP_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sparknode
-        run: bash backend/scripts/check_migrations_ci.sh
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sparknode
+        run: |
+          cd backend
+          python -m alembic upgrade head
+
+      - name: Verify migration status
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/sparknode
+        run: |
+          cd backend
+          ALEMBIC_STATUS=$(python -m alembic current)
+          echo "Current Alembic revision: $ALEMBIC_STATUS"
+          if [[ "$ALEMBIC_STATUS" != *"(head)"* ]]; then
+            echo "ERROR: Migrations not at head!"
+            exit 1
+          fi

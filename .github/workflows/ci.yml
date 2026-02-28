@@ -31,22 +31,6 @@
 name: CI — Build & Push Images
 
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+*'
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - 'VERSION'
-      - '.github/workflows/ci.yml'
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
   workflow_dispatch:
     inputs:
       image:
