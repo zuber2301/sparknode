@@ -97,6 +97,9 @@ services:
 
   # ── Backend (FastAPI + Uvicorn) ────────────────────────────
   backend:
+    build:
+      context: ../control-plane-api
+      dockerfile: Dockerfile
     image: ${DOCKERHUB_ORG:-zuber2301}/sparknode-backend:${APP_VERSION:-latest}
     container_name: ${PROJECT_NAME:-sparknode}-backend
     restart: unless-stopped
@@ -151,6 +154,9 @@ services:
 
   # ── Celery Worker ──────────────────────────────────────────
   celery:
+    build:
+      context: ../control-plane-api
+      dockerfile: Dockerfile
     image: ${DOCKERHUB_ORG:-zuber2301}/sparknode-backend:${APP_VERSION:-latest}
     container_name: ${PROJECT_NAME:-sparknode}-celery
     restart: unless-stopped

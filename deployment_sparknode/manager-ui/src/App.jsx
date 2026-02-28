@@ -24,20 +24,148 @@ const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
   </button>
 );
 
-const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion }) => {
+// ─── Phase 2: Deploy App Containers modal ────────────────────────────────────
+const DeployAppModal = ({ env, onClose }) => {
+  const [releaseTag, setReleaseTag] = useState('latest');
+  const [status, setStatus] = useState('idle'); // idle | deploying | error
+  const [deploymentId, setDeploymentId] = useState(null);
+  const [error, setError] = useState(null);
+
+  const handleDeploy = async () => {
+    setStatus('deploying');
+    setError(null);
+    try {
+      const resp = await fetch(`${API_BASE}/deployments/app`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          env_id: env.id,
+          provider: env.provider,
+          host: env.host,
+          release_tag: releaseTag || 'latest',
+        }),
+      });
+      if (!resp.ok) throw new Error(`Server error ${resp.status}`);
+      const data = await resp.json();
+      setDeploymentId(data.deployment_id);
+      setStatus('launched');
+    } catch (e) {
+      setError(e.message);
+      setStatus('error');
+    }
+  };
+
+  if (status === 'launched') {
+    return (
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <CheckCircle2 size={40} className="text-green-500" />
+            <h3 className="text-lg font-bold text-slate-900">Container Deploy Queued</h3>
+            <p className="text-sm text-slate-500">
+              Deployment <span className="font-mono text-xs text-indigo-600">{deploymentId}</span> dispatched for{' '}
+              <strong>{env.name}</strong> — tag: <span className="font-mono">{releaseTag}</span>
+            </p>
+            <button
+              onClick={() => { onClose(deploymentId); }}
+              className="mt-2 w-full py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all"
+            >
+              Watch Logs
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">Deploy App Containers</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Phase 2 — container-only rollout (infra already provisioned)</p>
+          </div>
+          <button onClick={() => onClose(null)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+          <div className={`w-8 h-8 rounded-lg ${env.color} text-white flex items-center justify-center`}>
+            <Rocket size={16} />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-slate-900">{env.name}</p>
+            <p className="text-[10px] text-slate-500 uppercase font-bold">{env.provider} · {env.region}</p>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Release Tag</label>
+          <input
+            type="text"
+            value={releaseTag}
+            onChange={e => setReleaseTag(e.target.value)}
+            placeholder="latest, v2.3.0, sha-abc123..."
+            disabled={status === 'deploying'}
+            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none"
+          />
+          <p className="text-[10px] text-slate-400 ml-1 mt-1">Docker image tag to pull and deploy.</p>
+        </div>
+
+        {error && (
+          <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-[11px] text-red-700">{error}</div>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            onClick={() => onClose(null)}
+            className="flex-1 py-3 border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleDeploy}
+            disabled={status === 'deploying'}
+            className="flex-1 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+          >
+            {status === 'deploying' ? (
+              <><LucideRefreshCw size={14} className="animate-spin" /> Queuing…</>
+            ) : (
+              <><Rocket size={14} /> Deploy</>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion, initialConfig = {} }) => {
   const [deploymentMode, setDeploymentMode] = useState('new'); // 'new' | 'update'
   const [formData, setFormData] = useState({
-    node_class: 'burstable',
-    region: envRegion || (provider === 'aws' ? 'us-east-1' : provider === 'azure' ? 'eastus' : 'us-central1'),
-    tenant_id: '',
-    subscription_id: ''
+    node_class:     'burstable',
+    region:         envRegion || (provider === 'aws' ? 'us-east-1' : provider === 'azure' ? 'eastus' : 'us-central1'),
+    tenant_id:      initialConfig.tenant_id      || '',
+    subscription_id:initialConfig.subscription_id|| '',
+    gcp_project_id: initialConfig.gcp_project_id || '',
   });
+
+  // Provider-specific instance type labels for node class selector
+  const instanceTypes = {
+    aws:   { burstable: 't3.medium',    production: 'm6i.large'       },
+    azure: { burstable: 'Standard_B2s', production: 'Standard_D2s_v3' },
+    gcp:   { burstable: 'e2-medium',    production: 'n2-standard-2'   },
+  };
+  const providerKey = provider.toLowerCase();
   
   const [status, setStatus] = useState('idle'); // idle -> validated -> reviewed -> approved
   const [reviewData, setReviewData] = useState(null);
   const [error, setError] = useState(null);
   const [deploymentId, setDeploymentId] = useState(null);
-  const [validationLogs, setValidationLogs] = useState([]);
+  const [terminalLogs, setTerminalLogs] = useState([]);  // persists across all phases
+  const terminalRef = useRef(null);
 
   useEffect(() => {
     if (deploymentMode === 'update') {
@@ -72,21 +200,17 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion 
     ]
   };
 
+  // Auto-scroll terminal to bottom when new logs arrive
   useEffect(() => {
-    const fetchConnections = async () => {
-      try {
-        const resp = await fetch(`${API_BASE}/infra/connections`);
-        const data = await resp.json();
-        setConnections(data.filter(c => c.provider.toLowerCase() === provider.toLowerCase()));
-      } catch (e) { console.error("Failed to fetch connections", e); }
-    };
-    fetchConnections();
-  }, [provider]);
+    if (terminalRef.current) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+    }
+  }, [terminalLogs]);
 
   const handleValidate = async () => {
     setStatus('validating');
     setError(null);
-    setValidationLogs([{ msg: `Connecting to SparkNode API (${API_BASE})...`, status: 'info' }]);
+    setTerminalLogs([{ msg: `[validate] Connecting to SparkNode API (${API_BASE})...`, status: 'info' }]);
     
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 20000);
@@ -107,7 +231,7 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion 
       
       const data = await resp.json();
       
-      if (data.logs) setValidationLogs(data.logs);
+      if (data.logs) setTerminalLogs(data.logs);
 
       if (data.status !== 'validated') {
         throw new Error(data.error || "IAM Permission Validation FAILED");
@@ -119,14 +243,14 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion 
       clearTimeout(timeoutId);
       if (e.name === 'AbortError') {
         const msg = "Request timed out after 20 seconds — check API reachability.";
-        setValidationLogs(prev => [...prev, { msg, status: 'error' }]);
+        setTerminalLogs(prev => [...prev, { msg, status: 'error' }]);
         setError(msg);
       } else if (e.message === 'Failed to fetch') {
         const msg = `Cannot reach API at ${API_BASE} — verify the server is running.`;
-        setValidationLogs(prev => [...prev, { msg, status: 'error' }]);
+        setTerminalLogs(prev => [...prev, { msg, status: 'error' }]);
         setError(msg);
       } else {
-        setValidationLogs(prev => [...prev, { msg: e.message, status: 'error' }]);
+        setTerminalLogs(prev => [...prev, { msg: e.message, status: 'error' }]);
         setError(e.message);
       }
       setStatus('idle');
@@ -135,30 +259,69 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion 
 
   const handleReview = async () => {
     setStatus('reviewing');
+    setError(null);
+    setTerminalLogs(prev => [
+      ...prev,
+      { msg: '────────────────────────────────────────', status: 'info' },
+      { msg: `[plan] Dispatching terraform init + plan task (${deploymentMode} mode)...`, status: 'progress' }
+    ]);
+
     try {
+      // ── Step 1: Dispatch the Celery task ──────────────────────
       const resp = await fetch(`${API_BASE}/infra/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          env_id: envName, 
-          provider, 
+        body: JSON.stringify({
+          env_id: envName,
+          provider,
           config: formData,
-          mode: deploymentMode 
+          mode: deploymentMode
         })
       });
-      const data = await resp.json();
-      
-      // Critical Issue #3: Injected Risk level into mock
-      const mockReview = {
-        ...data.plan,
-        risk: 'green',
-        cost: '$84/month',
-        time: '6 minutes'
-      };
-      
-      setReviewData(mockReview);
-      setDeploymentId(data.deployment_id);
-      setStatus('reviewed');
+      if (!resp.ok) throw new Error(`Review dispatch failed: HTTP ${resp.status}`);
+      const { task_id, deployment_id } = await resp.json();
+
+      // ── Step 2: Poll plan-status until done ───────────────────
+      let offset      = 0;
+      const DEADLINE  = Date.now() + 3 * 60 * 1000;  // 3 min hard timeout
+      const INTERVAL  = 2000;                          // poll every 2 s
+
+      await new Promise((resolve, reject) => {
+        const poll = async () => {
+          if (Date.now() > DEADLINE) {
+            reject(new Error('Terraform plan timed out after 3 minutes'));
+            return;
+          }
+          try {
+            const r = await fetch(`${API_BASE}/infra/plan-status/${task_id}?offset=${offset}`);
+            if (!r.ok) throw new Error(`Polling error: HTTP ${r.status}`);
+            const d = await r.json();
+
+            // Append any new log lines to terminal
+            if (d.logs && d.logs.length > 0) {
+              setTerminalLogs(prev => [...prev, ...d.logs]);
+            }
+            offset = d.offset ?? offset;
+
+            if (d.done) {
+              if (d.status !== 'reviewed') {
+                reject(new Error(d.error || 'Terraform plan failed — see terminal for details'));
+              } else {
+                setReviewData(d.plan);
+                setDeploymentId(d.deployment_id || deployment_id);
+                setStatus('reviewed');
+                resolve();
+              }
+            } else {
+              setTimeout(poll, INTERVAL);
+            }
+          } catch (pollErr) {
+            reject(pollErr);
+          }
+        };
+        setTimeout(poll, INTERVAL);  // first poll after initial delay
+      });
+
     } catch (e) {
       setError(e.message);
       setStatus('validated');
@@ -171,7 +334,9 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion 
       await fetch(`${API_BASE}/infra/approve?deployment_id=${deploymentId}`, {
         method: 'POST'
       });
-      onConfirm(formData);
+      // Pass the existing deployment_id so App connects to its WS logs.
+      // Do NOT call executeDeployment — approve already dispatches the Celery task.
+      onConfirm(deploymentId);
     } catch (e) {
       setError(e.message);
       setStatus('reviewed');
@@ -233,7 +398,7 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion 
               </p>
             </section>
 
-            {provider.toLowerCase() === 'azure' && (
+            {providerKey === 'azure' && (
               <section className="space-y-4">
                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                   <Server size={14} className="text-indigo-500" /> Azure Auth Context
@@ -268,6 +433,46 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion 
               </section>
             )}
 
+            {providerKey === 'aws' && (
+              <section className="space-y-4">
+                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <Server size={14} className="text-orange-500" /> AWS Auth Context
+                </h4>
+                <div className="p-3 bg-orange-50 border border-orange-100 rounded-xl">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Shield size={12} className="text-orange-600" />
+                    <span className="text-[10px] font-bold text-orange-900 uppercase">Credentials Discovery</span>
+                  </div>
+                  <p className="text-[10px] text-orange-700 leading-tight">AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are pre-configured on the platform server. STS identity is validated during the access check step.</p>
+                </div>
+              </section>
+            )}
+
+            {providerKey === 'gcp' && (
+              <section className="space-y-4">
+                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <Server size={14} className="text-blue-500" /> GCP Auth Context
+                </h4>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">GCP Project ID</label>
+                  <input 
+                    type="text" 
+                    placeholder="my-gcp-project-123456"
+                    value={formData.gcp_project_id}
+                    onChange={e => setFormData({...formData, gcp_project_id: e.target.value})}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500/20 transition-all outline-none"
+                  />
+                </div>
+                <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Shield size={12} className="text-blue-600" />
+                    <span className="text-[10px] font-bold text-blue-900 uppercase">SA Key Discovery</span>
+                  </div>
+                  <p className="text-[10px] text-blue-700 leading-tight">Service Account key JSON is pre-configured on the platform server. Credentials are validated server-side during the access check step.</p>
+                </div>
+              </section>
+            )}
+
             <section>
               <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                 <Globe size={14} className="text-indigo-500" /> Deployment Region
@@ -293,7 +498,7 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion 
                  >
                     <div className="flex justify-between items-center mb-1">
                       <p className="font-black text-slate-900 text-sm">Burstable</p>
-                      <span className="text-[10px] font-bold text-indigo-600 bg-white px-2 py-0.5 rounded border border-indigo-100">t3.medium</span>
+                      <span className="text-[10px] font-bold text-indigo-600 bg-white px-2 py-0.5 rounded border border-indigo-100">{instanceTypes[providerKey]?.burstable || 't3.medium'}</span>
                     </div>
                     <p className="text-[10px] text-slate-500 leading-relaxed">Suitable for dev/test environments. Uses shared CPU credits.</p>
                  </button>
@@ -304,7 +509,7 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion 
                  >
                     <div className="flex justify-between items-center mb-1">
                       <p className="font-black text-slate-900 text-sm">Production Optimized</p>
-                      <span className="text-[10px] font-bold text-green-600 bg-white px-2 py-0.5 rounded border border-green-100">m6i.large</span>
+                      <span className="text-[10px] font-bold text-green-600 bg-white px-2 py-0.5 rounded border border-green-100">{instanceTypes[providerKey]?.production || 'm6i.large'}</span>
                     </div>
                     <p className="text-[10px] text-slate-500 leading-relaxed">Dedicated performance cores with high-availability networking.</p>
                  </button>
@@ -312,94 +517,105 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion 
             </section>
           </div>
 
-          {/* Step 2: Plan Review (Issue #2, #3) */}
-          <div className="col-span-8 bg-slate-50 p-8 overflow-y-auto">
-            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+          {/* Step 2: Terminal + Plan Review */}
+          <div className="col-span-8 bg-slate-50 p-6 overflow-y-auto space-y-5">
+            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
               <Workflow size={14} className="text-indigo-500" /> Terraform Execution Plan
             </h4>
-            
-            {reviewData ? (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="grid grid-cols-4 gap-4">
-                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 text-center">
-                    <p className="text-[10px] text-slate-400 font-black uppercase mb-1">To Add</p>
-                    <p className="text-2xl font-black text-green-600">+{reviewData.resources_to_add}</p>
-                  </div>
-                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 text-center opacity-40">
-                    <p className="text-[10px] text-slate-400 font-black uppercase mb-1">Modify</p>
-                    <p className="text-2xl font-black text-slate-900">0</p>
-                  </div>
-                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 text-center">
-                    <p className="text-[10px] text-slate-400 font-black uppercase mb-1">Impact</p>
-                    <div className="flex items-center justify-center gap-1.5 mt-1">
-                      <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
-                      <span className="text-xs font-black text-green-700">SAFE</span>
+
+            {/* Always-visible terminal log panel */}
+            {terminalLogs.length > 0 ? (
+              <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-xl">
+                <div className="flex items-center gap-2 px-5 py-3 border-b border-slate-800">
+                  <div className="flex gap-1.5"><div className="w-3 h-3 rounded-full bg-slate-700"/><div className="w-3 h-3 rounded-full bg-slate-700"/><div className="w-3 h-3 rounded-full bg-slate-700"/></div>
+                  <Terminal size={12} className="text-indigo-400 ml-2" />
+                  <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">
+                    {status === 'reviewing' ? 'Running terraform init + plan...' : 'Execution Log'}
+                  </span>
+                  {status === 'reviewing' && <LucideRefreshCw size={12} className="text-indigo-400 animate-spin ml-auto" />}
+                </div>
+                <div ref={terminalRef} className="p-4 space-y-0.5 max-h-64 overflow-y-auto font-mono text-[11px]">
+                  {terminalLogs.map((log, i) => (
+                    <div key={i} className="flex gap-3 leading-5">
+                      <span className={
+                        log.status === 'error'    ? 'text-red-400' :
+                        log.status === 'success'  ? 'text-green-400' :
+                        log.status === 'progress' ? 'text-indigo-300' :
+                        'text-slate-400'
+                      }>{log.msg}</span>
                     </div>
-                  </div>
-                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 text-center">
-                    <p className="text-[10px] text-slate-400 font-black uppercase mb-1">Est. Cost</p>
-                    <p className="text-sm font-black text-slate-800 mt-1.5">{reviewData.cost}</p>
-                  </div>
-                </div>
-
-                <div className="bg-slate-900 rounded-2xl p-6 shadow-xl border border-slate-800">
-                  <div className="flex items-center justify-between mb-4">
-                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Planned Resources</p>
-                    <span className="text-[10px] text-slate-500 font-mono">Provision Time: ~{reviewData.time}</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-x-8 gap-y-2 font-mono text-[11px]">
-                    {reviewData.resources.map(r => (
-                      <div key={r} className="flex gap-3 items-center text-slate-300">
-                        <span className="text-green-500 opacity-80">+</span> {r}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4 p-4 bg-indigo-50 border border-indigo-100 rounded-2xl">
-                   <ShieldCheck size={20} className="text-indigo-600 mt-0.5" />
-                   <div>
-                     <p className="text-xs font-bold text-indigo-900">Governance & Approval</p>
-                     <p className="text-[10px] text-indigo-700 mt-1 leading-relaxed">This plan has been analyzed for risk. Proceeding will record an approval event for Environment {envName}.</p>
-                   </div>
+                  ))}
+                  {status === 'reviewing' && (
+                    <div className="flex gap-1 pt-1">
+                      <span className="text-indigo-400 animate-pulse">█</span>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-full text-center py-10">
-                {validationLogs.length > 0 ? (
-                  <div className="w-full max-w-lg bg-slate-900 rounded-2xl p-6 shadow-2xl border border-slate-800 text-left font-mono">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Terminal size={16} className="text-indigo-400" />
-                      <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Connectivity & Validation Progress</span>
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 mb-4">
+                  <RotateCcw className="text-slate-200" size={40} />
+                </div>
+                <h5 className="text-slate-700 font-bold mb-1">Awaiting validation</h5>
+                <p className="text-xs text-slate-400 max-w-xs">Validate access first, then run Analyse Plan to execute terraform init + plan.</p>
+              </div>
+            )}
+
+            {/* Plan summary — shown after terraform plan succeeds */}
+            {reviewData && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="grid grid-cols-4 gap-3">
+                  <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 text-center">
+                    <p className="text-[9px] text-slate-400 font-black uppercase mb-1">To Add</p>
+                    <p className="text-2xl font-black text-green-600">+{reviewData.resources_to_add}</p>
+                  </div>
+                  <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 text-center">
+                    <p className="text-[9px] text-slate-400 font-black uppercase mb-1">To Change</p>
+                    <p className="text-2xl font-black text-amber-500">{reviewData.resources_to_change ?? 0}</p>
+                  </div>
+                  <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 text-center">
+                    <p className="text-[9px] text-slate-400 font-black uppercase mb-1">To Destroy</p>
+                    <p className="text-2xl font-black text-red-500">{reviewData.resources_to_destroy ?? 0}</p>
+                  </div>
+                  <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 text-center">
+                    <p className="text-[9px] text-slate-400 font-black uppercase mb-1">Impact</p>
+                    <div className="flex items-center justify-center gap-1 mt-1.5">
+                      <div className={`w-2 h-2 rounded-full animate-pulse ${reviewData.resources_to_destroy > 0 ? 'bg-red-500' : reviewData.resources_to_change > 0 ? 'bg-amber-500' : 'bg-green-500'}`} />
+                      <span className={`text-[10px] font-black ${reviewData.resources_to_destroy > 0 ? 'text-red-700' : reviewData.resources_to_change > 0 ? 'text-amber-700' : 'text-green-700'}`}>
+                        {reviewData.risk_level || 'SAFE'}
+                      </span>
                     </div>
-                    <div className="space-y-2 max-h-[250px] overflow-y-auto">
-                      {validationLogs.map((log, i) => (
-                        <div key={i} className="flex gap-3 text-xs leading-relaxed">
-                          <span className="text-slate-600">[{new Date().toLocaleTimeString([], { hour12: false })}]</span>
-                          <span className={
-                            log.status === 'error' ? 'text-red-400' : 
-                            log.status === 'success' ? 'text-green-400' : 
-                            log.status === 'progress' ? 'text-indigo-300 animate-pulse' : 
-                            'text-slate-300'
-                          }>
-                            {log.msg}
-                          </span>
+                  </div>
+                </div>
+
+                {reviewData.resources?.length > 0 && (
+                  <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Resources to Provision</p>
+                      <span className="text-[10px] text-slate-500 font-mono">~{reviewData.time}</span>
+                    </div>
+                    <div className="grid grid-cols-1 gap-1 font-mono text-[11px]">
+                      {reviewData.resources.map((r, i) => (
+                        <div key={i} className="flex gap-3 items-center text-slate-300">
+                          <span className="text-green-500">+</span> {r}
                         </div>
                       ))}
                     </div>
                   </div>
-                ) : (
-                  <>
-                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 mb-6">
-                      <RotateCcw className="text-slate-200 animate-spin-slow" size={48} />
-                    </div>
-                    <h5 className="text-slate-800 font-bold mb-2">Awaiting Generation</h5>
-                    <p className="text-xs text-slate-500 max-w-sm">Complete the configuration and validate connection to generate the destructive execution plan.</p>
-                  </>
                 )}
+
+                <div className="flex items-start gap-3 p-3 bg-indigo-50 border border-indigo-100 rounded-xl">
+                  <ShieldCheck size={16} className="text-indigo-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs font-bold text-indigo-900">Governance &amp; Approval</p>
+                    <p className="text-[10px] text-indigo-700 mt-0.5 leading-relaxed">Plan recorded for {envName}. Approving will trigger the actual <code className="bg-indigo-100 px-1 rounded">terraform apply</code>.</p>
+                  </div>
+                </div>
               </div>
             )}
-            {error && <div className="mt-4 p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl text-xs font-black">{error}</div>}
+
+            {error && <div className="p-3 bg-red-50 border border-red-100 text-red-600 rounded-xl text-xs font-black">{error}</div>}
           </div>
         </div>
 
@@ -566,6 +782,7 @@ const App = () => {
   const [deployingEnvs, setDeployingEnvs] = useState({});
   const [currentStep, setCurrentStep] = useState(0);
   const [configModal, setConfigModal] = useState(null);
+  const [deployAppModal, setDeployAppModal] = useState(null);
   const logEndRef = useRef(null);
   const socketRef = useRef(null);
 
@@ -581,7 +798,7 @@ const App = () => {
   const environments = [
     { id: 'dev', name: 'AWS Cloud', icon: FlaskConical, color: 'bg-indigo-600', status: 'Healthy', version: 'v2.2.0', region: 'US-East-1', host: 'ec2-54-sparknode.io', provider: 'aws' },
     { id: 'qa', name: 'Azure Cloud', icon: ClipboardCheck, color: 'bg-indigo-400', status: 'Healthy', version: 'v2.1.1', region: 'East-US', host: 'spark-vm.azure.com', provider: 'azure' },
-    { id: 'prod', name: 'GCP Cloud', icon: ShieldCheck, color: 'bg-slate-900', status: 'Healthy', version: 'v2.1.0', region: 'US-Central1', host: 'spark-lb.google.com', provider: 'gcp' }
+    { id: 'prod', name: 'GCP Cloud', icon: ShieldCheck, color: 'bg-slate-900', status: 'Healthy', version: 'v2.1.0', region: 'US-Central1', host: 'spark-lb.google.com', provider: 'gcp', gcp_project_id: '' }
   ];
 
   useEffect(() => {
@@ -675,8 +892,27 @@ const App = () => {
           provider={configModal.provider} 
           envName={configModal.id}
           region={configModal.region}
+          initialConfig={configModal}
           onClose={() => setConfigModal(null)} 
-          onConfirm={(config) => executeDeployment(configModal, config)}
+          onConfirm={(deploymentId) => {
+            setConfigModal(null);
+            if (deploymentId) {
+              setDeployingEnvs({ [configModal.id]: true });
+              connectToLogs(deploymentId);
+            }
+          }}
+        />
+      )}
+      {deployAppModal && (
+        <DeployAppModal
+          env={deployAppModal}
+          onClose={(deploymentId) => {
+            setDeployAppModal(null);
+            if (deploymentId) {
+              setDeployingEnvs({ [deployAppModal.id]: true });
+              connectToLogs(deploymentId);
+            }
+          }}
         />
       )}
       
@@ -738,7 +974,7 @@ const App = () => {
                     showMetrics={false}
                     deploying={deployingEnvs[env.id]}
                     onDeployInfra={() => setConfigModal(env)}
-                    onDeployApp={() => executeDeployment(env, {}, true)} // Skip TF step
+                    onDeployApp={() => setDeployAppModal(env)}
                     onRollback={() => triggerRollback(env)}
                   />
                 ))}
