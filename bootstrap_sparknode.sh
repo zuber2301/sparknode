@@ -115,47 +115,33 @@ docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" < "$ROOT_DIR/dat
 echo "Seeding completed."
 
 # ======================================================================
-# STEP 6: Ensure schema_migrations table and app role grants
+# STEP 6: Ensure Alembic version table and app role grants
 # ======================================================================
-echo "Ensuring schema_migrations table exists and granting minimal privileges..."
+echo "Ensuring Alembic version table exists..."
+# Alembic creates its own tracking table (alembic_version) automatically
+# on first run. We just grant privileges to the app role if it exists.
 docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" \
-  -c "CREATE TABLE IF NOT EXISTS schema_migrations (filename text PRIMARY KEY, applied_at timestamptz DEFAULT now());" || true
+  -c "CREATE TABLE IF NOT EXISTS alembic_version (version_num VARCHAR(32) NOT NULL, CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num));" || true
 docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" \
-  -c "DO \$\$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'sparknode_app') THEN GRANT INSERT, SELECT ON schema_migrations TO sparknode_app; END IF; END \$\$;" || true
+  -c "DO \$\$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'sparknode_app') THEN GRANT INSERT, SELECT, UPDATE, DELETE ON alembic_version TO sparknode_app; END IF; END \$\$;" || true
 
 # ======================================================================
-# STEP 7: Apply SQL migrations (idempotent)
-# Tries the backend container's apply_migrations.sh first; falls back to
-# applying each file directly from the host via the DB container.
+# STEP 7: Apply Alembic migrations (idempotent)
+# The backend entrypoint also runs alembic upgrade head, but we run it
+# explicitly here to surface errors early during bootstrap.
 # ======================================================================
 BACKEND_CONTAINER="${PROJECT_NAME:-sparknode}-backend"
-echo "=== Applying SQL migrations ==="
+echo "=== Applying Alembic migrations ==="
 if docker ps --format '{{.Names}}' | grep -q "$BACKEND_CONTAINER"; then
-  docker exec -i "$BACKEND_CONTAINER" bash -lc "./scripts/apply_migrations.sh" || {
-    echo "Warning: apply_migrations failed inside backend container; applying directly to DB..."
-    for f in "$ROOT_DIR/database/migrations"/*.sql; do
-      fname="$(basename "$f")"
-      echo "  Applying $fname"
-      if docker exec -i "$DB_CONTAINER" psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "$DB_NAME" -f - < "$f"; then
-        docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" \
-          -c "INSERT INTO schema_migrations (filename) VALUES ('$fname') ON CONFLICT (filename) DO NOTHING;"
-      else
-        echo "  WARNING: $fname failed — skipping record."
-      fi
-    done
+  docker exec -i "$BACKEND_CONTAINER" python -m alembic upgrade head && \
+    echo "Alembic migrations applied successfully." || {
+    echo "ERROR: Alembic migrations failed inside backend container."
+    echo "Check logs: docker logs $BACKEND_CONTAINER"
+    exit 1
   }
 else
-  echo "Backend container not running; applying migrations directly to DB..."
-  for f in "$ROOT_DIR/database/migrations"/*.sql; do
-    fname="$(basename "$f")"
-    echo "  Applying $fname"
-    if docker exec -i "$DB_CONTAINER" psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "$DB_NAME" -f - < "$f"; then
-      docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" \
-        -c "INSERT INTO schema_migrations (filename) VALUES ('$fname') ON CONFLICT (filename) DO NOTHING;"
-    else
-      echo "  WARNING: $fname failed — skipping record."
-    fi
-  done
+  echo "WARNING: Backend container ($BACKEND_CONTAINER) is not running."
+  echo "Alembic migrations will run when the backend starts (via entrypoint)."
 fi
 echo "Migrations step complete."
 
@@ -249,39 +235,26 @@ echo "Canonical accounts restored."
 # ======================================================================
 echo "=== Verifying database tables ==="
 docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" \
-  -c "SELECT to_regclass('public.departments') AS departments, to_regclass('public.users') AS users, to_regclass('public.schema_migrations') AS schema_migrations;"
+  -c "SELECT to_regclass('public.departments') AS departments, to_regclass('public.users') AS users, to_regclass('public.alembic_version') AS alembic_version;"
 
 # ======================================================================
-# STEP 10: Migration completeness check
+# STEP 10: Migration completeness check (Alembic head)
 # ======================================================================
-echo "Checking pending migrations..."
-MIGRATION_FILES=()
-for f in "$ROOT_DIR/database/migrations"/*.sql; do
-  [ -f "$f" ] || continue
-  MIGRATION_FILES+=("$(basename "$f")")
-done
-
-if [ ${#MIGRATION_FILES[@]} -eq 0 ]; then
-  echo "No migration files found in $ROOT_DIR/database/migrations"
-else
-  files_sql_list=$(printf "'%s', " "${MIGRATION_FILES[@]}")
-  files_sql_list=${files_sql_list%, }
-  applied_count=$(docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" \
-    -t -A -c "SELECT count(*) FROM schema_migrations WHERE filename IN ($files_sql_list);" | tr -d '[:space:]')
-  total_count=${#MIGRATION_FILES[@]}
-  if [ -z "$applied_count" ]; then
-    echo "ERROR: Unable to query schema_migrations. Failing bootstrap."
-    exit 1
-  fi
-  if [ "$applied_count" -lt "$total_count" ]; then
-    echo "WARNING: $((total_count - applied_count)) migration(s) not yet recorded as applied:"
-    pending_sql_vals=$(printf "('%s')," "${MIGRATION_FILES[@]}")
-    pending_sql_vals=${pending_sql_vals%,}
-    docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" \
-      -t -A -c "SELECT filename FROM (VALUES $pending_sql_vals) t(filename) LEFT JOIN schema_migrations sm ON t.filename = sm.filename WHERE sm.filename IS NULL;"
-    echo "Consider re-running bootstrap to retry pending migrations."
+echo "Checking Alembic migration status..."
+if docker ps --format '{{.Names}}' | grep -q "$BACKEND_CONTAINER"; then
+  CURRENT_REV=$(docker exec -i "$BACKEND_CONTAINER" python -m alembic current 2>&1 | grep -oP '[a-z0-9_]+\s+\(head\)' | awk '{print $1}' || true)
+  if [ -n "$CURRENT_REV" ]; then
+    echo "Alembic is at head: $CURRENT_REV"
   else
-    echo "All migrations recorded as applied ($applied_count/$total_count)."
+    echo "WARNING: Alembic is not at head. Run: docker exec $BACKEND_CONTAINER python -m alembic upgrade head"
+  fi
+else
+  CURRENT_REV=$(docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" \
+    -t -A -c "SELECT version_num FROM alembic_version LIMIT 1;" 2>/dev/null | tr -d '[:space:]' || true)
+  if [ -n "$CURRENT_REV" ]; then
+    echo "Alembic version recorded in DB: $CURRENT_REV"
+  else
+    echo "WARNING: No Alembic version found in database. Migrations may not have run."
   fi
 fi
 
