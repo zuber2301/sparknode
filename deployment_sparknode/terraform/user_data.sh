@@ -382,6 +382,106 @@ networks:
     driver: bridge
 COMPOSEEOF
 
+# --- Create Monitoring Config ---
+mkdir -p "$APP_DIR/monitoring/prometheus"
+cat > "$APP_DIR/monitoring/prometheus/prometheus.yml" <<'PROMETHEUSEOF'
+global:
+  scrape_interval: 15s
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+  - job_name: 'postgres_exporter'
+    static_configs:
+      - targets: ['postgres_exporter:9187']
+  - job_name: 'sparknode-backend'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['backend:8000']
+  - job_name: 'node_exporter'
+    static_configs:
+      - targets: ['node_exporter:9100']
+PROMETHEUSEOF
+
+# --- Create Docker Monitoring — Inline for Terraform Provisioning ---
+cat > "$APP_DIR/docker-monitoring.yml" <<'MONITORINGEOF'
+version: '3.8'
+services:
+  prometheus:
+    image: prom/prometheus:v2.54.0
+    container_name: $${PROJECT_NAME:-sparknode}-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    logging:
+      driver: "awslogs"
+      options:
+        awslogs-region: $${AWS_REGION:-us-east-1}
+        awslogs-group: "/sparknode/prometheus"
+        awslogs-stream: "prometheus"
+    networks:
+      - monitoring-network
+      - app-network
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: $${PROJECT_NAME:-sparknode}-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=$${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=$${GRAFANA_ADMIN_PASSWORD}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.$${DOMAIN}`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+    logging:
+      driver: "awslogs"
+      options:
+        awslogs-region: $${AWS_REGION:-us-east-1}
+        awslogs-group: "/sparknode/grafana"
+        awslogs-stream: "grafana"
+    networks:
+      - monitoring-network
+      - app-network
+
+  postgres_exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: $${PROJECT_NAME:-sparknode}-postgres-exporter
+    restart: unless-stopped
+    environment:
+      - DATA_SOURCE_NAME=postgresql://$${POSTGRES_USER}:$${POSTGRES_PASSWORD}@postgres:5432/$${POSTGRES_DB}?sslmode=disable
+    networks:
+      - monitoring-network
+      - app-network
+
+  node_exporter:
+    image: prom/node-exporter:v1.8.1
+    container_name: $${PROJECT_NAME:-sparknode}-node-exporter
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - monitoring-network
+
+volumes:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  monitoring-network:
+    driver: bridge
+  app-network:
+    external: true
+    name: $${PROJECT_NAME:-sparknode}-network
+MONITORINGEOF
+
 # ─── 9. Login to DockerHub & pull images ─────────────────────
 if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
   echo ">>> Logging into DockerHub..."
@@ -391,10 +491,10 @@ fi
 # ─── 10. Pull and start services ────────────────────────────
 cd "$APP_DIR"
 echo ">>> Pulling container images..."
-docker compose -f docker-compose.prod.yml --env-file .env pull
+docker compose -f docker-compose.prod.yml -f docker-monitoring.yml --env-file .env pull
 
 echo ">>> Starting services..."
-docker compose -f docker-compose.prod.yml --env-file .env up -d
+docker compose -f docker-compose.prod.yml -f docker-monitoring.yml --env-file .env up -d
 
 # ─── 11. Set up daily database backup cron ───────────────────
 cat > /etc/cron.d/sparknode-backup <<CRONEOF

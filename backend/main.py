@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import logging
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from config import settings
 from database import engine, Base
@@ -51,6 +52,9 @@ app = FastAPI(
     version="2.0.0",
     lifespan=lifespan
 )
+
+# Prometheus instrumentation
+Instrumentator().instrument(app).expose(app)
 
 # Tenant Context Middleware (outermost — runs first, cleans up last)
 app.add_middleware(TenantMiddleware)
