@@ -1,30 +1,58 @@
 #!/usr/bin/env bash
 # ──────────────────────────────────────────────────────────────
-# SparkNode — Post-deploy health check
+# SparkNode — Post-deploy health check (Multi-Cloud)
 # Validates that all services are running and healthy
 #
 # Usage:
 #   ./health-check.sh                          # auto-detect from TF
-#   ./health-check.sh --host 1.2.3.4
+#   ./health-check.sh --provider aws --host 1.2.3.4
+#   ./health-check.sh --provider azure --host 1.2.3.4
 #   ./health-check.sh --url https://app.sparknode.io
 # ──────────────────────────────────────────────────────────────
 set -euo pipefail
 
 HOST="${DEPLOY_HOST:-}"
 SSH_KEY="${DEPLOY_SSH_KEY:-~/.ssh/sparknode.pem}"
-SSH_USER="${DEPLOY_SSH_USER:-ubuntu}"
+SSH_USER="${DEPLOY_SSH_USER:-}"
+PROVIDER="${CLOUD_PROVIDER:-}"
 URL=""
 VERBOSE=false
 
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --host)    HOST="$2";    shift 2 ;;
-    --key)     SSH_KEY="$2"; shift 2 ;;
-    --url)     URL="$2";     shift 2 ;;
-    --verbose) VERBOSE=true; shift ;;
+    --host)     HOST="$2";     shift 2 ;;
+    --key)      SSH_KEY="$2";  shift 2 ;;
+    --url)      URL="$2";      shift 2 ;;
+    --verbose)  VERBOSE=true;  shift ;;
+    --provider) PROVIDER="$2"; shift 2 ;;
+    --user)     SSH_USER="$2"; shift 2 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
+
+# ─── Resolve from Terraform outputs ──────────────────────────
+TF_DIR="../terraform"
+if command -v terraform &> /dev/null && [ -d "$TF_DIR" ]; then
+  if [ -z "$HOST" ]; then
+    HOST=$(cd "$TF_DIR" && terraform output -raw public_ip 2>/dev/null || true)
+  fi
+  if [ -z "$SSH_USER" ]; then
+    SSH_USER=$(cd "$TF_DIR" && terraform output -raw ssh_user 2>/dev/null || true)
+  fi
+  if [ -z "$PROVIDER" ]; then
+    PROVIDER=$(cd "$TF_DIR" && terraform output -raw cloud_provider 2>/dev/null || true)
+  fi
+fi
+
+# ─── Default SSH user per provider ───────────────────────────
+if [ -z "$SSH_USER" ]; then
+  case "$PROVIDER" in
+    aws)   SSH_USER="ubuntu" ;;
+    azure) SSH_USER="azureuser" ;;
+    gcp)   SSH_USER="ubuntu" ;;
+    *)     SSH_USER="ubuntu" ;;
+  esac
+fi
 
 PASS=0
 FAIL=0

@@ -1,13 +1,15 @@
 # ──────────────────────────────────────────────────────────────
-# SparkNode — Terraform-only CI/CD Pipeline
+# SparkNode — Terraform-only CI/CD Pipeline (Multi-Cloud)
 # Manages infrastructure changes separately from app deploys
 #
 # Triggers:
 #   - Push changes to deployment_sparknode/terraform/** on main
-#   - Manual dispatch
+#   - Manual dispatch with cloud provider selection
 #
-# Required GitHub Secrets:
-#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+# Required GitHub Secrets per provider:
+#   AWS:   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+#   Azure: ARM_CLIENT_ID, ARM_CLIENT_SECRET, ARM_SUBSCRIPTION_ID, ARM_TENANT_ID
+#   GCP:   GCP_CREDENTIALS_JSON (service account key JSON)
 # ──────────────────────────────────────────────────────────────
 
 name: Terraform Infrastructure
@@ -23,6 +25,15 @@ on:
       - 'deployment_sparknode/terraform/**'
   workflow_dispatch:
     inputs:
+      cloud_provider:
+        description: 'Cloud provider'
+        required: true
+        default: 'aws'
+        type: choice
+        options:
+          - aws
+          - azure
+          - gcp
       action:
         description: 'Terraform action'
         required: true
@@ -34,16 +45,17 @@ on:
           - destroy
 
 concurrency:
-  group: terraform
+  group: terraform-${{ github.event.inputs.cloud_provider || 'aws' }}
   cancel-in-progress: false
 
 env:
   TF_DIR: deployment_sparknode/terraform
   TF_VERSION: '1.7.0'
+  CLOUD_PROVIDER: ${{ github.event.inputs.cloud_provider || 'aws' }}
 
 jobs:
   terraform:
-    name: Terraform ${{ github.event.inputs.action || 'plan' }}
+    name: Terraform ${{ github.event.inputs.action || 'plan' }} (${{ github.event.inputs.cloud_provider || 'aws' }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -60,13 +72,48 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
+      # ── AWS credentials ──────────────────────────────────────
       - name: Configure AWS credentials
+        if: env.CLOUD_PROVIDER == 'aws'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ vars.AWS_REGION || 'ap-south-1' }}
 
+      # ── Azure credentials ────────────────────────────────────
+      - name: Configure Azure credentials
+        if: env.CLOUD_PROVIDER == 'azure'
+        uses: azure/login@v2
+        with:
+          creds: |
+            {
+              "clientId": "${{ secrets.ARM_CLIENT_ID }}",
+              "clientSecret": "${{ secrets.ARM_CLIENT_SECRET }}",
+              "subscriptionId": "${{ secrets.ARM_SUBSCRIPTION_ID }}",
+              "tenantId": "${{ secrets.ARM_TENANT_ID }}"
+            }
+
+      - name: Set Azure env vars for Terraform
+        if: env.CLOUD_PROVIDER == 'azure'
+        run: |
+          echo "ARM_CLIENT_ID=${{ secrets.ARM_CLIENT_ID }}" >> $GITHUB_ENV
+          echo "ARM_CLIENT_SECRET=${{ secrets.ARM_CLIENT_SECRET }}" >> $GITHUB_ENV
+          echo "ARM_SUBSCRIPTION_ID=${{ secrets.ARM_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+          echo "ARM_TENANT_ID=${{ secrets.ARM_TENANT_ID }}" >> $GITHUB_ENV
+
+      # ── GCP credentials ──────────────────────────────────────
+      - name: Configure GCP credentials
+        if: env.CLOUD_PROVIDER == 'gcp'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
+
+      - name: Set up Cloud SDK
+        if: env.CLOUD_PROVIDER == 'gcp'
+        uses: google-github-actions/setup-gcloud@v2
+
+      # ── Terraform operations ─────────────────────────────────
       - name: Terraform Init
         run: terraform init
 
@@ -80,6 +127,7 @@ jobs:
         id: plan
         run: |
           terraform plan -no-color -out=tfplan \
+            -var="cloud_provider=${{ env.CLOUD_PROVIDER }}" \
             -var="postgres_password=${{ secrets.POSTGRES_PASSWORD }}" \
             -var="app_secret_key=${{ secrets.APP_SECRET_KEY }}" \
             -var="smtp_password=${{ secrets.SMTP_PASSWORD || '' }}" \
@@ -90,7 +138,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const output = `#### Terraform Plan 📋
+            const output = `#### Terraform Plan 📋 — **${{ env.CLOUD_PROVIDER }}**
             \`\`\`
             ${{ steps.plan.outputs.stdout }}
             \`\`\`
@@ -113,6 +161,7 @@ jobs:
         if: github.event.inputs.action == 'destroy'
         run: |
           terraform destroy -auto-approve \
+            -var="cloud_provider=${{ env.CLOUD_PROVIDER }}" \
             -var="postgres_password=${{ secrets.POSTGRES_PASSWORD }}" \
             -var="app_secret_key=${{ secrets.APP_SECRET_KEY }}" \
             -var="smtp_password=${{ secrets.SMTP_PASSWORD || '' }}" \
@@ -121,6 +170,6 @@ jobs:
       - name: Output summary
         if: success() && (github.event.inputs.action == 'apply' || (github.ref == 'refs/heads/main' && github.event_name == 'push'))
         run: |
-          echo "### Infrastructure Outputs" >> $GITHUB_STEP_SUMMARY
+          echo "### Infrastructure Outputs — ${{ env.CLOUD_PROVIDER }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           terraform output -no-color >> $GITHUB_STEP_SUMMARY

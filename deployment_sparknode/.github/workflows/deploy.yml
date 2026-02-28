@@ -1,15 +1,20 @@
 # ──────────────────────────────────────────────────────────────
-# SparkNode — GitHub Actions CI/CD Pipeline
+# SparkNode — GitHub Actions CI/CD Pipeline (Multi-Cloud)
 #
 # Triggers:
 #   - Push to main      → Deploy to production
 #   - Push to staging/*  → Deploy to staging
 #   - Manual dispatch   → Deploy any branch to any environment
+#                          on any cloud provider (aws/azure/gcp)
 #
-# Required GitHub Secrets:
-#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
-#   DEPLOY_SSH_KEY        (PEM private key for EC2 SSH)
-#   DEPLOY_HOST           (EC2 public IP / Elastic IP)
+# Required GitHub Secrets (per provider):
+#   AWS:   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+#   Azure: ARM_CLIENT_ID, ARM_CLIENT_SECRET, ARM_SUBSCRIPTION_ID, ARM_TENANT_ID
+#   GCP:   GCP_CREDENTIALS_JSON
+#
+# Shared secrets:
+#   DEPLOY_SSH_KEY        (PEM private key for VM SSH)
+#   DEPLOY_HOST           (VM public IP — can be read from TF output)
 #   POSTGRES_PASSWORD     (production DB password)
 #   APP_SECRET_KEY        (JWT signing key)
 #   SMTP_PASSWORD         (optional)
@@ -24,6 +29,15 @@ on:
       - 'staging/*'
   workflow_dispatch:
     inputs:
+      cloud_provider:
+        description: 'Cloud provider'
+        required: true
+        default: 'aws'
+        type: choice
+        options:
+          - aws
+          - azure
+          - gcp
       environment:
         description: 'Target environment'
         required: true
@@ -38,11 +52,11 @@ on:
         default: 'main'
 
 concurrency:
-  group: deploy-${{ github.ref }}
+  group: deploy-${{ github.ref }}-${{ github.event.inputs.cloud_provider || 'aws' }}
   cancel-in-progress: false
 
 env:
-  SSH_USER: ubuntu
+  CLOUD_PROVIDER: ${{ github.event.inputs.cloud_provider || 'aws' }}
   APP_DIR: /opt/sparknode
   COMPOSE_FILE: docker-compose.prod.yml
 
@@ -136,7 +150,7 @@ jobs:
   # Job 2: Deploy
   # ────────────────────────────────────────────────────────────
   deploy:
-    name: Deploy to ${{ github.event.inputs.environment || 'production' }}
+    name: Deploy to ${{ github.event.inputs.environment || 'production' }} (${{ github.event.inputs.cloud_provider || 'aws' }})
     runs-on: ubuntu-latest
     needs: test
     timeout-minutes: 20
@@ -154,14 +168,46 @@ jobs:
           name: frontend-dist
           path: frontend/dist/
 
+      - name: Determine SSH user for cloud provider
+        id: ssh_config
+        run: |
+          PROVIDER="${{ env.CLOUD_PROVIDER }}"
+          case "$PROVIDER" in
+            aws)   SSH_USER="ubuntu" ;;
+            azure) SSH_USER="${{ vars.AZURE_SSH_USER || 'azureuser' }}" ;;
+            gcp)   SSH_USER="${{ vars.GCP_SSH_USER || 'ubuntu' }}" ;;
+            *)     SSH_USER="ubuntu" ;;
+          esac
+          echo "ssh_user=$SSH_USER" >> $GITHUB_OUTPUT
+          echo "Using SSH user: $SSH_USER for provider: $PROVIDER"
+
       - name: Determine deploy host
         id: target
         run: |
-          if [ "${{ github.event.inputs.environment }}" = "staging" ]; then
-            echo "host=${{ secrets.STAGING_HOST || secrets.DEPLOY_HOST }}" >> $GITHUB_OUTPUT
-          else
-            echo "host=${{ secrets.DEPLOY_HOST }}" >> $GITHUB_OUTPUT
+          PROVIDER="${{ env.CLOUD_PROVIDER }}"
+          ENV="${{ github.event.inputs.environment }}"
+
+          # Provider-specific host secrets: DEPLOY_HOST_AWS, DEPLOY_HOST_AZURE, DEPLOY_HOST_GCP
+          # Falls back to generic DEPLOY_HOST
+          case "$PROVIDER" in
+            aws)
+              HOST="${{ secrets.DEPLOY_HOST_AWS || secrets.DEPLOY_HOST }}"
+              ;;
+            azure)
+              HOST="${{ secrets.DEPLOY_HOST_AZURE || secrets.DEPLOY_HOST }}"
+              ;;
+            gcp)
+              HOST="${{ secrets.DEPLOY_HOST_GCP || secrets.DEPLOY_HOST }}"
+              ;;
+          esac
+
+          if [ "$ENV" = "staging" ]; then
+            HOST="${{ secrets.STAGING_HOST || '' }}"
+            [ -z "$HOST" ] && HOST="${{ secrets.DEPLOY_HOST }}"
           fi
+
+          echo "host=$HOST" >> $GITHUB_OUTPUT
+          echo "Deploying to $PROVIDER host: $HOST"
 
       - name: Set up SSH
         run: |
@@ -173,9 +219,10 @@ jobs:
       - name: Deploy to server
         env:
           HOST: ${{ steps.target.outputs.host }}
+          SSH_USER: ${{ steps.ssh_config.outputs.ssh_user }}
           DOMAIN: ${{ vars.DOMAIN || 'app.sparknode.io' }}
         run: |
-          SSH="ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@$HOST"
+          SSH="ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${SSH_USER}@$HOST"
           SCP="scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no"
           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 
@@ -192,7 +239,7 @@ jobs:
             cp deployment_sparknode/docker/nginx.prod.conf frontend/nginx.prod.conf"
 
           echo ">>> Uploading pre-built frontend..."
-          $SCP -r frontend/dist/* "${{ env.SSH_USER }}@$HOST:$APP_DIR/frontend/dist/"
+          $SCP -r frontend/dist/* "${SSH_USER}@$HOST:$APP_DIR/frontend/dist/"
 
           echo ">>> Backing up database..."
           $SSH "docker exec sparknode-db pg_dump -U sparknode sparknode 2>/dev/null | \
@@ -206,8 +253,9 @@ jobs:
       - name: Wait for healthy
         env:
           HOST: ${{ steps.target.outputs.host }}
+          SSH_USER: ${{ steps.ssh_config.outputs.ssh_user }}
         run: |
-          SSH="ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@$HOST"
+          SSH="ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${SSH_USER}@$HOST"
           echo ">>> Waiting for backend health..."
           sleep 15
 
@@ -243,8 +291,9 @@ jobs:
         if: always()
         env:
           HOST: ${{ steps.target.outputs.host }}
+          SSH_USER: ${{ steps.ssh_config.outputs.ssh_user }}
         run: |
-          SSH="ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@$HOST"
+          SSH="ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${SSH_USER}@$HOST"
           $SSH "docker image prune -f --filter 'until=168h'" 2>/dev/null || true
           rm -f ~/.ssh/deploy_key
 

@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
 # ──────────────────────────────────────────────────────────────
-# SparkNode — Rollback script
+# SparkNode — Rollback script (Multi-Cloud)
 # Rolls back to the previous git tag and restores DB backup
 #
 # Usage:
 #   ./rollback.sh                          # rollback to most recent pre-deploy tag
 #   ./rollback.sh --tag pre-deploy-20260227-143000
-#   ./rollback.sh --host 1.2.3.4 --key ~/.ssh/sparknode.pem
+#   ./rollback.sh --provider azure --host 1.2.3.4
 # ──────────────────────────────────────────────────────────────
 set -euo pipefail
 
 # ─── Defaults ─────────────────────────────────────────────────
 HOST="${DEPLOY_HOST:-}"
 SSH_KEY="${DEPLOY_SSH_KEY:-~/.ssh/sparknode.pem}"
-SSH_USER="${DEPLOY_SSH_USER:-ubuntu}"
+SSH_USER="${DEPLOY_SSH_USER:-}"
+PROVIDER="${CLOUD_PROVIDER:-}"
 APP_DIR="/opt/sparknode"
 COMPOSE_FILE="docker-compose.prod.yml"
 ENV_FILE=".env"
@@ -28,25 +29,47 @@ while [[ $# -gt 0 ]]; do
     --user)       SSH_USER="$2";     shift 2 ;;
     --tag)        ROLLBACK_TAG="$2"; shift 2 ;;
     --restore-db) RESTORE_DB=true;   shift ;;
+    --provider)   PROVIDER="$2";     shift 2 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
 
-if [ -z "$HOST" ]; then
-  if command -v terraform &> /dev/null && [ -d "../terraform" ]; then
-    HOST=$(cd ../terraform && terraform output -raw public_ip 2>/dev/null || true)
-  fi
+# ─── Resolve from Terraform outputs ──────────────────────────
+TF_DIR="../terraform"
+if command -v terraform &> /dev/null && [ -d "$TF_DIR" ]; then
   if [ -z "$HOST" ]; then
-    echo "ERROR: No host specified. Use --host <ip> or set DEPLOY_HOST env var"
-    exit 1
+    HOST=$(cd "$TF_DIR" && terraform output -raw public_ip 2>/dev/null || true)
   fi
+  if [ -z "$SSH_USER" ]; then
+    SSH_USER=$(cd "$TF_DIR" && terraform output -raw ssh_user 2>/dev/null || true)
+  fi
+  if [ -z "$PROVIDER" ]; then
+    PROVIDER=$(cd "$TF_DIR" && terraform output -raw cloud_provider 2>/dev/null || true)
+  fi
+fi
+
+# ─── Default SSH user per provider ───────────────────────────
+if [ -z "$SSH_USER" ]; then
+  case "$PROVIDER" in
+    aws)   SSH_USER="ubuntu" ;;
+    azure) SSH_USER="azureuser" ;;
+    gcp)   SSH_USER="ubuntu" ;;
+    *)     SSH_USER="ubuntu" ;;
+  esac
+fi
+
+if [ -z "$HOST" ]; then
+  echo "ERROR: No host specified. Use --host <ip> or set DEPLOY_HOST env var"
+  exit 1
 fi
 
 SSH_CMD="ssh -i $SSH_KEY -o StrictHostKeyChecking=no -o ConnectTimeout=10 $SSH_USER@$HOST"
 
 echo "═══════════════════════════════════════════════════════════"
 echo "  SparkNode Rollback"
-echo "  Host: $HOST"
+echo "  Provider: ${PROVIDER:-auto}"
+echo "  Host:     $HOST"
+echo "  User:     $SSH_USER"
 echo "═══════════════════════════════════════════════════════════"
 
 # ─── 1. Find rollback target ─────────────────────────────────

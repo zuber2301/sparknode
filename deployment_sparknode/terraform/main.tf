@@ -1,208 +1,120 @@
 # ──────────────────────────────────────────────────────────────
-# SparkNode — Main Terraform configuration
-# Provisions: VPC, Subnet, IGW, SG, EIP, EC2 instance
+# SparkNode — Main Terraform configuration (Multi-Cloud)
+#
+# Set cloud_provider = "aws" | "azure" | "gcp" to choose
+# which cloud to provision infrastructure on.
 # ──────────────────────────────────────────────────────────────
 
 terraform {
   required_version = ">= 1.5"
 
+  # Providers are configured inside the modules.
+  # Only the selected module's provider is actually used.
   required_providers {
     aws = {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
-  }
-}
-
-provider "aws" {
-  region  = var.aws_region
-  profile = var.aws_profile != "" ? var.aws_profile : null
-
-  default_tags {
-    tags = {
-      Project     = var.project_name
-      Environment = var.environment
-      ManagedBy   = "terraform"
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 3.80"
+    }
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 5.10"
     }
   }
 }
 
 # ──────────────────────────────────────────────────────────────
-# Data sources
+# Shared locals — cloud-init user_data rendered once
 # ──────────────────────────────────────────────────────────────
-
-# Auto-discover latest Ubuntu 22.04 AMI if none supplied
-data "aws_ami" "ubuntu" {
-  count       = var.ami_id == "" ? 1 : 0
-  most_recent = true
-  owners      = ["099720109477"] # Canonical
-
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-}
 
 locals {
-  ami_id = var.ami_id != "" ? var.ami_id : data.aws_ami.ubuntu[0].id
-}
-
-# ──────────────────────────────────────────────────────────────
-# VPC & Networking
-# ──────────────────────────────────────────────────────────────
-
-resource "aws_vpc" "main" {
-  cidr_block           = var.vpc_cidr
-  enable_dns_support   = true
-  enable_dns_hostnames = true
-
-  tags = { Name = "${var.project_name}-vpc" }
-}
-
-resource "aws_internet_gateway" "igw" {
-  vpc_id = aws_vpc.main.id
-  tags   = { Name = "${var.project_name}-igw" }
-}
-
-resource "aws_subnet" "public" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = var.public_subnet_cidr
-  availability_zone       = var.availability_zone
-  map_public_ip_on_launch = true
-
-  tags = { Name = "${var.project_name}-public" }
-}
-
-resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.main.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.igw.id
-  }
-
-  tags = { Name = "${var.project_name}-public-rt" }
-}
-
-resource "aws_route_table_association" "public" {
-  subnet_id      = aws_subnet.public.id
-  route_table_id = aws_route_table.public.id
-}
-
-# ──────────────────────────────────────────────────────────────
-# Security Group
-# ──────────────────────────────────────────────────────────────
-
-resource "aws_security_group" "sparknode" {
-  name_prefix = "${var.project_name}-sg-"
-  description = "SparkNode instance security group"
-  vpc_id      = aws_vpc.main.id
-
-  # SSH
-  ingress {
-    description = "SSH"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = var.ssh_allowed_cidrs
-  }
-
-  # HTTP (Traefik redirect + ACME challenge)
-  ingress {
-    description = "HTTP"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # HTTPS
-  ingress {
-    description = "HTTPS"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # All outbound
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-
-  tags = { Name = "${var.project_name}-sg" }
-}
-
-# ──────────────────────────────────────────────────────────────
-# Elastic IP (stable public IP across stop/start)
-# ──────────────────────────────────────────────────────────────
-
-resource "aws_eip" "sparknode" {
-  domain = "vpc"
-  tags   = { Name = "${var.project_name}-eip" }
-}
-
-resource "aws_eip_association" "sparknode" {
-  instance_id   = aws_instance.sparknode.id
-  allocation_id = aws_eip.sparknode.id
-}
-
-# ──────────────────────────────────────────────────────────────
-# EC2 Instance
-# ──────────────────────────────────────────────────────────────
-
-resource "aws_instance" "sparknode" {
-  ami                    = local.ami_id
-  instance_type          = var.instance_type
-  key_name               = var.key_name
-  subnet_id              = aws_subnet.public.id
-  vpc_security_group_ids = [aws_security_group.sparknode.id]
-
-  root_block_device {
-    volume_size           = var.root_volume_size
-    volume_type           = var.root_volume_type
-    encrypted             = true
-    delete_on_termination = false
-  }
-
-  user_data = base64encode(templatefile("${path.module}/user_data.sh", {
-    project_name       = var.project_name
-    domain             = var.domain
-    acme_email         = var.acme_email
-    postgres_password  = var.postgres_password
-    app_secret_key     = var.app_secret_key
-    smtp_host          = var.smtp_host
-    smtp_port          = var.smtp_port
-    smtp_user          = var.smtp_user
-    smtp_password      = var.smtp_password
-    app_version        = var.app_version
-    github_repo        = var.github_repo
+  user_data_raw = templatefile("${path.module}/user_data.sh", {
+    project_name        = var.project_name
+    domain              = var.domain
+    acme_email          = var.acme_email
+    postgres_password   = var.postgres_password
+    app_secret_key      = var.app_secret_key
+    smtp_host           = var.smtp_host
+    smtp_port           = var.smtp_port
+    smtp_user           = var.smtp_user
+    smtp_password       = var.smtp_password
+    app_version         = var.app_version
+    github_repo         = var.github_repo
     github_deploy_token = var.github_deploy_token
-    environment        = var.environment
-  }))
+    environment         = var.environment
+  })
 
-  metadata_options {
-    http_endpoint = "enabled"
-    http_tokens   = "required" # IMDSv2 only
-  }
+  user_data_b64 = base64encode(local.user_data_raw)
+}
 
-  tags = {
-    Name = "${var.project_name}-${var.environment}"
-  }
+# ──────────────────────────────────────────────────────────────
+# AWS Module
+# ──────────────────────────────────────────────────────────────
 
-  lifecycle {
-    ignore_changes = [ami, user_data] # Prevent recreation on AMI refresh
-  }
+module "aws" {
+  source = "./modules/aws"
+  count  = var.cloud_provider == "aws" ? 1 : 0
+
+  project_name       = var.project_name
+  environment        = var.environment
+  aws_region         = var.aws_region
+  aws_profile        = var.aws_profile
+  vpc_cidr           = var.vpc_cidr
+  public_subnet_cidr = var.public_subnet_cidr
+  availability_zone  = var.availability_zone
+  instance_type      = var.instance_type
+  ami_id             = var.ami_id
+  key_name           = var.key_name
+  root_volume_size   = var.root_volume_size
+  root_volume_type   = var.root_volume_type
+  ssh_allowed_cidrs  = var.ssh_allowed_cidrs
+  user_data          = local.user_data_b64
+}
+
+# ──────────────────────────────────────────────────────────────
+# Azure Module
+# ──────────────────────────────────────────────────────────────
+
+module "azure" {
+  source = "./modules/azure"
+  count  = var.cloud_provider == "azure" ? 1 : 0
+
+  project_name              = var.project_name
+  environment               = var.environment
+  azure_location            = var.azure_location
+  azure_resource_group_name = var.azure_resource_group_name
+  vm_size                   = var.azure_vm_size
+  os_disk_size_gb           = var.azure_os_disk_size_gb
+  admin_username            = var.azure_admin_username
+  ssh_public_key_path       = var.ssh_public_key_path
+  ssh_allowed_cidrs         = var.ssh_allowed_cidrs
+  vnet_cidr                 = var.vpc_cidr
+  subnet_cidr               = var.public_subnet_cidr
+  user_data                 = local.user_data_b64
+}
+
+# ──────────────────────────────────────────────────────────────
+# GCP Module
+# ──────────────────────────────────────────────────────────────
+
+module "gcp" {
+  source = "./modules/gcp"
+  count  = var.cloud_provider == "gcp" ? 1 : 0
+
+  project_name        = var.project_name
+  environment         = var.environment
+  gcp_project_id      = var.gcp_project_id
+  gcp_region          = var.gcp_region
+  gcp_zone            = var.gcp_zone
+  machine_type        = var.gcp_machine_type
+  boot_disk_size_gb   = var.gcp_boot_disk_size_gb
+  boot_disk_type      = var.gcp_boot_disk_type
+  ssh_user            = var.gcp_ssh_user
+  ssh_public_key_path = var.ssh_public_key_path
+  ssh_allowed_cidrs   = var.ssh_allowed_cidrs
+  subnet_cidr         = var.public_subnet_cidr
+  user_data           = local.user_data_b64
 }

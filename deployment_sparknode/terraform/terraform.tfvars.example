@@ -1,18 +1,13 @@
 # ──────────────────────────────────────────────────────────────
-# SparkNode — Example terraform.tfvars
+# SparkNode — Example terraform.tfvars (Multi-Cloud)
 # Copy to terraform.tfvars and fill in your values.
 # ──────────────────────────────────────────────────────────────
 
-aws_region     = "ap-south-1"
-aws_profile    = ""                        # leave empty for env-var auth
-
-# ─── EC2 ──────────────────────────────────────────────────────
-instance_type    = "t3.medium"
-key_name         = "sparknode-prod"        # name of your SSH key pair in AWS
-root_volume_size = 40
-
-# ─── Access control ──────────────────────────────────────────
-ssh_allowed_cidrs = ["0.0.0.0/0"]          # restrict to your office IP
+# ═════════════════════════════════════════════════════════════
+#  CLOUD PROVIDER SELECTION
+#  Set to "aws", "azure", or "gcp"
+# ═════════════════════════════════════════════════════════════
+cloud_provider = "aws"
 
 # ─── Domain & TLS ────────────────────────────────────────────
 domain     = "app.sparknode.io"
@@ -28,11 +23,50 @@ smtp_port     = 587
 smtp_user     = ""
 smtp_password = ""
 
-# ─── Deployment ──────────────────────────────────────────────
-project_name  = "sparknode"
-environment   = "production"
-app_version   = "latest"
+# ─── Shared ──────────────────────────────────────────────────
+project_name      = "sparknode"
+environment       = "production"
+app_version       = "latest"
+ssh_allowed_cidrs = ["0.0.0.0/0"]       # restrict to your office IP
 
 # ─── GitHub (for cloning the repo onto the VM) ──────────────
 github_repo         = "https://github.com/your-org/sparknode.git"
-github_deploy_token = ""                   # PAT for private repos
+github_deploy_token = ""                 # PAT for private repos
+
+# ═════════════════════════════════════════════════════════════
+#  AWS-SPECIFIC (only used when cloud_provider = "aws")
+# ═════════════════════════════════════════════════════════════
+aws_region       = "ap-south-1"
+aws_profile      = ""                    # leave empty for env-var auth
+instance_type    = "t3.medium"
+key_name         = "sparknode-prod"      # name of your SSH key pair in AWS
+root_volume_size = 40
+availability_zone = "ap-south-1a"
+
+# ═════════════════════════════════════════════════════════════
+#  AZURE-SPECIFIC (only used when cloud_provider = "azure")
+#
+#  Auth: set ARM_CLIENT_ID, ARM_CLIENT_SECRET,
+#        ARM_SUBSCRIPTION_ID, ARM_TENANT_ID as env vars
+# ═════════════════════════════════════════════════════════════
+azure_location            = "centralindia"
+azure_resource_group_name = ""           # auto-generated if empty
+azure_vm_size             = "Standard_B2s"
+azure_os_disk_size_gb     = 40
+azure_admin_username      = "azureuser"
+ssh_public_key_path       = "~/.ssh/id_rsa.pub"
+
+# ═════════════════════════════════════════════════════════════
+#  GCP-SPECIFIC (only used when cloud_provider = "gcp")
+#
+#  Auth: set GOOGLE_APPLICATION_CREDENTIALS env var or use
+#        gcloud auth application-default login
+# ═════════════════════════════════════════════════════════════
+gcp_project_id        = "your-gcp-project-id"
+gcp_region            = "asia-south1"
+gcp_zone              = "asia-south1-a"
+gcp_machine_type      = "e2-medium"
+gcp_boot_disk_size_gb = 40
+gcp_boot_disk_type    = "pd-ssd"
+gcp_ssh_user          = "ubuntu"
+# ssh_public_key_path = "~/.ssh/id_rsa.pub"   # shared with Azure

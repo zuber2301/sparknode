@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
 # ──────────────────────────────────────────────────────────────
-# SparkNode — Deploy / Update script
-# SSH into the EC2 instance, pull latest code, rebuild & restart
+# SparkNode — Deploy / Update script (Multi-Cloud)
+# SSH into the VM, pull latest code, rebuild & restart
+#
+# Works with AWS, Azure, and GCP — auto-detects SSH user
+# from Terraform outputs or via --provider flag.
 #
 # Usage:
-#   ./deploy.sh                          # uses defaults
-#   ./deploy.sh --host 1.2.3.4 --key ~/.ssh/sparknode.pem
+#   ./deploy.sh                                         # auto-detect from TF
+#   ./deploy.sh --provider aws --host 1.2.3.4
+#   ./deploy.sh --provider azure --host 1.2.3.4
+#   ./deploy.sh --provider gcp --host 1.2.3.4 --key ~/.ssh/gcp_key
 #   ./deploy.sh --branch release/v2.1
 # ──────────────────────────────────────────────────────────────
 set -euo pipefail
@@ -13,8 +18,9 @@ set -euo pipefail
 # ─── Defaults ─────────────────────────────────────────────────
 HOST="${DEPLOY_HOST:-}"
 SSH_KEY="${DEPLOY_SSH_KEY:-~/.ssh/sparknode.pem}"
-SSH_USER="${DEPLOY_SSH_USER:-ubuntu}"
+SSH_USER="${DEPLOY_SSH_USER:-}"
 BRANCH="${DEPLOY_BRANCH:-main}"
+PROVIDER="${CLOUD_PROVIDER:-}"
 APP_DIR="/opt/sparknode"
 COMPOSE_FILE="docker-compose.prod.yml"
 ENV_FILE=".env"
@@ -22,33 +28,54 @@ ENV_FILE=".env"
 # ─── Parse arguments ─────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --host)    HOST="$2";    shift 2 ;;
-    --key)     SSH_KEY="$2"; shift 2 ;;
-    --user)    SSH_USER="$2"; shift 2 ;;
-    --branch)  BRANCH="$2";  shift 2 ;;
-    --app-dir) APP_DIR="$2"; shift 2 ;;
+    --host)     HOST="$2";     shift 2 ;;
+    --key)      SSH_KEY="$2";  shift 2 ;;
+    --user)     SSH_USER="$2"; shift 2 ;;
+    --branch)   BRANCH="$2";  shift 2 ;;
+    --app-dir)  APP_DIR="$2"; shift 2 ;;
+    --provider) PROVIDER="$2"; shift 2 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
 
-if [ -z "$HOST" ]; then
-  # Try to read from terraform output
-  if command -v terraform &> /dev/null && [ -d "../terraform" ]; then
-    HOST=$(cd ../terraform && terraform output -raw public_ip 2>/dev/null || true)
-  fi
+# ─── Resolve from Terraform outputs if not set ───────────────
+TF_DIR="../terraform"
+if command -v terraform &> /dev/null && [ -d "$TF_DIR" ]; then
   if [ -z "$HOST" ]; then
-    echo "ERROR: No host specified. Use --host <ip> or set DEPLOY_HOST env var"
-    exit 1
+    HOST=$(cd "$TF_DIR" && terraform output -raw public_ip 2>/dev/null || true)
   fi
+  if [ -z "$SSH_USER" ]; then
+    SSH_USER=$(cd "$TF_DIR" && terraform output -raw ssh_user 2>/dev/null || true)
+  fi
+  if [ -z "$PROVIDER" ]; then
+    PROVIDER=$(cd "$TF_DIR" && terraform output -raw cloud_provider 2>/dev/null || true)
+  fi
+fi
+
+# ─── Default SSH user per provider ───────────────────────────
+if [ -z "$SSH_USER" ]; then
+  case "$PROVIDER" in
+    aws)   SSH_USER="ubuntu" ;;
+    azure) SSH_USER="azureuser" ;;
+    gcp)   SSH_USER="ubuntu" ;;
+    *)     SSH_USER="ubuntu" ;;
+  esac
+fi
+
+if [ -z "$HOST" ]; then
+  echo "ERROR: No host specified. Use --host <ip> or set DEPLOY_HOST env var"
+  exit 1
 fi
 
 SSH_CMD="ssh -i $SSH_KEY -o StrictHostKeyChecking=no -o ConnectTimeout=10 $SSH_USER@$HOST"
 
 echo "═══════════════════════════════════════════════════════════"
 echo "  SparkNode Deploy"
-echo "  Host:   $HOST"
-echo "  Branch: $BRANCH"
-echo "  Dir:    $APP_DIR"
+echo "  Provider: ${PROVIDER:-auto}"
+echo "  Host:     $HOST"
+echo "  User:     $SSH_USER"
+echo "  Branch:   $BRANCH"
+echo "  Dir:      $APP_DIR"
 echo "═══════════════════════════════════════════════════════════"
 
 # ─── 1. Pre-flight check ─────────────────────────────────────

@@ -11,10 +11,19 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 
-# Environment files with secrets
-docker/.env
+# Cloud provider credentials
 *.pem
 *.key
+*.json
+!terraform/modules/**/*.tf
+gcp-credentials.json
+service-account*.json
+
+# Environment files with secrets
+docker/.env
+
+# Traefik ACME certificates (auto-generated)
+docker/traefik/acme/acme.json
 
 # OS
 .DS_Store

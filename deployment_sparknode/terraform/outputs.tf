@@ -1,33 +1,54 @@
 # ──────────────────────────────────────────────────────────────
-# SparkNode — Terraform outputs
+# SparkNode — Terraform outputs (Multi-Cloud)
+# Routes to the active provider's module outputs
 # ──────────────────────────────────────────────────────────────
 
+output "cloud_provider" {
+  description = "Active cloud provider"
+  value       = var.cloud_provider
+}
+
 output "instance_id" {
-  description = "EC2 instance ID"
-  value       = aws_instance.sparknode.id
+  description = "VM / instance ID"
+  value = (
+    var.cloud_provider == "aws"   ? module.aws[0].instance_id :
+    var.cloud_provider == "azure" ? module.azure[0].instance_id :
+    var.cloud_provider == "gcp"   ? module.gcp[0].instance_id :
+    "unknown"
+  )
 }
 
 output "public_ip" {
-  description = "Elastic IP address"
-  value       = aws_eip.sparknode.public_ip
+  description = "Public IP address of the VM"
+  value = (
+    var.cloud_provider == "aws"   ? module.aws[0].public_ip :
+    var.cloud_provider == "azure" ? module.azure[0].public_ip :
+    var.cloud_provider == "gcp"   ? module.gcp[0].public_ip :
+    "unknown"
+  )
+}
+
+output "ssh_user" {
+  description = "SSH username for the VM"
+  value = (
+    var.cloud_provider == "aws"   ? module.aws[0].ssh_user :
+    var.cloud_provider == "azure" ? module.azure[0].ssh_user :
+    var.cloud_provider == "gcp"   ? module.gcp[0].ssh_user :
+    "unknown"
+  )
 }
 
 output "ssh_command" {
-  description = "SSH command to connect to the instance"
-  value       = "ssh -i <your-key>.pem ubuntu@${aws_eip.sparknode.public_ip}"
+  description = "SSH command to connect to the VM"
+  value = (
+    var.cloud_provider == "aws"   ? module.aws[0].ssh_command :
+    var.cloud_provider == "azure" ? module.azure[0].ssh_command :
+    var.cloud_provider == "gcp"   ? module.gcp[0].ssh_command :
+    "unknown"
+  )
 }
 
 output "app_url" {
   description = "Application URL"
   value       = "https://${var.domain}"
-}
-
-output "vpc_id" {
-  description = "VPC ID"
-  value       = aws_vpc.main.id
-}
-
-output "security_group_id" {
-  description = "Security group ID"
-  value       = aws_security_group.sparknode.id
 }
