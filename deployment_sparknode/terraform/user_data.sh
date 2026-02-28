@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 # ──────────────────────────────────────────────────────────────
-# SparkNode — EC2 user-data (cloud-init) bootstrap script
-# Runs once on first boot. Installs Docker, clones repo,
-# writes env files, starts Docker Compose with Traefik.
+# SparkNode — VM cloud-init bootstrap script (Image-Based)
+# Runs once on first boot. Installs Docker, configures
+# Docker Compose with pre-built images from DockerHub,
+# writes env files, starts services with Traefik.
+#
+# This script does NOT clone the repo or build from source.
+# It pulls pre-built container images from DockerHub.
 # ──────────────────────────────────────────────────────────────
 set -euo pipefail
 exec > >(tee /var/log/sparknode-init.log) 2>&1
@@ -20,8 +24,9 @@ SMTP_PORT="${smtp_port}"
 SMTP_USER="${smtp_user}"
 SMTP_PASSWORD="${smtp_password}"
 APP_VERSION="${app_version}"
-GITHUB_REPO="${github_repo}"
-GITHUB_DEPLOY_TOKEN="${github_deploy_token}"
+DOCKERHUB_ORG="${dockerhub_org}"
+DOCKERHUB_USERNAME="${dockerhub_username}"
+DOCKERHUB_TOKEN="${dockerhub_token}"
 ENVIRONMENT="${environment}"
 
 APP_DIR="/opt/$PROJECT_NAME"
@@ -60,18 +65,8 @@ ufw allow 80/tcp
 ufw allow 443/tcp
 ufw --force enable
 
-# ─── 4. Clone repository ────────────────────────────────────
-if [ -n "$GITHUB_REPO" ]; then
-  CLONE_URL="$GITHUB_REPO"
-  if [ -n "$GITHUB_DEPLOY_TOKEN" ]; then
-    # Insert token into HTTPS url: https://TOKEN@github.com/...
-    CLONE_URL=$(echo "$GITHUB_REPO" | sed "s|https://|https://$GITHUB_DEPLOY_TOKEN@|")
-  fi
-  git clone --depth 1 "$CLONE_URL" "$APP_DIR"
-else
-  mkdir -p "$APP_DIR"
-  echo "WARNING: No github_repo specified. You must manually copy files to $APP_DIR"
-fi
+# ─── 4. Create application directory ─────────────────────────
+mkdir -p "$APP_DIR"
 
 # Create deployment / traefik directories
 mkdir -p "$APP_DIR/traefik/acme"
@@ -87,6 +82,7 @@ ENVIRONMENT=$ENVIRONMENT
 DOMAIN=$DOMAIN
 ACME_EMAIL=$ACME_EMAIL
 APP_VERSION=$APP_VERSION
+DOCKERHUB_ORG=$DOCKERHUB_ORG
 
 # PostgreSQL
 POSTGRES_USER=sparknode
@@ -137,7 +133,7 @@ entryPoints:
 certificatesResolvers:
   letsencrypt:
     acme:
-      email: "${ACME_EMAIL}"
+      email: "$${ACME_EMAIL}"
       storage: /acme/acme.json
       httpChallenge:
         entryPoint: web
@@ -193,44 +189,221 @@ http:
 MIDEOF
 
 # ─── 8. Write production docker-compose ──────────────────────
-# Copy from deployment dir if repo was cloned, otherwise generate
-if [ -f "$APP_DIR/deployment_sparknode/docker/docker-compose.prod.yml" ]; then
-  cp "$APP_DIR/deployment_sparknode/docker/docker-compose.prod.yml" "$APP_DIR/docker-compose.prod.yml"
+# Generate docker-compose.prod.yml inline (no repo clone needed)
+cat > "$APP_DIR/docker-compose.prod.yml" <<'COMPOSEEOF'
+services:
+  traefik:
+    image: traefik:v3.1
+    container_name: $${PROJECT_NAME:-sparknode}-traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      - ./traefik/acme:/acme
+      - traefik_logs:/var/log/traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.$${DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.dashboard.middlewares=security-headers@file"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: $${PROJECT_NAME:-sparknode}-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: $${POSTGRES_USER:-sparknode}
+      POSTGRES_PASSWORD: $${POSTGRES_PASSWORD}
+      POSTGRES_DB: $${POSTGRES_DB:-sparknode}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-sparknode}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+
+  redis:
+    image: redis:7-alpine
+    container_name: $${PROJECT_NAME:-sparknode}-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  backend:
+    image: $${DOCKERHUB_ORG:-zuber2301}/sparknode-backend:$${APP_VERSION:-latest}
+    container_name: $${PROJECT_NAME:-sparknode}-backend
+    restart: unless-stopped
+    environment:
+      APP_DATABASE_URL: $${APP_DATABASE_URL:-postgresql://sparknode:$${POSTGRES_PASSWORD}@postgres:5432/sparknode}
+      DATABASE_URL: $${DATABASE_URL:-postgresql://sparknode:$${POSTGRES_PASSWORD}@postgres:5432/sparknode}
+      SECRET_KEY: $${SECRET_KEY}
+      ALGORITHM: $${ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: $${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      CORS_ORIGINS: $${CORS_ORIGINS:-https://$${DOMAIN}}
+      SMTP_HOST: $${SMTP_HOST:-}
+      SMTP_PORT: $${SMTP_PORT:-587}
+      SMTP_USER: $${SMTP_USER:-}
+      SMTP_PASSWORD: $${SMTP_PASSWORD:-}
+      SMTP_FROM: $${SMTP_FROM:-no-reply@$${DOMAIN}}
+      SMTP_USE_TLS: $${SMTP_USE_TLS:-true}
+      CELERY_BROKER_URL: $${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: $${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+      ENVIRONMENT: $${ENVIRONMENT:-production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`$${DOMAIN}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend.entrypoints=websecure"
+      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.backend.middlewares=security-headers@file,rate-limit@file,compress@file"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+      - "traefik.http.routers.backend-health.rule=Host(`$${DOMAIN}`) && Path(`/health`)"
+      - "traefik.http.routers.backend-health.entrypoints=websecure"
+      - "traefik.http.routers.backend-health.tls.certresolver=letsencrypt"
+      - "traefik.http.services.backend-health.loadbalancer.server.port=8000"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+
+  celery:
+    image: $${DOCKERHUB_ORG:-zuber2301}/sparknode-backend:$${APP_VERSION:-latest}
+    container_name: $${PROJECT_NAME:-sparknode}-celery
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: $${DATABASE_URL:-postgresql://sparknode:$${POSTGRES_PASSWORD}@postgres:5432/sparknode}
+      SECRET_KEY: $${SECRET_KEY}
+      ALGORITHM: $${ALGORITHM:-HS256}
+      CORS_ORIGINS: $${CORS_ORIGINS:-https://$${DOMAIN}}
+      SMTP_HOST: $${SMTP_HOST:-}
+      SMTP_PORT: $${SMTP_PORT:-587}
+      SMTP_USER: $${SMTP_USER:-}
+      SMTP_PASSWORD: $${SMTP_PASSWORD:-}
+      SMTP_FROM: $${SMTP_FROM:-no-reply@$${DOMAIN}}
+      SMTP_USE_TLS: $${SMTP_USE_TLS:-true}
+      CELERY_BROKER_URL: $${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: $${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+      ENVIRONMENT: $${ENVIRONMENT:-production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A core.celery_app.celery_app worker --loglevel=info --concurrency=4
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  frontend:
+    image: $${DOCKERHUB_ORG:-zuber2301}/sparknode-frontend:$${APP_VERSION:-latest}
+    container_name: $${PROJECT_NAME:-sparknode}-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`$${DOMAIN}`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.frontend.middlewares=security-headers@file,compress@file"
+      - "traefik.http.routers.frontend.priority=1"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    name: $${PROJECT_NAME:-sparknode}_postgres_data
+  redis_data:
+    name: $${PROJECT_NAME:-sparknode}_redis_data
+  traefik_logs:
+    name: $${PROJECT_NAME:-sparknode}_traefik_logs
+
+networks:
+  app-network:
+    name: $${PROJECT_NAME:-sparknode}-network
+    driver: bridge
+COMPOSEEOF
+
+# ─── 9. Login to DockerHub & pull images ─────────────────────
+if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
+  echo ">>> Logging into DockerHub..."
+  echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
 fi
 
-# ─── 9. Build frontend production assets ─────────────────────
-if [ -d "$APP_DIR/frontend" ]; then
-  echo ">>> Building frontend assets..."
-  cd "$APP_DIR/frontend"
-
-  # Use a temporary Node container to build
-  docker run --rm \
-    -v "$APP_DIR/frontend:/app" \
-    -w /app \
-    -e VITE_API_URL="https://$DOMAIN" \
-    node:20-alpine \
-    sh -c "npm ci && npm run build"
-
-  cd "$APP_DIR"
-fi
-
-# ─── 10. Copy production compose if not already there ────────
-if [ ! -f "$APP_DIR/docker-compose.prod.yml" ] && [ -f "$APP_DIR/deployment_sparknode/docker/docker-compose.prod.yml" ]; then
-  cp "$APP_DIR/deployment_sparknode/docker/docker-compose.prod.yml" "$APP_DIR/docker-compose.prod.yml"
-fi
-
-# ─── 11. Start services ─────────────────────────────────────
+# ─── 10. Pull and start services ────────────────────────────
 cd "$APP_DIR"
-docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+echo ">>> Pulling container images..."
+docker compose -f docker-compose.prod.yml --env-file .env pull
 
-# ─── 12. Set up daily database backup cron ───────────────────
+echo ">>> Starting services..."
+docker compose -f docker-compose.prod.yml --env-file .env up -d
+
+# ─── 11. Set up daily database backup cron ───────────────────
 cat > /etc/cron.d/sparknode-backup <<CRONEOF
 # Daily PostgreSQL backup at 02:00 UTC
-0 2 * * * root docker exec ${PROJECT_NAME}-db pg_dump -U sparknode sparknode | gzip > $APP_DIR/backups/sparknode-\$(date +\%Y\%m\%d-\%H\%M\%S).sql.gz && find $APP_DIR/backups -name "*.sql.gz" -mtime +7 -delete
+0 2 * * * root docker exec $${PROJECT_NAME}-db pg_dump -U sparknode sparknode | gzip > $APP_DIR/backups/sparknode-\$(date +\%Y\%m\%d-\%H\%M\%S).sql.gz && find $APP_DIR/backups -name "*.sql.gz" -mtime +7 -delete
 CRONEOF
 chmod 644 /etc/cron.d/sparknode-backup
 
-# ─── 13. Log rotation for Traefik ───────────────────────────
+# ─── 12. Log rotation for Traefik ───────────────────────────
 cat > /etc/logrotate.d/traefik <<LOGEOF
 /opt/$PROJECT_NAME/traefik/logs/*.log {
     daily
@@ -241,7 +414,7 @@ cat > /etc/logrotate.d/traefik <<LOGEOF
     notifempty
     create 0644 root root
     postrotate
-        docker kill --signal=USR1 ${PROJECT_NAME}-traefik 2>/dev/null || true
+        docker kill --signal=USR1 $${PROJECT_NAME}-traefik 2>/dev/null || true
     endscript
 }
 LOGEOF

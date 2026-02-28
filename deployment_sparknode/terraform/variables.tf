@@ -107,20 +107,26 @@ variable "smtp_password" {
 
 # ─── Docker image tag ────────────────────────────────────────
 variable "app_version" {
-  description = "Docker image tag / git ref to deploy"
+  description = "Docker image tag to deploy (semver e.g. 1.2.3, or latest)"
   type        = string
   default     = "latest"
 }
 
-# ─── GitHub repo (for cloning on the VM) ─────────────────────
-variable "github_repo" {
-  description = "GitHub repository URL (HTTPS)"
+# ─── DockerHub registry ──────────────────────────────────────
+variable "dockerhub_org" {
+  description = "DockerHub organization / username for image repository"
+  type        = string
+  default     = "zuber2301"
+}
+
+variable "dockerhub_username" {
+  description = "DockerHub username for docker login on the VM"
   type        = string
   default     = ""
 }
 
-variable "github_deploy_token" {
-  description = "GitHub personal access token for private repo clone"
+variable "dockerhub_token" {
+  description = "DockerHub access token for docker login on the VM"
   type        = string
   sensitive   = true
   default     = ""

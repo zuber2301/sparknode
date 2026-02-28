@@ -86,9 +86,7 @@ services:
 
   # ── Backend (FastAPI + Uvicorn) ────────────────────────────
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ${DOCKERHUB_ORG:-zuber2301}/sparknode-backend:${APP_VERSION:-latest}
     container_name: ${PROJECT_NAME:-sparknode}-backend
     restart: unless-stopped
     environment:
@@ -142,9 +140,7 @@ services:
 
   # ── Celery Worker ──────────────────────────────────────────
   celery:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ${DOCKERHUB_ORG:-zuber2301}/sparknode-backend:${APP_VERSION:-latest}
     container_name: ${PROJECT_NAME:-sparknode}-celery
     restart: unless-stopped
     environment:
@@ -176,12 +172,9 @@ services:
 
   # ── Frontend (Nginx serving Vite build) ────────────────────
   frontend:
-    image: nginx:1.25-alpine
+    image: ${DOCKERHUB_ORG:-zuber2301}/sparknode-frontend:${APP_VERSION:-latest}
     container_name: ${PROJECT_NAME:-sparknode}-frontend
     restart: unless-stopped
-    volumes:
-      - ./frontend/dist:/usr/share/nginx/html:ro
-      - ./frontend/nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - backend
     labels:

@@ -29,9 +29,10 @@ environment       = "production"
 app_version       = "latest"
 ssh_allowed_cidrs = ["0.0.0.0/0"]       # restrict to your office IP
 
-# ─── GitHub (for cloning the repo onto the VM) ──────────────
-github_repo         = "https://github.com/your-org/sparknode.git"
-github_deploy_token = ""                 # PAT for private repos
+# ─── DockerHub registry ──────────────────────────────────────
+dockerhub_org      = "zuber2301"          # DockerHub org or username
+dockerhub_username = ""                   # DockerHub username for VM login
+dockerhub_token    = ""                   # DockerHub access token for VM login
 
 # ═════════════════════════════════════════════════════════════
 #  AWS-SPECIFIC (only used when cloud_provider = "aws")

@@ -42,8 +42,9 @@ locals {
     smtp_user           = var.smtp_user
     smtp_password       = var.smtp_password
     app_version         = var.app_version
-    github_repo         = var.github_repo
-    github_deploy_token = var.github_deploy_token
+    dockerhub_org       = var.dockerhub_org
+    dockerhub_username  = var.dockerhub_username
+    dockerhub_token     = var.dockerhub_token
     environment         = var.environment
   })
 

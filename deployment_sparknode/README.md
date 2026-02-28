@@ -4,8 +4,21 @@ End-to-end infrastructure-as-code deployment using **Terraform** to provision a
 VM on **AWS**, **Azure**, or **GCP**, then deploy SparkNode via **Docker Compose**
 with **Traefik** as the reverse proxy / TLS terminator.
 
-Choose your cloud provider with a single variable — the pipeline, scripts,
-and Terraform modules handle the rest.
+Images are built in CI and pushed to **DockerHub**. Deployment pulls
+pre-built images onto the VM — no source code or build tools needed on the server.
+
+## 3-Step Deployment Pipeline
+
+```
+Step 1: CI Build & Push                Step 2: Infrastructure           Step 3: Deploy
+──────────────────────────             ─────────────────────            ──────────────────
+Push to main ──► GitHub Actions        terraform plan/apply             workflow_dispatch
+  │                                      │                                │
+  ├── Build backend Dockerfile           ├── Provision VM                 ├── SSH into VM
+  ├── Build frontend Dockerfile.prod     ├── Configure networking         ├── Update APP_VERSION
+  ├── Tag with git SHA + latest          ├── Set up Docker (cloud-init)   ├── docker compose pull
+  └── Push to DockerHub                  └── Bootstrap services           └── docker compose up
+```
 
 ## Architecture
 
@@ -18,7 +31,7 @@ Internet
 │  Ubuntu 22.04                                               │
 │                                                             │
 │  ┌───────────────────────────────────────────────────────┐  │
-│  │  Docker Compose                                       │  │
+│  │  Docker Compose (images pulled from DockerHub)        │  │
 │  │                                                       │  │
 │  │  ┌──────────┐   :443/:80                              │  │
 │  │  │ Traefik  │◄────── Internet                         │  │
@@ -37,6 +50,15 @@ Internet
 └─────────────────────────────────────────────────────────────┘
 ```
 
+## Container Images
+
+| Image | Source | Registry |
+|-------|--------|----------|
+| `zuber2301/sparknode-backend:<tag>` | `backend/Dockerfile` | DockerHub |
+| `zuber2301/sparknode-frontend:<tag>` | `frontend/Dockerfile.prod` | DockerHub |
+
+Images use **semantic versioning** (e.g. `1.2.3`) with additional tags for `X.Y`, `X`, `latest`, and `sha-<short>` on every push to `main` or git tag.
+
 ## Directory Structure
 
 ```
@@ -46,39 +68,35 @@ deployment_sparknode/
 │   ├── variables.tf             # Shared + provider-specific vars
 │   ├── outputs.tf               # Unified outputs (IP, SSH, etc.)
 │   ├── backend.tf               # Remote state (S3 / Blob / GCS)
-│   ├── user_data.sh             # Cloud-init bootstrap (shared)
+│   ├── user_data.sh             # Cloud-init bootstrap (image pull)
 │   ├── terraform.tfvars.example
 │   └── modules/
 │       ├── aws/                 # VPC, SG, EIP, EC2
-│       │   ├── main.tf
-│       │   ├── variables.tf
-│       │   └── outputs.tf
 │       ├── azure/               # RG, VNet, NSG, PIP, VM
-│       │   ├── main.tf
-│       │   ├── variables.tf
-│       │   └── outputs.tf
 │       └── gcp/                 # VPC, Firewall, Static IP, VM
-│           ├── main.tf
-│           ├── variables.tf
-│           └── outputs.tf
 ├── docker/
-│   ├── docker-compose.prod.yml
+│   ├── docker-compose.prod.yml  # Uses image: from DockerHub
 │   ├── traefik/
 │   │   ├── traefik.yml
-│   │   └── dynamic/
-│   │       └── middlewares.yml
+│   │   └── dynamic/middlewares.yml
 │   ├── nginx.prod.conf
 │   └── .env.example
 ├── scripts/
-│   ├── deploy.sh                # Multi-cloud deploy (--provider flag)
-│   ├── rollback.sh              # Multi-cloud rollback
+│   ├── deploy.sh                # Deploy specific image version
+│   ├── rollback.sh              # Rollback to previous version
 │   ├── backup-db.sh             # Backup to S3/Blob/GCS
 │   └── health-check.sh          # Post-deploy validation
 ├── .github/
 │   └── workflows/
-│       ├── deploy.yml           # CI/CD with cloud provider choice
-│       └── terraform.yml        # Infra management with provider choice
+│       ├── deploy.yml           # Deploy pipeline (image pull)
+│       └── terraform.yml        # Infra management
 └── README.md
+
+# Project root also contains:
+.github/workflows/ci.yml          # CI: Build & push to DockerHub
+frontend/Dockerfile.prod           # Production multi-stage frontend
+frontend/nginx.prod.conf           # Nginx config baked into image
+backend/Dockerfile                 # Production backend image
 ```
 
 ## Quick Start
@@ -91,15 +109,28 @@ deployment_sparknode/
 | **Azure** | `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET`, `ARM_SUBSCRIPTION_ID`, `ARM_TENANT_ID`, SSH public key |
 | **GCP**  | `GOOGLE_APPLICATION_CREDENTIALS` (service account JSON), SSH public key, GCP project ID |
 
-Common: Terraform >= 1.5, domain name pointed to the VM's public IP.
+Common: Terraform >= 1.5, DockerHub account, domain name pointed to the VM's public IP.
 
-### 2. Provision Infrastructure
+### 2. Step 1 — Build & Push Images (CI)
+
+Images are automatically built and pushed on every push to `main` via
+`.github/workflows/ci.yml`. You can also trigger manually:
+
+```bash
+# Manual trigger via GitHub CLI
+gh workflow run ci.yml -f version_bump=patch -f push=true
+
+# Or with a custom version
+gh workflow run ci.yml -f version_bump=custom -f custom_version=2.0.0-rc.1 -f push=true
+```
+
+### 3. Step 2 — Provision Infrastructure
 
 ```bash
 cd deployment_sparknode/terraform
 cp terraform.tfvars.example terraform.tfvars
 
-# Edit terraform.tfvars — set cloud_provider and fill provider-specific values
+# Edit terraform.tfvars — set cloud_provider, dockerhub_org, etc.
 # cloud_provider = "aws"   # or "azure" or "gcp"
 
 terraform init
@@ -107,50 +138,78 @@ terraform plan
 terraform apply
 ```
 
-### 3. Deploy Application
+### 4. Step 3 — Deploy Application
 
 ```bash
 cd deployment_sparknode/scripts
 
-# Auto-detects provider, host, and SSH user from Terraform outputs
-./deploy.sh
+# Deploy a specific image version (recommended — use semver)
+./deploy.sh --version 1.2.3
 
-# Or specify explicitly
-./deploy.sh --provider aws --host 1.2.3.4
-./deploy.sh --provider azure --host 1.2.3.4
-./deploy.sh --provider gcp --host 1.2.3.4
+# Deploy latest
+./deploy.sh --version latest
+
+# Or specify provider and host explicitly
+./deploy.sh --provider aws --host 1.2.3.4 --version 1.2.3
 ```
 
-### 4. CI/CD (GitHub Actions)
+### 5. CI/CD (GitHub Actions)
 
-Push to `main` triggers automatic deployment. For manual dispatch, select the
-cloud provider from the dropdown:
+**CI workflow** (`.github/workflows/ci.yml`) — runs on push to main or `v*` tags:
+- Reads `VERSION` file for semantic version
+- Builds backend & frontend Docker images
+- Tags with `X.Y.Z`, `X.Y`, `X`, `latest`, `sha-<short>`
+- Pushes to DockerHub (`zuber2301`)
+- Manual dispatch supports patch/minor/major bumps
 
-**Terraform workflow** (`.github/workflows/terraform.yml`):
+**Deploy workflow** (`deployment_sparknode/.github/workflows/deploy.yml`) — manual dispatch:
+- Inputs: `cloud_provider` (aws/azure/gcp), `environment`, `image_tag`
+- SSHs into VM, sets APP_VERSION, pulls images, restarts
+
+**Terraform workflow** (`deployment_sparknode/.github/workflows/terraform.yml`) — manual dispatch:
 - Inputs: `cloud_provider` (aws/azure/gcp), `action` (plan/apply/destroy)
-
-**Deploy workflow** (`.github/workflows/deploy.yml`):
-- Inputs: `cloud_provider` (aws/azure/gcp), `environment`, `branch`
 
 #### Required GitHub Secrets
 
-| Secret | Used by |
-|--------|---------|
-| `AWS_ACCESS_KEY_ID` | AWS |
-| `AWS_SECRET_ACCESS_KEY` | AWS |
-| `ARM_CLIENT_ID` | Azure |
-| `ARM_CLIENT_SECRET` | Azure |
-| `ARM_SUBSCRIPTION_ID` | Azure |
-| `ARM_TENANT_ID` | Azure |
-| `GCP_CREDENTIALS_JSON` | GCP |
-| `DEPLOY_SSH_KEY` | All (SSH private key) |
-| `DEPLOY_HOST` | All (fallback host) |
-| `DEPLOY_HOST_AWS` | AWS (provider-specific host) |
-| `DEPLOY_HOST_AZURE` | Azure (provider-specific host) |
-| `DEPLOY_HOST_GCP` | GCP (provider-specific host) |
-| `POSTGRES_PASSWORD` | All |
-| `APP_SECRET_KEY` | All |
-| `SMTP_PASSWORD` | All (optional) |
+| Secret | Used by | Description |
+|--------|---------|-------------|
+| `DOCKERHUB_USERNAME` | CI | DockerHub username for push |
+| `DOCKERHUB_TOKEN` | CI + Deploy | DockerHub access token |
+| `DEPLOY_SSH_KEY` | Deploy | SSH private key for VM |
+| `DEPLOY_HOST` | Deploy | VM public IP (fallback) |
+| `DEPLOY_HOST_AWS` | Deploy | AWS VM public IP |
+| `DEPLOY_HOST_AZURE` | Deploy | Azure VM public IP |
+| `DEPLOY_HOST_GCP` | Deploy | GCP VM public IP |
+| `AWS_ACCESS_KEY_ID` | Terraform | AWS |
+| `AWS_SECRET_ACCESS_KEY` | Terraform | AWS |
+| `ARM_CLIENT_ID` | Terraform | Azure |
+| `ARM_CLIENT_SECRET` | Terraform | Azure |
+| `ARM_SUBSCRIPTION_ID` | Terraform | Azure |
+| `ARM_TENANT_ID` | Terraform | Azure |
+| `GCP_CREDENTIALS_JSON` | Terraform | GCP |
+| `POSTGRES_PASSWORD` | Terraform | DB password |
+| `APP_SECRET_KEY` | Terraform | JWT secret |
+| `SMTP_PASSWORD` | Terraform | Optional |
+
+#### GitHub Variables (non-secret)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DOCKERHUB_ORG` | `zuber2301` | DockerHub org/username |
+| `DOMAIN` | `app.sparknode.io` | Domain for the app |
+
+## Rollback
+
+```bash
+# Rollback to a specific image version
+./scripts/rollback.sh --version 1.1.0
+
+# Rollback with database restore
+./scripts/rollback.sh --version abc1234 --restore-db
+
+# If no --version is specified, uses the last deployed version
+./scripts/rollback.sh
+```
 
 ## Cloud Provider Comparison
 
@@ -194,4 +253,4 @@ To migrate to a different cloud provider:
 4. Run `terraform plan` to review
 5. Run `terraform apply`
 6. Point your DNS to the new VM's public IP
-7. Run `./scripts/deploy.sh` to deploy the application
+7. Run `./scripts/deploy.sh --version <tag>` to deploy
