@@ -8,10 +8,11 @@ class Settings(BaseSettings):
     # Database
     # Prefer an explicit app-scoped connection URL (APP_DATABASE_URL) for safer production posture.
     # Falls back to legacy DATABASE_URL if APP_DATABASE_URL is not set.
-    database_url: str = os.getenv("APP_DATABASE_URL") or os.getenv("DATABASE_URL", "postgresql://sparknode:sparknode_secret_2024@localhost:5432/sparknode")
+    # PRODUCTION: DO NOT rely on the default string below. Always set DATABASE_URL or APP_DATABASE_URL.
+    database_url: str = os.getenv("APP_DATABASE_URL") or os.getenv("DATABASE_URL") or "postgresql://sparknode:sparknode_secret_2024@localhost:5432/sparknode"
     
     # JWT Settings
-    secret_key: str = os.getenv("SECRET_KEY", "sparknode-super-secret-key-change-in-production")
+    secret_key: str = os.getenv("SECRET_KEY") or "sparknode-super-secret-key-change-in-production"
     algorithm: str = os.getenv("ALGORITHM", "HS256")
     access_token_expire_minutes: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 

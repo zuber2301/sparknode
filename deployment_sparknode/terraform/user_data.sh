@@ -221,7 +221,7 @@ services:
       retries: 3
 
   postgres:
-    image: postgres:15-alpine
+    image: postgres:15.8-alpine
     container_name: $${PROJECT_NAME:-sparknode}-db
     restart: unless-stopped
     environment:
