@@ -196,13 +196,16 @@ async def approve_infrastructure(deployment_id: str, db: Session = Depends(get_d
     approval.approved_at = datetime.utcnow()
     db.commit()
     
-    # Trigger actual deployment task
+    # ─── REPLICATE SHELL SCRIPT IN DASHBOARD ───
+    # We call the same Celery engine that wraps the deploy_*.sh scripts.
+    # This ensures consistency: UI and CLI use the SAME logic.
     engine.run_deployment_v2.delay(
         deployment_id,
         approval.env_id,
         "latest",
         provider=approval.provider,
-        config=approval.variables
+        config=approval.variables,
+        skip_infra=False  # This is the "Deploy Infra" path
     )
     
     return {"status": "deployment_started", "deployment_id": deployment_id}

@@ -15,7 +15,13 @@ if [ "$SKIP_TERRAFORM" = "true" ]; then
 else
     echo ">>> Step 1: Provisioning Foundational Infrastructure (Terraform)..."
     cd "$TF_DIR"
-    terraform init > /dev/null
+    
+    # Unified State Management (Issue #10)
+    ENV_TYPE="${ENVIRONMENT:-dev}"
+    STATE_PATH="../../tfstate/aws/$ENV_TYPE/terraform.tfstate"
+    
+    echo ">>> Initializing with state: $STATE_PATH"
+    terraform init -reconfigure -backend-config="path=$STATE_PATH" > /dev/null
     # Pass any TF_VAR_* environment variables automatically
     terraform apply -auto-approve > /dev/null
 fi
