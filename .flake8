@@ -6,18 +6,18 @@ max-line-length = 120
 max-complexity = 10
 
 # Error codes to always report
-select = 
-    E,     # PEP 8 errors
-    W,     # PEP 8 warnings
-    F,     # PyFlakes (undefined names, unused imports)
-    C901   # McCabe complexity
+select =
+    E,
+    W,
+    F,
+    C901
 
 # Ignore these error codes
-ignore = 
-    E203,  # whitespace before ':'
-    E501,  # line too long (handled by black)
-    W503,  # line break before binary operator
-    W504,  # line break after binary operator
+ignore =
+    E203,
+    E501,
+    W503,
+    W504
 
 # Exclude directories and files
 exclude = 
