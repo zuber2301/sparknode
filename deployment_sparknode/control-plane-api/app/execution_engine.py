@@ -19,11 +19,11 @@ def stream_log(deployment_id, message, step=None):
     logging.info(f"[{deployment_id}] {payload}")
 
 @celery_app.task(bind=True)
-def run_deployment_v2(self, deployment_id, env_id, release_tag, host=None, provider=None, config=None, skip_infra=False):
+def run_deployment_v2(self, deployment_id, env_id, release_tag, host=None, provider=None, config=None, skip_infra=False, mode="new"):
     """
     Control Plane Execution Engine - Wraps the physical shell scripts
     """
-    stream_log(deployment_id, f"Initializing deployment sequence for {env_id}...", "INIT")
+    stream_log(deployment_id, f"Initializing {mode} sequence for {env_id}...", "INIT")
     
     # 1. Map environment to targets
     target_host = host or "localhost" 
@@ -31,8 +31,25 @@ def run_deployment_v2(self, deployment_id, env_id, release_tag, host=None, provi
     
     # 2. Prepare environment variables for the script (TF_VAR_*)
     env_vars = os.environ.copy()
+    
+    # Standard Metadata for ALL providers
+    env_vars["TF_VAR_project_name"] = "sparknode"
+    env_vars["TF_VAR_environment"] = env_id or "dev"
+    env_vars["ENVIRONMENT"] = env_id or "dev" # For shell script logic
+
     if config:
+        # Map generic 'region' to provider-specific TF variables
+        region = config.get("region")
+        if region:
+            if target_provider.lower() == "aws":
+                env_vars["TF_VAR_aws_region"] = region
+            elif target_provider.lower() == "azure":
+                env_vars["TF_VAR_azure_location"] = region
+            elif target_provider.lower() == "gcp":
+                env_vars["TF_VAR_region"] = region
+
         for key, value in config.items():
+            if key == "region": continue # Handled above
             env_vars[f"TF_VAR_{key}"] = str(value)
             stream_log(deployment_id, f"Injected TF_VAR_{key} from UI config", "CONFIG")
             
@@ -54,6 +71,13 @@ def run_deployment_v2(self, deployment_id, env_id, release_tag, host=None, provi
         "--host", target_host,
         "--version", release_tag
     ]
+
+    # Target logic for "New" (VM only) vs "Update" (Full)
+    if mode == "new":
+        # We append -target flags for VM components to the terraform calls indirectly
+        # or handle via shell script environment.
+        env_vars["TF_TARGET_VM_ONLY"] = "true"
+        stream_log(deployment_id, "Targeting VM components ONLY for new provision", "TARGET")
     
     stream_log(deployment_id, f"Executing: {' '.join(cmd)}", "DEPLOYING")
     

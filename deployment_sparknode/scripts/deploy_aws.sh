@@ -22,8 +22,16 @@ else
     
     echo ">>> Initializing with state: $STATE_PATH"
     terraform init -reconfigure -backend-config="path=$STATE_PATH" > /dev/null
+    
+    # Check for VM-only targeting
+    TF_TARGET=""
+    if [ "${TF_TARGET_VM_ONLY:-false}" = "true" ]; then
+        echo ">>> TARGETING: aws_instance ONLY"
+        TF_TARGET="-target=aws_instance.sparknode_vm"
+    fi
+
     # Pass any TF_VAR_* environment variables automatically
-    terraform apply -auto-approve > /dev/null
+    terraform apply $TF_TARGET -auto-approve > /dev/null
 fi
 
 # ─── Fetch Infrastructure Metadata ──────────────────────────

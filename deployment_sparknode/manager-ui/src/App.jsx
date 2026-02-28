@@ -25,6 +25,7 @@ const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
 );
 
 const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion }) => {
+  const [deploymentMode, setDeploymentMode] = useState('new'); // 'new' | 'update'
   const [formData, setFormData] = useState({
     connection_id: '',
     node_class: 'burstable',
@@ -36,6 +37,39 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion 
   const [reviewData, setReviewData] = useState(null);
   const [error, setError] = useState(null);
   const [deploymentId, setDeploymentId] = useState(null);
+
+  useEffect(() => {
+    if (deploymentMode === 'update') {
+      const fetchLastConfig = async () => {
+        try {
+          const resp = await fetch(`${API_BASE}/infra/config?env_id=${envName}&provider=${provider}`);
+          const data = await resp.json();
+          if (data && data.variables) {
+            setFormData(prev => ({...prev, ...data.variables}));
+          }
+        } catch (e) { console.error("Failed to fetch last config", e); }
+      };
+      fetchLastConfig();
+    }
+  }, [deploymentMode, envName, provider]);
+
+  const regions = {
+    aws: [
+      { id: 'us-east-1', label: 'East US (Virginia)' },
+      { id: 'ap-south-1', label: 'South India (Mumbai)' },
+      { id: 'eu-west-1', label: 'West Europe (Ireland)' }
+    ],
+    azure: [
+      { id: 'eastus', label: 'East US' },
+      { id: 'southindia', label: 'South India' },
+      { id: 'westeurope', label: 'West Europe' }
+    ],
+    gcp: [
+      { id: 'us-east1', label: 'East US (South Carolina)' },
+      { id: 'asia-south1', label: 'South India (Mumbai)' },
+      { id: 'europe-west1', label: 'West Europe (Belgium)' }
+    ]
+  };
 
   useEffect(() => {
     const fetchConnections = async () => {
@@ -72,7 +106,12 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion 
       const resp = await fetch(`${API_BASE}/infra/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ env_id: envName, provider, config: formData })
+        body: JSON.stringify({ 
+          env_id: envName, 
+          provider, 
+          config: formData,
+          mode: deploymentMode 
+        })
       });
       const data = await resp.json();
       
@@ -144,6 +183,25 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion 
           <div className="col-span-4 p-8 border-r border-slate-100 space-y-8 bg-white overflow-y-auto">
             <section>
               <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <Settings size={14} className="text-indigo-500" /> Action Type
+              </h4>
+              <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl">
+                <button 
+                  onClick={() => setDeploymentMode('new')}
+                  className={`py-2 text-[10px] font-bold rounded-lg transition-all ${deploymentMode === 'new' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >CREATE NEW</button>
+                <button 
+                  onClick={() => setDeploymentMode('update')}
+                  className={`py-2 text-[10px] font-bold rounded-lg transition-all ${deploymentMode === 'update' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >UPDATE INFRA</button>
+              </div>
+              <p className="text-[10px] text-slate-400 mt-2 italic">
+                {deploymentMode === 'new' ? 'Targeted: Provision VM components only.' : 'Full: Sync all environment foundation state.'}
+              </p>
+            </section>
+
+            <section>
+              <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                 <Shield size={14} className="text-indigo-500" /> Connection Profile
               </h4>
               <select 
@@ -157,6 +215,22 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion 
                 {connections.length === 0 && <option value="mock">Injected Provider Keys (From .env)</option>}
               </select>
               <p className="text-[10px] text-slate-400 mt-2 italic">Credentials are referenced via Profile ID for audit compliance.</p>
+            </section>
+
+            <section>
+              <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <Globe size={14} className="text-indigo-500" /> Deployment Region
+              </h4>
+              <select 
+                value={formData.region}
+                onChange={e => setFormData({...formData, region: e.target.value})}
+                disabled={status !== 'idle'}
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none mb-2"
+              >
+                {regions[provider.toLowerCase()].map(r => (
+                  <option key={r.id} value={r.id}>{r.label} ({r.id})</option>
+                ))}
+              </select>
             </section>
 
             <section>

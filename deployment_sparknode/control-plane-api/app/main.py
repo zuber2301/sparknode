@@ -146,28 +146,45 @@ async def validate_credentials(data: Dict, db: Session = Depends(get_db)):
 
     return {"status": "validated", "iam_role": "SparkNode-Provisioner", "permission": "FullAccess"}
 
+@app.get("/api/infra/config")
+async def get_infra_config(env_id: str, provider: str, db: Session = Depends(get_db)):
+    # Retrieve the last successful approval/config for this environment
+    last_approval = db.query(InfrastructureApproval).filter(
+        InfrastructureApproval.env_id == env_id,
+        InfrastructureApproval.provider == provider.lower(),
+        InfrastructureApproval.status == "approved"
+    ).order_by(InfrastructureApproval.approved_at.desc()).first()
+    
+    if not last_approval:
+        return {"variables": {}}
+    
+    return {"variables": last_approval.variables or {}}
+
 @app.post("/api/infra/review")
 async def review_infrastructure(data: Dict, db: Session = Depends(get_db)):
     env_id = data.get("env_id", "default")
     provider = data.get("provider", "aws").lower()
-    node_class = data.get("config", {}).get("node_class", "burstable")
+    mode = data.get("mode", "new") # new | update
+    config = data.get("config", {})
+    node_class = config.get("node_class", "burstable")
     
     deployment_id = f"rev-{env_id}-{int(time.time())}"
     
     # Provider-specific resource list
     resources_map = {
-        "aws": ["aws_vpc.spark_net", "aws_subnet.spark_pub", "aws_eks_cluster.spark_k8s", "aws_eks_node_group.workers", "aws_security_group.spark_sg"],
-        "azure": ["azurerm_resource_group.spark_rg", "azurerm_virtual_network.spark_vnet", "azurerm_kubernetes_cluster.spark_aks"],
-        "gcp": ["google_compute_network.spark_net", "google_container_cluster.spark_gke", "google_compute_subnetwork.spark_sub"]
+        "aws": ["aws_instance.sparknode_vm"] if mode == "new" else ["aws_vpc.spark_net", "aws_subnet.spark_pub", "aws_eks_cluster.spark_k8s", "aws_eks_node_group.workers", "aws_security_group.spark_sg", "aws_instance.sparknode_vm"],
+        "azure": ["azurerm_linux_virtual_machine.sparknode"] if mode == "new" else ["azurerm_resource_group.spark_rg", "azurerm_virtual_network.spark_vnet", "azurerm_kubernetes_cluster.spark_aks", "azurerm_linux_virtual_machine.sparknode"],
+        "gcp": ["google_compute_instance.sparknode"] if mode == "new" else ["google_compute_network.spark_net", "google_container_cluster.spark_gke", "google_compute_subnetwork.spark_sub", "google_compute_instance.sparknode"]
     }
     
     plan_summary = {
         "resources_to_add": len(resources_map.get(provider, [])),
         "resources_to_destroy": 0,
         "resources": resources_map.get(provider, []),
-        "risk_level": "SAFE",
+        "risk_level": "SAFE" if mode == "new" else "MODERATE",
         "cost": "$84/month" if node_class == "burstable" else "$242/month",
-        "time": "6 minutes"
+        "time": "3 minutes" if mode == "new" else "8 minutes",
+        "mode": mode
     }
     
     new_approval = InfrastructureApproval(
@@ -175,7 +192,8 @@ async def review_infrastructure(data: Dict, db: Session = Depends(get_db)):
         env_id=env_id,
         provider=provider,
         plan_summary=plan_summary,
-        status="reviewed"
+        status="reviewed",
+        variables=config # Persist the config used for this review
     )
     db.add(new_approval)
     db.commit()
@@ -205,7 +223,8 @@ async def approve_infrastructure(deployment_id: str, db: Session = Depends(get_d
         "latest",
         provider=approval.provider,
         config=approval.variables,
-        skip_infra=False  # This is the "Deploy Infra" path
+        skip_infra=False,  # This is the "Deploy Infra" path
+        mode=approval.plan_summary.get("mode", "new")
     )
     
     return {"status": "deployment_started", "deployment_id": deployment_id}
