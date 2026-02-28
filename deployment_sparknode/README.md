@@ -117,11 +117,14 @@ Images are automatically built and pushed on every push to `main` via
 `.github/workflows/ci.yml`. You can also trigger manually:
 
 ```bash
-# Manual trigger via GitHub CLI
-gh workflow run ci.yml -f version_bump=patch -f push=true
+# Manual trigger via GitHub CLI — build all images
+gh workflow run ci.yml -f image=all -f version_bump=patch -f push=true
 
-# Or with a custom version
-gh workflow run ci.yml -f version_bump=custom -f custom_version=2.0.0-rc.1 -f push=true
+# Build only backend
+gh workflow run ci.yml -f image=backend -f version_bump=patch -f push=true
+
+# Build only frontend with a custom version
+gh workflow run ci.yml -f image=frontend -f version_bump=custom -f custom_version=2.0.0-rc.1 -f push=true
 ```
 
 ### 3. Step 2 — Provision Infrastructure
@@ -157,10 +160,11 @@ cd deployment_sparknode/scripts
 
 **CI workflow** (`.github/workflows/ci.yml`) — runs on push to main or `v*` tags:
 - Reads `VERSION` file for semantic version
-- Builds backend & frontend Docker images
-- Tags with `X.Y.Z`, `X.Y`, `X`, `latest`, `sha-<short>`
+- Builds backend & frontend Docker images (or selectively via manual dispatch)
+- Tags with `X.Y.Z` + `latest`
 - Pushes to DockerHub (`zuber2301`)
-- Manual dispatch supports patch/minor/major bumps
+- Manual dispatch supports: image selection (all/backend/frontend) + version bump
+- **Retention:** only 3 semver versions kept per image; older versions are auto-purged
 
 **Deploy workflow** (`deployment_sparknode/.github/workflows/deploy.yml`) — manual dispatch:
 - Inputs: `cloud_provider` (aws/azure/gcp), `environment`, `image_tag`

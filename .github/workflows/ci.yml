@@ -7,18 +7,23 @@
 #   3. Deploy workflow pulls images onto the VM
 #
 # Versioning (semver):
-#   - Push to main   → reads VERSION file, tags as X.Y.Z + X.Y + X + latest + sha
+#   - Push to main   → reads VERSION file, tags as X.Y.Z + latest
 #   - Git tag v*     → uses tag version (e.g. v1.2.3 → 1.2.3)
 #   - Pull request   → build only (no push)
-#   - Manual dispatch → bump patch/minor/major or use custom tag
+#   - Manual dispatch → choose image + version bump, push to DockerHub
+#
+# Retention: only 3 semver versions kept per image (current + 2 previous).
+# Older versions are automatically purged after each push.
+#
+# Services from docker-compose.yml:
+#   backend  (build: ./backend/Dockerfile)   → zuber2301/sparknode-backend
+#   celery   (same image as backend)         → zuber2301/sparknode-backend
+#   frontend (build: ./frontend/Dockerfile.prod) → zuber2301/sparknode-frontend
+#   postgres, redis — upstream images, not built here
 #
 # Required GitHub Secrets:
 #   DOCKERHUB_USERNAME   — DockerHub username
 #   DOCKERHUB_TOKEN      — DockerHub access token (not password)
-#
-# Images produced (DockerHub: zuber2301):
-#   zuber2301/sparknode-backend:1.2.3
-#   zuber2301/sparknode-frontend:1.2.3
 # ──────────────────────────────────────────────────────────────
 
 name: CI — Build & Push Images
@@ -42,6 +47,15 @@ on:
       - 'frontend/**'
   workflow_dispatch:
     inputs:
+      image:
+        description: 'Which image to build and push'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - backend
+          - frontend
       version_bump:
         description: 'Version bump type'
         required: true
@@ -70,20 +84,22 @@ env:
   DOCKERHUB_ORG: zuber2301
   BACKEND_IMAGE: zuber2301/sparknode-backend
   FRONTEND_IMAGE: zuber2301/sparknode-frontend
+  # Number of semver versions to keep per image (current + N-1 previous)
+  KEEP_VERSIONS: 3
 
 jobs:
   # ────────────────────────────────────────────────────────────
-  # Job 1: Determine version & tags
+  # Job 1: Determine version, tags & build matrix
   # ────────────────────────────────────────────────────────────
   prepare:
     name: Determine Version
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
-      major: ${{ steps.version.outputs.major }}
-      minor: ${{ steps.version.outputs.minor }}
       short_sha: ${{ steps.version.outputs.short_sha }}
       should_push: ${{ steps.version.outputs.should_push }}
+      build_backend: ${{ steps.matrix.outputs.build_backend }}
+      build_frontend: ${{ steps.matrix.outputs.build_frontend }}
       all_tags_backend: ${{ steps.tags.outputs.backend }}
       all_tags_frontend: ${{ steps.tags.outputs.frontend }}
     steps:
@@ -100,12 +116,10 @@ jobs:
 
           # ── Resolve version from trigger type ──
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            # Git tag trigger: v1.2.3 → 1.2.3
             VERSION="${GITHUB_REF#refs/tags/v}"
             echo "Source: git tag (${{ github.ref }})"
 
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            # Manual dispatch: bump VERSION file or use custom
             CURRENT=$(cat VERSION | tr -d '[:space:]')
 
             if [ "${{ github.event.inputs.version_bump }}" = "custom" ]; then
@@ -115,10 +129,8 @@ jobs:
                 exit 1
               fi
             else
-              # Parse current semver
               IFS='.' read -r CUR_MAJOR CUR_MINOR CUR_PATCH <<< "$CURRENT"
-              CUR_PATCH="${CUR_PATCH%%-*}"  # strip any pre-release suffix
-
+              CUR_PATCH="${CUR_PATCH%%-*}"
               case "${{ github.event.inputs.version_bump }}" in
                 major) VERSION="$((CUR_MAJOR + 1)).0.0" ;;
                 minor) VERSION="${CUR_MAJOR}.$((CUR_MINOR + 1)).0" ;;
@@ -128,24 +140,17 @@ jobs:
             echo "Source: manual dispatch (${{ github.event.inputs.version_bump }} → $VERSION)"
 
           else
-            # Push to main: read VERSION file
             VERSION=$(cat VERSION | tr -d '[:space:]')
             echo "Source: VERSION file ($VERSION)"
           fi
 
-          # ── Validate semver format ──
+          # ── Validate semver ──
           if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
             echo "::error::Invalid semver: $VERSION (expected X.Y.Z)"
             exit 1
           fi
 
-          # Parse components
-          MAJOR=$(echo "$VERSION" | cut -d. -f1)
-          MINOR=$(echo "$VERSION" | cut -d. -f2)
-
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "major=$MAJOR" >> $GITHUB_OUTPUT
-          echo "minor=$MINOR" >> $GITHUB_OUTPUT
 
           # ── Determine push ──
           SHOULD_PUSH="false"
@@ -160,38 +165,43 @@ jobs:
 
           echo "══════════════════════════════════════════"
           echo "  Version: $VERSION"
-          echo "  Major:   $MAJOR"
-          echo "  Minor:   $MINOR"
           echo "  SHA:     $SHORT_SHA"
           echo "  Push:    $SHOULD_PUSH"
           echo "══════════════════════════════════════════"
+
+      - name: Determine build matrix
+        id: matrix
+        run: |
+          IMAGE_INPUT="${{ github.event.inputs.image }}"
+
+          # On push/PR events or when "all" is selected, build everything
+          if [ -z "$IMAGE_INPUT" ] || [ "$IMAGE_INPUT" = "all" ]; then
+            echo "build_backend=true"  >> $GITHUB_OUTPUT
+            echo "build_frontend=true" >> $GITHUB_OUTPUT
+          elif [ "$IMAGE_INPUT" = "backend" ]; then
+            echo "build_backend=true"   >> $GITHUB_OUTPUT
+            echo "build_frontend=false" >> $GITHUB_OUTPUT
+          elif [ "$IMAGE_INPUT" = "frontend" ]; then
+            echo "build_backend=false"  >> $GITHUB_OUTPUT
+            echo "build_frontend=true"  >> $GITHUB_OUTPUT
+          fi
+
+          echo "Image selection: ${IMAGE_INPUT:-all}"
 
       - name: Build tag lists
         id: tags
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          MAJOR="${{ steps.version.outputs.major }}"
-          MINOR="${{ steps.version.outputs.minor }}"
-          SHA="${{ steps.version.outputs.short_sha }}"
 
-          # Tags: X.Y.Z, X.Y, X, latest, sha-{short}
+          # Tags: X.Y.Z + latest
           BACKEND_TAGS="${{ env.BACKEND_IMAGE }}:${VERSION}"
-          BACKEND_TAGS="${BACKEND_TAGS},${{ env.BACKEND_IMAGE }}:${MAJOR}.${MINOR}"
-          BACKEND_TAGS="${BACKEND_TAGS},${{ env.BACKEND_IMAGE }}:${MAJOR}"
           BACKEND_TAGS="${BACKEND_TAGS},${{ env.BACKEND_IMAGE }}:latest"
-          BACKEND_TAGS="${BACKEND_TAGS},${{ env.BACKEND_IMAGE }}:sha-${SHA}"
 
           FRONTEND_TAGS="${{ env.FRONTEND_IMAGE }}:${VERSION}"
-          FRONTEND_TAGS="${FRONTEND_TAGS},${{ env.FRONTEND_IMAGE }}:${MAJOR}.${MINOR}"
-          FRONTEND_TAGS="${FRONTEND_TAGS},${{ env.FRONTEND_IMAGE }}:${MAJOR}"
           FRONTEND_TAGS="${FRONTEND_TAGS},${{ env.FRONTEND_IMAGE }}:latest"
-          FRONTEND_TAGS="${FRONTEND_TAGS},${{ env.FRONTEND_IMAGE }}:sha-${SHA}"
 
-          echo "backend=$BACKEND_TAGS" >> $GITHUB_OUTPUT
+          echo "backend=$BACKEND_TAGS"   >> $GITHUB_OUTPUT
           echo "frontend=$FRONTEND_TAGS" >> $GITHUB_OUTPUT
-
-          echo "Backend tags: $BACKEND_TAGS"
-          echo "Frontend tags: $FRONTEND_TAGS"
 
       - name: Update VERSION file
         if: github.event_name == 'workflow_dispatch' && steps.version.outputs.should_push == 'true'
@@ -209,11 +219,13 @@ jobs:
 
   # ────────────────────────────────────────────────────────────
   # Job 2: Build & push backend image
+  #   (also used by celery — same Dockerfile, different CMD)
   # ────────────────────────────────────────────────────────────
   build-backend:
     name: Build Backend (${{ needs.prepare.outputs.version }})
     runs-on: ubuntu-latest
     needs: prepare
+    if: needs.prepare.outputs.build_backend == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -245,11 +257,10 @@ jobs:
 
       - name: Summary
         run: |
-          echo "### Backend Image" >> $GITHUB_STEP_SUMMARY
+          echo "### Backend Image (also used by celery)" >> $GITHUB_STEP_SUMMARY
           echo "- **Version:** \`${{ needs.prepare.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Image:** \`${{ env.BACKEND_IMAGE }}:${{ needs.prepare.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Pushed:** ${{ needs.prepare.outputs.should_push }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tags:** \`${{ needs.prepare.outputs.version }}\`, \`${{ needs.prepare.outputs.major }}.${{ needs.prepare.outputs.minor }}\`, \`${{ needs.prepare.outputs.major }}\`, \`latest\`, \`sha-${{ needs.prepare.outputs.short_sha }}\`" >> $GITHUB_STEP_SUMMARY
 
   # ────────────────────────────────────────────────────────────
   # Job 3: Build & push frontend image
@@ -258,6 +269,7 @@ jobs:
     name: Build Frontend (${{ needs.prepare.outputs.version }})
     runs-on: ubuntu-latest
     needs: prepare
+    if: needs.prepare.outputs.build_frontend == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -295,15 +307,125 @@ jobs:
           echo "- **Version:** \`${{ needs.prepare.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Image:** \`${{ env.FRONTEND_IMAGE }}:${{ needs.prepare.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Pushed:** ${{ needs.prepare.outputs.should_push }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tags:** \`${{ needs.prepare.outputs.version }}\`, \`${{ needs.prepare.outputs.major }}.${{ needs.prepare.outputs.minor }}\`, \`${{ needs.prepare.outputs.major }}\`, \`latest\`, \`sha-${{ needs.prepare.outputs.short_sha }}\`" >> $GITHUB_STEP_SUMMARY
 
   # ────────────────────────────────────────────────────────────
-  # Job 4: Output summary
+  # Job 4: Cleanup old image versions (keep only 3 semver tags)
+  #
+  #   Uses DockerHub API to list tags, sorts by semver, and
+  #   deletes everything beyond the 3 most recent versions.
+  #   The "latest" tag is never deleted.
+  # ────────────────────────────────────────────────────────────
+  cleanup:
+    name: Purge Old Versions
+    runs-on: ubuntu-latest
+    needs: [prepare, build-backend, build-frontend]
+    if: |
+      always() &&
+      needs.prepare.outputs.should_push == 'true' &&
+      (needs.build-backend.result == 'success' || needs.build-backend.result == 'skipped') &&
+      (needs.build-frontend.result == 'success' || needs.build-frontend.result == 'skipped')
+    steps:
+      - name: Get DockerHub JWT token
+        id: auth
+        run: |
+          TOKEN=$(curl -sf "https://hub.docker.com/v2/users/login" \
+            -H "Content-Type: application/json" \
+            -d '{"username":"${{ secrets.DOCKERHUB_USERNAME }}","password":"${{ secrets.DOCKERHUB_TOKEN }}"}' \
+            | jq -r '.token')
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "::error::Failed to authenticate with DockerHub API"
+            exit 1
+          fi
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Purge old backend tags
+        if: needs.prepare.outputs.build_backend == 'true'
+        run: |
+          REPO="sparknode-backend"
+          ORG="${{ env.DOCKERHUB_ORG }}"
+          TOKEN="${{ steps.auth.outputs.token }}"
+          KEEP=${{ env.KEEP_VERSIONS }}
+
+          echo ">>> Listing tags for $ORG/$REPO ..."
+          ALL_TAGS=$(curl -sf \
+            "https://hub.docker.com/v2/repositories/$ORG/$REPO/tags/?page_size=100&ordering=last_updated" \
+            -H "Authorization: Bearer $TOKEN" \
+            | jq -r '.results[].name')
+
+          # Filter semver tags only (X.Y.Z), sort descending
+          SEMVER_TAGS=$(echo "$ALL_TAGS" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -t. -k1,1nr -k2,2nr -k3,3nr)
+          TOTAL=$(echo "$SEMVER_TAGS" | grep -c . || true)
+
+          echo "  Found $TOTAL semver tags, keeping $KEEP"
+
+          if [ "$TOTAL" -le "$KEEP" ]; then
+            echo "  Nothing to purge."
+          else
+            TO_DELETE=$(echo "$SEMVER_TAGS" | tail -n +$((KEEP + 1)))
+            for TAG in $TO_DELETE; do
+              echo "  Deleting $ORG/$REPO:$TAG ..."
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
+                "https://hub.docker.com/v2/repositories/$ORG/$REPO/tags/$TAG/" \
+                -H "Authorization: Bearer $TOKEN")
+              if [ "$HTTP_CODE" = "204" ]; then
+                echo "    ✓ Deleted"
+              else
+                echo "    ✗ Failed (HTTP $HTTP_CODE)"
+              fi
+            done
+          fi
+
+      - name: Purge old frontend tags
+        if: needs.prepare.outputs.build_frontend == 'true'
+        run: |
+          REPO="sparknode-frontend"
+          ORG="${{ env.DOCKERHUB_ORG }}"
+          TOKEN="${{ steps.auth.outputs.token }}"
+          KEEP=${{ env.KEEP_VERSIONS }}
+
+          echo ">>> Listing tags for $ORG/$REPO ..."
+          ALL_TAGS=$(curl -sf \
+            "https://hub.docker.com/v2/repositories/$ORG/$REPO/tags/?page_size=100&ordering=last_updated" \
+            -H "Authorization: Bearer $TOKEN" \
+            | jq -r '.results[].name')
+
+          # Filter semver tags only (X.Y.Z), sort descending
+          SEMVER_TAGS=$(echo "$ALL_TAGS" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -t. -k1,1nr -k2,2nr -k3,3nr)
+          TOTAL=$(echo "$SEMVER_TAGS" | grep -c . || true)
+
+          echo "  Found $TOTAL semver tags, keeping $KEEP"
+
+          if [ "$TOTAL" -le "$KEEP" ]; then
+            echo "  Nothing to purge."
+          else
+            TO_DELETE=$(echo "$SEMVER_TAGS" | tail -n +$((KEEP + 1)))
+            for TAG in $TO_DELETE; do
+              echo "  Deleting $ORG/$REPO:$TAG ..."
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
+                "https://hub.docker.com/v2/repositories/$ORG/$REPO/tags/$TAG/" \
+                -H "Authorization: Bearer $TOKEN")
+              if [ "$HTTP_CODE" = "204" ]; then
+                echo "    ✓ Deleted"
+              else
+                echo "    ✗ Failed (HTTP $HTTP_CODE)"
+              fi
+            done
+          fi
+
+      - name: Cleanup summary
+        run: |
+          echo "### Image Retention" >> $GITHUB_STEP_SUMMARY
+          echo "Keeping **${{ env.KEEP_VERSIONS }}** most recent semver versions per image." >> $GITHUB_STEP_SUMMARY
+          echo "The \`latest\` tag is always preserved." >> $GITHUB_STEP_SUMMARY
+
+  # ────────────────────────────────────────────────────────────
+  # Job 5: Output summary
   # ────────────────────────────────────────────────────────────
   summary:
     name: CI Summary
     runs-on: ubuntu-latest
-    needs: [prepare, build-backend, build-frontend]
+    needs: [prepare, build-backend, build-frontend, cleanup]
     if: always()
     steps:
       - name: Results
@@ -314,18 +436,24 @@ jobs:
           echo "  Version:  ${{ needs.prepare.outputs.version }}"
           echo "  Backend:  ${{ needs.build-backend.result }}"
           echo "  Frontend: ${{ needs.build-frontend.result }}"
+          echo "  Cleanup:  ${{ needs.cleanup.result }}"
           echo "  Pushed:   ${{ needs.prepare.outputs.should_push }}"
           echo "══════════════════════════════════════════"
 
           echo "### CI Build Results" >> $GITHUB_STEP_SUMMARY
           echo "| Component | Status | Image |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Backend | ${{ needs.build-backend.result }} | \`${{ env.BACKEND_IMAGE }}:${{ needs.prepare.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Frontend | ${{ needs.build-frontend.result }} | \`${{ env.FRONTEND_IMAGE }}:${{ needs.prepare.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.build-backend.result }}" != "skipped" ]; then
+            echo "| Backend (+ celery) | ${{ needs.build-backend.result }} | \`${{ env.BACKEND_IMAGE }}:${{ needs.prepare.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ needs.build-frontend.result }}" != "skipped" ]; then
+            echo "| Frontend | ${{ needs.build-frontend.result }} | \`${{ env.FRONTEND_IMAGE }}:${{ needs.prepare.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**All tags:** \`${{ needs.prepare.outputs.version }}\` · \`${{ needs.prepare.outputs.major }}.${{ needs.prepare.outputs.minor }}\` · \`${{ needs.prepare.outputs.major }}\` · \`latest\` · \`sha-${{ needs.prepare.outputs.short_sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Retention:** ${{ env.KEEP_VERSIONS }} versions kept per image" >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ needs.build-backend.result }}" != "success" ] || [ "${{ needs.build-frontend.result }}" != "success" ]; then
+          # Fail if any enabled build failed
+          if [ "${{ needs.build-backend.result }}" = "failure" ] || [ "${{ needs.build-frontend.result }}" = "failure" ]; then
             echo "::error::One or more image builds failed"
             exit 1
           fi
