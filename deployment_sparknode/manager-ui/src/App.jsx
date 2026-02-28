@@ -596,6 +596,8 @@ const App = () => {
       {configModal && (
         <ConfigModal 
           provider={configModal.provider} 
+          envName={configModal.id}
+          region={configModal.region}
           onClose={() => setConfigModal(null)} 
           onConfirm={(config) => executeDeployment(configModal, config)}
         />
