@@ -7,16 +7,21 @@ export default {
   theme: {
     extend: {
       colors: {
+        indigo: {
+          50: '#f5f7ff',
+          600: '#4f46e5',
+        },
         sparknode: {
-          purple: '#7c3aed',
+          purple: '#6366f1',
           blue: '#3b82f6',
           green: '#10b981',
-          orange: '#f59e0b',
-          pink: '#ec4899',
+          dark: '#0f172a',
+          slate: '#1e293b'
         }
       },
       fontFamily: {
-        inter: ['Inter', 'sans-serif'],
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['Fira Code', 'monospace'],
       },
     },
   },
