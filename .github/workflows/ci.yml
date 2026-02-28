@@ -28,18 +28,6 @@
 name: CI — Build & Push Images
 
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - 'v*'
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - 'VERSION'
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       image:
