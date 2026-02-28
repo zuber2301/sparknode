@@ -113,6 +113,16 @@ echo ">>> Starting services with new images..."
 $SSH_CMD "cd $APP_DIR && \
   docker compose -f $COMPOSE_FILE --env-file $ENV_FILE up -d --remove-orphans"
 
+# ─── 6b. Run database migrations (Alembic) ──────────────────
+echo ">>> Waiting for backend container to start..."
+sleep 10
+
+echo ">>> Running Alembic database migrations..."
+$SSH_CMD "docker exec \$(docker compose -f $APP_DIR/$COMPOSE_FILE ps -q backend) \
+  python -m alembic upgrade head" \
+  && echo ">>> Migrations applied successfully." \
+  || { echo "ERROR: Migration failed — consider rolling back"; exit 1; }
+
 # ─── 7. Wait for health ─────────────────────────────────────
 echo ">>> Waiting for services to become healthy..."
 sleep 10

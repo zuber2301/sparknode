@@ -201,6 +201,22 @@ jobs:
 
           echo ">>> Deployed image tag: $TAG"
 
+      - name: Run database migrations
+        env:
+          HOST: ${{ steps.target.outputs.host }}
+          SSH_USER: ${{ steps.ssh_config.outputs.ssh_user }}
+        run: |
+          SSH="ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${SSH_USER}@$HOST"
+
+          echo ">>> Waiting for backend container to start..."
+          sleep 10
+
+          echo ">>> Running Alembic migrations..."
+          $SSH "docker exec \$(docker compose -f $APP_DIR/$COMPOSE_FILE ps -q backend) \
+            python -m alembic upgrade head" \
+            && echo ">>> Migrations applied successfully." \
+            || { echo "ERROR: Migration failed — consider rolling back"; exit 1; }
+
       - name: Wait for healthy
         env:
           HOST: ${{ steps.target.outputs.host }}

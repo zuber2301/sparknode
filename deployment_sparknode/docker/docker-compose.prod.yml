@@ -46,8 +46,11 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-sparknode}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
-      - ./database/seed.sql:/docker-entrypoint-initdb.d/seed.sql
+      # init.sql + seed.sql run only on FIRST postgres boot (empty data dir).
+      # All subsequent schema changes are handled by Alembic via the backend
+      # entrypoint (alembic upgrade head).  seed.sql now contains data only.
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01_init.sql
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sparknode}"]
       interval: 5s
