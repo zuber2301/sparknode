@@ -1,13 +1,14 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import logging
 import asyncio
-from typing import List, Dict
+from typing import List, Dict, Optional
 import redis.asyncio as redis
+from pydantic import BaseModel
 
 # Component Imports
-# from app.routers import deployments, environments, infra
+import app.execution_engine as engine
 
 app = FastAPI(
     title="SparkNode Control Plane API",
@@ -25,6 +26,25 @@ app.add_middleware(
 
 # Redis for Pub/Sub (Live log streaming)
 REDIS_URL = "redis://localhost:6379/0"
+
+class DeploymentTrigger(BaseModel):
+    env_id: str
+    release_tag: str
+    host: Optional[str] = None
+    provider: Optional[str] = None
+
+@app.post("/api/deployments/")
+async def trigger_deployment(data: DeploymentTrigger):
+    deployment_id = f"dep-{data.env_id}-{int(asyncio.get_event_loop().time())}"
+    # Trigger Celery Task
+    engine.run_deployment_v2.delay(
+        deployment_id, 
+        data.env_id, 
+        data.release_tag,
+        host=data.host,
+        provider=data.provider
+    )
+    return {"deployment_id": deployment_id, "status": "PENDING"}
 
 @app.websocket("/ws/deployments/{deployment_id}/logs")
 async def websocket_logs(websocket: WebSocket, deployment_id: str):

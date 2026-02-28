@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ─── Configuration ──────────────────────────────────────────
+TF_DIR="/root/repos_products/sparknode/deployment_sparknode/terraform/modules/aws"
+APP_DIR="/opt/sparknode"
+COMPOSE_FILE="docker-compose.prod.yml"
+ENV_FILE=".env"
+VERSION="${APP_VERSION:-latest}"
+DOCKERHUB_ORG="zuber2301"
+
+echo ">>> Initializing AWS Infrastructure via Terraform..."
+cd "$TF_DIR"
+terraform init > /dev/null
+terraform apply -auto-approve > /dev/null
+
+# ─── Fetch Infrastructure Metadata ──────────────────────────
+HOST=$(terraform output -raw public_ip)
+SSH_USER=$(terraform output -raw ssh_user)
+SSH_KEY="${DEPLOY_SSH_KEY:-~/.ssh/sparknode.pem}"
+
+echo "═══════════════════════════════════════════════════════════"
+echo "  SparkNode Deploy (AWS IMAGE-BASED)"
+echo "  Host:     $HOST"
+echo "  User:     $SSH_USER"
+echo "  Version:  $VERSION"
+echo "═══════════════════════════════════════════════════════════"
+
+SSH_CMD="ssh -i $SSH_KEY -o StrictHostKeyChecking=no -o ConnectTimeout=10 $SSH_USER@$HOST"
+
+# ─── 1. Pre-flight check ─────────────────────────────────────
+echo ">>> Checking connectivity..."
+$SSH_CMD "echo 'SSH OK'" || { echo "ERROR: Cannot reach $HOST"; exit 1; }
+
+# ─── 2. Database backup (pre-deploy) ────────────────────────
+echo ">>> Backing up database..."
+$SSH_CMD "mkdir -p $APP_DIR/backups &&   docker exec ${APP_DIR##*/}-db pg_dump -U sparknode sparknode 2>/dev/null |   gzip > $APP_DIR/backups/pre-deploy-$(date +%Y%m%d).sql.gz" || echo "WARN: DB backup skipped"
+
+# ─── 3. Update APP_VERSION & Pull ──────────────────────────
+echo ">>> Updating APP_VERSION to $VERSION and pulling images..."
+$SSH_CMD "cd $APP_DIR &&   sed -i 's/^APP_VERSION=.*/APP_VERSION=$VERSION/' $ENV_FILE &&   docker compose -f $COMPOSE_FILE --env-file $ENV_FILE pull backend celery frontend"
+
+# ─── 4. Restart & Migrate ───────────────────────────────────
+echo ">>> Starting services..."
+$SSH_CMD "cd $APP_DIR &&   docker compose -f $COMPOSE_FILE --env-file $ENV_FILE up -d --remove-orphans"
+
+echo ">>> Running Alembic migrations..."
+sleep 10
+$SSH_CMD "docker exec $(docker compose -f $APP_DIR/$COMPOSE_FILE ps -q backend) python -m alembic upgrade head"
+
+# ─── 5. Health Check ────────────────────────────────────────
+echo ">>> Waiting for services to become healthy..."
+sleep 10
+HEALTH=$($SSH_CMD "curl -sf http://localhost:8000/health 2>/dev/null || echo 'unhealthy'")
+if [ "$HEALTH" != "unhealthy" ]; then
+  echo ">>> ✓ Deployment complete! (AWS)"
+else
+  echo "ERROR: Backend did not become healthy"
+  exit 1
+fi
