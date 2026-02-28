@@ -345,7 +345,7 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion,
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200">
         {/* Header Context (Issue #4) */}
         <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-4">
@@ -376,7 +376,7 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion,
           </button>
         </div>
 
-        <div className="grid grid-cols-12 overflow-hidden" style={{ height: '550px' }}>
+        <div className="grid grid-cols-12 overflow-hidden" style={{ height: '600px' }}>
           {/* Step 1: Configuration (Issue #1, #5) */}
           <div className="col-span-4 p-8 border-r border-slate-100 space-y-8 bg-white overflow-y-auto">
             <section>
@@ -517,72 +517,83 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion,
             </section>
           </div>
 
-          {/* Step 2: Terminal + Plan Review */}
-          <div className="col-span-8 bg-slate-50 p-6 overflow-y-auto space-y-5">
-            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <Workflow size={14} className="text-indigo-500" /> Terraform Execution Plan
-            </h4>
+          {/* Step 2: Terminal (fills height) + Plan Review (compact, below) */}
+          <div className="col-span-8 bg-slate-50 flex flex-col overflow-hidden">
 
-            {/* Always-visible terminal log panel */}
-            {terminalLogs.length > 0 ? (
-              <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-xl">
-                <div className="flex items-center gap-2 px-5 py-3 border-b border-slate-800">
-                  <div className="flex gap-1.5"><div className="w-3 h-3 rounded-full bg-slate-700"/><div className="w-3 h-3 rounded-full bg-slate-700"/><div className="w-3 h-3 rounded-full bg-slate-700"/></div>
-                  <Terminal size={12} className="text-indigo-400 ml-2" />
-                  <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">
-                    {status === 'reviewing' ? 'Running terraform init + plan...' : 'Execution Log'}
-                  </span>
-                  {status === 'reviewing' && <LucideRefreshCw size={12} className="text-indigo-400 animate-spin ml-auto" />}
-                </div>
-                <div ref={terminalRef} className="p-4 space-y-0.5 max-h-64 overflow-y-auto font-mono text-[11px]">
-                  {terminalLogs.map((log, i) => (
-                    <div key={i} className="flex gap-3 leading-5">
-                      <span className={
-                        log.status === 'error'    ? 'text-red-400' :
-                        log.status === 'success'  ? 'text-green-400' :
-                        log.status === 'progress' ? 'text-indigo-300' :
-                        'text-slate-400'
-                      }>{log.msg}</span>
-                    </div>
-                  ))}
-                  {status === 'reviewing' && (
-                    <div className="flex gap-1 pt-1">
-                      <span className="text-indigo-400 animate-pulse">█</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 mb-4">
-                  <RotateCcw className="text-slate-200" size={40} />
-                </div>
-                <h5 className="text-slate-700 font-bold mb-1">Awaiting validation</h5>
-                <p className="text-xs text-slate-400 max-w-xs">Validate access first, then run Analyse Plan to execute terraform init + plan.</p>
-              </div>
-            )}
+            {/* Fixed header */}
+            <div className="px-6 pt-5 pb-3 shrink-0">
+              <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <Workflow size={14} className="text-indigo-500" /> Terraform Execution Plan
+              </h4>
+            </div>
 
-            {/* Plan summary — shown after terraform plan succeeds */}
+            {/* Terminal or empty state — flex-1 so it fills all available vertical space */}
+            <div className="flex-1 min-h-0 px-6">
+              {terminalLogs.length > 0 ? (
+                <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-xl h-full flex flex-col">
+                  <div className="flex items-center gap-2 px-5 py-3 border-b border-slate-800 shrink-0">
+                    <div className="flex gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-slate-700"/>
+                      <div className="w-3 h-3 rounded-full bg-slate-700"/>
+                      <div className="w-3 h-3 rounded-full bg-slate-700"/>
+                    </div>
+                    <Terminal size={12} className="text-indigo-400 ml-2" />
+                    <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">
+                      {status === 'reviewing' ? 'Running terraform init + plan...' : 'Execution Log'}
+                    </span>
+                    {status === 'reviewing' && <LucideRefreshCw size={12} className="text-indigo-400 animate-spin ml-auto" />}
+                  </div>
+                  {/* scrollable log body — grows to fill terminal card */}
+                  <div ref={terminalRef} className="flex-1 overflow-y-auto p-4 space-y-0.5 font-mono text-[11px]">
+                    {terminalLogs.map((log, i) => (
+                      <div key={i} className="flex gap-3 leading-5">
+                        <span className={
+                          log.status === 'error'    ? 'text-red-400' :
+                          log.status === 'success'  ? 'text-green-400' :
+                          log.status === 'progress' ? 'text-indigo-300' :
+                          'text-slate-400'
+                        }>{log.msg}</span>
+                      </div>
+                    ))}
+                    {status === 'reviewing' && (
+                      <div className="flex gap-1 pt-1">
+                        <span className="text-indigo-400 animate-pulse">█</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-center">
+                  <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 mb-4">
+                    <RotateCcw className="text-slate-200" size={40} />
+                  </div>
+                  <h5 className="text-slate-700 font-bold mb-1">Awaiting validation</h5>
+                  <p className="text-xs text-slate-400 max-w-xs">Validate access first, then run Analyse Plan to execute terraform init + plan.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Plan summary — compact strip below terminal, only when plan is done */}
             {reviewData && (
-              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 text-center">
-                    <p className="text-[9px] text-slate-400 font-black uppercase mb-1">To Add</p>
-                    <p className="text-2xl font-black text-green-600">+{reviewData.resources_to_add}</p>
+              <div className="px-6 pt-3 pb-2 shrink-0 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-400">
+                <div className="grid grid-cols-4 gap-2">
+                  <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-200 text-center">
+                    <p className="text-[9px] text-slate-400 font-black uppercase mb-0.5">Add</p>
+                    <p className="text-xl font-black text-green-600">+{reviewData.resources_to_add}</p>
                   </div>
-                  <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 text-center">
-                    <p className="text-[9px] text-slate-400 font-black uppercase mb-1">To Change</p>
-                    <p className="text-2xl font-black text-amber-500">{reviewData.resources_to_change ?? 0}</p>
+                  <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-200 text-center">
+                    <p className="text-[9px] text-slate-400 font-black uppercase mb-0.5">Change</p>
+                    <p className="text-xl font-black text-amber-500">{reviewData.resources_to_change ?? 0}</p>
                   </div>
-                  <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 text-center">
-                    <p className="text-[9px] text-slate-400 font-black uppercase mb-1">To Destroy</p>
-                    <p className="text-2xl font-black text-red-500">{reviewData.resources_to_destroy ?? 0}</p>
+                  <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-200 text-center">
+                    <p className="text-[9px] text-slate-400 font-black uppercase mb-0.5">Destroy</p>
+                    <p className="text-xl font-black text-red-500">{reviewData.resources_to_destroy ?? 0}</p>
                   </div>
-                  <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 text-center">
-                    <p className="text-[9px] text-slate-400 font-black uppercase mb-1">Impact</p>
-                    <div className="flex items-center justify-center gap-1 mt-1.5">
+                  <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-200 text-center">
+                    <p className="text-[9px] text-slate-400 font-black uppercase mb-0.5">Risk</p>
+                    <div className="flex items-center justify-center gap-1 mt-1">
                       <div className={`w-2 h-2 rounded-full animate-pulse ${reviewData.resources_to_destroy > 0 ? 'bg-red-500' : reviewData.resources_to_change > 0 ? 'bg-amber-500' : 'bg-green-500'}`} />
-                      <span className={`text-[10px] font-black ${reviewData.resources_to_destroy > 0 ? 'text-red-700' : reviewData.resources_to_change > 0 ? 'text-amber-700' : 'text-green-700'}`}>
+                      <span className={`text-[9px] font-black ${reviewData.resources_to_destroy > 0 ? 'text-red-700' : reviewData.resources_to_change > 0 ? 'text-amber-700' : 'text-green-700'}`}>
                         {reviewData.risk_level || 'SAFE'}
                       </span>
                     </div>
@@ -590,12 +601,12 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion,
                 </div>
 
                 {reviewData.resources?.length > 0 && (
-                  <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
-                    <div className="flex items-center justify-between mb-3">
+                  <div className="bg-slate-800 rounded-xl px-4 py-3 border border-slate-700 max-h-28 overflow-y-auto">
+                    <div className="flex items-center justify-between mb-2">
                       <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Resources to Provision</p>
                       <span className="text-[10px] text-slate-500 font-mono">~{reviewData.time}</span>
                     </div>
-                    <div className="grid grid-cols-1 gap-1 font-mono text-[11px]">
+                    <div className="grid grid-cols-1 gap-0.5 font-mono text-[11px]">
                       {reviewData.resources.map((r, i) => (
                         <div key={i} className="flex gap-3 items-center text-slate-300">
                           <span className="text-green-500">+</span> {r}
@@ -606,16 +617,15 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion,
                 )}
 
                 <div className="flex items-start gap-3 p-3 bg-indigo-50 border border-indigo-100 rounded-xl">
-                  <ShieldCheck size={16} className="text-indigo-600 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-xs font-bold text-indigo-900">Governance &amp; Approval</p>
-                    <p className="text-[10px] text-indigo-700 mt-0.5 leading-relaxed">Plan recorded for {envName}. Approving will trigger the actual <code className="bg-indigo-100 px-1 rounded">terraform apply</code>.</p>
-                  </div>
+                  <ShieldCheck size={14} className="text-indigo-600 mt-0.5 shrink-0" />
+                  <p className="text-[10px] text-indigo-700 leading-tight">Plan recorded for <strong>{envName}</strong>. Approve to trigger <code className="bg-indigo-100 px-1 rounded">terraform apply</code>.</p>
                 </div>
               </div>
             )}
 
-            {error && <div className="p-3 bg-red-50 border border-red-100 text-red-600 rounded-xl text-xs font-black">{error}</div>}
+            {error && (
+              <div className="mx-6 mb-3 shrink-0 p-3 bg-red-50 border border-red-100 text-red-600 rounded-xl text-xs font-black">{error}</div>
+            )}
           </div>
         </div>
 
@@ -640,13 +650,17 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion,
                onClick={handleReview}
                disabled={status !== 'validated' && status !== 'reviewed'}
                className={`px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
-                 status === 'reviewed' 
-                 ? 'bg-white border-2 border-indigo-600 text-indigo-700' 
+                 status === 'reviewing'
+                 ? 'bg-indigo-500 text-white opacity-80 cursor-not-allowed'
+                 : status === 'validated'
+                 ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700'
+                 : status === 'reviewed'
+                 ? 'bg-white border-2 border-indigo-600 text-indigo-700 hover:bg-indigo-50'
                  : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                }`}
              >
                {status === 'reviewing' ? <LucideRefreshCw className="animate-spin" size={16} /> : <Workflow size={16} />}
-               {status === 'reviewed' ? 'Plan Generated' : 'Analyze Plan'}
+               {status === 'reviewing' ? 'Running Plan…' : status === 'reviewed' ? 'Plan Generated ✓' : 'Analyze Plan'}
              </button>
 
              <button 
