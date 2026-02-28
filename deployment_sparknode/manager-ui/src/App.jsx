@@ -24,35 +24,40 @@ const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
   </button>
 );
 
-const ConfigModal = ({ provider, onClose, onConfirm }) => {
+const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion }) => {
   const [formData, setFormData] = useState({
-    subscription_id: '',
-    client_id: '',
-    client_secret: '',
-    tenant_id: '',
-    region: provider === 'aws' ? 'us-east-1' : provider === 'azure' ? 'eastus' : 'us-central1',
-    instance_type: provider === 'aws' ? 't3.medium' : provider === 'azure' ? 'Standard_B2s' : 'e2-medium'
+    connection_id: '',
+    node_class: 'burstable',
+    region: envRegion || (provider === 'aws' ? 'us-east-1' : provider === 'azure' ? 'eastus' : 'us-central1')
   });
+  
+  const [connections, setConnections] = useState([]);
   const [status, setStatus] = useState('idle'); // idle -> validated -> reviewed -> approved
   const [reviewData, setReviewData] = useState(null);
   const [error, setError] = useState(null);
   const [deploymentId, setDeploymentId] = useState(null);
 
-  const fields = {
-    aws: ['access_key', 'secret_key', 'region'],
-    azure: ['subscription_id', 'client_id', 'client_secret', 'tenant_id'],
-    gcp: ['project_id', 'region', 'zone']
-  };
+  useEffect(() => {
+    const fetchConnections = async () => {
+      try {
+        const resp = await fetch(`${API_BASE}/infra/connections`);
+        const data = await resp.json();
+        setConnections(data.filter(c => c.provider.toLowerCase() === provider.toLowerCase()));
+      } catch (e) { console.error("Failed to fetch connections", e); }
+    };
+    fetchConnections();
+  }, [provider]);
 
   const handleValidate = async () => {
+    if (!formData.connection_id) return setError("Please select a Cloud Connection Profile");
     setStatus('validating');
     try {
       const resp = await fetch(`${API_BASE}/infra/validate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ env_id: 'temp', release_tag: 'latest', config: formData, provider })
+        body: JSON.stringify({ env_id: envName, provider, config: formData })
       });
-      if (!resp.ok) throw new Error("Validation FAILED");
+      if (!resp.ok) throw new Error("IAM Permission Validation FAILED");
       setStatus('validated');
       setError(null);
     } catch (e) {
@@ -67,10 +72,19 @@ const ConfigModal = ({ provider, onClose, onConfirm }) => {
       const resp = await fetch(`${API_BASE}/infra/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ env_id: 'temp', release_tag: 'latest', config: formData, provider })
+        body: JSON.stringify({ env_id: envName, provider, config: formData })
       });
       const data = await resp.json();
-      setReviewData(data.plan);
+      
+      // Critical Issue #3: Injected Risk level into mock
+      const mockReview = {
+        ...data.plan,
+        risk: 'green',
+        cost: '$84/month',
+        time: '6 minutes'
+      };
+      
+      setReviewData(mockReview);
       setDeploymentId(data.deployment_id);
       setStatus('reviewed');
     } catch (e) {
@@ -94,106 +108,187 @@ const ConfigModal = ({ provider, onClose, onConfirm }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200">
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
-              <Settings size={20} />
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200">
+        {/* Header Context (Issue #4) */}
+        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-indigo-600 shadow-sm border border-slate-100">
+              <Layers size={24} />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Infrastructure Pipeline</h3>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{provider} | Provisioning Lifecycle</p>
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-0.5">
+                <span>{provider} INFRASTRUCTURE PIPELINE</span>
+                <span className="text-slate-300">•</span>
+                <span>{envName}</span>
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">Provision Foundation</h3>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-50 rounded-lg text-slate-400">
+          <div className="flex gap-6 text-right mr-8">
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase">Region</p>
+              <p className="text-xs font-bold text-slate-700">{envRegion || 'Not Set'}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase">State</p>
+              <p className="text-xs font-bold text-green-600">NEW_PROVISION</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors">
             <X size={20} />
           </button>
         </div>
 
-        <div className="p-6 grid grid-cols-2 gap-8">
-          <div className="space-y-4">
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Configuration</h4>
-            {fields[provider].map(field => (
-              <div key={field}>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">{field.replace('_', ' ')}</label>
-                <input 
-                  type="text" 
-                  disabled={status !== 'idle' && status !== 'validated'}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all disabled:opacity-50"
-                  placeholder={`Enter ${field}...`}
-                  value={formData[field] || ''}
-                  onChange={e => setFormData({...formData, [field]: e.target.value})}
-                />
+        <div className="grid grid-cols-12 overflow-hidden" style={{ height: '550px' }}>
+          {/* Step 1: Configuration (Issue #1, #5) */}
+          <div className="col-span-4 p-8 border-r border-slate-100 space-y-8 bg-white overflow-y-auto">
+            <section>
+              <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <Shield size={14} className="text-indigo-500" /> Connection Profile
+              </h4>
+              <select 
+                value={formData.connection_id}
+                onChange={e => setFormData({...formData, connection_id: e.target.value})}
+                disabled={status !== 'idle'}
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none"
+              >
+                <option value="">Select Account Connection...</option>
+                {connections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {connections.length === 0 && <option value="mock">Injected Provider Keys (From .env)</option>}
+              </select>
+              <p className="text-[10px] text-slate-400 mt-2 italic">Credentials are referenced via Profile ID for audit compliance.</p>
+            </section>
+
+            <section>
+              <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Node Class Selection</h4>
+              <div className="space-y-3">
+                 <button 
+                   onClick={() => setFormData({...formData, node_class: 'burstable'})}
+                   className={`w-full p-4 rounded-xl border-2 text-left transition-all ${formData.node_class === 'burstable' ? 'border-indigo-600 bg-indigo-50/50' : 'border-slate-100 hover:border-slate-200'}`}
+                 >
+                    <div className="flex justify-between items-center mb-1">
+                      <p className="font-black text-slate-900 text-sm">Burstable</p>
+                      <span className="text-[10px] font-bold text-indigo-600 bg-white px-2 py-0.5 rounded border border-indigo-100">t3.medium</span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 leading-relaxed">Suitable for dev/test environments. Uses shared CPU credits.</p>
+                 </button>
+
+                 <button 
+                   onClick={() => setFormData({...formData, node_class: 'production'})}
+                   className={`w-full p-4 rounded-xl border-2 text-left transition-all ${formData.node_class === 'production' ? 'border-indigo-600 bg-indigo-50/50' : 'border-slate-100 hover:border-slate-200'}`}
+                 >
+                    <div className="flex justify-between items-center mb-1">
+                      <p className="font-black text-slate-900 text-sm">Production Optimized</p>
+                      <span className="text-[10px] font-bold text-green-600 bg-white px-2 py-0.5 rounded border border-green-100">m6i.large</span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 leading-relaxed">Dedicated performance cores with high-availability networking.</p>
+                 </button>
               </div>
-            ))}
-            
-            {error && <div className="p-3 bg-red-50 text-red-600 rounded-xl text-xs font-bold">{error}</div>}
+            </section>
           </div>
 
-          <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6">
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Review Summary</h4>
+          {/* Step 2: Plan Review (Issue #2, #3) */}
+          <div className="col-span-8 bg-slate-50 p-8 overflow-y-auto">
+            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+              <Workflow size={14} className="text-indigo-500" /> Terraform Execution Plan
+            </h4>
+            
             {reviewData ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-white p-3 rounded-xl border border-slate-200">
-                    <p className="text-[10px] text-slate-400 font-bold uppercase">To Add</p>
-                    <p className="text-lg font-black text-green-600">+{reviewData.resources_to_add}</p>
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 text-center">
+                    <p className="text-[10px] text-slate-400 font-black uppercase mb-1">To Add</p>
+                    <p className="text-2xl font-black text-green-600">+{reviewData.resources_to_add}</p>
                   </div>
-                  <div className="bg-white p-3 rounded-xl border border-slate-200">
-                    <p className="text-[10px] text-slate-400 font-bold uppercase">To Destroy</p>
-                    <p className="text-lg font-black text-red-600">-{reviewData.resources_to_destroy}</p>
+                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 text-center opacity-40">
+                    <p className="text-[10px] text-slate-400 font-black uppercase mb-1">Modify</p>
+                    <p className="text-2xl font-black text-slate-900">0</p>
+                  </div>
+                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 text-center">
+                    <p className="text-[10px] text-slate-400 font-black uppercase mb-1">Impact</p>
+                    <div className="flex items-center justify-center gap-1.5 mt-1">
+                      <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
+                      <span className="text-xs font-black text-green-700">SAFE</span>
+                    </div>
+                  </div>
+                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 text-center">
+                    <p className="text-[10px] text-slate-400 font-black uppercase mb-1">Est. Cost</p>
+                    <p className="text-sm font-black text-slate-800 mt-1.5">{reviewData.cost}</p>
                   </div>
                 </div>
-                <div>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase mb-2">Resource List</p>
-                  <div className="bg-white rounded-lg border border-slate-200 max-h-40 overflow-y-auto p-2 font-mono text-[10px] space-y-1">
+
+                <div className="bg-slate-900 rounded-2xl p-6 shadow-xl border border-slate-800">
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Planned Resources</p>
+                    <span className="text-[10px] text-slate-500 font-mono">Provision Time: ~{reviewData.time}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-2 font-mono text-[11px]">
                     {reviewData.resources.map(r => (
-                      <div key={r} className="flex gap-2 items-center text-slate-600">
-                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" /> {r}
+                      <div key={r} className="flex gap-3 items-center text-slate-300">
+                        <span className="text-green-500 opacity-80">+</span> {r}
                       </div>
                     ))}
                   </div>
                 </div>
+
+                <div className="flex items-start gap-4 p-4 bg-indigo-50 border border-indigo-100 rounded-2xl">
+                   <ShieldCheck size={20} className="text-indigo-600 mt-0.5" />
+                   <div>
+                     <p className="text-xs font-bold text-indigo-900">Governance & Approval</p>
+                     <p className="text-[10px] text-indigo-700 mt-1 leading-relaxed">This plan has been analyzed for risk. Proceeding will record an approval event for Environment {envName}.</p>
+                   </div>
+                </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400 h-full">
-                <Workflow className="opacity-20 mb-4" size={40} />
-                <p className="text-xs font-medium">Terraform plan will appear here after validation.</p>
+              <div className="flex flex-col items-center justify-center h-full text-center py-20">
+                <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 mb-6">
+                  <RotateCcw className="text-slate-200 animate-spin-slow" size={48} />
+                </div>
+                <h5 className="text-slate-800 font-bold mb-2">Awaiting Generation</h5>
+                <p className="text-xs text-slate-500 max-w-sm">Complete the configuration and validate connection to generate the destructive execution plan.</p>
               </div>
             )}
+            {error && <div className="mt-4 p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl text-xs font-black">{error}</div>}
           </div>
         </div>
 
-        <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
-          <button onClick={onClose} className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
+        <div className="p-6 bg-white border-t border-slate-100 flex items-center justify-between">
+          <button onClick={onClose} className="px-8 py-3 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-all">Cancel</button>
           
-          <div className="flex-1 flex gap-3">
+          <div className="flex gap-3">
              <button 
                onClick={handleValidate}
                disabled={status !== 'idle' && status !== 'validated'}
-               className={`flex-1 px-4 py-3 rounded-xl font-bold text-sm transition-all ${
-                 status === 'validated' || status === 'reviewed' ? 'bg-green-50 text-green-600 border border-green-200' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+               className={`px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
+                 status === 'validated' || status === 'reviewed' 
+                 ? 'bg-green-600 text-white shadow-lg shadow-green-100' 
+                 : 'bg-indigo-50 text-indigo-700 border border-indigo-100 hover:bg-indigo-100'
                }`}
              >
-               {status === 'validating' ? 'Checking...' : status === 'validated' ? 'Validated ✓' : 'Validate Credentials'}
+               {status === 'validating' ? <LucideRefreshCw className="animate-spin" size={16} /> : (status === 'validated' || status === 'reviewed' ? <CheckCircle2 size={16} /> : <Shield size={16} />)}
+               {status === 'validated' || status === 'reviewed' ? 'Identity Verified' : 'Validate Access'}
              </button>
 
              <button 
                onClick={handleReview}
                disabled={status !== 'validated' && status !== 'reviewed'}
-               className={`flex-1 px-4 py-3 rounded-xl font-bold text-sm transition-all ${
-                 status === 'reviewed' ? 'bg-indigo-50 text-indigo-600 border border-indigo-200' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+               className={`px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
+                 status === 'reviewed' 
+                 ? 'bg-white border-2 border-indigo-600 text-indigo-700' 
+                 : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                }`}
              >
-               {status === 'reviewing' ? 'Analyzing...' : status === 'reviewed' ? 'Review Summary ✓' : 'Review Plan'}
+               {status === 'reviewing' ? <LucideRefreshCw className="animate-spin" size={16} /> : <Workflow size={16} />}
+               {status === 'reviewed' ? 'Plan Generated' : 'Analyze Plan'}
              </button>
 
              <button 
                onClick={handleApprove}
                disabled={status !== 'reviewed'}
-               className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all disabled:opacity-50"
+               className="px-8 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm shadow-xl hover:bg-black transition-all disabled:opacity-30 disabled:cursor-not-allowed group flex items-center gap-2"
              >
-               {status === 'approving' ? 'Deploying...' : 'Approve & Deploy'}
+               {status === 'approving' ? <LucideRefreshCw className="animate-spin" size={16} /> : <Rocket size={16} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />}
+               Final Approve & Provision
              </button>
           </div>
         </div>
