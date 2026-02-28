@@ -32,6 +32,11 @@ class DeploymentTrigger(BaseModel):
     release_tag: str
     host: Optional[str] = None
     provider: Optional[str] = None
+    config: Optional[Dict] = None
+
+class RollbackTrigger(BaseModel):
+    env_id: str
+    provider: Optional[str] = None
 
 @app.post("/api/deployments/")
 async def trigger_deployment(data: DeploymentTrigger):
@@ -42,6 +47,18 @@ async def trigger_deployment(data: DeploymentTrigger):
         data.env_id, 
         data.release_tag,
         host=data.host,
+        provider=data.provider,
+        config=data.config
+    )
+    return {"deployment_id": deployment_id, "status": "PENDING"}
+
+@app.post("/api/rollback/")
+async def trigger_rollback(data: RollbackTrigger):
+    deployment_id = f"roll-{data.env_id}-{int(asyncio.get_event_loop().time())}"
+    # Trigger Celery Task
+    engine.run_rollback_v2.delay(
+        deployment_id,
+        data.env_id,
         provider=data.provider
     )
     return {"deployment_id": deployment_id, "status": "PENDING"}

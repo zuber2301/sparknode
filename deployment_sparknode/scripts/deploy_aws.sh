@@ -9,9 +9,10 @@ ENV_FILE=".env"
 VERSION="${APP_VERSION:-latest}"
 DOCKERHUB_ORG="zuber2301"
 
-echo ">>> Initializing AWS Infrastructure via Terraform..."
+echo ">>> Step 1: Provisioning Foundational Infrastructure (Terraform)..."
 cd "$TF_DIR"
 terraform init > /dev/null
+# Pass any TF_VAR_* environment variables automatically
 terraform apply -auto-approve > /dev/null
 
 # ─── Fetch Infrastructure Metadata ──────────────────────────
@@ -19,8 +20,11 @@ HOST=$(terraform output -raw public_ip)
 SSH_USER=$(terraform output -raw ssh_user)
 SSH_KEY="${DEPLOY_SSH_KEY:-~/.ssh/sparknode.pem}"
 
+echo ">>> Infrastructure Ready at $HOST"
+echo ">>> Step 2: Deploying App Stack (Docker Compose)..."
+
 echo "═══════════════════════════════════════════════════════════"
-echo "  SparkNode Deploy (AWS IMAGE-BASED)"
+echo "  SparkNode Deploy Sequence (AWS)"
 echo "  Host:     $HOST"
 echo "  User:     $SSH_USER"
 echo "  Version:  $VERSION"
@@ -28,9 +32,9 @@ echo "════════════════════════�
 
 SSH_CMD="ssh -i $SSH_KEY -o StrictHostKeyChecking=no -o ConnectTimeout=10 $SSH_USER@$HOST"
 
-# ─── 1. Pre-flight check ─────────────────────────────────────
-echo ">>> Checking connectivity..."
-$SSH_CMD "echo 'SSH OK'" || { echo "ERROR: Cannot reach $HOST"; exit 1; }
+# ─── 1. Pre-flight check / Networking Check ──────────────────
+echo ">>> Gateway Check: Verifying Traefik/Nginx layer..."
+$SSH_CMD "echo 'SSH/Networking OK'" || { echo "ERROR: Cannot reach $HOST"; exit 1; }
 
 # ─── 2. Database backup (pre-deploy) ────────────────────────
 echo ">>> Backing up database..."
