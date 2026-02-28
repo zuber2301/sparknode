@@ -1,9 +1,16 @@
 # ──────────────────────────────────────────────────────────────
-# SparkNode — Remote state backend (Multi-Cloud)
-#
-# Uncomment ONE of the following blocks depending on your
-# preferred state storage backend.
+# SparkNode — Unified Local Development State
 # ──────────────────────────────────────────────────────────────
+
+terraform {
+  backend "local" {
+    # This path is relative to the directory where Terraform is run (e.g., terraform/aws)
+    # The actual state should reside in: /root/repos_products/sparknode/deployment_sparknode/tfstate/
+    path = "../../tfstate/unknown/dev/terraform.tfstate"
+  }
+}
+
+# ─── REMOTE BACKENDS (Commented Ref) ─────────────────────────
 
 # ─── Option 1: AWS S3 ────────────────────────────────────────
 # terraform {
