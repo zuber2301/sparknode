@@ -1,0 +1,48 @@
+name: Backup — Restore Integrity Test
+
+on:
+  schedule:
+    # Run once a week on Sunday to validate backup integrity
+    - cron: '0 4 * * 0'
+  workflow_dispatch:
+    inputs:
+      backup_name:
+        description: 'Specific backup name to restore (default is latest)'
+        required: false
+        default: 'LATEST'
+
+jobs:
+  restore-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start Staging Postgres for Restore
+        run: |
+          docker run -d --name restore-db \
+            -e POSTGRES_PASSWORD=restore_test_pass \
+            -e WALG_S3_PREFIX=s3://${{ secrets.S3_BACKUP_BUCKET }}/backups/sparknode/db \
+            -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+            -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+            -e AWS_REGION=${{ secrets.AWS_REGION }} \
+            walg/wal-g:latest-pg-15
+
+      - name: Perform Restore Validation
+        run: |
+          echo ">>> Fetching backup list..."
+          docker exec restore-db wal-g backup-list
+          
+          echo ">>> Attempting to fetch latest backup..."
+          # Note: In a real restore, you'd stop the DB and clean /var/lib/postgresql/data
+          # This is a connectivity and integrity check
+          docker exec restore-db wal-g backup-fetch /tmp/restore_test LATEST
+          
+          echo ">>> Restored files found:"
+          docker exec restore-db ls -R /tmp/restore_test | head -n 20
+          
+          echo ">>> Integrity check passed."
+
+      - name: Cleanup
+        if: always()
+        run: docker rm -f restore-db

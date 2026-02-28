@@ -221,15 +221,22 @@ services:
       retries: 3
 
   postgres:
-    image: postgres:15.8-alpine
+    image: walg/wal-g:latest-pg-15
     container_name: $${PROJECT_NAME:-sparknode}-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: $${POSTGRES_USER:-sparknode}
       POSTGRES_PASSWORD: $${POSTGRES_PASSWORD}
       POSTGRES_DB: $${POSTGRES_DB:-sparknode}
+      WALG_S3_PREFIX: s3://$${S3_BACKUP_BUCKET}/backups/$${PROJECT_NAME:-sparknode}/db
+      AWS_ACCESS_KEY_ID: $${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: $${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: $${AWS_REGION:-us-east-1}
+      PGHOST: localhost
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-sparknode}"]
       interval: 5s
@@ -384,6 +391,15 @@ COMPOSEEOF
 
 # --- Create Monitoring Config ---
 mkdir -p "$APP_DIR/monitoring/prometheus"
+cat > "$APP_DIR/postgresql.conf" <<'PGEOF'
+wal_level = replica
+archive_mode = on
+archive_command = 'wal-g wal-push %p'
+restore_command = 'wal-g wal-fetch %f %p'
+archive_timeout = 60
+max_wal_senders = 10
+PGEOF
+
 cat > "$APP_DIR/monitoring/prometheus/prometheus.yml" <<'PROMETHEUSEOF'
 global:
   scrape_interval: 15s
@@ -497,11 +513,16 @@ echo ">>> Starting services..."
 docker compose -f docker-compose.prod.yml -f docker-monitoring.yml --env-file .env up -d
 
 # ─── 11. Set up daily database backup cron ───────────────────
-cat > /etc/cron.d/sparknode-backup <<CRONEOF
-# Daily PostgreSQL backup at 02:00 UTC
-0 2 * * * root docker exec $${PROJECT_NAME}-db pg_dump -U sparknode sparknode | gzip > $APP_DIR/backups/sparknode-\$(date +\%Y\%m\%d-\%H\%M\%S).sql.gz && find $APP_DIR/backups -name "*.sql.gz" -mtime +7 -delete
+# Clean up old manual dumps
+rm -f /etc/cron.d/sparknode-backup
+
+cat > /etc/cron.d/sparknode-walg <<CRONEOF
+# Daily WAL-G full backup at 02:00 UTC
+0 2 * * * root docker exec $${PROJECT_NAME}-db wal-g backup-push /var/lib/postgresql/data
+# Hourly WAL-G cleanup of backups older than 14 days
+30 * * * * root docker exec $${PROJECT_NAME}-db wal-g delete before now-14d --confirm
 CRONEOF
-chmod 644 /etc/cron.d/sparknode-backup
+chmod 644 /etc/cron.d/sparknode-walg
 
 # ─── 12. Log rotation for Traefik ───────────────────────────
 cat > /etc/logrotate.d/traefik <<LOGEOF

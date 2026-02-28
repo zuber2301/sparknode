@@ -35,22 +35,30 @@ services:
       timeout: 5s
       retries: 3
 
-  # ── PostgreSQL ─────────────────────────────────────────────
+  # ── PostgreSQL with WAL-G Backups ─────────────────────────────
   postgres:
-    image: postgres:15.8-alpine
+    # Use custom image with WAL-G binary pre-installed
+    image: walg/wal-g:latest-pg-15
     container_name: ${PROJECT_NAME:-sparknode}-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-sparknode}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-sparknode}
+      # WAL-G S3 Configuration
+      WALG_S3_PREFIX: s3://${S3_BACKUP_BUCKET}/backups/${PROJECT_NAME:-sparknode}/db
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      PGHOST: localhost
+      PGUSER: ${POSTGRES_USER:-sparknode}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # init.sql + seed.sql run only on FIRST postgres boot (empty data dir).
-      # All subsequent schema changes are handled by Alembic via the backend
-      # entrypoint (alembic upgrade head).  seed.sql now contains data only.
-      - ./database/init.sql:/docker-entrypoint-initdb.d/01_init.sql
-      - ./database/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql
+      - ../../database/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ../../database/init.sql:/docker-entrypoint-initdb.d/01_init.sql
+      - ../../database/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql
+    command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sparknode}"]
       interval: 5s
