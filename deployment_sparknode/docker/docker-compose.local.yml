@@ -1,0 +1,22 @@
+# ──────────────────────────────────────────────────────────────
+# SparkNode Platform — LOCAL OVERRIDE
+# Purpose: Bypasses SSL and Production-specific constraints (ACME)
+# ──────────────────────────────────────────────────────────────
+
+services:
+  traefik:
+    volumes:
+      - ./traefik/traefik.dev.yml:/etc/traefik/traefik.yml:ro
+    ports:
+      - "80:80"
+      - "8080:8080" # Direct dashboard access
+
+  manager-ui:
+    labels:
+      - "traefik.http.routers.manager.entrypoints=web"
+      - "traefik.http.routers.manager.tls=false"
+
+  control-plane-api:
+    labels:
+      - "traefik.http.routers.api.entrypoints=web"
+      - "traefik.http.routers.api.tls=false"

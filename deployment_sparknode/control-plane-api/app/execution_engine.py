@@ -79,11 +79,13 @@ def run_terraform_plan(self, task_id, env_id, provider, config, mode="new"):
             tf_env["GOOGLE_REGION"]     = region
 
     # ── Provider-specific auth & sizing ─────────────────────────
+    # ENFORCED: Credentials are now ONLY sourced from the Orchestrator environment (.env)
+    # This prevents storing cloud secrets in the PostgreSQL metadata.
     node_class = config.get("node_class", "burstable")
 
     if provider == "azure":
-        tf_env["ARM_TENANT_ID"]       = config.get("tenant_id") or os.getenv("AZURE_TENANT_ID", "")
-        tf_env["ARM_SUBSCRIPTION_ID"] = config.get("subscription_id") or os.getenv("AZURE_SUBSCRIPTION_ID", "")
+        tf_env["ARM_TENANT_ID"]       = os.getenv("AZURE_TENANT_ID", "")
+        tf_env["ARM_SUBSCRIPTION_ID"] = os.getenv("AZURE_SUBSCRIPTION_ID", "")
         tf_env["ARM_CLIENT_ID"]       = os.getenv("AZURE_CLIENT_ID", "")
         tf_env["ARM_CLIENT_SECRET"]   = os.getenv("AZURE_CLIENT_SECRET", "")
         tf_env["TF_VAR_azure_tenant_id"]       = tf_env["ARM_TENANT_ID"]
@@ -93,11 +95,20 @@ def run_terraform_plan(self, task_id, env_id, provider, config, mode="new"):
         tf_env["TF_VAR_vm_size"] = NODE_CLASS_MAP["azure"].get(node_class, "Standard_B2s")
 
     elif provider == "aws":
-        tf_env["AWS_ACCESS_KEY_ID"]     = config.get("access_key_id") or os.getenv("AWS_ACCESS_KEY_ID", "")
-        tf_env["AWS_SECRET_ACCESS_KEY"] = config.get("secret_access_key") or os.getenv("AWS_SECRET_ACCESS_KEY", "")
+        tf_env["AWS_ACCESS_KEY_ID"]     = os.getenv("AWS_ACCESS_KEY_ID", "")
+        tf_env["AWS_SECRET_ACCESS_KEY"] = os.getenv("AWS_SECRET_ACCESS_KEY", "")
         _r = region or "us-east-1"
         tf_env["AWS_DEFAULT_REGION"]    = _r
         tf_env["TF_VAR_aws_region"]     = _r
+        tf_env["TF_VAR_instance_type"]  = NODE_CLASS_MAP["aws"].get(node_class, "t3.medium")
+
+    elif provider == "gcp":
+        # For GCP, the service account key is expected as a path in the environment
+        gcp_key_path = os.getenv("GCP_SA_KEY_JSON_PATH")
+        if gcp_key_path and os.path.exists(gcp_key_path):
+            tf_env["GOOGLE_APPLICATION_CREDENTIALS"] = gcp_key_path
+        tf_env["TF_VAR_gcp_project_id"] = os.getenv("GCP_PROJECT_ID", "")
+        tf_env["TF_VAR_machine_type"]   = NODE_CLASS_MAP["gcp"].get(node_class, "e2-medium")
         tf_env["TF_VAR_availability_zone"] = _r + "a"
         tf_env["TF_VAR_key_name"]       = config.get("key_name") or os.getenv("AWS_KEY_PAIR_NAME", "sparknode-key")
         tf_env["TF_VAR_instance_type"]  = NODE_CLASS_MAP["aws"].get(node_class, "t3.medium")

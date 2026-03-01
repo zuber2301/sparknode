@@ -1,0 +1,24 @@
+# ──────────────────────────────────────────────────────────────
+# Traefik v3 — LOCAL DEVELOPMENT Static Configuration
+# Bypasses HTTPS/ACME for local testing on 127.0.0.1
+# ──────────────────────────────────────────────────────────────
+
+api:
+  dashboard: true
+  insecure: true # Allows access to dashboard on port 8080
+
+entryPoints:
+  web:
+    address: ":80"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: sparknode-mgmt-network
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+log:
+  level: DEBUG

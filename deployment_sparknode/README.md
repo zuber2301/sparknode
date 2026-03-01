@@ -1,260 +1,53 @@
-# SparkNode Deployment — Multi-Cloud (AWS / Azure / GCP)
+# SparkNode Deployment — Management Platform & Cloud Orchestration
 
-End-to-end infrastructure-as-code deployment using **Terraform** to provision a
-VM on **AWS**, **Azure**, or **GCP**, then deploy SparkNode via **Docker Compose**
-with **Traefik** as the reverse proxy / TLS terminator.
+This directory contains the **SparkNode Management Platform** (The Orchestrator) and the infrastructure-as-code (Terraform) needed to deploy the SparkNode application across multiple clouds (**AWS**, **Azure**, **GCP**).
 
-Images are built in CI and pushed to **DockerHub**. Deployment pulls
-pre-built images onto the VM — no source code or build tools needed on the server.
+## 🧠 The Platform Architecture
 
-## 3-Step Deployment Pipeline
+The system is split into two distinct lifecycles:
 
-```
-Step 1: CI Build & Push                Step 2: Infrastructure           Step 3: Deploy
-──────────────────────────             ─────────────────────            ──────────────────
-Push to main ──► GitHub Actions        terraform plan/apply             workflow_dispatch
-  │                                      │                                │
-  ├── Build backend Dockerfile           ├── Provision VM                 ├── SSH into VM
-  ├── Build frontend Dockerfile.prod     ├── Configure networking         ├── Update APP_VERSION
-  ├── Tag with git SHA + latest          ├── Set up Docker (cloud-init)   ├── docker compose pull
-  └── Push to DockerHub                  └── Bootstrap services           └── docker compose up
-```
+1.  **Management Platform (Control Plane):** A self-hosted UI and API that manages your cloud infrastructure and application deployments.
+2.  **Target Infrastructure:** The remote virtual machines and services provisioned by the platform to run the actual SparkNode application.
 
-## Architecture
+---
 
-```
-Internet
-  │
-  ▼
-┌─────────────────────────────────────────────────────────────┐
-│  VM (AWS EC2 / Azure VM / GCP Compute Engine)               │
-│  Ubuntu 22.04                                               │
-│                                                             │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │  Docker Compose (images pulled from DockerHub)        │  │
-│  │                                                       │  │
-│  │  ┌──────────┐   :443/:80                              │  │
-│  │  │ Traefik  │◄────── Internet                         │  │
-│  │  │ (proxy)  │                                         │  │
-│  │  └────┬─────┘                                         │  │
-│  │       │                                               │  │
-│  │  ┌────▼─────┐  ┌──────────┐                           │  │
-│  │  │ Frontend │  │ Backend  │                           │  │
-│  │  │ (nginx)  │  │ (uvicorn)│                           │  │
-│  │  └──────────┘  └────┬─────┘                           │  │
-│  │                     │                                 │  │
-│  │  ┌──────────┐  ┌────▼─────┐  ┌─────────┐             │  │
-│  │  │  Redis   │  │ Postgres │  │ Celery  │             │  │
-│  │  └──────────┘  └──────────┘  └─────────┘             │  │
-│  └───────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-```
+## 🚀 Getting Started (Run the Platform)
 
-## Container Images
-
-| Image | Source | Registry |
-|-------|--------|----------|
-| `zuber2301/sparknode-backend:<tag>` | `backend/Dockerfile` | DockerHub |
-| `zuber2301/sparknode-frontend:<tag>` | `frontend/Dockerfile.prod` | DockerHub |
-
-Images use **semantic versioning** (e.g. `1.2.3`) with additional tags for `X.Y`, `X`, `latest`, and `sha-<short>` on every push to `main` or git tag.
-
-## Directory Structure
-
-```
-deployment_sparknode/
-├── terraform/
-│   ├── main.tf                  # Root — routes to provider module
-│   ├── variables.tf             # Shared + provider-specific vars
-│   ├── outputs.tf               # Unified outputs (IP, SSH, etc.)
-│   ├── backend.tf               # Remote state (S3 / Blob / GCS)
-│   ├── user_data.sh             # Cloud-init bootstrap (image pull)
-│   ├── terraform.tfvars.example
-│   └── modules/
-│       ├── aws/                 # VPC, SG, EIP, EC2
-│       ├── azure/               # RG, VNet, NSG, PIP, VM
-│       └── gcp/                 # VPC, Firewall, Static IP, VM
-├── docker/
-│   ├── docker-compose.prod.yml  # Uses image: from DockerHub
-│   ├── traefik/
-│   │   ├── traefik.yml
-│   │   └── dynamic/middlewares.yml
-│   ├── nginx.prod.conf
-│   └── .env.example
-├── scripts/
-│   ├── deploy.sh                # Deploy specific image version
-│   ├── rollback.sh              # Rollback to previous version
-│   ├── backup-db.sh             # Backup to S3/Blob/GCS
-│   └── health-check.sh          # Post-deploy validation
-├── .github/
-│   └── workflows/
-│       ├── deploy.yml           # Deploy pipeline (image pull)
-│       └── terraform.yml        # Infra management
-└── README.md
-
-# Project root also contains:
-.github/workflows/ci.yml          # CI: Build & push to DockerHub
-frontend/Dockerfile.prod           # Production multi-stage frontend
-frontend/nginx.prod.conf           # Nginx config baked into image
-backend/Dockerfile                 # Production backend image
-```
-
-## Quick Start
-
-### 1. Prerequisites
-
-| Provider | Requirements |
-|----------|-------------|
-| **AWS**  | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, EC2 key pair |
-| **Azure** | `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET`, `ARM_SUBSCRIPTION_ID`, `ARM_TENANT_ID`, SSH public key |
-| **GCP**  | `GOOGLE_APPLICATION_CREDENTIALS` (service account JSON), SSH public key, GCP project ID |
-
-Common: Terraform >= 1.5, DockerHub account, domain name pointed to the VM's public IP.
-
-### 2. Step 1 — Build & Push Images (CI)
-
-Images are automatically built and pushed on every push to `main` via
-`.github/workflows/ci.yml`. You can also trigger manually:
+To start the Management Platform on your orchestration server:
 
 ```bash
-# Manual trigger via GitHub CLI — build all images
-gh workflow run ci.yml -f image=all -f version_bump=patch -f push=true
+# 1. Navigate to the orchestration directory
+cd deployment_sparknode
 
-# Build only backend
-gh workflow run ci.yml -f image=backend -f version_bump=patch -f push=true
-
-# Build only frontend with a custom version
-gh workflow run ci.yml -f image=frontend -f version_bump=custom -f custom_version=2.0.0-rc.1 -f push=true
+# 2. Run the bootstrap script (Handles .env and Docker)
+./bootstrap_sparknode_prod.sh
 ```
 
-### 3. Step 2 — Provision Infrastructure
+### 🌍 How to Access the Manager UI
 
-```bash
-cd deployment_sparknode/terraform
-cp terraform.tfvars.example terraform.tfvars
+Once the platform is running, it is accessible via the domain configured in your `.env` file. By default, Traefik routes traffic as follows:
 
-# Edit terraform.tfvars — set cloud_provider, dockerhub_org, etc.
-# cloud_provider = "aws"   # or "azure" or "gcp"
+- **Management UI:** `https://manage.app.sparknode.io` (or just `https://app.sparknode.io`)
+- **Orchestrator API:** `https://api.manage.app.sparknode.io` (or `https://app.sparknode.io/api`)
 
-terraform init
-terraform plan
-terraform apply
-```
+*Note: If running locally for testing, ensure your `/etc/hosts` maps these domains to `127.0.0.1`.*
 
-### 4. Step 3 — Deploy Application
+---
 
-```bash
-cd deployment_sparknode/scripts
+## 🛠 Platform Components
 
-# Deploy a specific image version (recommended — use semver)
-./deploy.sh --version 1.2.3
+| Service | Container Name | Purpose |
+| :--- | :--- | :--- |
+| **Manager UI** | `sparknode-manager-ui` | The React-based dashboard for orchestrating deployments. |
+| **Orchestrator** | `sparknode-orchestrator` | FastAPI/Celery backend with Terraform & SSH capabilities. |
+| **Router** | `sparknode-mgmt-router` | Traefik reverse proxy with automatic SSL (Let's Encrypt). |
+| **Platform DB** | `sparknode-mgmt-db` | Metadata storage for deployments, VM status, and cloud config. |
 
-# Deploy latest
-./deploy.sh --version latest
+---
 
-# Or specify provider and host explicitly
-./deploy.sh --provider aws --host 1.2.3.4 --version 1.2.3
-```
+## 📡 Deployment Workflow
 
-### 5. CI/CD (GitHub Actions)
+1.  **Provision:** Use the **Manager UI** to select a cloud provider and region. The Orchestrator will run **Terraform** to create the VM and Network.
+2.  **Deploy:** The platform will then SSH into the new VM and deploy the application using the **`app-target.yml`** blueprint, pulling versioned images directly from **DockerHub**.
 
-**CI workflow** (`.github/workflows/ci.yml`) — runs on push to main or `v*` tags:
-- Reads `VERSION` file for semantic version
-- Builds backend & frontend Docker images (or selectively via manual dispatch)
-- Tags with `X.Y.Z` + `latest`
-- Pushes to DockerHub (`zuber2301`)
-- Manual dispatch supports: image selection (all/backend/frontend) + version bump
-- **Retention:** only 3 semver versions kept per image; older versions are auto-purged
-
-**Deploy workflow** (`deployment_sparknode/.github/workflows/deploy.yml`) — manual dispatch:
-- Inputs: `cloud_provider` (aws/azure/gcp), `environment`, `image_tag`
-- SSHs into VM, sets APP_VERSION, pulls images, restarts
-
-**Terraform workflow** (`deployment_sparknode/.github/workflows/terraform.yml`) — manual dispatch:
-- Inputs: `cloud_provider` (aws/azure/gcp), `action` (plan/apply/destroy)
-
-#### Required GitHub Secrets
-
-| Secret | Used by | Description |
-|--------|---------|-------------|
-| `DOCKERHUB_USERNAME` | CI | DockerHub username for push |
-| `DOCKERHUB_TOKEN` | CI + Deploy | DockerHub access token |
-| `DEPLOY_SSH_KEY` | Deploy | SSH private key for VM |
-| `DEPLOY_HOST` | Deploy | VM public IP (fallback) |
-| `DEPLOY_HOST_AWS` | Deploy | AWS VM public IP |
-| `DEPLOY_HOST_AZURE` | Deploy | Azure VM public IP |
-| `DEPLOY_HOST_GCP` | Deploy | GCP VM public IP |
-| `AWS_ACCESS_KEY_ID` | Terraform | AWS |
-| `AWS_SECRET_ACCESS_KEY` | Terraform | AWS |
-| `ARM_CLIENT_ID` | Terraform | Azure |
-| `ARM_CLIENT_SECRET` | Terraform | Azure |
-| `ARM_SUBSCRIPTION_ID` | Terraform | Azure |
-| `ARM_TENANT_ID` | Terraform | Azure |
-| `GCP_CREDENTIALS_JSON` | Terraform | GCP |
-| `POSTGRES_PASSWORD` | Terraform | DB password |
-| `APP_SECRET_KEY` | Terraform | JWT secret |
-| `SMTP_PASSWORD` | Terraform | Optional |
-
-#### GitHub Variables (non-secret)
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DOCKERHUB_ORG` | `zuber2301` | DockerHub org/username |
-| `DOMAIN` | `app.sparknode.io` | Domain for the app |
-
-## Rollback
-
-```bash
-# Rollback to a specific image version
-./scripts/rollback.sh --version 1.1.0
-
-# Rollback with database restore
-./scripts/rollback.sh --version abc1234 --restore-db
-
-# If no --version is specified, uses the last deployed version
-./scripts/rollback.sh
-```
-
-## Cloud Provider Comparison
-
-| Feature | AWS | Azure | GCP |
-|---------|-----|-------|-----|
-| VM type | EC2 `t3.medium` | `Standard_B2s` | `e2-medium` |
-| Default OS | Ubuntu 22.04 | Ubuntu 22.04 | Ubuntu 22.04 |
-| Static IP | Elastic IP | Public IP (Static) | Static External IP |
-| Network | VPC + Subnet | VNet + Subnet | VPC + Subnet |
-| Firewall | Security Group | NSG | Firewall Rules |
-| SSH user | `ubuntu` | `azureuser` | `ubuntu` |
-| Default region | `ap-south-1` | `centralindia` | `asia-south1` |
-| State backend | S3 + DynamoDB | Azure Blob Storage | GCS |
-
-## TLS / HTTPS
-Traefik automatically obtains Let's Encrypt certificates via the HTTP-01 challenge.
-Set `domain` and `acme_email` in your terraform.tfvars.
-
-## Backups
-
-```bash
-# AWS — backup to S3
-./scripts/backup-db.sh --provider aws --host <IP> --s3 s3://my-bucket/sparknode/
-
-# Azure — backup to Blob
-./scripts/backup-db.sh --provider azure --host <IP> --blob https://account.blob.core.windows.net/backups
-
-# GCP — backup to GCS
-./scripts/backup-db.sh --provider gcp --host <IP> --gcs gs://my-bucket/sparknode/
-```
-
-Automated daily PostgreSQL backups via cron (configured in cloud-init).
-
-## Switching Providers
-
-To migrate to a different cloud provider:
-
-1. Update `cloud_provider` in `terraform.tfvars`
-2. Fill in the provider-specific variables
-3. Run `terraform init` (downloads new provider plugins)
-4. Run `terraform plan` to review
-5. Run `terraform apply`
-6. Point your DNS to the new VM's public IP
-7. Run `./scripts/deploy.sh --version <tag>` to deploy
+For more technical details on the inner workings, see [PLATFORM_OPERATIONS.md](./PLATFORM_OPERATIONS.md).

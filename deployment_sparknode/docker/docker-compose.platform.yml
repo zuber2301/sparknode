@@ -38,8 +38,8 @@ services:
   # Includes Terraform, SSH logic, and Cloud SDKs
   control-plane-api:
     build:
-      context: ../control-plane-api
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: control-plane-api/Dockerfile
     container_name: ${PROJECT_NAME:-sparknode}-orchestrator
     restart: unless-stopped
     volumes:
@@ -62,7 +62,7 @@ services:
   # ── Platform DB (Orchestration Metadata) ──────────────────
   # Stores VM info, user data, and cloud credentials
   platform-db:
-    image: walg/wal-g:latest-pg-15
+    image: postgres:15.8-alpine
     container_name: ${PROJECT_NAME:-sparknode}-mgmt-db
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-sparknode}

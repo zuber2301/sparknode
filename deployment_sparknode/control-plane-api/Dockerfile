@@ -20,15 +20,15 @@ RUN curl -fsSL \
 
 WORKDIR /app
 
-# ── Python dependencies ────────────────────────────────────────
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
-
 # ── App source ─────────────────────────────────────────────────
-COPY app/ ./app/
+COPY control-plane-api/app/ ./app/
 
 # ── Terraform modules (needed at runtime) ─────────────────────
-COPY ../terraform/ ./terraform/
+COPY terraform/ ./terraform/
+
+# ── Requirements ──────────────────────────────────────────────
+COPY control-plane-api/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 
 EXPOSE 8000
 
