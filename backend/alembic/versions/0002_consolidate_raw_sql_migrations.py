@@ -359,8 +359,12 @@ ALTER TABLE tenants ADD COLUMN IF NOT EXISTS redemptions_paused BOOLEAN DEFAULT 
 -- Source: 20260204_rename_points_to_budget.sql
 -- =====================================================================
 DO $$ BEGIN
-    IF EXISTS (SELECT FROM information_schema.columns WHERE table_name='tenants' AND column_name='points_allocation_balance') THEN
+    IF EXISTS (SELECT FROM information_schema.columns WHERE table_name='tenants' AND column_name='points_allocation_balance') AND 
+       NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name='tenants' AND column_name='budget_allocation_balance') THEN
         ALTER TABLE tenants RENAME COLUMN points_allocation_balance TO budget_allocation_balance;
+    ELSIF EXISTS (SELECT FROM information_schema.columns WHERE table_name='tenants' AND column_name='points_allocation_balance') AND 
+          EXISTS (SELECT FROM information_schema.columns WHERE table_name='tenants' AND column_name='budget_allocation_balance') THEN
+        ALTER TABLE tenants DROP COLUMN points_allocation_balance;
     END IF;
 END $$;
 DO $$ BEGIN

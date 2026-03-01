@@ -69,7 +69,10 @@ def run_terraform_plan(self, task_id, env_id, provider, config, mode="new"):
             tf_env["TF_VAR_aws_region"] = region
             tf_env["AWS_DEFAULT_REGION"] = region
         elif provider == "azure":
-            tf_env["TF_VAR_azure_location"] = region
+            # Azure locations must be lowercase with no hyphens or spaces
+            # e.g. "East-US" -> "eastus", "West Europe" -> "westeurope"
+            az_location = region.lower().replace("-", "").replace(" ", "")
+            tf_env["TF_VAR_azure_location"] = az_location
         elif provider == "gcp":
             tf_env["TF_VAR_gcp_region"] = region
             tf_env["TF_VAR_gcp_zone"]   = region + "-a"
@@ -232,7 +235,8 @@ def run_deployment_v2(self, deployment_id, env_id, release_tag, host=None, provi
                 env_vars["TF_VAR_aws_region"]   = region
                 env_vars["AWS_DEFAULT_REGION"]  = region
             elif target_provider.lower() == "azure":
-                env_vars["TF_VAR_azure_location"] = region
+                az_location = region.lower().replace("-", "").replace(" ", "")
+                env_vars["TF_VAR_azure_location"] = az_location
             elif target_provider.lower() == "gcp":
                 env_vars["TF_VAR_gcp_region"] = region
                 env_vars["TF_VAR_gcp_zone"]   = region + "-a"

@@ -4,7 +4,8 @@ import {
   Shield, Terminal, Play, RotateCcw, Workflow, Globe, MoreVertical,
   CheckCircle2, Search, Plus, ArrowUpRight, Box, Cpu, Unplug,
   FlaskConical, ClipboardCheck, ShieldCheck, ChevronRight, 
-  ExternalLink, Layers, RefreshCw as LucideRefreshCw, X, Cpu as CpuIcon
+  ExternalLink, Layers, RefreshCw as LucideRefreshCw, X, Cpu as CpuIcon,
+  Minimize2
 } from 'lucide-react';
 
 const API_BASE = 'http://localhost:8090/api';
@@ -479,14 +480,26 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion,
               </h4>
               <select 
                 value={formData.region}
-                onChange={e => setFormData({...formData, region: e.target.value})}
-                disabled={status !== 'idle'}
+                onChange={e => {
+                  setFormData({...formData, region: e.target.value});
+                  // Changing region after validation invalidates the check — reset to idle
+                  if (status === 'validated' || status === 'reviewed') {
+                    setStatus('idle');
+                    setReviewData(null);
+                    setTerminalLogs([]);
+                    setError(null);
+                  }
+                }}
+                disabled={status === 'reviewing' || status === 'approving'}
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none mb-2"
               >
                 {regions[provider.toLowerCase()].map(r => (
                   <option key={r.id} value={r.id}>{r.label} ({r.id})</option>
                 ))}
               </select>
+              {(status === 'validated' || status === 'reviewed') && (
+                <p className="text-[10px] text-amber-500 ml-1 -mt-1">Changing region will require re-validation.</p>
+              )}
             </section>
 
             <section>
@@ -793,6 +806,7 @@ const App = () => {
   const [logs, setLogs] = useState([]);
   const [activeDeployment, setActiveDeployment] = useState(null);
   const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
+  const [isTerminalMinimized, setIsTerminalMinimized] = useState(false);
   const [deployingEnvs, setDeployingEnvs] = useState({});
   const [currentStep, setCurrentStep] = useState(0);
   const [configModal, setConfigModal] = useState(null);
@@ -810,9 +824,9 @@ const App = () => {
   ];
 
   const environments = [
-    { id: 'dev', name: 'AWS Cloud', icon: FlaskConical, color: 'bg-indigo-600', status: 'Healthy', version: 'v2.2.0', region: 'US-East-1', host: 'ec2-54-sparknode.io', provider: 'aws' },
-    { id: 'qa', name: 'Azure Cloud', icon: ClipboardCheck, color: 'bg-indigo-400', status: 'Healthy', version: 'v2.1.1', region: 'East-US', host: 'spark-vm.azure.com', provider: 'azure' },
-    { id: 'prod', name: 'GCP Cloud', icon: ShieldCheck, color: 'bg-slate-900', status: 'Healthy', version: 'v2.1.0', region: 'US-Central1', host: 'spark-lb.google.com', provider: 'gcp', gcp_project_id: '' }
+    { id: 'dev', name: 'AWS Cloud', icon: FlaskConical, color: 'bg-indigo-600', status: 'Healthy', version: 'v2.2.0', region: 'us-east-1', host: 'ec2-54-sparknode.io', provider: 'aws' },
+    { id: 'qa', name: 'Azure Cloud', icon: ClipboardCheck, color: 'bg-indigo-400', status: 'Healthy', version: 'v2.1.1', region: 'eastus', host: 'spark-vm.azure.com', provider: 'azure' },
+    { id: 'prod', name: 'GCP Cloud', icon: ShieldCheck, color: 'bg-slate-900', status: 'Healthy', version: 'v2.1.0', region: 'us-central1', host: 'spark-lb.google.com', provider: 'gcp', gcp_project_id: '' }
   ];
 
   useEffect(() => {
@@ -823,6 +837,7 @@ const App = () => {
     if (socketRef.current) socketRef.current.close();
     setLogs([]);
     setActiveDeployment(deploymentId);
+    setIsTerminalMinimized(false);
 
     const wsUrl = `ws://${window.location.hostname === 'localhost' ? 'localhost:8090' : window.location.host}/ws/deployments/${deploymentId}/logs`;
     const socket = new WebSocket(wsUrl);
@@ -965,6 +980,15 @@ const App = () => {
             <span className="text-slate-900">{activeTab === 'environments' ? 'Deploy SparkNode' : 'Dashboard'}</span>
           </div>
           <div className="flex items-center gap-4">
+             {activeDeployment && isTerminalMinimized && (
+               <button
+                 onClick={() => setIsTerminalMinimized(false)}
+                 className="flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition-all animate-in fade-in slide-in-from-right-2 duration-300"
+               >
+                 <Terminal size={14} />
+                 <span>RESTORE LOGS</span>
+               </button>
+             )}
              <div className="w-11 h-11 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-base">SA</div>
           </div>
         </header>
@@ -1031,9 +1055,9 @@ const App = () => {
                       </div>
                     </div>
 
-                    <div className="mt-8 bg-slate-900 rounded-2xl p-8 text-white flex flex-col min-h-[500px] shadow-xl border border-slate-800 relative overflow-hidden group/terminal">
-                      <div className="flex items-center justify-between mb-8 pb-6 border-b border-slate-800 relative z-10">
-                        <div className="flex items-center gap-5">
+                      <div className={`mt-8 bg-slate-900 rounded-2xl p-8 text-white flex flex-col min-h-[500px] shadow-xl border border-slate-800 relative overflow-hidden group/terminal transition-all duration-300 ${isTerminalMinimized ? 'hidden' : 'flex'}`}>
+                        <div className="flex items-center justify-between mb-8 pb-6 border-b border-slate-800 relative z-10">
+                          <div className="flex items-center gap-5">
                           <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center border border-white/10 text-indigo-400">
                             <Terminal size={24} />
                           </div>
@@ -1046,6 +1070,13 @@ const App = () => {
                             </div>
                           </div>
                         </div>
+                        <button 
+                          onClick={() => setIsTerminalMinimized(true)}
+                          className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-all transform hover:scale-110 active:scale-95"
+                          title="Minimize Logs"
+                        >
+                          <Minimize2 size={20} />
+                        </button>
                       </div>
 
                       <div className="font-mono text-[14px] leading-relaxed space-y-2 flex-1 overflow-y-auto pr-4 scrollbar">
@@ -1053,6 +1084,7 @@ const App = () => {
                           <div key={i} className={`flex gap-4 p-1.5 rounded-lg border-l-4 transition-colors ${
                             log.type === 'error' ? 'bg-red-500/10 border-red-600 text-red-200' : 
                             log.type === 'warn' ? 'bg-yellow-500/10 border-yellow-500 text-yellow-100' : 
+                            log.msg.includes('[validate]') ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400 font-bold' :
                             'border-transparent text-slate-300 hover:bg-white/5'
                           }`}>
                             <span className="text-slate-500 tabular-nums font-medium opacity-50">[{log.time}]</span>
