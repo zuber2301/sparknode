@@ -8,7 +8,7 @@ import {
   Minimize2
 } from 'lucide-react';
 
-const API_BASE = 'http://localhost:8090/api';
+const API_BASE = '/api';
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
   <button 
@@ -80,14 +80,14 @@ const DeployAppModal = ({ env, onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md space-y-6">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 w-full max-w-md space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-bold text-slate-900">Deploy App Containers</h3>
+            <h3 className="text-lg font-bold text-slate-900 leading-tight">Deploy App Containers</h3>
             <p className="text-xs text-slate-500 mt-0.5">Phase 2 — container-only rollout (infra already provisioned)</p>
           </div>
-          <button onClick={() => onClose(null)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500">
+          <button onClick={() => onClose(null)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 shrink-0">
             <X size={18} />
           </button>
         </div>
@@ -332,12 +332,14 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion,
   const handleApprove = async () => {
     setStatus('approving');
     try {
-      await fetch(`${API_BASE}/infra/approve?deployment_id=${deploymentId}`, {
+      const resp = await fetch(`${API_BASE}/infra/approve?deployment_id=${deploymentId}`, {
         method: 'POST'
       });
+      if (!resp.ok) throw new Error(`Approve failed: HTTP ${resp.status}`);
+      
       // Pass the existing deployment_id so App connects to its WS logs.
       // Do NOT call executeDeployment — approve already dispatches the Celery task.
-      onConfirm(deploymentId);
+      onConfirm(deploymentId, envName);
     } catch (e) {
       setError(e.message);
       setStatus('reviewed');
@@ -345,12 +347,12 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion,
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 md:p-8">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl max-h-[95vh] overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200 flex flex-col">
         {/* Header Context (Issue #4) */}
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <div className="p-4 md:p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-indigo-600 shadow-sm border border-slate-100">
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-xl flex items-center justify-center text-indigo-600 shadow-sm border border-slate-100">
               <Layers size={24} />
             </div>
             <div>
@@ -359,10 +361,10 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion,
                 <span className="text-slate-300">•</span>
                 <span>{envName}</span>
               </div>
-              <h3 className="text-xl font-bold text-slate-900">Provision Foundation</h3>
+              <h3 className="text-lg md:text-xl font-bold text-slate-900 leading-tight">Provision Foundation</h3>
             </div>
           </div>
-          <div className="flex gap-6 text-right mr-8">
+          <div className="hidden sm:flex gap-6 text-right mr-8">
             <div>
               <p className="text-[10px] font-bold text-slate-400 uppercase">Region</p>
               <p className="text-xs font-bold text-slate-700">{envRegion || 'Not Set'}</p>
@@ -377,9 +379,9 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion,
           </button>
         </div>
 
-        <div className="grid grid-cols-12 overflow-hidden" style={{ height: '600px' }}>
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
           {/* Step 1: Configuration (Issue #1, #5) */}
-          <div className="col-span-4 p-8 border-r border-slate-100 space-y-8 bg-white overflow-y-auto">
+          <div className="col-span-1 lg:col-span-4 p-4 md:p-8 border-r border-slate-100 space-y-6 md:space-y-8 bg-white overflow-y-auto">
             <section>
               <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                 <Settings size={14} className="text-indigo-500" /> Action Type
@@ -642,14 +644,14 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion,
           </div>
         </div>
 
-        <div className="p-6 bg-white border-t border-slate-100 flex items-center justify-between">
-          <button onClick={onClose} className="px-8 py-3 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-all">Cancel</button>
+        <div className="p-4 md:p-6 bg-white border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0">
+          <button onClick={onClose} className="w-full sm:w-auto px-8 py-3 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-500 hover:bg-slate-50 transition-all font-bold">Cancel</button>
           
-          <div className="flex gap-3">
+          <div className="w-full sm:w-auto flex flex-wrap justify-center sm:justify-end gap-3">
              <button 
                onClick={handleValidate}
                disabled={status !== 'idle' && status !== 'validated'}
-               className={`px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
+               className={`flex-1 sm:flex-none px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
                  status === 'validated' || status === 'reviewed' 
                  ? 'bg-green-600 text-white shadow-lg shadow-green-100' 
                  : 'bg-indigo-50 text-indigo-700 border border-indigo-100 hover:bg-indigo-100'
@@ -662,7 +664,7 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion,
              <button 
                onClick={handleReview}
                disabled={status !== 'validated' && status !== 'reviewed'}
-               className={`px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
+               className={`flex-1 sm:flex-none px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
                  status === 'reviewing'
                  ? 'bg-indigo-500 text-white opacity-80 cursor-not-allowed'
                  : status === 'validated'
@@ -679,7 +681,7 @@ const ConfigModal = ({ provider, onClose, onConfirm, envName, region: envRegion,
              <button 
                onClick={handleApprove}
                disabled={status !== 'reviewed'}
-               className="px-8 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm shadow-xl hover:bg-black transition-all disabled:opacity-30 disabled:cursor-not-allowed group flex items-center gap-2"
+               className="w-full sm:w-auto px-8 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm shadow-xl hover:bg-black transition-all disabled:opacity-30 disabled:cursor-not-allowed group flex items-center justify-center gap-2"
              >
                {status === 'approving' ? <LucideRefreshCw className="animate-spin" size={16} /> : <Rocket size={16} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />}
                Final Approve & Provision
@@ -811,6 +813,14 @@ const App = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [configModal, setConfigModal] = useState(null);
   const [deployAppModal, setDeployAppModal] = useState(null);
+  
+  // Track deployment state for environments: 'idle' | 'provisioned' | 'healthy'
+  const [envStates, setEnvStates] = useState({
+    'aws-dev': 'healthy', 'aws-qa': 'idle', 'aws-prod': 'idle',
+    'azure-dev': 'idle', 'azure-qa': 'idle', 'azure-prod': 'idle',
+    'gcp-dev': 'idle', 'gcp-qa': 'idle', 'gcp-prod': 'idle'
+  });
+
   const logEndRef = useRef(null);
   const socketRef = useRef(null);
 
@@ -823,17 +833,17 @@ const App = () => {
     { id: 'health', label: 'Stack Health', icon: Activity }
   ];
 
-  const environments = [
-    { id: 'dev', name: 'AWS Cloud', icon: FlaskConical, color: 'bg-indigo-600', status: 'Healthy', version: 'v2.2.0', region: 'us-east-1', host: 'ec2-54-sparknode.io', provider: 'aws' },
-    { id: 'qa', name: 'Azure Cloud', icon: ClipboardCheck, color: 'bg-indigo-400', status: 'Healthy', version: 'v2.1.1', region: 'eastus', host: 'spark-vm.azure.com', provider: 'azure' },
-    { id: 'prod', name: 'GCP Cloud', icon: ShieldCheck, color: 'bg-slate-900', status: 'Healthy', version: 'v2.1.0', region: 'us-central1', host: 'spark-lb.google.com', provider: 'gcp', gcp_project_id: '' }
+  const providers = [
+    { id: 'aws', name: 'Amazon Web Services', icon: Rocket, color: 'bg-orange-500', region: 'us-east-1' },
+    { id: 'azure', name: 'Microsoft Azure', icon: ClipboardCheck, color: 'bg-indigo-500', region: 'eastus' },
+    { id: 'gcp', name: 'Google Cloud Platform', icon: ShieldCheck, color: 'bg-blue-600', region: 'us-central1' }
   ];
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
 
-  const connectToLogs = (deploymentId) => {
+  const connectToLogs = (deploymentId, targetEnvId) => {
     if (socketRef.current) socketRef.current.close();
     setLogs([]);
     setActiveDeployment(deploymentId);
@@ -855,12 +865,18 @@ const App = () => {
         }]);
         
         if (data.log.includes('Terraform') || data.log.includes('Initializing')) setCurrentStep(0);
-        if (data.log.includes('VM') || data.log.includes('IP:')) setCurrentStep(1);
+        if (data.log.includes('VM') || data.log.includes('IP:')) {
+          setCurrentStep(1);
+          setEnvStates(prev => ({...prev, [targetEnvId]: 'provisioned'}));
+        }
         if (data.log.includes('SKIP_TERRAFORM')) setCurrentStep(3);
         if (data.log.includes('Traefik') || data.log.includes('Nginx')) setCurrentStep(2);
         if (data.log.includes('Pulling')) setCurrentStep(3);
         if (data.log.includes('UP') || data.log.includes('Starting')) setCurrentStep(4);
-        if (data.log.includes('SUCCESS') || data.log.includes('Healthy')) setCurrentStep(5);
+        if (data.log.includes('SUCCESS') || data.log.includes('Healthy')) {
+          setCurrentStep(5);
+          setEnvStates(prev => ({...prev, [targetEnvId]: 'healthy'}));
+        }
 
         if (data.log.includes('SUCCESS') || data.log.includes('Deployment complete')) {
            setDeployingEnvs({});
@@ -923,11 +939,11 @@ const App = () => {
           region={configModal.region}
           initialConfig={configModal}
           onClose={() => setConfigModal(null)} 
-          onConfirm={(deploymentId) => {
+          onConfirm={(deploymentId, targetEnvId) => {
             setConfigModal(null);
             if (deploymentId) {
-              setDeployingEnvs({ [configModal.id]: true });
-              connectToLogs(deploymentId);
+              setDeployingEnvs({ [targetEnvId]: true });
+              connectToLogs(deploymentId, targetEnvId);
             }
           }}
         />
@@ -936,10 +952,11 @@ const App = () => {
         <DeployAppModal
           env={deployAppModal}
           onClose={(deploymentId) => {
+            const targetEnvId = deployAppModal.id;
             setDeployAppModal(null);
             if (deploymentId) {
-              setDeployingEnvs({ [deployAppModal.id]: true });
-              connectToLogs(deploymentId);
+              setDeployingEnvs({ [targetEnvId]: true });
+              connectToLogs(deploymentId, targetEnvId);
             }
           }}
         />
@@ -1005,16 +1022,88 @@ const App = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {environments.map((env) => (
-                  <EnvCard 
-                    key={env.id}
-                    {...env}
-                    showMetrics={false}
-                    deploying={deployingEnvs[env.id]}
-                    onDeployInfra={() => setConfigModal(env)}
-                    onDeployApp={() => setDeployAppModal(env)}
-                    onRollback={() => triggerRollback(env)}
-                  />
+                {providers.map((p) => (
+                  <div key={p.id} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-xl transition-all duration-500 group relative">
+                    {/* Cloud Provider Header */}
+                    <div className="p-8 border-b border-slate-50 bg-slate-50/30">
+                      <div className="flex justify-between items-start mb-6">
+                        <div className={`w-16 h-16 ${p.color} bg-opacity-10 rounded-2xl flex items-center justify-center border border-current/10`}>
+                          <p.icon size={32} className={p.color.replace('bg-', 'text-')} />
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Default Region</span>
+                          <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-full border border-slate-100 shadow-sm">
+                            <Globe size={12} className="text-slate-400" />
+                            <span className="text-xs font-bold text-slate-600">{p.region}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <h4 className="text-2xl font-black text-slate-900 tracking-tight">{p.name}</h4>
+                    </div>
+
+                    {/* Environment Matrix */}
+                    <div className="p-8 space-y-6">
+                      {['dev', 'qa', 'prod'].map((envType, idx, arr) => {
+                        const envId = `${p.id}-${envType}`;
+                        const status = envStates[envId] || 'idle';
+                        const isPrevDeployed = idx === 0 || envStates[`${p.id}-${arr[idx-1]}`] === 'healthy';
+                        const isDeploying = deployingEnvs[envId];
+
+                        return (
+                          <div key={envType} className={`relative flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${
+                            status === 'healthy' ? 'border-green-100 bg-green-50/30' : 
+                            isPrevDeployed ? 'border-slate-100 bg-white hover:border-indigo-100' : 
+                            'border-slate-50 bg-slate-50/50 opacity-60 grayscale'
+                          }`}>
+                            <div className="flex items-center gap-4">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs uppercase ${
+                                status === 'healthy' ? 'bg-green-600 text-white' : 
+                                isPrevDeployed ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-400'
+                              }`}>
+                                {envType}
+                              </div>
+                              <div>
+                                <p className="text-sm font-black text-slate-800 uppercase tracking-tight">{envType.toUpperCase()} Instance</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <div className={`w-2 h-2 rounded-full ${
+                                    status === 'healthy' ? 'bg-green-500 animate-pulse' : 
+                                    status === 'provisioned' ? 'bg-amber-500' : 'bg-slate-300'
+                                  }`} />
+                                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                    {status === 'healthy' ? 'LIVE & HEALTHY' : 
+                                     status === 'provisioned' ? 'INFRA OK' : 'NOT DEPLOYED'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                              {status === 'healthy' ? (
+                                <button 
+                                  onClick={() => setDeployAppModal({ id: envId, name: `${p.name} ${envType.toUpperCase()}`, provider: p.id, region: p.region, color: p.color, host: `${envId}.sparknode.io` })}
+                                  className="p-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 hover:text-indigo-600 transition-all font-bold title='Promote / Re-deploy'"
+                                >
+                                  <ArrowUpRight size={18} />
+                                </button>
+                              ) : (
+                                <button 
+                                  disabled={!isPrevDeployed || isDeploying}
+                                  onClick={() => setConfigModal({ id: envId, provider: p.id, region: p.region })}
+                                  className={`px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
+                                    isDeploying ? 'bg-amber-100 text-amber-700' :
+                                    isPrevDeployed ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 hover:scale-105 active:scale-95' : 
+                                    'bg-slate-100 text-slate-300 cursor-not-allowed'
+                                  }`}
+                                >
+                                  {isDeploying ? 'Deploying...' : status === 'provisioned' ? 'Promote' : 'Deploy'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 ))}
               </div>
 

@@ -23,6 +23,10 @@ export default {
         sans: ['Nunito', 'system-ui', 'sans-serif'],
         mono: ['Fira Code', 'monospace'],
       },
+      screens: {
+        '3xl': '1920px',
+        '4xl': '2560px',
+      },
     },
   },
   plugins: [],
