@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
+# SparkNode — Local Development Bootstrap
+# Purpose: Builds frontend, starts dev docker-compose stack, and seeds DB.
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+echo "=== SPARKNODE LOCAL DEVELOPMENT BOOTSTRAP ==="
+echo "Working directory: $ROOT_DIR"
 
 # Allow an optional local/override bootstrap script. Common names we accept
 # (in order) are: `bootstrap_override.sh`, `bootstrap_local.sh`,

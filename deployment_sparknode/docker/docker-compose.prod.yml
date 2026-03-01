@@ -97,9 +97,8 @@ services:
 
   # ── Backend (FastAPI + Uvicorn) ────────────────────────────
   backend:
-    build:
-      context: ../control-plane-api
-      dockerfile: Dockerfile
+  # ── Backend (The SparkNode Application) ────────────────────
+  backend:
     image: ${DOCKERHUB_ORG:-zuber2301}/sparknode-backend:${APP_VERSION:-latest}
     container_name: ${PROJECT_NAME:-sparknode}-backend
     restart: unless-stopped
@@ -152,11 +151,8 @@ services:
         reservations:
           memory: 256M
 
-  # ── Celery Worker ──────────────────────────────────────────
+  # ── Celery Worker (Background Tasks) ──────────────────────
   celery:
-    build:
-      context: ../control-plane-api
-      dockerfile: Dockerfile
     image: ${DOCKERHUB_ORG:-zuber2301}/sparknode-backend:${APP_VERSION:-latest}
     container_name: ${PROJECT_NAME:-sparknode}-celery
     restart: unless-stopped
@@ -187,22 +183,24 @@ services:
         limits:
           memory: 512M
 
-  # ── Frontend (Nginx serving Vite build) ────────────────────
-  frontend:
-    image: ${DOCKERHUB_ORG:-zuber2301}/sparknode-frontend:${APP_VERSION:-latest}
-    container_name: ${PROJECT_NAME:-sparknode}-frontend
+  # ── Management UI (The Infrastructure Platform) ──────────────
+  manager-ui:
+    build:
+      context: ../manager-ui
+      dockerfile: Dockerfile
+    container_name: ${PROJECT_NAME:-sparknode}-manager-ui
     restart: unless-stopped
     depends_on:
       - backend
     labels:
       - "traefik.enable=true"
-      # Frontend catch-all (everything not /api)
-      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN}`)"
-      - "traefik.http.routers.frontend.entrypoints=websecure"
-      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.frontend.middlewares=security-headers@file,compress@file"
-      - "traefik.http.routers.frontend.priority=1"
-      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+      # Management UI catch-all (everything not /api)
+      - "traefik.http.routers.manager.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.manager.entrypoints=websecure"
+      - "traefik.http.routers.manager.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.manager.middlewares=security-headers@file,compress@file"
+      - "traefik.http.routers.manager.priority=1"
+      - "traefik.http.services.manager.loadbalancer.server.port=80"
     networks:
       - app-network
     healthcheck:
