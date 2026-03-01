@@ -24,11 +24,10 @@ else
   exit 1
 fi
 
-# 2. Build/Start the Orchestration Stack
-# This includes the Management UI and the API with Terraform pre-installed.
-echo "=== Starting Control Plane (Management UI + Orchestrator API) ==="
+# 2. Start the Platform Stack (The "Brain")
+echo "=== Starting SparkNode Control Plane (Management UI + Orchestrator) ==="
 cd "$PROD_DOCKER_DIR"
-docker-compose -f docker-compose.prod.yml up -d --build control-plane-api manager-ui traefik
+docker-compose -f docker-compose.platform.yml up -d --build
 
 # 3. Verify Orchestrator Readiness
 echo "Checking Orchestrator status..."
