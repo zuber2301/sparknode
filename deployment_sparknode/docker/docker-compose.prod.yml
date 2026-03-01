@@ -1,223 +1,92 @@
 # ──────────────────────────────────────────────────────────────
-# SparkNode — Production Docker Compose
-# Stack: Traefik + Frontend (nginx) + Backend (uvicorn) +
-#        Celery + PostgreSQL + Redis
+# SparkNode — PLATFORM CONTROL PLANE (The "Brain")
+# Purpose: Infrastructure Provisioning & App Deployment Platform
 # ──────────────────────────────────────────────────────────────
 
 services:
-  # ── Traefik — Reverse proxy & TLS termination ──────────────
+  # ── Traefik — Management Router & TLS ──────────────────────
   traefik:
     image: traefik:v3.1
-    container_name: ${PROJECT_NAME:-sparknode}-traefik
+    container_name: ${PROJECT_NAME:-sparknode}-mgmt-router
     restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
+    ports: [ "80:80", "443:443" ]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik/dynamic:/etc/traefik/dynamic:ro
       - ./traefik/acme:/acme
-      - traefik_logs:/var/log/traefik
-    labels:
-      # Dashboard (secured behind BasicAuth — optional)
-      - "traefik.enable=true"
-      - "traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))"
-      - "traefik.http.routers.dashboard.service=api@internal"
-      - "traefik.http.routers.dashboard.entrypoints=websecure"
-      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.dashboard.middlewares=security-headers@file"
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD", "traefik", "healthcheck"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
-  # ── PostgreSQL with WAL-G Backups ─────────────────────────────
-  postgres:
-    # Use custom image with WAL-G binary pre-installed
-    image: walg/wal-g:latest-pg-15
-    container_name: ${PROJECT_NAME:-sparknode}-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-sparknode}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-sparknode}
-      # WAL-G S3 Configuration
-      WALG_S3_PREFIX: s3://${S3_BACKUP_BUCKET}/backups/${PROJECT_NAME:-sparknode}/db
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      AWS_REGION: ${AWS_REGION:-us-east-1}
-      PGHOST: localhost
-      PGUSER: ${POSTGRES_USER:-sparknode}
-      PGPASSWORD: ${POSTGRES_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ../../database/postgresql.conf:/etc/postgresql/postgresql.conf:ro
-      - ../../database/init.sql:/docker-entrypoint-initdb.d/01_init.sql
-      - ../../database/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql
-    command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sparknode}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    networks:
-      - app-network
-    # No port exposure — only reachable within Docker network
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-        reservations:
-          memory: 256M
-
-  # ── Redis ──────────────────────────────────────────────────
-  redis:
-    image: redis:7-alpine
-    container_name: ${PROJECT_NAME:-sparknode}-redis
-    restart: unless-stopped
-    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
-    networks:
-      - app-network
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-
-  # ── Backend (FastAPI + Uvicorn) ────────────────────────────
-  backend:
-  # ── Backend (The SparkNode Application) ────────────────────
-  backend:
-    image: ${DOCKERHUB_ORG:-zuber2301}/sparknode-backend:${APP_VERSION:-latest}
-    container_name: ${PROJECT_NAME:-sparknode}-backend
-    restart: unless-stopped
-    environment:
-      APP_DATABASE_URL: ${APP_DATABASE_URL:-postgresql://sparknode:${POSTGRES_PASSWORD}@postgres:5432/sparknode}
-      DATABASE_URL: ${DATABASE_URL:-postgresql://sparknode:${POSTGRES_PASSWORD}@postgres:5432/sparknode}
-      SECRET_KEY: ${SECRET_KEY}
-      ALGORITHM: ${ALGORITHM:-HS256}
-      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
-      CORS_ORIGINS: ${CORS_ORIGINS:-https://${DOMAIN}}
-      SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      SMTP_FROM: ${SMTP_FROM:-no-reply@${DOMAIN}}
-      SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
-      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
-      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
-      ENVIRONMENT: ${ENVIRONMENT:-production}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     labels:
       - "traefik.enable=true"
-      # API routes
-      - "traefik.http.routers.backend.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.backend.entrypoints=websecure"
-      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.backend.middlewares=security-headers@file,rate-limit@file,compress@file"
-      - "traefik.http.services.backend.loadbalancer.server.port=8000"
-      # Health check endpoint
-      - "traefik.http.routers.backend-health.rule=Host(`${DOMAIN}`) && Path(`/health`)"
-      - "traefik.http.routers.backend-health.entrypoints=websecure"
-      - "traefik.http.routers.backend-health.tls.certresolver=letsencrypt"
-      - "traefik.http.services.backend-health.loadbalancer.server.port=8000"
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-        reservations:
-          memory: 256M
+    networks: [ mgmt-network ]
 
-  # ── Celery Worker (Background Tasks) ──────────────────────
-  celery:
-    image: ${DOCKERHUB_ORG:-zuber2301}/sparknode-backend:${APP_VERSION:-latest}
-    container_name: ${PROJECT_NAME:-sparknode}-celery
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://sparknode:${POSTGRES_PASSWORD}@postgres:5432/sparknode}
-      SECRET_KEY: ${SECRET_KEY}
-      ALGORITHM: ${ALGORITHM:-HS256}
-      CORS_ORIGINS: ${CORS_ORIGINS:-https://${DOMAIN}}
-      SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      SMTP_FROM: ${SMTP_FROM:-no-reply@${DOMAIN}}
-      SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
-      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
-      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
-      ENVIRONMENT: ${ENVIRONMENT:-production}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    command: celery -A core.celery_app.celery_app worker --loglevel=info --concurrency=4
-    networks:
-      - app-network
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-
-  # ── Management UI (The Infrastructure Platform) ──────────────
+  # ── Manager UI (The Infra Portal) ──────────────────────────
   manager-ui:
     build:
       context: ../manager-ui
       dockerfile: Dockerfile
     container_name: ${PROJECT_NAME:-sparknode}-manager-ui
     restart: unless-stopped
-    depends_on:
-      - backend
     labels:
       - "traefik.enable=true"
-      # Management UI catch-all (everything not /api)
-      - "traefik.http.routers.manager.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.manager.rule=Host(\"manage.${DOMAIN}\") || Host(\"${DOMAIN}\")"
       - "traefik.http.routers.manager.entrypoints=websecure"
       - "traefik.http.routers.manager.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.manager.middlewares=security-headers@file,compress@file"
-      - "traefik.http.routers.manager.priority=1"
       - "traefik.http.services.manager.loadbalancer.server.port=80"
-    networks:
-      - app-network
+    networks: [ mgmt-network ]
+
+  # ── Platform API (The Orchestrator) ────────────────────────
+  # Includes Terraform, SSH logic, and Cloud SDKs
+  control-plane-api:
+    build:
+      context: ../control-plane-api
+      dockerfile: Dockerfile
+    container_name: ${PROJECT_NAME:-sparknode}-orchestrator
+    restart: unless-stopped
+    volumes:
+      - ../terraform:/app/terraform:ro
+      - ../tfstate:/app/tfstate
+      - ./app-target.yml:/app/templates/app-target.yml:ro
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@platform-db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://platform-cache:6379/0
+      DOMAIN: ${DOMAIN}
+      ENVIRONMENT: platform
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(\"api.manage.${DOMAIN}\") || (Host(\"${DOMAIN}\") && PathPrefix(\"/api\"))"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.api.loadbalancer.server.port=8000"
+    networks: [ mgmt-network ]
+
+  # ── Platform DB (Orchestration Metadata) ──────────────────
+  # Stores VM info, user data, and cloud credentials
+  platform-db:
+    image: walg/wal-g:latest-pg-15
+    container_name: ${PROJECT_NAME:-sparknode}-mgmt-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sparknode}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-sparknode}
+    volumes:
+      - platform_data:/var/lib/postgresql/data
+    networks: [ mgmt-network ]
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ || exit 1"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-volumes:
-  postgres_data:
-    name: ${PROJECT_NAME:-sparknode}_postgres_data
-  redis_data:
-    name: ${PROJECT_NAME:-sparknode}_redis_data
-  traefik_logs:
-    name: ${PROJECT_NAME:-sparknode}_traefik_logs
+  # ── Platform Cache (Queue/Orchestration) ──────────────────
+  platform-cache:
+    image: redis:7-alpine
+    container_name: ${PROJECT_NAME:-sparknode}-mgmt-cache
+    networks: [ mgmt-network ]
 
 networks:
-  app-network:
-    name: ${PROJECT_NAME:-sparknode}-network
-    driver: bridge
+  mgmt-network:
+    name: ${PROJECT_NAME:-sparknode}-mgmt-network
+
+volumes:
+  platform_data:
+    name: ${PROJECT_NAME:-sparknode}_platform_data

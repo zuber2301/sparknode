@@ -1,0 +1,61 @@
+# ──────────────────────────────────────────────────────────────
+# SparkNode — Target Application Template
+# Deployment Target: Remote Cloud VM (Provisioned via Platform)
+# ──────────────────────────────────────────────────────────────
+
+services:
+  # ── Backend ─────────────────────────────────────────────────
+  backend:
+    image: ${DOCKERHUB_ORG:-zuber2301}/sparknode-backend:${APP_VERSION:-latest}
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_healthy }
+    networks:
+      - app-network
+
+  # ── Celery ──────────────────────────────────────────────────
+  celery:
+    image: ${DOCKERHUB_ORG:-zuber2301}/sparknode-backend:${APP_VERSION:-latest}
+    command: celery -A core.celery_app.celery_app worker --loglevel=info
+    restart: unless-stopped
+    env_file: .env
+    networks:
+      - app-network
+
+  # ── Frontend ────────────────────────────────────────────────
+  frontend:
+    image: ${DOCKERHUB_ORG:-zuber2301}/sparknode-frontend:${APP_VERSION:-latest}
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # ── Database ────────────────────────────────────────────────
+  postgres:
+    image: postgres:15.8-alpine
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ───────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
