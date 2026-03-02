@@ -29,8 +29,16 @@ ADD CONSTRAINT positive_budget_allocated CHECK (budget_allocated >= 0);
 -- RENAME ALLOCATION LOGS TO BUDGET ALLOCATION LOGS
 -- =====================================================
 
--- Rename allocation_logs to budget_allocation_logs
-ALTER TABLE IF EXISTS allocation_logs RENAME TO budget_allocation_logs;
+-- Rename allocation_logs to budget_allocation_logs. guard against the
+-- new table already existing which would cause a duplicate-table error.
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'allocation_logs')
+       AND NOT EXISTS (SELECT FROM pg_tables WHERE tablename = 'budget_allocation_logs')
+    THEN
+        ALTER TABLE allocation_logs RENAME TO budget_allocation_logs;
+    END IF;
+END $$;
 
 -- Rename indexes
 DROP INDEX IF EXISTS idx_allocation_logs_tenant;
@@ -43,8 +51,15 @@ CREATE INDEX IF NOT EXISTS idx_budget_allocation_logs_admin ON budget_allocation
 -- RENAME DISTRIBUTION LOGS TO BUDGET DISTRIBUTION LOGS
 -- =====================================================
 
--- Rename distribution_logs to budget_distribution_logs
-ALTER TABLE IF EXISTS distribution_logs RENAME TO budget_distribution_logs;
+-- Rename distribution_logs to budget_distribution_logs (same guard as above)
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'distribution_logs')
+       AND NOT EXISTS (SELECT FROM pg_tables WHERE tablename = 'budget_distribution_logs')
+    THEN
+        ALTER TABLE distribution_logs RENAME TO budget_distribution_logs;
+    END IF;
+END $$;
 
 -- Rename indexes
 DROP INDEX IF EXISTS idx_distribution_logs_tenant;

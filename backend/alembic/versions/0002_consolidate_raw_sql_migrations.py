@@ -380,8 +380,11 @@ DO $$ BEGIN
 END $$;
 
 DO $$ BEGIN
-    IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'allocation_logs') THEN
-        ALTER TABLE IF EXISTS allocation_logs RENAME TO budget_allocation_logs;
+    -- only rename if the old table exists and the new name is not already taken
+    IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'allocation_logs')
+       AND NOT EXISTS (SELECT FROM pg_tables WHERE tablename = 'budget_allocation_logs')
+    THEN
+        ALTER TABLE allocation_logs RENAME TO budget_allocation_logs;
     END IF;
 END $$;
 DROP INDEX IF EXISTS idx_allocation_logs_tenant;
@@ -390,8 +393,10 @@ CREATE INDEX IF NOT EXISTS idx_budget_allocation_logs_tenant ON budget_allocatio
 CREATE INDEX IF NOT EXISTS idx_budget_allocation_logs_admin ON budget_allocation_logs(admin_id, created_at DESC);
 
 DO $$ BEGIN
-    IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'distribution_logs') THEN
-        ALTER TABLE IF EXISTS distribution_logs RENAME TO budget_distribution_logs;
+    IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'distribution_logs')
+       AND NOT EXISTS (SELECT FROM pg_tables WHERE tablename = 'budget_distribution_logs')
+    THEN
+        ALTER TABLE distribution_logs RENAME TO budget_distribution_logs;
     END IF;
 END $$;
 DROP INDEX IF EXISTS idx_distribution_logs_tenant;
@@ -404,6 +409,13 @@ CREATE INDEX IF NOT EXISTS idx_budget_distribution_logs_to_user ON budget_distri
 -- =====================================================================
 -- Source: 20260205_add_dept_lead_to_org_role.sql + 20260209_standardize_roles.sql
 -- =====================================================================
+-- Ensure any stray roles are normalized before enforcing the final check.
+-- This handles values like 'sales_marketing' which slipped through earlier
+-- migrations and would violate the constraint.
+UPDATE users
+SET org_role = 'tenant_user'
+WHERE org_role NOT IN ('platform_admin', 'tenant_manager', 'dept_lead', 'tenant_user');
+
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_org_role_check;
 ALTER TABLE users ADD CONSTRAINT users_org_role_check CHECK (
     org_role IN ('platform_admin', 'tenant_manager', 'dept_lead', 'tenant_user')

@@ -51,12 +51,41 @@ services:
       REDIS_URL: redis://platform-cache:6379/0
       DOMAIN: ${DOMAIN}
       ENVIRONMENT: platform
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID:-}
+      AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID:-}
+      AZURE_SUBSCRIPTION_ID: ${AZURE_SUBSCRIPTION_ID:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.api.rule=Host(`api.manage.${DOMAIN}`) || (Host(`${DOMAIN}`) && PathPrefix(`/api`)) || PathPrefix(`/api`)"
       - "traefik.http.routers.api.entrypoints=websecure"
       - "traefik.http.routers.api.tls.certresolver=letsencrypt"
       - "traefik.http.services.api.loadbalancer.server.port=8000"
+    networks: [ mgmt-network ]
+
+  # ── Platform Worker (Terraform Executor) ──────────────────
+  control-plane-worker:
+    build:
+      context: ..
+      dockerfile: control-plane-api/Dockerfile
+    container_name: ${PROJECT_NAME:-sparknode}-worker
+    restart: unless-stopped
+    volumes:
+      - ../terraform:/app/terraform:ro
+      - ../tfstate:/app/tfstate
+      - /root/.ssh:/root/.ssh:ro
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@platform-db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://platform-cache:6379/0
+      DOMAIN: ${DOMAIN}
+      ENVIRONMENT: platform
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID:-}
+      AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID:-}
+      AZURE_SUBSCRIPTION_ID: ${AZURE_SUBSCRIPTION_ID:-}
+    command: ["celery", "-A", "app.execution_engine", "worker", "--loglevel=info"]
     networks: [ mgmt-network ]
 
   # ── Platform DB (Orchestration Metadata) ──────────────────

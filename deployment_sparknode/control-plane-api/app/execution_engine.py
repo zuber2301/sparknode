@@ -55,7 +55,11 @@ def run_terraform_plan(self, task_id, env_id, provider, config, mode="new"):
 
     # Build env vars identical to the old inline implementation
     tf_env = os.environ.copy()
-    tf_env["PATH"] = "/usr/local/bin:/usr/bin:/bin:" + tf_env.get("PATH", "")
+    
+    # Ensure standard bin paths are included
+    custom_path = "/usr/local/bin:/usr/bin:/bin"
+    tf_env["PATH"] = f"{custom_path}:{tf_env.get('PATH', '')}"
+    
     tf_env["TF_IN_AUTOMATION"] = "1"
     tf_env["TF_INPUT"] = "0"
     tf_env["TF_VAR_cloud_provider"] = provider
@@ -125,6 +129,12 @@ def run_terraform_plan(self, task_id, env_id, provider, config, mode="new"):
         gcp_key = os.getenv("GCP_SA_KEY_JSON_PATH", "")
         if gcp_key and os.path.exists(gcp_key):
             tf_env["GOOGLE_APPLICATION_CREDENTIALS"] = gcp_key
+
+    # Standard TF_VAR defaults
+    tf_env["TF_VAR_vpc_cidr"] = "10.0.0.0/16"
+    tf_env["TF_VAR_public_subnet_cidr"] = "10.0.1.0/24"
+    tf_env["TF_VAR_ssh_allowed_cidrs"] = json.dumps(["0.0.0.0/0"])
+    tf_env["TF_VAR_ssh_public_key_path"] = os.path.expanduser("~/.ssh/id_rsa.pub")
 
     plan_summary = {
         "resources_to_add": 0, "resources_to_change": 0,

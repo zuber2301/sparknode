@@ -14,6 +14,8 @@ ALTER TABLE users ADD CONSTRAINT users_org_role_check CHECK (
 UPDATE users SET org_role = 'tenant_manager' WHERE org_role IN ('hr_admin');
 UPDATE users SET org_role = 'dept_lead' WHERE org_role IN ('dept_lead', 'manager', 'tenant_lead');
 UPDATE users SET org_role = 'tenant_user' WHERE org_role IN ('corporate_user', 'employee', 'user', 'tenant_user');
+-- also convert any leftover sales_marketing role which was missed earlier
+UPDATE users SET org_role = 'tenant_user' WHERE org_role = 'sales_marketing';
 
 -- 3. Add the new standardized check constraint
 ALTER TABLE users DROP CONSTRAINT users_org_role_check;
@@ -25,9 +27,11 @@ ALTER TABLE users ADD CONSTRAINT users_org_role_check CHECK (
 UPDATE user_upload_staging SET org_role = 'tenant_manager' WHERE org_role IN ('hr_admin');
 UPDATE user_upload_staging SET org_role = 'dept_lead' WHERE org_role IN ('dept_lead', 'manager', 'tenant_lead');
 UPDATE user_upload_staging SET org_role = 'tenant_user' WHERE org_role IN ('corporate_user', 'employee', 'user', 'tenant_user');
+UPDATE user_upload_staging SET org_role = 'tenant_user' WHERE org_role = 'sales_marketing';
 
 UPDATE user_upload_staging SET raw_role = 'tenant_manager' WHERE raw_role IN ('hr_admin');
 UPDATE user_upload_staging SET raw_role = 'dept_lead' WHERE raw_role IN ('dept_lead', 'manager', 'tenant_lead');
 UPDATE user_upload_staging SET raw_role = 'tenant_user' WHERE raw_role IN ('corporate_user', 'employee', 'user', 'tenant_user');
+UPDATE user_upload_staging SET raw_role = 'tenant_user' WHERE raw_role = 'sales_marketing';
 
 COMMIT;
