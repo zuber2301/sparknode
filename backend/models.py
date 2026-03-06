@@ -304,6 +304,7 @@ class User(Base):
     # Default role for the user (when multiple roles are available)
     default_role = Column(String(50), nullable=True)
     department_id = Column(UUID(as_uuid=True), ForeignKey("departments.id"), nullable=False)
+    region = Column(String(100))
     manager_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     avatar_url = Column(String(500))
     phone_number = Column(String(20))
@@ -1192,9 +1193,21 @@ class SalesEvent(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    dept_id = Column(UUID(as_uuid=True), ForeignKey("departments.id"), nullable=True)
+    eligible_dept_ids = Column(JSONB, default=list)  # list of department UUIDs allowed
+    eligible_region_ids = Column(JSONB, default=list)  # list of region tags allowed
+    invited_user_ids = Column(JSONB, default=list)  # users specifically invited
+    invited_dept_ids = Column(JSONB, default=list)  # additional departments invited
     name = Column(Text, nullable=False)
     description = Column(Text)
     event_type = Column(String(50), nullable=False)
+    # gamification-specific columns
+    goal_metric = Column(Text)  # e.g. 'deals_closed', 'revenue_inr'
+    goal_value = Column(Integer)
+    reward_points = Column(Integer)
+    total_budget_cap = Column(Integer)
+    distributed_so_far = Column(Integer, default=0)
+    
     start_at = Column(DateTime(timezone=True), nullable=False)
     end_at = Column(DateTime(timezone=True))
     location = Column(Text)
@@ -1212,6 +1225,7 @@ class SalesEvent(Base):
     registrations = relationship("SalesEventRegistration", back_populates="event", cascade="all, delete-orphan")
     leads = relationship("SalesEventLead", back_populates="event", cascade="all, delete-orphan")
     metrics = relationship("SalesEventMetrics", back_populates="event", uselist=False, cascade="all, delete-orphan")
+    progress = relationship("EventProgress", back_populates="event", cascade="all, delete-orphan")
 
 
 class SalesEventRegistration(Base):
@@ -1250,6 +1264,18 @@ class SalesEventLead(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     event = relationship("SalesEvent", back_populates="leads")
+
+
+class EventProgress(Base):
+    __tablename__ = "event_progress"
+
+    event_id = Column(UUID(as_uuid=True), ForeignKey("sales_events.id", ondelete="CASCADE"), primary_key=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True)
+    current_value = Column(Integer, default=0)
+    is_rewarded = Column(Boolean, default=False)
+
+    event = relationship("SalesEvent", back_populates="progress")
+    user = relationship("User")
 
 
 class SalesEventMetrics(Base):

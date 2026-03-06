@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { salesAPI } from '../lib/api'
 import toast from 'react-hot-toast'
+import { useAuthStore } from '../store/authStore'
 
 export default function SalesEventRegistration() {
   const { eventId } = useParams()
@@ -11,15 +12,19 @@ export default function SalesEventRegistration() {
     onSuccess: () => toast.success('Registered successfully'),
     onError: (err) => toast.error(err.response?.data?.detail || 'Registration failed')
   })
+  const { tenantContext } = useAuthStore()
+
   const handleSubmit = (e) => {
     e.preventDefault()
     const fd = new FormData(e.target)
-    mutation.mutate({
+    const payload = {
       full_name: fd.get('full_name'),
       email: fd.get('email'),
       company: fd.get('company'),
-      role: fd.get('role')
-    })
+      role: fd.get('role'),
+    }
+    if (fd.get('department_id')) payload.department_id = fd.get('department_id')
+    mutation.mutate(payload)
   }
 
   const event = eventResp
@@ -47,6 +52,21 @@ export default function SalesEventRegistration() {
             <label className="label">Role</label>
             <input name="role" className="input" />
           </div>
+          <div>
+            <label className="label">Region</label>
+            <input name="region" className="input" placeholder="e.g. north" />
+          </div>
+          {event?.eligible_dept_ids && event.eligible_dept_ids.length > 0 && (
+            <div>
+              <label className="label">Department</label>
+              <select name="department_id" className="input" required>
+                <option value="">-- choose --</option>
+                {tenantContext?.departments?.
+                  filter(d => event.eligible_dept_ids.includes(d.id))
+                  .map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+          )}
           <div className="flex justify-end gap-2">
             <button type="submit" className="btn-primary">Register</button>
           </div>

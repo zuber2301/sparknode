@@ -135,7 +135,37 @@ class TestEventsApiIntegration:
         )
         
         assert response.status_code == 403
-    
+
+    def test_nonmanager_list_is_published_only(self, client, tenant_tenant_tenant_manager_token, platform_admin_token, db_session, tenant):
+        """Platform admins (and other non-managers) should only receive published events when listing"""
+        # create draft and published events
+        draft = Event(
+            tenant_id=tenant.id,
+            title="Draft Event",
+            description="draft",
+            event_type="meeting",
+            date=datetime.now(),
+            status="draft"
+        )
+        pub = Event(
+            tenant_id=tenant.id,
+            title="Published Event",
+            description="pub",
+            event_type="meeting",
+            date=datetime.now(),
+            status="published"
+        )
+        db_session.add_all([draft, pub])
+        db_session.commit()
+
+        resp_pa = client.get(
+            "/events",
+            headers={"Authorization": f"Bearer {platform_admin_token}"}
+        )
+        assert resp_pa.status_code == 200
+        ids_pa = [e.get('id') for e in resp_pa.json()]
+        assert draft.id not in ids_pa and pub.id in ids_pa
+
     def test_list_events_with_filters(self, client, tenant_tenant_tenant_manager_token, db_session, tenant):
         """Test listing events with filters"""
         response = client.get(

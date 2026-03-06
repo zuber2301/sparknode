@@ -173,22 +173,26 @@ function App() {
         {/* Profile & Settings */}
         <Route path="profile" element={<Profile />} />
         
-        {/* Event Management */}
+        {/* Event Management - restricted to tenant managers only */}
         <Route path="events" element={
-          <NonUserRoute>
+          <TenantManagerRoute>
             <Events />
-          </NonUserRoute>
+          </TenantManagerRoute>
         } />
         <Route path="events/create" element={
-          <ManagerRoute>
+          <TenantManagerRoute>
             <EventCreateWizard />
-          </ManagerRoute>
+          </TenantManagerRoute>
         } />
-        <Route path="events/:eventId" element={<EventDetail />} />
+        <Route path="events/:eventId" element={
+          <TenantManagerRoute>
+            <EventDetail />
+          </TenantManagerRoute>
+        } />
         <Route path="events/:eventId/edit" element={
-          <ManagerRoute>
+          <TenantManagerRoute>
             <EventCreateWizardEdit />
-          </ManagerRoute>
+          </TenantManagerRoute>
         } />
         {/* Sales & Marketing */}
         <Route path="sales-events" element={<SalesEvents />} />

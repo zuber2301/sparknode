@@ -19,6 +19,7 @@ from sales.schemas import (
     LeadResponse,
     LeadUpdateRequest,
     MetricsResponse,
+    ProgressUpdateRequest,
 )
 from auth.utils import get_current_user, require_tenant_manager_or_platform
 from core.wallet_service import credit_user_wallet
@@ -45,6 +46,16 @@ async def create_sales_event(
         target_registrations=payload.target_registrations,
         target_pipeline=payload.target_pipeline,
         target_revenue=payload.target_revenue,
+        # gamification attributes
+        goal_metric=payload.goal_metric,
+        goal_value=payload.goal_value,
+        reward_points=payload.reward_points,
+        total_budget_cap=payload.total_budget_cap,
+        dept_id=payload.dept_id,
+        eligible_dept_ids=payload.eligible_dept_ids or [],
+        eligible_region_ids=payload.eligible_region_ids or [],
+        invited_user_ids=payload.invited_user_ids or [],
+        invited_dept_ids=payload.invited_dept_ids or [],
     )
     db.add(event)
     db.commit()
@@ -100,6 +111,14 @@ async def public_register(event_id: UUID, payload: RegistrationRequest, db: Sess
     event = db.query(SalesEvent).filter(SalesEvent.id == event_id).first()
     if not event or event.status != 'published':
         raise HTTPException(status_code=404, detail="Event not available for registration")
+    # eligibility check
+    if event.eligible_dept_ids:
+        if payload.department_id and str(payload.department_id) not in event.eligible_dept_ids:
+            raise HTTPException(status_code=403, detail="Not eligible for this event")
+    if event.eligible_region_ids:
+        # region provided in payload must match
+        if payload.region and payload.region not in event.eligible_region_ids:
+            raise HTTPException(status_code=403, detail="Not eligible (region)")
     reg = SalesEventRegistration(
         event_id=event.id,
         email=payload.email,
@@ -213,6 +232,126 @@ async def sync_crm(event_id: UUID, current_user: User = Depends(require_tenant_m
     except Exception:
         traceback.print_exc()
     return {"message": "sync initiated"}
+
+
+
+# --- new endpoints for gamified sales events ---
+
+@router.post("/{event_id}/progress")
+async def increment_progress(
+    event_id: UUID,
+    payload: ProgressUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user_id = payload.user_id
+    increment = payload.increment or 1
+    """Add progress for a given user and award points if goal reached.
+
+    The transaction mirrors the SQL described in the requirements.
+    """
+    # only tenant manager or dept lead may update progress
+    if current_user.org_role not in ['tenant_manager', 'dept_lead', 'platform_admin']:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager access required")
+
+    # fetch and lock event row
+    ev = db.query(SalesEvent).filter(SalesEvent.id == event_id, SalesEvent.tenant_id == current_user.tenant_id).with_for_update().first()
+    if not ev:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    # ensure we haven't surpassed the cap
+    if ev.total_budget_cap is not None and ev.distributed_so_far >= ev.total_budget_cap:
+        raise HTTPException(status_code=400, detail="Event budget exhausted")
+
+    # eligibility enforcement: ensure user belongs to allowed dept/region (if defined)
+    user = db.query(User).filter(User.id == user_id).first()
+    if ev.eligible_dept_ids and user:
+        if user.department_id is None or str(user.department_id) not in ev.eligible_dept_ids:
+            raise HTTPException(status_code=403, detail="User not eligible for this event")
+    if ev.eligible_region_ids and user:
+        if not user.region or user.region not in ev.eligible_region_ids:
+            raise HTTPException(status_code=403, detail="User not eligible (region)")
+
+    # update or create progress row
+    prog = db.query(EventProgress).filter(EventProgress.event_id == event_id, EventProgress.user_id == user_id).first()
+    if not prog:
+        prog = EventProgress(event_id=event_id, user_id=user_id, current_value=0)
+        db.add(prog)
+        db.flush()
+    prog.current_value += increment
+
+    rewarded = False
+    # reward logic
+    if ev.goal_value and prog.current_value >= ev.goal_value and not prog.is_rewarded:
+        if ev.reward_points:
+            if user:
+                credit_user_wallet(db, user, ev.reward_points, source='sales:event', description=f'Reward for {ev.title}', reference_type='sales_event', reference_id=ev.id)
+                if ev.dept_id:
+                    from budgets.models import DepartmentBudget
+                    db.query(DepartmentBudget).filter(DepartmentBudget.dept_id == ev.dept_id).update({
+                        'balance': DepartmentBudget.balance - ev.reward_points
+                    })
+        prog.is_rewarded = True
+        ev.distributed_so_far = (ev.distributed_so_far or 0) + (ev.reward_points or 0)
+        rewarded = True
+
+    # notify user when they are within 80% of goal and not yet rewarded
+    if user and ev.goal_value and not prog.is_rewarded:
+        pct = prog.current_value / ev.goal_value
+        if pct >= 0.8:
+            # create notification if not already sent
+            existing = db.query(Notification).filter(
+                Notification.user_id == user_id,
+                Notification.reference_type == 'sales_event',
+                Notification.reference_id == ev.id,
+                Notification.type == 'progress_warning'
+            ).first()
+            if not existing:
+                note = Notification(
+                    tenant_id=ev.tenant_id,
+                    user_id=user_id,
+                    type='progress_warning',
+                    title='Almost there!',
+                    message=f"You're {int(pct*100)}% toward your {ev.goal_metric} goal for '{ev.name}'", 
+                    reference_type='sales_event',
+                    reference_id=ev.id,
+                )
+                db.add(note)
+
+
+    db.commit()
+    return {"event_id": str(event_id), "user_id": str(user_id), "current_value": prog.current_value, "rewarded": rewarded}
+
+
+@router.get("/{event_id}/leaderboard")
+async def get_leaderboard(event_id: UUID, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Return ranking of users by progress value, including user name/avatar and percent-of-goal."""
+    ev = db.query(SalesEvent).filter(SalesEvent.id == event_id, SalesEvent.tenant_id == current_user.tenant_id).first()
+    if not ev:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    rows = (
+        db.query(EventProgress, User)
+          .join(User, User.id == EventProgress.user_id)
+          .filter(EventProgress.event_id == event_id)
+          .order_by(EventProgress.current_value.desc())
+          .all()
+    )
+
+    result = []
+    for prog, user in rows:
+        pct = None
+        if ev.goal_value and ev.goal_value > 0:
+            pct = min(100.0, prog.current_value / ev.goal_value * 100)
+        result.append({
+            "user_id": prog.user_id,
+            "user_name": f"{user.first_name} {user.last_name}" if user.first_name else None,
+            "avatar_url": user.avatar_url,
+            "current_value": prog.current_value,
+            "is_rewarded": prog.is_rewarded,
+            "progress_pct": pct,
+        })
+    return result
 
 
 def send_to_connectors(tenant_id, event_type, payload):

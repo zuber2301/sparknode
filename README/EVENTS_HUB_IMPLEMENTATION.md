@@ -123,7 +123,7 @@ All frontend components are fully implemented and integrated:
 ##### App.jsx Updates
 - **Location**: [frontend/src/App.jsx](frontend/src/App.jsx)
 - **New Routes**:
-  - `/events` - Admin event management dashboard
+  - `/events` - **Tenant manager only** event management dashboard
   - `/events/create` - Event creation wizard
   - `/events/:eventId` - Event detail view
   - `/events/:eventId/edit` - Event edit wizard
@@ -133,7 +133,7 @@ All frontend components are fully implemented and integrated:
 - **Location**: [frontend/src/components/Layout.jsx](frontend/src/components/Layout.jsx)
 - **Changes**:
   - Added Events to main navigation (appears for all users)
-  - Added Events to admin navigation (Tenant Manager, HR Admin only)
+  - Added Events to admin navigation (Tenant Manager only – platform/HR admins no longer see management link)
   - Proper role-based visibility
 
 ## Architecture Highlights

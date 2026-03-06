@@ -385,6 +385,9 @@ export const salesAPI = {
   updateLead: (leadId, data) => api.patch(`/sales-events/leads/${leadId}`, data),
   metrics: (id) => api.get(`/sales-events/${id}/metrics`),
   metricsSummary: () => api.get('/sales-events/metrics/summary'),
+  // gamification helpers
+  incrementProgress: (eventId, data) => api.post(`/sales-events/${eventId}/progress`, data),
+  leaderboard: (eventId) => api.get(`/sales-events/${eventId}/leaderboard`),
 }
 
 // Analytics API (New - Tenant Dashboard & Insights)

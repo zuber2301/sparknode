@@ -170,6 +170,8 @@ ONLY `platform_admin`.
 /analytics                 → Analytics
 ```
 
+> **Note:** the `/events` management dashboard has been removed from this group.  It is now only accessible to `tenant_manager` (see below).  Regular managers such as `dept_lead` or platform admins do **not** see it.
+
 ### Public Routes (All Authenticated Users)
 ```
 /dashboard                 → DashboardRouter (loads role-specific dashboard)
@@ -177,10 +179,14 @@ ONLY `platform_admin`.
 /recognize                 → Recognize
 /redeem                    → Redeem
 /wallet                    → Wallet
-/events                    → Events
-/events/browse             → EmployeeEvents
-/events/create             → EventCreateWizard
+/events/browse             → EmployeeEvents        # employee-facing browse view
 /profile                   → Profile
+```
+
+### Tenant Manager Only Routes
+```
+/events                    → Events                # management dashboard (tenant_manager only)
+/events/create             → EventCreateWizard    # creation wizard
 ```
 
 ---

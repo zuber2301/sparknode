@@ -14,6 +14,16 @@ class SalesEventCreateRequest(BaseModel):
     location: Optional[str] = None
     owner_user_id: Optional[UUID] = None
     marketing_owner_id: Optional[UUID] = None
+    # gamification settings
+    goal_metric: Optional[str] = None
+    goal_value: Optional[int] = None
+    reward_points: Optional[int] = None
+    total_budget_cap: Optional[int] = None
+    dept_id: Optional[UUID] = None
+    eligible_dept_ids: Optional[List[UUID]] = []
+    eligible_region_ids: Optional[List[str]] = []
+    invited_user_ids: Optional[List[UUID]] = []
+    invited_dept_ids: Optional[List[UUID]] = []
     target_registrations: Optional[int] = None
     target_pipeline: Optional[Decimal] = None
     target_revenue: Optional[Decimal] = None
@@ -26,6 +36,11 @@ class SalesEventUpdateRequest(BaseModel):
     end_at: Optional[datetime] = None
     location: Optional[str] = None
     status: Optional[str] = None
+    goal_metric: Optional[str] = None
+    goal_value: Optional[int] = None
+    reward_points: Optional[int] = None
+    total_budget_cap: Optional[int] = None
+    dept_id: Optional[UUID] = None
     target_registrations: Optional[int] = None
     target_pipeline: Optional[Decimal] = None
     target_revenue: Optional[Decimal] = None
@@ -39,6 +54,19 @@ class SalesEventListItem(BaseModel):
     start_at: datetime
     end_at: Optional[datetime]
     status: str
+    # gamification summary
+    goal_metric: Optional[str]
+    goal_value: Optional[int]
+    reward_points: Optional[int]
+    total_budget_cap: Optional[int]
+    distributed_so_far: Optional[int]
+    eligible_dept_ids: Optional[List[UUID]]
+    eligible_region_ids: Optional[List[str]]
+    invited_user_ids: Optional[List[UUID]]
+    invited_dept_ids: Optional[List[UUID]]
+
+    class Config:
+        from_attributes = True
 
     class Config:
         from_attributes = True
@@ -49,6 +77,8 @@ class RegistrationRequest(BaseModel):
     email: EmailStr
     company: Optional[str] = None
     role: Optional[str] = None
+    department_id: Optional[UUID] = None
+    region: Optional[str] = None
     source_channel: Optional[str] = None
     utm_source: Optional[str] = None
     utm_campaign: Optional[str] = None
@@ -89,6 +119,23 @@ class LeadUpdateRequest(BaseModel):
     notes: Optional[str]
 
 
+class ProgressUpdateRequest(BaseModel):
+    user_id: UUID
+    increment: Optional[int] = 1
+
+
+class LeaderboardRow(BaseModel):
+    user_id: UUID
+    user_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    current_value: int
+    is_rewarded: bool
+    progress_pct: Optional[float] = None   # 0–100
+
+    class Config:
+        from_attributes = True
+
+
 class MetricsResponse(BaseModel):
     event_id: UUID
     registrations: int
@@ -97,6 +144,9 @@ class MetricsResponse(BaseModel):
     opportunities: int
     pipeline_value: Decimal
     revenue_closed: Decimal
+
+    class Config:
+        from_attributes = True
 
     class Config:
         from_attributes = True

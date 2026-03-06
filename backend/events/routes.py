@@ -184,11 +184,22 @@ async def list_events(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """List all events for a tenant."""
+    """List all events for a tenant.
+
+    Only **tenant managers** may see drafts or other non-published events.  Other
+    users (including platform admins) will automatically be limited to
+    published events even if no status filter is provided.  This keeps the
+    top-level `/events` resource safe to expose to the management UI without
+    allowing non-managers to peek at drafts by constructing arbitrary queries.
+    """
     query = db.query(Event).filter(Event.tenant_id == current_user.tenant_id)
     
+    # normalize status filter; non-managers default to published
     if status:
         query = query.filter(Event.status == status)
+    else:
+        if current_user.org_role != 'tenant_manager':
+            query = query.filter(Event.status == 'published')
     
     events = query.order_by(Event.start_datetime.desc()).offset(skip).limit(limit).all()
     

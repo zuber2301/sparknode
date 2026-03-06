@@ -256,13 +256,14 @@ Roles are displayed with helpful emojis and labels:
 - Users
 - Budgets
 - Redeem
-- Event Management
 - Marketplace
 - Controls (submenu):
   - AI Settings
   - Templates
   - Billing
   - Audit Log
+
+> Note: platform administrators no longer see the Event Management link; managing events is delegated solely to tenant managers.
 
 **Special Features:**
 - Can impersonate other tenants
@@ -273,7 +274,7 @@ Roles are displayed with helpful emojis and labels:
 
 **Navigation Items:**
 - Dashboard
-- Event Management
+- Event Management  (full management)
 - Redeem
 - Departments
 - User Management
@@ -295,7 +296,7 @@ Roles are displayed with helpful emojis and labels:
 
 **Navigation Items:**
 - Dashboard
-- Event Management (browse)
+- Events (browse only)
 - Recognize
 - Redeem
 - Wallet
@@ -311,7 +312,7 @@ Roles are displayed with helpful emojis and labels:
 
 **Navigation Items:**
 - Dashboard
-- Event Management (browse)
+- Events (browse only)
 - Feed
 - Recognize
 - Redeem

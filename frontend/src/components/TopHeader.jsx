@@ -32,7 +32,8 @@ import {
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
-  { name: 'Event Management', href: '/events/browse', icon: HiOutlineNewspaper },
+  // this is the employee-facing events browser; not the manager dashboard
+  { name: 'Events', href: '/events/browse', icon: HiOutlineNewspaper },
   { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: true },
   { name: 'Feed', href: '/feed', icon: HiOutlineNewspaper },
   { name: 'Recognize', href: '/recognize', icon: HiOutlineSparkles },
@@ -57,7 +58,7 @@ const platformAdminNavigation = [
   { name: 'Tenants', href: '/platform/tenants', icon: HiOutlineOfficeBuilding },
   { name: 'Users', href: '/users', icon: HiOutlineUsers },
   { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar },
-  { name: 'Event Management', href: '/events', icon: HiOutlineNewspaper },
+  // event management is handled only by tenant managers, not platform admins
   { name: 'Global Catalog', href: '/platform/catalog', icon: HiOutlineShoppingCart },
   { name: 'Marketplace', href: '/marketplace', icon: HiOutlineShoppingCart },
   {
@@ -87,7 +88,8 @@ const tenantManagerNavigation = [
 // Tenant Lead specific navigation
 const tenantLeadNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
-  { name: 'Event Management', href: '/events/browse', icon: HiOutlineNewspaper },
+  // tenant leads only browse events; not full management
+  { name: 'Events', href: '/events/browse', icon: HiOutlineNewspaper },
   { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: true },
   { name: 'Recognize', href: '/recognize', icon: HiOutlineSparkles },
   { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },

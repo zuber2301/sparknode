@@ -215,11 +215,17 @@ async def get_manager_or_above(current_user: User = Depends(get_current_user)) -
 
 
 async def get_event_admin(current_user: User = Depends(get_current_user)) -> User:
-    """Require tenant manager OR platform admin for event administration endpoints."""
-    if not (current_user.org_role == 'tenant_manager' or current_user.is_platform_admin):
+    """Require **tenant manager only** for event administration endpoints.
+
+    Previously platform admins were also permitted, but the UI and authorization
+    rules now restrict event management entirely to tenant managers.  Platform
+    admins retain visibility to browse, but cannot create/edit events on behalf
+    of a tenant.
+    """
+    if current_user.org_role != 'tenant_manager':
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Event administration access required (tenant_manager or platform_admin)"
+            detail="Event administration access required (tenant_manager only)"
         )
     return current_user
 

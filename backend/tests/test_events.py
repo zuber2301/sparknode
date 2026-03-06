@@ -189,6 +189,23 @@ class TestEventCreation:
         
         assert response.status_code == 403
         assert "Not authenticated" in response.text or "credentials" in response.text.lower()
+
+    def test_create_event_as_platform_admin_forbidden(self):
+        """Platform admin should now be blocked from creating events"""
+        token = get_token(ADMIN_USER_ID, "admin@test.com", "platform_admin")
+        event_data = {
+            "title": "Platform Admin Foo",
+            "type": "celebration",
+            "start_datetime": (datetime.utcnow() + timedelta(days=7)).isoformat(),
+            "end_datetime": (datetime.utcnow() + timedelta(days=8)).isoformat(),
+        }
+        response = client.post(
+            "/api/events/",
+            json=event_data,
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        assert response.status_code == 403
+        assert "tenant_manager" in response.text
     
     def test_create_event_with_invalid_token(self):
         """Test that event creation fails with invalid authentication token"""
@@ -275,9 +292,7 @@ class TestEventCreation:
         assert response.status_code == 401
     
     def test_create_event_with_regular_user_role(self):
-        """Test creating event with regular user (tenant_user role) - should succeed based on current code"""
-        # Note: Current code has TODO comment about checking Tenant Manager role
-        # This test documents current behavior; should be updated when role check is implemented
+        """Regular tenant users should no longer be allowed to create events"""
         token = get_token(REGULAR_USER_ID, "user@test.com", "tenant_user")
         
         event_data = {
@@ -307,10 +322,8 @@ class TestEventCreation:
             json=event_data,
             headers={"Authorization": f"Bearer {token}"}
         )
-        
-        # Currently passes due to missing role check (TODO in code)
-        # Should be 403 when role enforcement is implemented
-        assert response.status_code == 200
+        # should now be forbidden because only tenant_manager may administer events
+        assert response.status_code == 403
     
     def test_create_event_creates_budget_and_metrics(self):
         """Test that event creation automatically creates associated budget and metrics records"""

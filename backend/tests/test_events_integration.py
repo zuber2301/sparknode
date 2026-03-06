@@ -152,7 +152,7 @@ class TestEventCreationIntegration:
         print(f"✓ Minimal event created successfully: {data['id']}")
     
     def test_create_event_with_platform_admin(self, platform_admin_token):
-        """Test creating an event with platform admin account"""
+        """Platform admin should be forbidden from creating events now that only tenant managers may do so"""
         event_data = {
             "title": f"Platform Admin Event {datetime.utcnow().isoformat()}",
             "type": "celebration",
@@ -166,12 +166,11 @@ class TestEventCreationIntegration:
             headers={"Authorization": f"Bearer {platform_admin_token}"}
         )
         
-        # Note: This should succeed as the endpoint doesn't check admin role yet
-        assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
-        print(f"✓ Event created by platform admin: {response.json()['id']}")
+        assert response.status_code == 403, f"Expected 403 for platform admin, got {response.status_code}: {response.text}"
+        print("✓ platform admin is correctly blocked from event creation")
     
     def test_create_event_with_regular_user(self, regular_user_token):
-        """Test creating event with regular user (should succeed - role check not implemented yet)"""
+        """Regular tenant user should be blocked from creating events"""
         event_data = {
             "title": f"Regular User Event {datetime.utcnow().isoformat()}",
             "type": "celebration",
@@ -184,14 +183,8 @@ class TestEventCreationIntegration:
             json=event_data,
             headers={"Authorization": f"Bearer {regular_user_token}"}
         )
-        
-        # Currently succeeds due to missing role check (TODO in code)
-        # Should fail with 403 when role enforcement is implemented
-        if response.status_code == 200:
-            print(f"⚠ Regular user can create events (TODO: implement role check)")
-            print(f"  Event ID: {response.json()['id']}")
-        else:
-            print(f"✓ Regular user blocked from creating events: {response.status_code}")
+        assert response.status_code == 403, f"Expected 403 for regular user, got {response.status_code}: {response.text}"
+        print("✓ regular user correctly blocked from event creation")
     
     def test_list_events_with_valid_token(self, admin_token):
         """Test listing events with valid authentication"""
