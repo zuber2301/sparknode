@@ -101,6 +101,7 @@ async def create_budget(
         "allocated_points": budget.allocated_points,
         "remaining_points": Decimal(str(budget.total_points)) - Decimal(str(budget.allocated_points)),
         "status": budget.status,
+        "expiry_date": budget.expiry_date,
         "created_by": budget.created_by,
         "created_at": budget.created_at
     }
@@ -130,6 +131,7 @@ async def get_budget(
         "allocated_points": budget.allocated_points,
         "remaining_points": Decimal(str(budget.total_points)) - Decimal(str(budget.allocated_points)),
         "status": budget.status,
+        "expiry_date": budget.expiry_date,
         "created_by": budget.created_by,
         "created_at": budget.created_at
     }
@@ -181,6 +183,7 @@ async def update_budget(
         "allocated_points": budget.allocated_points,
         "remaining_points": Decimal(str(budget.total_points)) - Decimal(str(budget.allocated_points)),
         "status": budget.status,
+        "expiry_date": budget.expiry_date,
         "created_by": budget.created_by,
         "created_at": budget.created_at
     }
@@ -295,6 +298,7 @@ async def get_department_budgets(
             "spent_points": db_item.spent_points,
             "remaining_points": Decimal(str(db_item.allocated_points)) - Decimal(str(db_item.spent_points)),
             "monthly_cap": db_item.monthly_cap,
+            "expiry_date": db_item.expiry_date,
             "created_at": db_item.created_at
         })
     

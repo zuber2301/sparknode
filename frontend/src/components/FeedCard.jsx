@@ -5,16 +5,19 @@ import { HiOutlineHeart, HiHeart, HiOutlineChat, HiOutlineStar } from 'react-ico
 import toast from 'react-hot-toast'
 import { recognitionApi, tenantsAPI } from '../lib/api'
 import { formatCurrency } from '../lib/currency'
+import { useAuthStore } from '../store/authStore'
 
 export default function FeedCard({ item }) {
   const [showComments, setShowComments] = useState(false)
   const [comment, setComment] = useState('')
   const queryClient = useQueryClient()
+  const { tenantContext } = useAuthStore()
 
-  // Fetch tenant config for currency settings
+  // Fetch tenant config for currency settings if not in context
   const { data: tenantData } = useQuery({
     queryKey: ['tenant', 'current'],
-    queryFn: () => tenantsAPI.getCurrentTenant()
+    queryFn: () => tenantsAPI.getCurrentTenant(),
+    enabled: !tenantContext?.display_currency
   })
 
   const reactionMutation = useMutation({
@@ -70,8 +73,8 @@ export default function FeedCard({ item }) {
   }
 
   // Get currency display settings
-  const displayCurrency = tenantData?.display_currency || 'USD'
-  const fxRate = parseFloat(tenantData?.fx_rate) || 1.0
+  const displayCurrency = tenantContext?.display_currency || tenantData?.display_currency || 'INR'
+  const fxRate = parseFloat(tenantContext?.fx_rate || tenantData?.fx_rate) || 1.0
   const formattedPoints = item.metadata?.points
     ? formatCurrency(item.metadata.points, displayCurrency, fxRate)
     : null

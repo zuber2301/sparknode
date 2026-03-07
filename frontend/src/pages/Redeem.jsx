@@ -6,6 +6,8 @@ import { HiOutlineGift, HiOutlineSearch } from 'react-icons/hi'
 import RewardsCatalog from '../components/RewardsCatalog'
 import RedemptionHistory from '../components/RedemptionHistory'
 import RedemptionFlow from '../components/RedemptionFlow'
+import { useAuthStore } from '../store/authStore'
+import { formatPoints } from '../lib/currency'
 
 /** Normalise a catalog browse item into the shape RewardsCatalog + RedemptionFlow expect */
 function normaliseCatalogItem(item) {
@@ -30,6 +32,8 @@ export default function Redeem() {
   const [selectedVoucher, setSelectedVoucher] = useState(null)
   const [isFlowOpen, setIsFlowOpen] = useState(false)
   const queryClient = useQueryClient()
+  const { tenantContext } = useAuthStore()
+  const displayCurrency = tenantContext?.display_currency || 'INR'
 
   const { data: wallet } = useQuery({
     queryKey: ['myWallet'],
@@ -73,13 +77,15 @@ export default function Redeem() {
   return (
     <div className="space-y-6">
       {/* Header with balance */}
-      <div className="bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-2xl p-6 text-white">
-        <div className="flex items-center justify-between">
+      <div className="bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-2xl p-6 text-white shadow-lg overflow-hidden relative">
+        <div className="relative z-10 flex items-center justify-between">
           <div>
-            <p className="text-white/80 text-sm">Available Points</p>
-            <p className="text-4xl font-bold">{wallet?.data?.balance || 0}</p>
+            <p className="text-white/80 text-sm font-medium tracking-wide uppercase">Available Points</p>
+            <p className="text-4xl sm:text-5xl font-extrabold mt-1">
+              {formatPoints(wallet?.data?.balance || 0, displayCurrency)}
+            </p>
           </div>
-          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
+          <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20">
             <HiOutlineGift className="w-8 h-8" />
           </div>
         </div>
@@ -121,10 +127,15 @@ export default function Redeem() {
             balance={wallet?.data?.balance || 0}
             onRedeem={handleRedeem}
             isRedeeming={false}
+            displayCurrency={displayCurrency}
+            fxRate={parseFloat(tenantContext?.fx_rate) || 1}
           />
         </>
       ) : (
-        <RedemptionHistory redemptions={redemptions?.data || []} />
+        <RedemptionHistory 
+          redemptions={redemptions?.data || []} 
+          displayCurrency={displayCurrency}
+        />
       )}
 
       {/* Redemption Workflow Modal */}

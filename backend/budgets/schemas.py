@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional, List
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
 
 
@@ -10,7 +10,7 @@ class BudgetBase(BaseModel):
     fiscal_year: int
     fiscal_quarter: Optional[int] = None
     total_points: Decimal
-    expiry_date: Optional[datetime] = None
+    expiry_date: Optional[date] = None
 
 
 class BudgetCreate(BudgetBase):
@@ -21,7 +21,7 @@ class BudgetUpdate(BaseModel):
     name: Optional[str] = None
     total_points: Optional[Decimal] = None
     status: Optional[str] = None
-    expiry_date: Optional[datetime] = None
+    expiry_date: Optional[date] = None
 
 
 class BudgetResponse(BudgetBase):
@@ -41,7 +41,7 @@ class DepartmentBudgetBase(BaseModel):
     department_id: UUID
     allocated_points: Decimal
     monthly_cap: Optional[Decimal] = None
-    expiry_date: Optional[datetime] = None
+    expiry_date: Optional[date] = None
 
 
 class DepartmentBudgetCreate(DepartmentBudgetBase):
@@ -51,7 +51,7 @@ class DepartmentBudgetCreate(DepartmentBudgetBase):
 class DepartmentBudgetUpdate(BaseModel):
     allocated_points: Optional[Decimal] = None
     monthly_cap: Optional[Decimal] = None
-    expiry_date: Optional[datetime] = None
+    expiry_date: Optional[date] = None
 
 
 class DepartmentBudgetResponse(BaseModel):
@@ -63,7 +63,7 @@ class DepartmentBudgetResponse(BaseModel):
     spent_points: Decimal
     remaining_points: Decimal
     monthly_cap: Optional[Decimal] = None
-    expiry_date: Optional[datetime] = None
+    expiry_date: Optional[date] = None
     created_at: datetime
 
     class Config:

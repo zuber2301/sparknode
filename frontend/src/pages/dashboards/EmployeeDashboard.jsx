@@ -4,6 +4,7 @@ import { walletsAPI, recognitionAPI, feedAPI } from '../../lib/api'
 import { HiOutlineSparkles, HiOutlineGift, HiOutlineTrendingUp } from 'react-icons/hi'
 import WalletBalance from '../../components/WalletBalance'
 import FeedCard from '../../components/FeedCard'
+import { formatPoints } from '../../lib/currency'
 
 /**
  * Employee Dashboard
@@ -11,7 +12,8 @@ import FeedCard from '../../components/FeedCard'
  * Shows personal wallet, recognition stats, and company feed
  */
 export default function EmployeeDashboard() {
-  const { user } = useAuthStore()
+  const { user, tenantContext } = useAuthStore()
+  const displayCurrency = tenantContext?.display_currency || 'INR'
 
   const { data: wallet } = useQuery({
     queryKey: ['myWallet'],
@@ -51,7 +53,7 @@ export default function EmployeeDashboard() {
             </div>
           </div>
           <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
-            {wallet?.balance ? `$${(wallet.balance / 100).toFixed(2)}` : '$0.00'}
+            {formatPoints(wallet?.balance || 0, displayCurrency)}
           </p>
           <p className="text-xs text-gray-500 mt-1">Available to spend</p>
         </div>

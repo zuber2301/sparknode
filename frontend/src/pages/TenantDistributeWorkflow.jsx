@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../store/authStore'
 import { tmDistributeApi } from '../lib/api'
-import { formatDisplayValue } from '../lib/currency'
+import { formatDisplayValue, formatPoints } from '../lib/currency'
 import toast from 'react-hot-toast'
 import {
   HiOutlineBuildingOffice2,
@@ -103,7 +103,7 @@ function ConfirmationModal({ isOpen, onClose, onConfirm, title, subtitle, summar
   )
 }
 
-function SuccessResult({ result, onReset }) {
+function SuccessResult({ result, onReset, currency = 'INR' }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="p-5 rounded-full bg-green-50 mb-5">
@@ -132,11 +132,15 @@ function SuccessResult({ result, onReset }) {
         )}
         <div className="bg-purple-50 rounded-xl p-4">
           <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-1">Per User</p>
-          <p className="text-lg font-black text-sparknode-purple">{Number(result.points_per_user).toLocaleString()} pts</p>
+          <p className="text-lg font-black text-sparknode-purple">
+            {formatPoints(result.points_per_user, currency)}
+          </p>
         </div>
         <div className="bg-gray-50 rounded-xl p-4 col-span-2">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Pool Remaining</p>
-          <p className="text-lg font-black text-gray-800">{Number(result.tenant_pool_remaining).toLocaleString()} pts</p>
+          <p className="text-lg font-black text-gray-800">
+            {formatPoints(result.tenant_pool_remaining, currency)}
+          </p>
         </div>
       </div>
       <button
@@ -618,7 +622,7 @@ function AllUsersDistributionTab({ currency }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function TenantDistributeWorkflow() {
-  const { user } = useAuthStore()
+  const { user, tenantContext } = useAuthStore()
   const [activeTab, setActiveTab] = useState('dept')
 
   // Role guard
@@ -636,8 +640,8 @@ export default function TenantDistributeWorkflow() {
     )
   }
 
-  // We derive currency from previews — default INR
-  const currency = 'INR'
+  // We derive currency from tenant context — default INR
+  const currency = tenantContext?.display_currency || 'INR'
 
   const TABS = [
     {

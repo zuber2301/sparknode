@@ -52,7 +52,7 @@ def get_user_roles(org_role: str):
             'default_role': 'platform_admin'
         },
         'tenant_manager': {
-            'roles': 'tenant_manager,dept_lead,tenant_user',
+            'roles': 'tenant_manager,dept_lead,tenant_user,sales_marketing',
             'default_role': 'tenant_manager'
         },
         'dept_lead': {
@@ -358,7 +358,9 @@ async def get_current_user_info(
         avatar_url=current_user.avatar_url,
         status=current_user.status,
         is_platform_admin=current_user.is_platform_admin,
-        tenant_flags=tenant_flags
+        tenant_flags=tenant_flags,
+        display_currency=tenant.display_currency if tenant else "USD",
+        base_currency=tenant.base_currency if tenant else "USD"
     )
 
 

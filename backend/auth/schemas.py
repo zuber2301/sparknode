@@ -49,6 +49,8 @@ class UserResponse(BaseModel):
     status: str
     is_platform_admin: bool = False
     tenant_flags: Optional[dict] = None  # Inject tenant feature flags for frontend
+    display_currency: Optional[str] = "USD"
+    base_currency: Optional[str] = "USD"
     created_at: Optional[datetime] = None
 
     class Config:

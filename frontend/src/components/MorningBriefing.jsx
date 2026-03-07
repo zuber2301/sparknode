@@ -15,14 +15,17 @@ import { formatDisplayValue } from '../lib/currency'
  * - Quick action tips
  */
 export default function MorningBriefing() {
-  const { user } = useAuthStore()
+  const { user, tenantContext } = useAuthStore()
 
-  // Fetch tenant data
+  // Fetch tenant data if not in context
   const { data: tenantData } = useQuery({
     queryKey: ['tenant', user?.tenant_id],
     queryFn: () => tenantsAPI.getCurrent(),
-    enabled: !!user?.tenant_id,
+    enabled: !!user?.tenant_id && !tenantContext?.display_currency,
   })
+
+  const tenant = tenantContext || tenantData?.data
+  const displayCurrency = tenant?.display_currency || 'INR'
 
   // Fetch team leads
   const { data: teamLeadsData } = useQuery({
@@ -69,8 +72,7 @@ export default function MorningBriefing() {
     return Math.round(((thisWeek - lastWeek) / lastWeek) * 100)
   }, [recognitionStatsData])
 
-  const tenant = tenantData?.data
-  const masterPoolBudget = tenant?.budget_allocation_balance || 0
+  const masterPoolBudget = (tenantContext?.budget_allocation_balance || tenantData?.data?.budget_allocation_balance) || 0
   const thisWeekRecognitions = recognitionStatsData?.data?.this_week_count || 0
 
   return (
@@ -92,7 +94,7 @@ export default function MorningBriefing() {
                 <div>
                   <p className="text-xs sm:text-sm text-gray-500 font-medium">Master Pool</p>
                   <p className="text-2xl sm:text-3xl font-bold text-blue-600 mt-1">
-                    {formatDisplayValue(masterPoolBudget || 0, tenant?.display_currency || 'INR')}
+                    {formatDisplayValue(masterPoolBudget || 0, displayCurrency)}
                   </p>
                 </div>
                 <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">

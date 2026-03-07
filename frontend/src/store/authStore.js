@@ -59,7 +59,9 @@ export const useAuthStore = create(
           tenantContext: tenantContext || user?.tenant_data || {
             tenant_id: user?.tenant_id,
             tenant_name: user?.tenant_name,
-            feature_flags: user?.tenant_flags || {}
+            feature_flags: user?.tenant_flags || {},
+            display_currency: user?.display_currency || 'INR',
+            base_currency: user?.base_currency || 'INR',
           },
           availableRoles,
           currentRole,

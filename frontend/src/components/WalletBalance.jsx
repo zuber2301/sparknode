@@ -2,12 +2,16 @@ import { HiOutlineCash } from 'react-icons/hi'
 import { useQuery } from '@tanstack/react-query'
 import { tenantsAPI } from '../lib/api'
 import { formatCurrency, formatPoints } from '../lib/currency'
+import { useAuthStore } from '../store/authStore'
 
 export default function WalletBalance({ wallet }) {
-  // Fetch tenant config to get currency settings
+  const { tenantContext } = useAuthStore()
+
+  // Fetch tenant config to get currency settings if not in context
   const { data: tenantData } = useQuery({
     queryKey: ['tenant', 'current'],
-    queryFn: () => tenantsAPI.getCurrentTenant()
+    queryFn: () => tenantsAPI.getCurrentTenant(),
+    enabled: !tenantContext?.display_currency
   })
 
   if (!wallet) {
@@ -18,8 +22,8 @@ export default function WalletBalance({ wallet }) {
     )
   }
 
-  // Get currency display settings
-  const displayCurrency = tenantData?.display_currency || 'INR'
+  // Get currency display settings from context or fetched data
+  const displayCurrency = tenantContext?.display_currency || tenantData?.display_currency || 'INR'
 
   // Format wallet values as points using appropriate currency symbol and integer values
   const formattedBalance = formatPoints(wallet.balance, displayCurrency)

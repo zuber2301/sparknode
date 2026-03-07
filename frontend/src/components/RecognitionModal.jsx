@@ -4,6 +4,7 @@ import { HiX, HiOutlineStar, HiOutlineGift, HiOutlineUsers, HiOutlineMailOpen, H
 import toast from 'react-hot-toast'
 import { recognitionAPI, usersAPI } from '../lib/api'
 import { useAuthStore } from '../store/authStore'
+import { formatPoints } from '../lib/currency'
 
 const ecardTemplates = [
   { id: 'thank_you', name: 'Thank You', color: 'bg-blue-100 text-blue-800', icon: '🙏' },
@@ -25,9 +26,10 @@ export default function RecognitionModal({ isOpen, onClose, initialData = {} }) 
   const [searchTerm, setSearchTerm] = useState('')
   
   const queryClient = useQueryClient()
-  const { user, getEffectiveRole } = useAuthStore()
+  const { user, getEffectiveRole, tenantContext } = useAuthStore()
   const effectiveRole = getEffectiveRole()
   const isManager = ['tenant_manager', 'dept_lead', 'platform_admin'].includes(effectiveRole)
+  const displayCurrency = tenantContext?.display_currency || 'INR'
 
   const { data: users } = useQuery({
     queryKey: ['users'],
@@ -294,8 +296,11 @@ export default function RecognitionModal({ isOpen, onClose, initialData = {} }) 
                   )}
 
                   <div className='text-xs text-gray-500 text-right italic'>
-                    Total budget to be deducted: <span className='font-bold'>
-                      {type === 'group_award' && !isEqualSplit ? points * recipients.length : points}
+                    Total budget to be deducted: <span className='font-bold text-sparknode-purple'>
+                      {formatPoints(
+                        type === 'group_award' && !isEqualSplit ? points * recipients.length : points,
+                        displayCurrency
+                      )}
                     </span>
                   </div>
                 </div>

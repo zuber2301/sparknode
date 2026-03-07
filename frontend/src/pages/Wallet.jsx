@@ -2,8 +2,13 @@ import { useQuery } from '@tanstack/react-query'
 import { walletsAPI } from '../lib/api'
 import { format } from 'date-fns'
 import { HiOutlineArrowUp, HiOutlineArrowDown, HiOutlineCash } from 'react-icons/hi'
+import { useAuthStore } from '../store/authStore'
+import { formatPoints } from '../lib/currency'
 
 export default function Wallet() {
+  const { tenantContext } = useAuthStore()
+  const displayCurrency = tenantContext?.display_currency || 'INR'
+
   const { data: wallet, isLoading: walletLoading } = useQuery({
     queryKey: ['myWallet'],
     queryFn: () => walletsAPI.getMyWallet(),
@@ -57,7 +62,9 @@ export default function Wallet() {
           </div>
           <div>
             <p className="text-xs sm:text-sm text-white/80">Current Balance</p>
-            <p className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-1">{wallet?.data?.balance || 0} points</p>
+            <p className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-1">
+              {formatPoints(wallet?.data?.balance || 0, displayCurrency)} 
+            </p>
           </div>
         </div>
         
@@ -67,14 +74,18 @@ export default function Wallet() {
               <HiOutlineArrowUp className="w-3 h-3 sm:w-4 sm:h-4 text-green-300 flex-shrink-0" />
               <span className="text-xs sm:text-sm text-white/80">Lifetime Earned</span>
             </div>
-            <p className="text-xl sm:text-2xl font-semibold">{wallet?.data?.lifetime_earned || 0}</p>
+            <p className="text-xl sm:text-2xl font-semibold">
+              {formatPoints(wallet?.data?.lifetime_earned || 0, displayCurrency)}
+            </p>
           </div>
           <div className="bg-white/10 rounded-lg sm:rounded-xl p-3 sm:p-4">
             <div className="flex items-center gap-2 mb-1">
               <HiOutlineArrowDown className="w-3 h-3 sm:w-4 sm:h-4 text-red-300 flex-shrink-0" />
               <span className="text-xs sm:text-sm text-white/80">Lifetime Spent</span>
             </div>
-            <p className="text-xl sm:text-2xl font-semibold">{wallet?.data?.lifetime_spent || 0}</p>
+            <p className="text-xl sm:text-2xl font-semibold">
+              {formatPoints(wallet?.data?.lifetime_spent || 0, displayCurrency)}
+            </p>
           </div>
         </div>
       </div>
@@ -124,10 +135,10 @@ export default function Wallet() {
                   <p className={`text-base sm:text-lg font-semibold ${
                     entry.transaction_type === 'credit' ? 'text-green-600' : 'text-red-600'
                   }`}>
-                    {entry.transaction_type === 'credit' ? '+' : '-'}{entry.points}
+                    {entry.transaction_type === 'credit' ? '+' : '-'}{formatPoints(entry.points, displayCurrency)}
                   </p>
                   <p className="text-xs sm:text-sm text-gray-500">
-                    Balance: {entry.balance_after}
+                    Balance: {formatPoints(entry.balance_after, displayCurrency)}
                   </p>
                 </div>
               </div>

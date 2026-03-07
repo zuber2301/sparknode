@@ -1,7 +1,8 @@
 import { formatDistanceToNow } from 'date-fns'
 import { HiOutlineGift, HiOutlineCheck, HiOutlineClock, HiOutlineX } from 'react-icons/hi'
+import { formatPoints } from '../lib/currency'
 
-export default function RedemptionHistory({ redemptions }) {
+export default function RedemptionHistory({ redemptions, displayCurrency = 'INR' }) {
   if (!redemptions?.length) {
     return (
       <div className="text-center py-12">
@@ -71,7 +72,9 @@ export default function RedemptionHistory({ redemptions }) {
             <div className="flex items-center space-x-4 mt-1 text-sm text-gray-500">
               <span>{redemption.brand_name}</span>
               <span>•</span>
-              <span>{redemption.points_used || redemption.points_spent} points</span>
+              <span className="font-medium text-gray-700">
+                {formatPoints(redemption.points_used || redemption.points_spent || 0, displayCurrency)}
+              </span>
               <span>•</span>
               <span>
                 {formatDistanceToNow(new Date(redemption.created_at), { addSuffix: true })}
