@@ -157,50 +157,106 @@ export default function EventCreateWizard({ editingEventId = null }) {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <button
-          onClick={() => navigate('/events')}
-          className="text-sm text-gray-600 hover:text-gray-900 mb-4"
-        >
-          ← Back to Events
-        </button>
-        <h1 className="text-3xl font-bold text-gray-900">
-          {editingEventId ? 'Edit Event' : 'Create New Event'}
-        </h1>
-      </div>
-
-      {/* Stepper */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 mb-8">
-        <div className="flex items-center justify-between mb-8">
-          {steps.map((s, idx) => (
-            <div key={s.number} className="flex items-center flex-1">
-              <button
-                onClick={() => setStep(s.number)}
-                className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold transition-colors ${
-                  step >= s.number
-                    ? 'bg-sparknode-purple text-white'
-                    : 'bg-gray-100 text-gray-600'
-                }`}
-              >
-                {s.number}
-              </button>
-              <div className="ml-3">
-                <div className="text-sm font-medium text-gray-900">{s.name}</div>
-              </div>
-              {idx < steps.length - 1 && (
-                <div className={`flex-1 h-1 mx-4 ${step > s.number ? 'bg-sparknode-purple' : 'bg-gray-200'}`} />
-              )}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="flex flex-col md:flex-row gap-12 items-start">
+        {/* Left Navigation Sidebar - Modern Stacked Style */}
+        <aside className="w-full md:w-72 shrink-0 md:sticky md:top-8">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="p-6 bg-gray-50/50 border-b border-gray-100">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">Creation Workflow</h3>
             </div>
-          ))}
-        </div>
+            <nav className="p-3 space-y-2">
+              {steps.map((s) => {
+                const isActive = step === s.number
+                const isCompleted = step > s.number
+                const isLocked = s.number > step && !isStepValid()
 
-        {/* Step Content */}
-        <div className="space-y-6">
-          {step === 1 && (
-            <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-gray-900">Event Basics</h2>
+                return (
+                  <button
+                    key={s.number}
+                    onClick={() => (!isLocked || isCompleted) && setStep(s.number)}
+                    disabled={isLocked}
+                    className={`w-full group flex items-center px-4 py-4 rounded-xl transition-all duration-200 ${
+                      isActive
+                        ? 'bg-sparknode-purple text-white shadow-md shadow-purple-100 ring-1 ring-purple-600'
+                        : isCompleted
+                        ? 'text-sparknode-purple bg-purple-50/50 hover:bg-purple-100/50'
+                        : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                    } ${isLocked ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer active:scale-[0.98]'}`}
+                  >
+                    <div
+                      className={`flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold border-2 transition-all duration-200 mr-4 ${
+                        isActive
+                          ? 'bg-white text-sparknode-purple border-white rotate-0'
+                          : isCompleted
+                          ? 'bg-sparknode-purple text-white border-sparknode-purple'
+                          : 'bg-transparent border-gray-200 group-hover:border-gray-300'
+                      }`}
+                    >
+                      {isCompleted ? '✓' : s.number}
+                    </div>
+                    <div className="text-left">
+                      <p className={`text-sm font-bold ${isActive ? 'text-white' : 'text-gray-700'}`}>
+                        {s.name}
+                      </p>
+                      <p className={`text-[10px] uppercase tracking-wider font-semibold opacity-60 ${isActive ? 'text-purple-100' : 'text-gray-400'}`}>
+                        {isActive ? 'Currently editing' : isCompleted ? 'Completed' : 'Waiting'}
+                      </p>
+                    </div>
+                  </button>
+                )
+              })}
+            </nav>
+            <div className="p-4 bg-gray-50/30">
+              <button
+                onClick={() => navigate('/events')}
+                className="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                ← EXIT WIZARD
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-6 p-5 bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl border border-white shadow-sm ring-1 ring-purple-100/50">
+            <h4 className="text-xs font-bold text-purple-900 mb-2 italic">Pro Tip</h4>
+            <p className="text-[11px] leading-relaxed text-purple-700">
+              Fill in the basics first. You can always save as draft and finish the activities later.
+            </p>
+          </div>
+        </aside>
+
+        {/* Main Content Area - Refined Card UI */}
+        <main className="flex-1 w-full max-w-4xl">
+          {/* Header */}
+          <header className="mb-10">
+            <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
+              {editingEventId ? 'Edit Event' : 'Create New Event'}
+            </h1>
+            <div className="flex items-center gap-3 mt-3">
+              <span className="px-2.5 py-1 bg-purple-100 text-purple-700 text-[10px] font-black uppercase tracking-widest rounded-full">
+                Step 0{step}
+              </span>
+              <div className="h-1.5 w-32 bg-gray-100 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-sparknode-purple transition-all duration-500 ease-out"
+                  style={{ width: `${(step / 4) * 100}%` }}
+                />
+              </div>
+              <span className="text-sm font-bold text-gray-400">
+                {Math.round((step / 4) * 100)}% Complete
+              </span>
+            </div>
+          </header>
+
+          <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden ring-1 ring-gray-200/50">
+            {/* Step Content */}
+            <div className="p-10 space-y-10 min-h-[500px]">
+              {step === 1 && (
+                <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="border-b border-gray-100 pb-6">
+                    <h2 className="text-2xl font-bold text-gray-900">Event Details</h2>
+                    <p className="text-gray-500 mt-1">Provide the foundational information for your event.</p>
+                  </div>
 
               {/* Quick Templates */}
               {templates.length > 0 && (
@@ -351,12 +407,15 @@ export default function EventCreateWizard({ editingEventId = null }) {
                   className="w-12 h-10 rounded-lg cursor-pointer"
                 />
               </div>
-            </div>
+            </section>
           )}
 
           {step === 2 && (
-            <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-gray-900">Event Activities</h2>
+            <section className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="border-b border-gray-100 pb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Event Activities</h2>
+                <p className="text-gray-500 mt-1">Add activities and sessions to your event.</p>
+              </div>
 
               {/* Existing Activities */}
               {activities.length > 0 && (
@@ -459,11 +518,11 @@ export default function EventCreateWizard({ editingEventId = null }) {
                   </button>
                 </div>
               </div>
-            </div>
+            </section>
           )}
 
           {step === 3 && (
-            <div className="space-y-6">
+            <section className="space-y-6">
               <h2 className="text-xl font-semibold text-gray-900">Nomination Settings</h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -534,11 +593,11 @@ export default function EventCreateWizard({ editingEventId = null }) {
                   <option value="invited_only">Invited Only</option>
                 </select>
               </div>
-            </div>
+            </section>
           )}
 
           {step === 4 && (
-            <div className="space-y-6">
+            <section className="space-y-6">
               <h2 className="text-xl font-semibold text-gray-900">Budget Details</h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -587,46 +646,60 @@ export default function EventCreateWizard({ editingEventId = null }) {
                 </select>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800">
-                  <strong>Summary:</strong> {formData.title || 'Untitled Event'} with {activities.length} activities and {formData.currency} {formData.planned_budget}
-                </p>
+              <div className="bg-gray-50/50 p-6 rounded-2xl border border-dashed border-gray-200">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center shrink-0">
+                    <HiOutlineSparkles className="w-6 h-6 text-sparknode-purple animate-pulse" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900 leading-tight">Wizard Summary</h4>
+                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                      You are building <span className="font-extrabold text-blue-600 underline underline-offset-2 italic">{formData.title || 'a new event'}</span> with {activities.length} activities.
+                      Budget: <span className="font-bold text-gray-900">{formData.currency} {formData.planned_budget}</span>.
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
+            </section>
           )}
         </div>
 
-        {/* Navigation Buttons */}
-        <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
+        {/* Improved Navigation Buttons Section */}
+        <footer className="px-10 py-8 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between gap-4">
           <button
             onClick={() => setStep(step - 1)}
             disabled={step === 1}
-            className="btn btn-secondary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="group px-6 py-3 border border-gray-200 bg-white text-gray-600 font-bold rounded-2xl flex items-center gap-3 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 transition-all active:scale-[0.98] shadow-sm"
           >
-            <HiOutlineChevronLeft className="w-5 h-5" />
+            <HiOutlineChevronLeft className="w-5 h-5 group-hover:-translate-x-1 duration-200" />
             Previous
           </button>
 
-          {step < 4 ? (
-            <button
-              onClick={() => setStep(step + 1)}
-              disabled={!isStepValid()}
-              className="btn btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-              <HiOutlineChevronRight className="w-5 h-5" />
-            </button>
-          ) : (
-            <button
-              onClick={handleSubmit}
-              disabled={createMutation.isPending || !isStepValid()}
-              className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {createMutation.isPending ? 'Creating...' : editingEventId ? 'Update Event' : 'Create Event'}
-            </button>
-          )}
-        </div>
+          <div className="flex items-center gap-4">
+            {step < 4 ? (
+              <button
+                onClick={() => setStep(step + 1)}
+                disabled={!isStepValid()}
+                className="group px-8 py-3 bg-sparknode-purple text-white font-bold rounded-2xl flex items-center gap-3 shadow-lg shadow-purple-200 hover:bg-purple-700 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Continue to {steps.find(s => s.number === step + 1)?.name}
+                <HiOutlineChevronRight className="w-5 h-5 group-hover:translate-x-1 duration-200" />
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={createMutation.isPending || !isStepValid()}
+                className="group px-10 py-3 bg-black text-white font-bold rounded-2xl flex items-center gap-3 shadow-xl hover:bg-gray-800 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {createMutation.isPending ? 'Finalizing...' : editingEventId ? 'Confirm Updates' : 'Launch Event'}
+                <HiOutlineChevronRight className="w-5 h-5 group-hover:translate-x-1 duration-200" />
+              </button>
+            )}
+          </div>
+        </footer>
       </div>
-    </div>
-  )
+    </main>
+  </div>
+</div>
+)
 }
