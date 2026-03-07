@@ -56,9 +56,10 @@ export const useAuthStore = create(
           user,
           token,
           isAuthenticated: true,
-          tenantContext: tenantContext || {
+          tenantContext: tenantContext || user?.tenant_data || {
             tenant_id: user?.tenant_id,
             tenant_name: user?.tenant_name,
+            feature_flags: user?.tenant_flags || {}
           },
           availableRoles,
           currentRole,

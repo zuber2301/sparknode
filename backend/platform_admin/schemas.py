@@ -30,6 +30,7 @@ class TenantCreateRequest(BaseModel):
     master_budget_balance: Optional[Decimal] = Field(default=Decimal("0"), ge=0)
     
     # Multi-Currency Configuration (Mandatory)
+    base_currency: str = Field(default="USD", pattern="^(USD|EUR|INR)$")  # Internal billing currency
     display_currency: str = Field(default="USD", pattern="^(USD|EUR|INR)$")  # Required currency choice
     fx_rate: Optional[Decimal] = Field(default=Decimal("1.0"), gt=0)  # Exchange rate for display currency
     
@@ -70,6 +71,7 @@ class TenantUpdateRequest(BaseModel):
     auto_refill_threshold: Optional[Decimal] = None
     
     # Multi-Currency Support
+    base_currency: Optional[str] = Field(None, pattern="^(USD|EUR|INR)$")  # Internal billing currency
     display_currency: Optional[str] = Field(None, pattern="^(USD|EUR|INR)$")  # Display currency for tenant
     fx_rate: Optional[Decimal] = Field(None, gt=0)  # Exchange rate for display currency
 
@@ -221,6 +223,7 @@ class BudgetActivityResponse(BaseModel):
 
 class MasterBudgetAdjustRequest(BaseModel):
     points: Decimal
+    currency: Optional[str] = 'USD'
     description: Optional[str] = ''
 
     class Config:

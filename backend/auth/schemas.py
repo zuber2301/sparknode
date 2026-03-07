@@ -48,6 +48,7 @@ class UserResponse(BaseModel):
     hire_date: Optional[date] = None
     status: str
     is_platform_admin: bool = False
+    tenant_flags: Optional[dict] = None  # Inject tenant feature flags for frontend
     created_at: Optional[datetime] = None
 
     class Config:

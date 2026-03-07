@@ -182,8 +182,8 @@ export default function TopHeader() {
   })
 
   const salesEnabled = (() => {
-    const flags = (tenantContext && tenantContext.feature_flags) || (currentTenantResponse && currentTenantResponse.data && currentTenantResponse.data.feature_flags) || {}
-    return !!(flags.sales_marketing || flags.sales_marketting_enabled)
+    const flags = (tenantContext && tenantContext.feature_flags) || (user && user.tenant_flags) || (currentTenantResponse && currentTenantResponse.data && currentTenantResponse.data.feature_flags) || {}
+    return !!(flags.sales_marketing || flags.sales_marketing_enabled || flags.sales_marketting_enabled)
   })()
 
   // Check if user has sales_marketing role for menu access

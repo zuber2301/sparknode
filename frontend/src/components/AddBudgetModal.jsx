@@ -65,7 +65,7 @@ export default function AddBudgetModal({ isOpen, onClose, tenantId, tenant: tena
       return
     }
 
-    mutation.mutate({ points: value, description })
+    mutation.mutate({ points: value, currency: tenantData?.base_currency || 'USD', description })
   }
 
   if (!isOpen) return null

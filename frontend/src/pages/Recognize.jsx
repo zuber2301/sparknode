@@ -29,6 +29,11 @@ export default function Recognize() {
     queryFn: () => recognitionAPI.getAll({ limit: 10 }),
   })
 
+  const { data: badges } = useQuery({
+    queryKey: ['badges'],
+    queryFn: () => recognitionAPI.getBadges(),
+  })
+
   const handleSelectUser = (user) => {
     setSelectedUser(user)
     setDefaultType('standard')
@@ -179,7 +184,11 @@ export default function Recognize() {
                 className="p-6 rounded-2xl border border-gray-100 text-center hover:border-blue-600 hover:bg-blue-50 transition-all group"
               >
                 <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-orange-400 to-pink-500 rounded-full flex items-center justify-center text-white shadow-md group-hover:scale-110 transition-transform">
-                  <HiOutlineStar className="w-8 h-8" />
+                  {badge.icon_url ? (
+                    <span className="text-3xl">{badge.icon_url}</span>
+                  ) : (
+                    <HiOutlineStar className="w-8 h-8" />
+                  )}
                 </div>
                 <p className="font-bold text-gray-900 mb-1">{badge.name}</p>
                 <p className="text-xs font-bold text-blue-600 uppercase tracking-wider">{badge.points_value} pts</p>

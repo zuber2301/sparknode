@@ -19,7 +19,7 @@ from decimal import Decimal
 from database import get_db
 from models import (
     Tenant, User, Department, Budget, Recognition, Redemption, Wallet, AuditLog, MasterBudgetLedger,
-    ActorType, SystemAdmin
+    ActorType, SystemAdmin, DepartmentBudget, Badge
 )
 from auth.utils import get_password_hash
 from core import append_impersonation_metadata
@@ -131,7 +131,7 @@ async def create_tenant(
             max_users=tenant_data.max_users,
             master_budget_balance=starting_balance,
             # Multi-currency configuration
-            base_currency='USD',  # Always USD as base
+            base_currency=tenant_data.base_currency or 'USD',  # Selected billing currency
             display_currency=tenant_data.display_currency,  # User-selected currency (USD, EUR, INR)
             fx_rate=tenant_data.fx_rate or Decimal("1.0"),  # Exchange rate
             settings=tenant_data.settings or {
@@ -156,17 +156,9 @@ async def create_tenant(
         db.add(hr_dept)
         db.flush()
         
-        # Determine admin org_role based on selected modules/feature flags
-        # Default is tenant_manager
+        # Default admin org_role is always tenant_manager to comply with DB check constraints.
+        # Specific role capabilities (sales, ai) are handled via separate 'roles' field or feature flags.
         admin_org_role = 'tenant_manager'
-        
-        feature_flags = tenant_data.feature_flags or {}
-        
-        # Priority mapping for initial org_role if multiple flags set
-        if feature_flags.get('sales_marketing'):
-            admin_org_role = 'sales_marketing'
-        elif feature_flags.get('ai_copilot'):
-            admin_org_role = 'ai_copilot'
         
         # Create admin user with correct field names (corporate_email, org_role)
         admin_user = User(
@@ -200,13 +192,57 @@ async def create_tenant(
             transaction_type="credit",
             source="provisioning",
             points=starting_balance,
+            currency=tenant.base_currency,
             balance_after=starting_balance,
             description="Initial master budget allocation",
             created_by=current_user.id,
             created_by_type=ActorType.SYSTEM_ADMIN
         )
         db.add(ledger_entry)
-        
+
+        # SEEDING: Create default budget and department allocation to enable immediate recognition
+        if starting_balance > 0:
+            # 1. Create a default annual budget
+            default_budget = Budget(
+                tenant_id=tenant.id,
+                name=f"Default Budget {datetime.utcnow().year}",
+                fiscal_year=datetime.utcnow().year,
+                total_points=starting_balance,
+                allocated_points=starting_balance, # Fully allocate to HR for now
+                status='active',
+                created_by=admin_user.id
+            )
+            db.add(default_budget)
+            db.flush()
+
+            # 2. Allocate the points to the default HR department
+            dept_budget = DepartmentBudget(
+                tenant_id=tenant.id,
+                budget_id=default_budget.id,
+                department_id=hr_dept.id,
+                allocated_points=starting_balance,
+                spent_points=0
+            )
+            db.add(dept_budget)
+            
+            # Update tenant allocation balance
+            tenant.budget_allocated = starting_balance
+            tenant.budget_allocation_balance = 0
+            db.add(tenant)
+
+        # 3. Seed system badges for this tenant
+        system_badges = db.query(Badge).filter(Badge.is_system == True).all()
+        for sb in system_badges:
+            new_badge = Badge(
+                tenant_id=tenant.id,
+                name=sb.name,
+                description=sb.description,
+                icon_url=sb.icon_url,
+                points_value=sb.points_value,
+                is_system=False # Tenant-local copy
+            )
+            db.add(new_badge)
+
         # Audit log
         audit = AuditLog(
             tenant_id=tenant.id,
@@ -538,6 +574,7 @@ async def adjust_master_budget(
         transaction_type='credit',
         source='provisioning',
         points=points,
+        currency=payload.currency or tenant.base_currency or 'USD',
         balance_after=new_balance,
         description=payload.description or 'Provisioned budget',
         created_by=current_user.id,

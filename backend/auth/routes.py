@@ -317,13 +317,19 @@ async def login_for_access_token(
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Get current authenticated user information"""
     # Get roles based on org_role and merge with any roles explicitly stored on the user record.
     user_roles_config = get_user_roles(current_user.org_role)
     db_roles = [r.strip() for r in (current_user.roles or '').split(',') if r.strip()]
     config_roles = [r.strip() for r in user_roles_config['roles'].split(',') if r.strip()]
+    
+    # Get tenant flags to inject into response
+    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+    tenant_flags = tenant.feature_flags if tenant else {}
+
     # Preserve config ordering, but include any extra roles present on the user record.
     if db_roles:
         merged = []
@@ -350,7 +356,9 @@ async def get_current_user_info(
         personal_email=current_user.personal_email,
         department_id=current_user.department_id,
         avatar_url=current_user.avatar_url,
-        status=current_user.status
+        status=current_user.status,
+        is_platform_admin=current_user.is_platform_admin,
+        tenant_flags=tenant_flags
     )
 
 

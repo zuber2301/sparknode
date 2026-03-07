@@ -393,6 +393,7 @@ export default function PlatformTenants() {
       subscription_tier: formData.get('subscription_tier'),
       max_users: parseInt(formData.get('max_users'), 10),
       master_budget_balance: parseFloat(formData.get('master_budget_balance') || '0'),
+      base_currency: formData.get('base_currency'),
       display_currency: formData.get('display_currency'),
       fx_rate: parseFloat(formData.get('fx_rate') || '1'),
       admin_email: formData.get('admin_email'),
@@ -418,6 +419,9 @@ export default function PlatformTenants() {
         subscription_tier: full.subscription_tier || 'trial',
         max_users: full.max_users || 50,
         master_budget_balance: full.master_budget_balance || 0,
+        base_currency: full.base_currency || 'USD',
+        display_currency: full.display_currency || 'INR',
+        fx_rate: full.fx_rate || 1.0,
         currency_label: full.currency_label || full.currency || 'INR',
         point_symbol: full.point_symbol || full.currency_symbol || CURRENCY_SYMBOLS.INR,
         redemption_markup: full.redemption_markup || 0,
@@ -907,15 +911,29 @@ export default function PlatformTenants() {
                 {/* ── Economic Configuration ──────────────────────────────── */}
                 <div className="border-t border-gray-100 pt-6">
                   <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Economic Configuration</h3>
-                  <form onSubmit={(e) => { e.preventDefault(); updateMutation.mutate({ tenantId: selectedTenant.id, payload: { currency_label: editForm.currency_label, point_symbol: editForm.point_symbol, redemption_markup: editForm.redemption_markup } }) }} className="space-y-6">
+                  <form onSubmit={(e) => { e.preventDefault(); updateMutation.mutate({ tenantId: selectedTenant.id, payload: { base_currency: editForm.base_currency, display_currency: editForm.display_currency, fx_rate: editForm.fx_rate, currency_label: editForm.currency_label, point_symbol: editForm.point_symbol, redemption_markup: editForm.redemption_markup } }) }} className="space-y-6">
                     <div className="grid grid-cols-2 gap-6">
                       <div>
-                        <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Tenant Currency</label>
-                        <select value={editForm.currency_label} onChange={(e) => setEditForm({ ...editForm, currency_label: e.target.value })} className="w-full bg-gray-50 border-none rounded-lg text-sm py-3 px-4">
+                        <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Base Currency (Billing)</label>
+                        <select value={editForm.base_currency} onChange={(e) => setEditForm({ ...editForm, base_currency: e.target.value })} className="w-full bg-gray-50 border-none rounded-lg text-sm py-3 px-4">
                           <option>INR</option>
                           <option>USD</option>
                           <option>EUR</option>
                         </select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Display Currency</label>
+                        <select value={editForm.display_currency} onChange={(e) => setEditForm({ ...editForm, display_currency: e.target.value })} className="w-full bg-gray-50 border-none rounded-lg text-sm py-3 px-4">
+                          <option>INR</option>
+                          <option>USD</option>
+                          <option>EUR</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">FX Rate (Base → Display)</label>
+                        <input type="number" step="any" value={editForm.fx_rate} onChange={(e) => setEditForm({ ...editForm, fx_rate: Number(e.target.value) })} className="w-full bg-gray-50 border-none rounded-lg text-sm py-3 px-4" />
                       </div>
                       <div>
                         <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Point Symbol</label>
@@ -923,9 +941,13 @@ export default function PlatformTenants() {
                       </div>
                     </div>
                     <div>
+                      <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Currency Label (e.g. Points)</label>
+                      <input value={editForm.currency_label} onChange={(e) => setEditForm({ ...editForm, currency_label: e.target.value })} className="w-full bg-gray-50 border-none rounded-lg text-sm py-3 px-4" />
+                    </div>
+                    <div>
                       <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Redemption Markup (%)</label>
                       <input type="number" value={editForm.redemption_markup || 0} onChange={(e) => setEditForm({ ...editForm, redemption_markup: Number(e.target.value) })} className="w-40 bg-gray-50 border-none rounded-lg text-sm py-3 px-4" />
-                      <p className="text-xs text-gray-500 mt-2">Example: 10% means a {formatDisplayValue(500, editForm.currency_label || 'INR')} voucher costs 550 points.</p>
+                      <p className="text-xs text-gray-500 mt-2">Example: 10% means a {formatDisplayValue(500, editForm.display_currency || 'INR')} voucher costs 550 points.</p>
                     </div>
                     <div className="flex justify-end gap-3 pt-2">
                       <button type="submit" disabled={updateMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs uppercase tracking-widest">{updateMutation.isPending ? 'Saving...' : 'Save Economic Config'}</button>
@@ -1263,13 +1285,23 @@ export default function PlatformTenants() {
                 
                 {/* Currency Configuration - Mandatory */}
                 <div>
+                  <label className="label">Base Currency (Billing) <span className="text-red-500">*</span></label>
+                  <select name="base_currency" className="input" defaultValue="USD" required>
+                    <option value="INR">INR ({CURRENCY_SYMBOLS.INR})</option>
+                    <option value="USD">USD ({CURRENCY_SYMBOLS.USD})</option>
+                    <option value="EUR">EUR ({CURRENCY_SYMBOLS.EUR})</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">Currency the tenant will be billed in</p>
+                </div>
+
+                <div>
                   <label className="label">Display Currency <span className="text-red-500">*</span></label>
                   <select name="display_currency" className="input" defaultValue="INR" required>
                     <option value="INR">INR ({CURRENCY_SYMBOLS.INR})</option>
                     <option value="USD">USD ({CURRENCY_SYMBOLS.USD})</option>
                     <option value="EUR">EUR ({CURRENCY_SYMBOLS.EUR})</option>
                   </select>
-                  <p className="text-xs text-gray-500 mt-1">This currency will be used across the tenant</p>
+                  <p className="text-xs text-gray-500 mt-1">Currency shown in the tenant UI</p>
                 </div>
 
                 {/* FX Rate - for non-INR tenants */}

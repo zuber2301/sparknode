@@ -334,7 +334,7 @@ class User(Base):
     @property
     def is_platform_admin(self):
         """Check if user has platform-level privileges"""
-        return self.system_admin is not None or self.org_role == "platform_admin"
+        return self.system_admin is not None or self.org_role == "platform_admin" or self.is_super_admin
 
     @property
     def full_name(self):
@@ -523,6 +523,7 @@ class MasterBudgetLedger(Base):
     transaction_type = Column(String(20), nullable=False)  # credit/debit
     source = Column(String(50), nullable=False)  # provisioning/adjustment/allocation/reversal
     points = Column(Numeric(15, 2), nullable=False)
+    currency = Column(String(5), nullable=False, server_default='USD')  # Currency for this entry
     balance_after = Column(Numeric(15, 2), nullable=False)
     reference_type = Column(String(50))
     reference_id = Column(UUID(as_uuid=True))
