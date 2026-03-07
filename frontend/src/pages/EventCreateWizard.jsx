@@ -458,13 +458,59 @@ export default function EventCreateWizard({ editingEventId = null }) {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Activity Name *
                     </label>
-                    <input
-                      type="text"
+                    <select
                       value={newActivity.name}
-                      onChange={(e) => setNewActivity({ ...newActivity, name: e.target.value })}
-                      className="input w-full"
-                      placeholder="e.g., Singing, Sports, Gift Pickup"
-                    />
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === 'custom') {
+                          setNewActivity({ ...newActivity, name: '' });
+                        } else {
+                          setNewActivity({ ...newActivity, name: val });
+                        }
+                      }}
+                      className="input w-full mb-2"
+                    >
+                      <option value="">Select an activity...</option>
+                      <optgroup label="Stage Performances">
+                        <option value="Solo Singing">Solo Singing</option>
+                        <option value="Group Singing">Group Singing</option>
+                        <option value="Solo Dance">Solo Dance</option>
+                        <option value="Group Dance">Group Dance</option>
+                        <option value="Skit / Drama">Skit / Drama</option>
+                        <option value="Stand-up Comedy">Stand-up Comedy</option>
+                        <option value="Poetry Recitation">Poetry Recitation</option>
+                      </optgroup>
+                      <optgroup label="Sports & Outdoors">
+                        <option value="Cricket Match">Cricket Match</option>
+                        <option value="Badminton">Badminton</option>
+                        <option value="Table Tennis">Table Tennis</option>
+                        <option value="Marathon / Run">Marathon / Run</option>
+                        <option value="Treking / Hiking">Treking / Hiking</option>
+                      </optgroup>
+                      <optgroup label="Creative & Fun">
+                        <option value="Painting / Art">Painting / Art</option>
+                        <option value="Photography Contest">Photography Contest</option>
+                        <option value="Cooking / Bake-off">Cooking / Bake-off</option>
+                        <option value="Quiz / Trivia">Quiz / Trivia</option>
+                        <option value="Treasure Hunt">Treasure Hunt</option>
+                      </optgroup>
+                      <optgroup label="Logistics & Volunteering">
+                        <option value="Event Volunteering">Event Volunteering</option>
+                        <option value="Gift Pickup">Gift Pickup</option>
+                        <option value="Feedback / Survey">Feedback / Survey</option>
+                      </optgroup>
+                      <option value="custom">-- Custom Activity --</option>
+                    </select>
+                    
+                    {(newActivity.name === 'custom' || !['Solo Singing', 'Group Singing', 'Solo Dance', 'Group Dance', 'Skit / Drama', 'Stand-up Comedy', 'Poetry Recitation', 'Cricket Match', 'Badminton', 'Table Tennis', 'Marathon / Run', 'Treking / Hiking', 'Painting / Art', 'Photography Contest', 'Cooking / Bake-off', 'Quiz / Trivia', 'Treasure Hunt', 'Event Volunteering', 'Gift Pickup', 'Feedback / Survey'].includes(newActivity.name)) && (
+                      <input
+                        type="text"
+                        value={newActivity.name === 'custom' ? '' : newActivity.name}
+                        onChange={(e) => setNewActivity({ ...newActivity, name: e.target.value })}
+                        className="input w-full mt-2"
+                        placeholder="Enter custom activity name..."
+                      />
+                    )}
                   </div>
 
                   <div>
@@ -480,33 +526,16 @@ export default function EventCreateWizard({ editingEventId = null }) {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Category *
-                      </label>
-                      <select
-                        value={newActivity.category}
-                        onChange={(e) => setNewActivity({ ...newActivity, category: e.target.value })}
-                        className="input w-full"
-                      >
-                        <option value="solo">Solo</option>
-                        <option value="group">Group</option>
-                        <option value="other">Other</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <input
-                          type="checkbox"
-                          checked={newActivity.requires_approval}
-                          onChange={(e) => setNewActivity({ ...newActivity, requires_approval: e.target.checked })}
-                          className="mr-2"
-                        />
-                        Requires Approval
-                      </label>
-                    </div>
+                  <div className="flex items-center">
+                    <label className="block text-sm font-medium text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={newActivity.requires_approval}
+                        onChange={(e) => setNewActivity({ ...newActivity, requires_approval: e.target.checked })}
+                        className="mr-2"
+                      />
+                      Requires Approval
+                    </label>
                   </div>
 
                   <button
