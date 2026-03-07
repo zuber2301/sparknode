@@ -157,12 +157,15 @@ async def create_tenant(
         db.flush()
         
         # Determine admin org_role based on selected modules/feature flags
-        admin_org_role = 'tenant_manager'  # default
+        # Default is tenant_manager
+        admin_org_role = 'tenant_manager'
         
         feature_flags = tenant_data.feature_flags or {}
-        if feature_flags.get('sales_marketing') or feature_flags.get('sales_marketting_enabled'):
+        
+        # Priority mapping for initial org_role if multiple flags set
+        if feature_flags.get('sales_marketing'):
             admin_org_role = 'sales_marketing'
-        elif feature_flags.get('ai_copilot') or feature_flags.get('ai_module_enabled'):
+        elif feature_flags.get('ai_copilot'):
             admin_org_role = 'ai_copilot'
         
         # Create admin user with correct field names (corporate_email, org_role)

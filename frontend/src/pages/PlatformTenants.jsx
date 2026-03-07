@@ -373,18 +373,18 @@ export default function PlatformTenants() {
     e.preventDefault()
     const formData = new FormData(e.target)
     
-    // Process selected module
-    const selectedModule = formData.get('enabled_modules')
+    // Process selected modules
+    const selectedModules = formData.getAll('enabled_modules')
     const featureFlags = {}
     
-    // Map module selection to feature flags
-    if (selectedModule === 'ai_module') {
+    // Map module selections to feature flags
+    if (selectedModules.includes('ai_module')) {
       featureFlags.ai_module_enabled = true
       featureFlags.ai_copilot = true
-    } else if (selectedModule === 'sales_marketing') {
+    }
+    if (selectedModules.includes('sales_marketing')) {
       featureFlags.sales_marketing = true
     }
-    // For 'none', featureFlags remains empty object
     
     createMutation.mutate({
       name: formData.get('name'),
@@ -1280,17 +1280,34 @@ export default function PlatformTenants() {
                 </div>
 
                 {/* Optional Modules */}
-                <div>
-                  <label className="label">Optional Modules</label>
-                  <select 
-                    name="enabled_modules" 
-                    className="input"
-                    defaultValue="none"
-                  >
-                    <option value="none">None (Default)</option>
-                    <option value="ai_module">AI Module</option>
-                    <option value="sales_marketing">Sales & Marketing</option>
-                  </select>
+                <div className="md:col-span-2">
+                  <label className="label">Optional Modules (Select multiple)</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <input 
+                        type="checkbox" 
+                        name="enabled_modules" 
+                        value="ai_module"
+                        className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-gray-700 group-hover:text-indigo-600 transition-colors">AI Module</span>
+                        <span className="text-xs text-gray-500">Sparky AI Copilot & predictive analytics</span>
+                      </div>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <input 
+                        type="checkbox" 
+                        name="enabled_modules" 
+                        value="sales_marketing"
+                        className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-gray-700 group-hover:text-indigo-600 transition-colors">Sales & Marketing</span>
+                        <span className="text-xs text-gray-500">Events, campaigns & marketing automation</span>
+                      </div>
+                    </label>
+                  </div>
                 </div>
               </div>
 
