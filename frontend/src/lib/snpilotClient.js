@@ -10,12 +10,13 @@
  *   format    — fn(data) → string shown in the chat bubble
  */
 
+import { useAuthStore } from '../store/authStore'
+
 const API_URL = import.meta.env.VITE_API_URL || ''
 
 function authHeaders() {
   // Use the Zustand store for consistent token + tenant header management
   try {
-    const { useAuthStore } = require('../store/authStore')
     const state = useAuthStore.getState()
     const token = state.token
     const tenantId = state.getTenantId?.() || state.tenantContext?.tenant_id
@@ -25,8 +26,9 @@ function authHeaders() {
       headers['X-Tenant-ID'] = tenantId
     }
     return headers
-  } catch {
+  } catch (err) {
     // Fallback if store isn't available
+    console.error('authHeaders error:', err)
     return { 'Content-Type': 'application/json' }
   }
 }
