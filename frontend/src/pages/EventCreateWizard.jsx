@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { eventsAPI } from '../lib/eventsAPI'
@@ -10,6 +10,7 @@ import {
   HiOutlinePlus,
   HiOutlineX,
   HiOutlineTrash,
+  HiOutlineSparkles,
 } from 'react-icons/hi'
 
 export default function EventCreateWizard({ editingEventId = null }) {
@@ -54,14 +55,49 @@ export default function EventCreateWizard({ editingEventId = null }) {
   })
 
   // Fetch existing event if editing
-  const { data: existingEvent } = useQuery({
+  const { data: eventToEdit } = useQuery({
     queryKey: ['event', editingEventId],
     queryFn: () => eventsAPI.getById(editingEventId),
     enabled: !!editingEventId,
-    onSuccess: (event) => {
-      setFormData(event)
-    },
   })
+
+  useEffect(() => {
+    if (eventToEdit) {
+      const eventData = eventToEdit.data || eventToEdit
+      
+      // Format dates for datetime-local input
+      const formatDT = (dt) => dt ? format(new Date(dt), "yyyy-MM-dd'T'HH:mm") : ''
+
+      setFormData({
+        title: eventData.title || '',
+        description: eventData.description || '',
+        type: eventData.type || 'general',
+        start_datetime: formatDT(eventData.start_datetime),
+        end_datetime: formatDT(eventData.end_datetime),
+        venue: eventData.venue || '',
+        location: eventData.location || '',
+        format: eventData.format || 'online',
+        banner_url: eventData.banner_url || '',
+        color_code: eventData.color_code || '#7c3aed',
+        status: eventData.status || 'draft',
+        visibility: eventData.visibility || 'all_employees',
+        visible_to_departments: eventData.visible_to_departments || [],
+        nomination_start: formatDT(eventData.nomination_start),
+        nomination_end: formatDT(eventData.nomination_end),
+        who_can_nominate: eventData.who_can_nominate || 'all_employees',
+        max_activities_per_person: eventData.max_activities_per_person || 2,
+        planned_budget: eventData.planned_budget || 0,
+        currency: eventData.currency || 'USD',
+      })
+      
+      if (eventData.activities && eventData.activities.length > 0) {
+        setActivities(eventData.activities.map(a => ({
+          ...a,
+          id: a.id || Math.random(),
+        })))
+      }
+    }
+  }, [eventToEdit])
 
   const createMutation = useMutation({
     mutationFn: (data) => {
@@ -70,7 +106,8 @@ export default function EventCreateWizard({ editingEventId = null }) {
       }
       return eventsAPI.create(data)
     },
-    onSuccess: (newEvent) => {
+    onSuccess: (response) => {
+      const newEvent = response.data || response
       toast.success(editingEventId ? 'Event updated successfully' : 'Event created successfully')
       queryClient.invalidateQueries(['events'])
       navigate(`/events/${newEvent.id}`)
@@ -120,7 +157,17 @@ export default function EventCreateWizard({ editingEventId = null }) {
     }
 
     const submitData = { ...formData }
-    createMutation.mutate(submitData)
+    
+    // Ensure all activities have a category (backend requirement) even if removed from UI
+    const processedActivities = activities.map(act => ({
+      ...act,
+      category: act.category || 'other'
+    }))
+
+    createMutation.mutate({
+      ...submitData,
+      activities: processedActivities
+    })
   }
 
   const publishMutation = useMutation({
@@ -144,13 +191,13 @@ export default function EventCreateWizard({ editingEventId = null }) {
   const isStepValid = () => {
     switch (step) {
       case 1:
-        return formData.title.trim() && formData.start_datetime && formData.end_datetime
+        return !!(formData.title?.trim() && formData.start_datetime && formData.end_datetime)
       case 2:
         return true // Activities are optional
       case 3:
         return true // Nomination dates are optional
       case 4:
-        return formData.planned_budget >= 0
+        return Number(formData.planned_budget) >= 0
       default:
         return true
     }
@@ -696,7 +743,8 @@ export default function EventCreateWizard({ editingEventId = null }) {
         {/* Improved Navigation Buttons Section */}
         <footer className="px-10 py-8 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between gap-4">
           <button
-            onClick={() => setStep(step - 1)}
+            type="button"
+            onClick={() => setStep(prev => Math.max(1, prev - 1))}
             disabled={step === 1}
             className="group px-6 py-3 border border-gray-200 bg-white text-gray-600 font-bold rounded-2xl flex items-center gap-3 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 transition-all active:scale-[0.98] shadow-sm"
           >
@@ -707,7 +755,11 @@ export default function EventCreateWizard({ editingEventId = null }) {
           <div className="flex items-center gap-4">
             {step < 4 ? (
               <button
-                onClick={() => setStep(step + 1)}
+                type="button"
+                onClick={() => {
+                  console.log('Current Step:', step, 'Next Step:', step + 1);
+                  setStep(prev => prev + 1);
+                }}
                 disabled={!isStepValid()}
                 className="group px-8 py-3 bg-sparknode-purple text-white font-bold rounded-2xl flex items-center gap-3 shadow-lg shadow-purple-200 hover:bg-purple-700 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
               >
