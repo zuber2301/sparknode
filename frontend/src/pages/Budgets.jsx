@@ -24,8 +24,18 @@ export default function Budgets() {
   const [selectedBudget, setSelectedBudget] = useState(null)
   const [selectedDept, setSelectedDept] = useState(null)
   const [spendAnalysisPeriod, setSpendAnalysisPeriod] = useState('monthly')
+  const [tenantSearch, setTenantSearch] = useState('')
+  const [selectedTenant, setSelectedTenant] = useState(null)
+  const [showTenantDropdown, setShowTenantDropdown] = useState(false)
   const queryClient = useQueryClient()
-  const { isHRAdmin } = useAuthStore()
+  const { isHRAdmin, isPlatformOwnerUser } = useAuthStore()
+
+  // Fetch all tenants if platform admin
+  const { data: allTenants } = useQuery({
+    queryKey: ['tenants', 'all'],
+    queryFn: () => tenantsAPI.getAll(),
+    enabled: isPlatformOwnerUser()
+  })
 
   // Fetch tenant config for currency settings
   const { data: tenantData } = useQuery({
@@ -80,9 +90,11 @@ export default function Budgets() {
   const createMutation = useMutation({
     mutationFn: (data) => budgetsAPI.create(data),
     onSuccess: () => {
-      toast.success('Budget created successfully')
+      toast.success(isPlatformOwnerUser() ? 'Budget created successfully' : 'Budget request submitted to Platform Admin')
       queryClient.invalidateQueries(['budgets'])
       setShowCreateModal(false)
+      setSelectedTenant(null)
+      setTenantSearch('')
     },
     onError: (error) => {
       const detail = error.response?.data?.detail || error.response?.data?.message || 'Failed to create budget'
@@ -147,6 +159,13 @@ export default function Budgets() {
 
   const handleCreateBudget = (e) => {
     e.preventDefault()
+    
+    // Platform admin must select a tenant
+    if (isPlatformOwnerUser() && !selectedTenant) {
+      toast.error('Please select a tenant')
+      return
+    }
+    
     const formData = new FormData(e.target)
     createMutation.mutate({
       name: formData.get('name'),
@@ -154,6 +173,8 @@ export default function Budgets() {
       fiscal_quarter: formData.get('fiscal_quarter') ? parseInt(formData.get('fiscal_quarter')) : null,
       total_points: parseFloat(formData.get('total_points')),
       expiry_date: formData.get('expiry_date'),
+      tenant_id: isPlatformOwnerUser() ? selectedTenant.id : null,
+      is_request: !isPlatformOwnerUser()
     })
   }
 
@@ -206,6 +227,7 @@ export default function Budgets() {
 
   const getStatusColor = (status) => {
     const colors = {
+      requested: 'bg-yellow-100 text-yellow-800',
       draft: 'bg-gray-100 text-gray-800',
       active: 'bg-green-100 text-green-800',
       closed: 'bg-red-100 text-red-800',
@@ -233,7 +255,7 @@ export default function Budgets() {
             className="btn-primary flex items-center gap-2"
           >
             <HiOutlinePlus className="w-5 h-5" />
-            Create Budget
+            {isPlatformOwnerUser() ? 'Create Budget' : 'Request Budget'}
           </button>
         )}
       </div>
@@ -253,19 +275,21 @@ export default function Budgets() {
             Company Budgets
           </div>
         </button>
-        <button
-          onClick={() => setActiveTab('departments')}
-          className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'departments'
-              ? 'border-sparknode-purple text-sparknode-purple'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <HiOutlineUsers className="w-5 h-5" />
-            Department Allocation
-          </div>
-        </button>
+        {!isPlatformOwnerUser() && (
+          <button
+            onClick={() => setActiveTab('departments')}
+            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'departments'
+                ? 'border-sparknode-purple text-sparknode-purple'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <HiOutlineUsers className="w-5 h-5" />
+              Department Allocation
+            </div>
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('spend-analysis')}
           className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
@@ -388,11 +412,31 @@ export default function Budgets() {
                 <h3 className="text-lg font-semibold text-gray-900">Department Allocation</h3>
                 <p className="text-sm text-gray-500">Allocate budget to departments</p>
               </div>
+              {isPlatformOwnerUser() && (
+                <div className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                   Platform Admin View
+                </div>
+              )}
             </div>
 
             {!activeBudget ? (
               <div className="text-center py-12 text-gray-500">
                 <p>Please create and activate a budget first to allocate to departments.</p>
+              </div>
+            ) : isPlatformOwnerUser() ? (
+              <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                <HiOutlineUsers className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                <h3 className="text-lg font-medium text-gray-900">Platform Admin Control</h3>
+                <p className="max-w-xs mx-auto text-gray-500 mt-2">
+                  Department-level allocation is handled by the Tenant Manager. 
+                  As a Platform Admin, your role is to provision the Master Budget for the tenant.
+                </p>
+                <button 
+                  onClick={() => setActiveTab('budgets')}
+                  className="mt-6 text-sparknode-purple font-medium hover:underline"
+                >
+                  Return to Master Budgets
+                </button>
               </div>
             ) : isLoadingDepts ? (
               <div className="space-y-4">
@@ -515,8 +559,75 @@ export default function Budgets() {
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full">
-            <h2 className="text-xl font-semibold mb-4">Create New Budget</h2>
+            <h2 className="text-xl font-semibold mb-4">
+              {isPlatformOwnerUser() ? 'Create New Budget' : 'Request New Budget Allocation'}
+            </h2>
             <form onSubmit={handleCreateBudget} className="space-y-4">
+              {isPlatformOwnerUser() && allTenants?.data && (
+                <div>
+                  <label className="label">Target Tenant *</label>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowTenantDropdown(!showTenantDropdown)}
+                      className="input w-full text-left flex items-center justify-between"
+                    >
+                      <span className={selectedTenant ? 'text-gray-900' : 'text-gray-500'}>
+                        {selectedTenant ? `${selectedTenant.name} (${selectedTenant.display_currency})` : 'Select a Tenant...'}
+                      </span>
+                      <svg className={`w-5 h-5 transition-transform ${showTenantDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                      </svg>
+                    </button>
+                    
+                    {showTenantDropdown && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                        <div className="p-2">
+                          <input
+                            type="text"
+                            placeholder="Search tenants..."
+                            value={tenantSearch}
+                            onChange={(e) => setTenantSearch(e.target.value)}
+                            className="input w-full text-sm mb-2"
+                            autoFocus
+                          />
+                        </div>
+                        <div className="max-h-48 overflow-y-auto">
+                          {allTenants.data
+                            .filter(t => t.name.toLowerCase().includes(tenantSearch.toLowerCase()))
+                            .map(tenant => (
+                              <button
+                                key={tenant.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedTenant(tenant)
+                                  setShowTenantDropdown(false)
+                                  setTenantSearch('')
+                                }}
+                                className={`w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 ${
+                                  selectedTenant?.id === tenant.id ? 'bg-sparknode-purple/10' : ''
+                                }`}
+                              >
+                                <span className="flex-1">
+                                  <div className="font-medium text-gray-900">{tenant.name}</div>
+                                  <div className="text-xs text-gray-500">{tenant.display_currency}</div>
+                                </span>
+                                {selectedTenant?.id === tenant.id && (
+                                  <HiOutlineCheckCircle className="w-5 h-5 text-sparknode-purple" />
+                                )}
+                              </button>
+                            ))}
+                          {allTenants.data.filter(t => t.name.toLowerCase().includes(tenantSearch.toLowerCase())).length === 0 && (
+                            <div className="px-4 py-4 text-center text-sm text-gray-500">
+                              No tenants found
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               <div>
                 <label className="label">Budget Name</label>
                 <input name="name" className="input" required placeholder="e.g., FY 2026 Q1 Budget" />
@@ -544,13 +655,13 @@ export default function Budgets() {
                 </div>
               </div>
               <div>
-                <label className="label">Total Points</label>
+                <label className="label">Total Points ({tenantData?.display_currency || 'USD'})</label>
                 <input
                   name="total_points"
                   type="number"
                   className="input"
                   required
-                  placeholder="100000"
+                  placeholder={`Amount in ${tenantData?.display_currency || 'USD'}`}
                 />
               </div>
               <div>
@@ -565,7 +676,12 @@ export default function Budgets() {
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={() => {
+                    setShowCreateModal(false)
+                    setSelectedTenant(null)
+                    setTenantSearch('')
+                    setShowTenantDropdown(false)
+                  }}
                   className="btn-secondary flex-1"
                 >
                   Cancel
@@ -589,7 +705,7 @@ export default function Budgets() {
           <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <h2 className="text-xl font-semibold mb-2">Allocate Budget</h2>
             <p className="text-gray-500 mb-4">
-              {selectedBudget.name} - Available: {selectedBudget.remaining_points} points
+              {selectedBudget.name} - Available: {formatBudgetValue(selectedBudget.remaining_points)}
             </p>
             <form onSubmit={handleAllocate} className="space-y-4">
               {departments?.data?.map((dept) => {
@@ -602,7 +718,7 @@ export default function Budgets() {
                       <p className="font-medium">{dept.name}</p>
                       {existing && (
                         <p className="text-sm text-gray-500">
-                          Current: {existing.allocated_points} pts
+                          Current: {formatBudgetValue(existing.allocated_points)}
                         </p>
                       )}
                     </div>
@@ -611,7 +727,7 @@ export default function Budgets() {
                         name={`points_${dept.id}`}
                         type="number"
                         className="input text-sm"
-                        placeholder="Points"
+                        placeholder={`Pts (${tenantData?.display_currency || 'USD'})`}
                         min="0"
                       />
                     </div>
@@ -620,7 +736,7 @@ export default function Budgets() {
                         name={`cap_${dept.id}`}
                         type="number"
                         className="input text-sm"
-                        placeholder="Monthly cap"
+                        placeholder={`Cap (${tenantData?.display_currency || 'USD'})`}
                         min="0"
                       />
                     </div>
@@ -661,7 +777,7 @@ export default function Budgets() {
             </p>
             <form onSubmit={handleDeptAllocate} className="space-y-4">
               <div>
-                <label className="label">Points to Allocate</label>
+                <label className="label">Points to Allocate ({tenantData?.display_currency || 'USD'})</label>
                 <input
                   name="points"
                   type="number"
@@ -669,12 +785,12 @@ export default function Budgets() {
                   required
                   min="1"
                   step="0.01"
-                  placeholder="1000"
+                  placeholder={`Amount in ${tenantData?.display_currency || 'USD'}`}
                 />
               </div>
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <p className="text-xs text-blue-700">
-                  <strong>Budget Remaining:</strong> {activeBudget.remaining_points.toLocaleString('en-IN')} points
+                  <strong>Budget Remaining:</strong> {formatBudgetValue(activeBudget.remaining_points)}
                 </p>
               </div>
               <div className="flex gap-3 pt-4">

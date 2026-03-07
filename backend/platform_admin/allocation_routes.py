@@ -35,7 +35,6 @@ class AllocateBudgetRequest(BaseModel):
     """Platform Admin allocates budget to a tenant"""
     tenant_id: UUID
     amount: Decimal
-    currency: str = "INR"
     reference_note: Optional[str] = None
     invoice_number: Optional[str] = None
     
@@ -44,7 +43,6 @@ class AllocateBudgetRequest(BaseModel):
             "example": {
                 "tenant_id": "550e8400-e29b-41d4-a716-446655440000",
                 "amount": 50000,
-                "currency": "INR",
                 "reference_note": "Monthly subscription allocation - Invoice #8842",
                 "invoice_number": "INV-2026-0201-001"
             }
@@ -155,13 +153,13 @@ async def allocate_budget_to_tenant(
         if not tenant:
             raise HTTPException(status_code=404, detail="Tenant not found")
         
-        # Allocate budget using service
+        # Allocate budget using service (Uses tenant's provisioned currency)
         updated_tenant, allocation_log, platform_log = BudgetService.allocateTenant(
             db=db,
             tenant=tenant,
             admin_user=current_user,
             amount=request.amount,
-            currency=request.currency,
+            currency=tenant.currency,
             reference_note=request.reference_note,
             invoice_number=request.invoice_number
         )

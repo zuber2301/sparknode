@@ -63,15 +63,28 @@ async def create_budget(
     current_user: User = Depends(get_hr_admin),
     db: Session = Depends(get_db)
 ):
-    """Create a new budget (HR Admin only)"""
+    """Create a new budget or budget request"""
+    target_tenant_id = current_user.tenant_id
+    
+    # If platform admin, allow specifying target tenant
+    if current_user.org_role == 'platform_admin' and budget_data.tenant_id:
+        target_tenant_id = budget_data.tenant_id
+    
+    # Check status: Tenant Managers create requests, Platform Admins create actual budgets
+    initial_status = 'requested' if budget_data.is_request else 'draft'
+    
+    # Platform Admin bypasses request and creates draft directly
+    if current_user.org_role == 'platform_admin' and not budget_data.is_request:
+        initial_status = 'draft'
+
     budget = Budget(
-        tenant_id=current_user.tenant_id,
+        tenant_id=target_tenant_id,
         name=budget_data.name,
         fiscal_year=budget_data.fiscal_year,
         fiscal_quarter=budget_data.fiscal_quarter,
         total_points=budget_data.total_points,
         allocated_points=0,
-        status='draft',
+        status=initial_status,
         expiry_date=budget_data.expiry_date,
         created_by=current_user.id
     )
@@ -79,12 +92,12 @@ async def create_budget(
     
     # Audit log
     audit = AuditLog(
-        tenant_id=current_user.tenant_id,
+        tenant_id=target_tenant_id,
         actor_id=current_user.id,
-        action="budget_created",
+        action="budget_requested" if initial_status == 'requested' else "budget_created",
         entity_type="budget",
         entity_id=budget.id,
-        new_values=append_impersonation_metadata({"name": budget.name, "total_points": str(budget.total_points)})
+        new_values=append_impersonation_metadata({"name": budget.name, "total_points": str(budget.total_points), "status": initial_status})
     )
     db.add(audit)
     

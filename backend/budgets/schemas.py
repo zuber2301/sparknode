@@ -14,7 +14,8 @@ class BudgetBase(BaseModel):
 
 
 class BudgetCreate(BudgetBase):
-    pass
+    tenant_id: Optional[UUID] = None
+    is_request: bool = False
 
 
 class BudgetUpdate(BaseModel):
