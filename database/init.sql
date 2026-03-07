@@ -28,6 +28,11 @@ CREATE TABLE tenants (
     conversion_rate NUMERIC(10, 4) DEFAULT 1.0,
     auto_refill_threshold NUMERIC(5, 2) DEFAULT 20.0,
     
+    -- Multi-Currency Support
+    base_currency VARCHAR(3) DEFAULT 'USD',
+    display_currency VARCHAR(3) DEFAULT 'INR',
+    fx_rate NUMERIC(10, 4) DEFAULT 1.0,
+    
     -- Recognition Laws Config
     award_tiers JSONB DEFAULT '{"Gold": 5000, "Silver": 2500, "Bronze": 1000}',
     peer_to_peer_enabled BOOLEAN DEFAULT TRUE,
@@ -76,7 +81,10 @@ CREATE TABLE users (
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     org_role VARCHAR(50) NOT NULL CHECK (org_role IN ('platform_admin', 'tenant_manager', 'dept_lead', 'tenant_user')),
+    roles VARCHAR(255),
+    default_role VARCHAR(50),
     department_id UUID NOT NULL REFERENCES departments(id),
+    location VARCHAR(100),
     manager_id UUID REFERENCES users(id),
     avatar_url VARCHAR(500),
     phone_number VARCHAR(20),
