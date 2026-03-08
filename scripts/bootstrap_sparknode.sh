@@ -67,7 +67,7 @@ if [ "${SKIP_BACKEND_BUILD:-0}" = "1" ]; then
   echo "SKIP_BACKEND_BUILD=1 set — skipping backend Docker build."
 else
   echo "=== Building backend Docker image ==="
-  docker-compose -f "$ROOT_DIR/docker-compose.yml" build backend
+  docker-compose -f "$ROOT_DIR/docker-compose.yml" build --no-cache backend
   echo "Backend image built."
 fi
 
@@ -75,7 +75,7 @@ fi
 # STEP 3: Start all services
 # ======================================================================
 echo "=== Starting services ==="
-docker-compose -f "$ROOT_DIR/docker-compose.yml" up -d
+docker-compose -f "$ROOT_DIR/docker-compose.yml" up -d --force-recreate
 
 # (moved) STEP 4: backend health check will run later after migrations.
 # The original health wait block was relocated below to avoid timing out

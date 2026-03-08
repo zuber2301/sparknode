@@ -27,7 +27,8 @@ fi
 # 2. Start the Platform Stack (The "Brain")
 echo "=== Starting SparkNode Control Plane (Management UI + Orchestrator) ==="
 cd "$PROD_DOCKER_DIR"
-docker-compose -f docker-compose.platform.yml up -d --build
+# Force build and recreate containers to ensure latest code
+docker-compose -f docker-compose.platform.yml up -d --build --force-recreate
 
 # 3. Verify Orchestrator Readiness
 echo "Checking Orchestrator status..."

@@ -71,6 +71,8 @@ env:
   DOCKERHUB_ORG: zuber2301
   BACKEND_IMAGE: zuber2301/sparknode-backend
   FRONTEND_IMAGE: zuber2301/sparknode-frontend
+  MANAGER_UI_IMAGE: zuber2301/sparknode-manager-ui
+  ORCHESTRATOR_IMAGE: zuber2301/sparknode-orchestrator
   # Number of semver versions to keep per image (current + N-1 previous)
   KEEP_VERSIONS: 3
 
@@ -181,14 +183,10 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
 
           # Tags: X.Y.Z + latest
-          BACKEND_TAGS="${{ env.BACKEND_IMAGE }}:${VERSION}"
-          BACKEND_TAGS="${BACKEND_TAGS},${{ env.BACKEND_IMAGE }}:latest"
-
-          FRONTEND_TAGS="${{ env.FRONTEND_IMAGE }}:${VERSION}"
-          FRONTEND_TAGS="${FRONTEND_TAGS},${{ env.FRONTEND_IMAGE }}:latest"
-
-          echo "backend=$BACKEND_TAGS"   >> $GITHUB_OUTPUT
-          echo "frontend=$FRONTEND_TAGS" >> $GITHUB_OUTPUT
+          echo "backend=${{ env.BACKEND_IMAGE }}:${VERSION},${{ env.BACKEND_IMAGE }}:latest" >> $GITHUB_OUTPUT
+          echo "frontend=${{ env.FRONTEND_IMAGE }}:${VERSION},${{ env.FRONTEND_IMAGE }}:latest" >> $GITHUB_OUTPUT
+          echo "manager_ui=${{ env.MANAGER_UI_IMAGE }}:${VERSION},${{ env.MANAGER_UI_IMAGE }}:latest" >> $GITHUB_OUTPUT
+          echo "orchestrator=${{ env.ORCHESTRATOR_IMAGE }}:${VERSION},${{ env.ORCHESTRATOR_IMAGE }}:latest" >> $GITHUB_OUTPUT
 
       - name: Update VERSION file
         if: github.event_name == 'workflow_dispatch' && steps.version.outputs.should_push == 'true'
@@ -233,7 +231,7 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           push: ${{ needs.prepare.outputs.should_push == 'true' }}
-          tags: ${{ needs.prepare.outputs.all_tags_backend }}
+          tags: ${{ needs.prepare.outputs.tags.outputs.backend }}
           labels: |
             org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -277,7 +275,7 @@ jobs:
           context: ./frontend
           file: ./frontend/Dockerfile.prod
           push: ${{ needs.prepare.outputs.should_push == 'true' }}
-          tags: ${{ needs.prepare.outputs.all_tags_frontend }}
+          tags: ${{ needs.prepare.outputs.tags.outputs.frontend }}
           build-args: |
             VITE_API_URL=https://${{ vars.DOMAIN || 'app.sparknode.io' }}
           labels: |
@@ -296,21 +294,103 @@ jobs:
           echo "- **Pushed:** ${{ needs.prepare.outputs.should_push }}" >> $GITHUB_STEP_SUMMARY
 
   # ────────────────────────────────────────────────────────────
-  # Job 4: Cleanup old image versions (keep only 3 semver tags)
-  #
-  #   Uses DockerHub API to list tags, sorts by semver, and
-  #   deletes everything beyond the 3 most recent versions.
-  #   The "latest" tag is never deleted.
+  # Job 4: Build & push Manager UI image
+  # ────────────────────────────────────────────────────────────
+  build-manager-ui:
+    name: Build Manager UI (${{ needs.prepare.outputs.version }})
+    runs-on: ubuntu-latest
+    needs: prepare
+    if: needs.prepare.outputs.build_frontend == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        if: needs.prepare.outputs.should_push == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push manager-ui
+        uses: docker/build-push-action@v5
+        with:
+          context: ./deployment_sparknode/manager-ui
+          file: ./deployment_sparknode/manager-ui/Dockerfile
+          push: ${{ needs.prepare.outputs.should_push == 'true' }}
+          tags: ${{ needs.prepare.outputs.tags.outputs.manager_ui }}
+          labels: |
+            org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      - name: Summary
+        run: |
+          echo "### Manager UI Image" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** \`${{ needs.prepare.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** \`${{ env.MANAGER_UI_IMAGE }}:${{ needs.prepare.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+
+  # ────────────────────────────────────────────────────────────
+  # Job 5: Build & push Orchestrator API image
+  # ────────────────────────────────────────────────────────────
+  build-orchestrator:
+    name: Build Orchestrator (${{ needs.prepare.outputs.version }})
+    runs-on: ubuntu-latest
+    needs: prepare
+    if: needs.prepare.outputs.build_backend == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        if: needs.prepare.outputs.should_push == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push orchestrator
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./deployment_sparknode/control-plane-api/Dockerfile
+          push: ${{ needs.prepare.outputs.should_push == 'true' }}
+          tags: ${{ needs.prepare.outputs.tags.outputs.orchestrator }}
+          labels: |
+            org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      - name: Summary
+        run: |
+          echo "### Orchestrator Image" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** \`${{ needs.prepare.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** \`${{ env.ORCHESTRATOR_IMAGE }}:${{ needs.prepare.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+
+  # ────────────────────────────────────────────────────────────
+  # Job 6: Cleanup old image versions (keep only 3 semver tags)
   # ────────────────────────────────────────────────────────────
   cleanup:
     name: Purge Old Versions
     runs-on: ubuntu-latest
-    needs: [prepare, build-backend, build-frontend]
+    needs: [prepare, build-backend, build-frontend, build-manager-ui, build-orchestrator]
     if: |
       always() &&
       needs.prepare.outputs.should_push == 'true' &&
       (needs.build-backend.result == 'success' || needs.build-backend.result == 'skipped') &&
-      (needs.build-frontend.result == 'success' || needs.build-frontend.result == 'skipped')
+      (needs.build-frontend.result == 'success' || needs.build-frontend.result == 'skipped') &&
+      (needs.build-manager-ui.result == 'success' || needs.build-manager-ui.result == 'skipped') &&
+      (needs.build-orchestrator.result == 'success' || needs.build-orchestrator.result == 'skipped')
     steps:
       - name: Get DockerHub JWT token
         id: auth
@@ -318,6 +398,28 @@ jobs:
           TOKEN=$(curl -sf "https://hub.docker.com/v2/users/login" \
             -H "Content-Type: application/json" \
             -d '{"username":"${{ secrets.DOCKERHUB_USERNAME }}","password":"${{ secrets.DOCKERHUB_TOKEN }}"}' \
+            | jq -r .token)
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Purge old tags
+        run: |
+          REPOS=("${{ env.BACKEND_IMAGE }}" "${{ env.FRONTEND_IMAGE }}" "${{ env.MANAGER_UI_IMAGE }}" "${{ env.ORCHESTRATOR_IMAGE }}")
+          TOKEN="${{ steps.auth.outputs.token }}"
+          KEEP=${{ env.KEEP_VERSIONS }}
+
+          for REPO in "${REPOS[@]}"; do
+            echo "--- Purging $REPO ---"
+            # Get all tags for the repository
+            TAGS=$(curl -sf -H "Authorization: JWT $TOKEN" "https://hub.docker.com/v2/repositories/$REPO/tags/?page_size=100")
+            
+            # Extract semver-only tags, sort by semver, and identify ones to delete
+            TO_DELETE=$(echo "$TAGS" | jq -r '.results[].name' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V -r | tail -n +$((KEEP + 1)))
+
+            for TAG in $TO_DELETE; do
+              echo "Deleting $REPO:$TAG..."
+              curl -sf -X DELETE -H "Authorization: JWT $TOKEN" "https://hub.docker.com/v2/repositories/$REPO/tags/$TAG/"
+            done
+          done
             | jq -r '.token')
           if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
             echo "::error::Failed to authenticate with DockerHub API"
