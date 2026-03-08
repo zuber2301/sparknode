@@ -175,7 +175,9 @@ export default function TopHeader() {
     queryFn: () => tenantsAPI.getCurrent(),
     enabled: !isPlatformUser,
     onSuccess: (response) => {
-      if (response?.data?.feature_flags && !tenantContext?.feature_flags) {
+      if (response?.data?.feature_flags) {
+        // Always update tenantContext with latest feature_flags from API
+        // This ensures modules show/hide immediately after being toggled in admin UI
         updateTenantContext({ feature_flags: response.data.feature_flags })
       }
     },

@@ -310,7 +310,13 @@ export default function PlatformTenants() {
     mutationFn: ({ tenantId, payload }) => platformAPI.updateFeatureFlags(tenantId, payload),
     onSuccess: () => {
       toast.success('Feature flags updated')
-      queryClient.invalidateQueries(['platformTenants'])
+      // Use matcher to invalidate ALL platformTenants queries regardless of filters
+      queryClient.invalidateQueries({
+        queryKey: ['platformTenants'],
+        exact: false  // Match all queries starting with this key
+      })
+      // Invalidate currentTenant query so TopHeader refreshes with new flags
+      queryClient.invalidateQueries(['currentTenant'])
       setShowFlagsModal(false)
     },
     onError: (error) => {
@@ -327,7 +333,13 @@ export default function PlatformTenants() {
     },
     onSuccess: () => {
       toast.success('Feature updated')
-      queryClient.invalidateQueries(['platformTenants'])
+      // Use matcher to invalidate ALL platformTenants queries regardless of filters
+      queryClient.invalidateQueries({
+        queryKey: ['platformTenants'],
+        exact: false  // Match all queries starting with this key
+      })
+      // Invalidate currentTenant query so TopHeader refreshes with new flags
+      queryClient.invalidateQueries(['currentTenant'])
     },
     onError: (err) => toast.error(err.response?.data?.detail || 'Failed to update feature')
   })
