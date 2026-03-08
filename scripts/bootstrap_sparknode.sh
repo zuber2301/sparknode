@@ -7,6 +7,16 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 echo "=== SPARKNODE LOCAL DEVELOPMENT BOOTSTRAP ==="
 echo "Working directory: $ROOT_DIR"
+echo ""
+echo "ℹ️  Database Bootstrap Strategy:"
+echo "  • docker-compose.yml uses a persistent external volume (sparknode_postgres_data)"
+echo "  • docker-compose.override.yml adds init scripts for fresh bootstrap only"
+echo "  • For FIRST-TIME SETUP, run:"
+echo "    docker volume create sparknode_postgres_data"
+echo "    docker-compose -f docker-compose.yml -f docker-compose.override.yml up -d"
+echo "  • For subsequent runs, use: docker-compose up -d --build"
+echo "  • See DATABASE_BOOTSTRAP_STRATEGY.md for details"
+echo ""
 
 # Allow an optional local/override bootstrap script. Common names we accept
 # (in order) are: `bootstrap_override.sh`, `bootstrap_local.sh`,

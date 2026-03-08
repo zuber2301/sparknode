@@ -1,6 +1,6 @@
 # SparkNode Docker Compose Configuration
 # All ports and settings are loaded from .env file
-# Run: docker-compose up -d
+# Run: docker compose up -d
 
 services:
   postgres:
@@ -14,10 +14,6 @@ services:
       - "${POSTGRES_EXTERNAL_PORT:-6432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # Only runs on first boot (empty data dir). Schema changes after that
-      # are managed by Alembic (alembic upgrade head) in the backend entrypoint.
-      - ./database/init.sql:/docker-entrypoint-initdb.d/01_init.sql
-      - ./database/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sparknode}"]
       interval: 5s
@@ -122,6 +118,7 @@ services:
 
 volumes:
   postgres_data:
+    external: true
     name: ${PROJECT_NAME:-sparknode}_postgres_data
 
 networks:

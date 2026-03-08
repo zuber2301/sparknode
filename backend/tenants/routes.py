@@ -549,19 +549,22 @@ async def create_department_with_allocation(
         # Start transaction
         department = None
         
+        # Convert allocation amount to Decimal for database operations
+        allocation_amount = Decimal(str(data.initial_allocation))
+        
         # Create department
         department = Department(
             tenant_id=current_user.tenant_id,
             name=data.name.strip(),
-            budget_balance=data.initial_allocation
+            budget_balance=allocation_amount
         )
         db.add(department)
         db.flush()  # Get the ID without committing
         
         # Allocate from master pool if requested
-        if data.initial_allocation > 0:
+        if allocation_amount > 0:
             tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
-            tenant.master_budget_balance -= data.initial_allocation
+            tenant.master_budget_balance -= allocation_amount
         
         # Assign department lead if provided
         if data.lead_user_id:

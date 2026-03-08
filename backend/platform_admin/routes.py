@@ -242,6 +242,7 @@ async def create_tenant(
                 is_system=False # Tenant-local copy
             )
             db.add(new_badge)
+            db.flush()  # Flush each badge individually to avoid batch insert UUID issues
 
         # Audit log
         audit = AuditLog(

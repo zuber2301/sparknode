@@ -69,10 +69,12 @@ permissions:
 
 env:
   DOCKERHUB_ORG: zuber2301
-  BACKEND_IMAGE: zuber2301/sparknode-backend
-  FRONTEND_IMAGE: zuber2301/sparknode-frontend
-  MANAGER_UI_IMAGE: zuber2301/sparknode-manager-ui
-  ORCHESTRATOR_IMAGE: zuber2301/sparknode-orchestrator
+  # The Actual Application (The "App")
+  APP_BACKEND_IMAGE: zuber2301/sparknode-app-backend
+  APP_FRONTEND_IMAGE: zuber2301/sparknode-app-frontend
+  # The Deployment Manager (The "Platform/Brain")
+  PLATFORM_UI_IMAGE: zuber2301/sparknode-platform-ui
+  PLATFORM_API_IMAGE: zuber2301/sparknode-platform-api
   # Number of semver versions to keep per image (current + N-1 previous)
   KEEP_VERSIONS: 3
 
@@ -183,10 +185,10 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
 
           # Tags: X.Y.Z + latest
-          echo "backend=${{ env.BACKEND_IMAGE }}:${VERSION},${{ env.BACKEND_IMAGE }}:latest" >> $GITHUB_OUTPUT
-          echo "frontend=${{ env.FRONTEND_IMAGE }}:${VERSION},${{ env.FRONTEND_IMAGE }}:latest" >> $GITHUB_OUTPUT
-          echo "manager_ui=${{ env.MANAGER_UI_IMAGE }}:${VERSION},${{ env.MANAGER_UI_IMAGE }}:latest" >> $GITHUB_OUTPUT
-          echo "orchestrator=${{ env.ORCHESTRATOR_IMAGE }}:${VERSION},${{ env.ORCHESTRATOR_IMAGE }}:latest" >> $GITHUB_OUTPUT
+          echo "backend=${{ env.APP_BACKEND_IMAGE }}:${VERSION},${{ env.APP_BACKEND_IMAGE }}:latest" >> $GITHUB_OUTPUT
+          echo "frontend=${{ env.APP_FRONTEND_IMAGE }}:${VERSION},${{ env.APP_FRONTEND_IMAGE }}:latest" >> $GITHUB_OUTPUT
+          echo "manager_ui=${{ env.PLATFORM_UI_IMAGE }}:${VERSION},${{ env.PLATFORM_UI_IMAGE }}:latest" >> $GITHUB_OUTPUT
+          echo "orchestrator=${{ env.PLATFORM_API_IMAGE }}:${VERSION},${{ env.PLATFORM_API_IMAGE }}:latest" >> $GITHUB_OUTPUT
 
       - name: Update VERSION file
         if: github.event_name == 'workflow_dispatch' && steps.version.outputs.should_push == 'true'
@@ -244,7 +246,7 @@ jobs:
         run: |
           echo "### Backend Image (also used by celery)" >> $GITHUB_STEP_SUMMARY
           echo "- **Version:** \`${{ needs.prepare.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image:** \`${{ env.BACKEND_IMAGE }}:${{ needs.prepare.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** \`${{ env.APP_BACKEND_IMAGE }}:${{ needs.prepare.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Pushed:** ${{ needs.prepare.outputs.should_push }}" >> $GITHUB_STEP_SUMMARY
 
   # ────────────────────────────────────────────────────────────
@@ -290,7 +292,7 @@ jobs:
         run: |
           echo "### Frontend Image" >> $GITHUB_STEP_SUMMARY
           echo "- **Version:** \`${{ needs.prepare.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image:** \`${{ env.FRONTEND_IMAGE }}:${{ needs.prepare.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** \`${{ env.APP_FRONTEND_IMAGE }}:${{ needs.prepare.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Pushed:** ${{ needs.prepare.outputs.should_push }}" >> $GITHUB_STEP_SUMMARY
 
   # ────────────────────────────────────────────────────────────
@@ -333,7 +335,7 @@ jobs:
         run: |
           echo "### Manager UI Image" >> $GITHUB_STEP_SUMMARY
           echo "- **Version:** \`${{ needs.prepare.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image:** \`${{ env.MANAGER_UI_IMAGE }}:${{ needs.prepare.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** \`${{ env.PLATFORM_UI_IMAGE }}:${{ needs.prepare.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
 
   # ────────────────────────────────────────────────────────────
   # Job 5: Build & push Orchestrator API image
@@ -375,7 +377,7 @@ jobs:
         run: |
           echo "### Orchestrator Image" >> $GITHUB_STEP_SUMMARY
           echo "- **Version:** \`${{ needs.prepare.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image:** \`${{ env.ORCHESTRATOR_IMAGE }}:${{ needs.prepare.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** \`${{ env.PLATFORM_API_IMAGE }}:${{ needs.prepare.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
 
   # ────────────────────────────────────────────────────────────
   # Job 6: Cleanup old image versions (keep only 3 semver tags)
@@ -403,7 +405,7 @@ jobs:
 
       - name: Purge old tags
         run: |
-          REPOS=("${{ env.BACKEND_IMAGE }}" "${{ env.FRONTEND_IMAGE }}" "${{ env.MANAGER_UI_IMAGE }}" "${{ env.ORCHESTRATOR_IMAGE }}")
+          REPOS=("${{ env.APP_BACKEND_IMAGE }}" "${{ env.APP_FRONTEND_IMAGE }}" "${{ env.PLATFORM_UI_IMAGE }}" "${{ env.PLATFORM_API_IMAGE }}")
           TOKEN="${{ steps.auth.outputs.token }}"
           KEEP=${{ env.KEEP_VERSIONS }}
 
