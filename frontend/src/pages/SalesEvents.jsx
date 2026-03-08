@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { salesAPI } from '../lib/api'
+import { salesAPI, tenantsAPI } from '../lib/api'
 import SalesLeaderboard from '../components/SalesLeaderboard'
 import Countdown from '../components/Countdown'
 import toast from 'react-hot-toast'
@@ -9,10 +9,38 @@ import { useAuthStore } from '../store/authStore'
 export default function SalesEvents() {
   const { tenantContext, user: current_user } = useAuthStore()
   const qc = useQueryClient()
-  
-  // Check if sales & marketing feature is enabled
-  const salesEnabled = tenantContext?.feature_flags?.sales_marketing || tenantContext?.feature_flags?.sales_marketting_enabled
-  if (!salesEnabled) {
+
+  // ALL hooks must come before any early returns (Rules of Hooks)
+  const isPlatformUser = current_user?.org_role === 'platform_admin'
+
+  // Fetch fresh tenant to get up-to-date feature flags
+  const { data: currentTenantResponse } = useQuery({
+    queryKey: ['currentTenant'],
+    queryFn: () => tenantsAPI.getCurrent(),
+    enabled: !isPlatformUser,
+    staleTime: 30 * 1000,
+  })
+
+  const { data: eventsResponse, isLoading } = useQuery({
+    queryKey: ['salesEvents'],
+    queryFn: () => salesAPI.list().then(r => r.data),
+  })
+
+  const [showCreate, setShowCreate] = useState(false)
+  const [wizardStep, setWizardStep] = useState(1)
+  const [wizardData, setWizardData] = useState({})
+
+  const createMutation = useMutation({
+    mutationFn: (payload) => salesAPI.create(payload).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['salesEvents'] }); setShowCreate(false); toast.success('Sales event created') },
+    onError: (err) => toast.error(err.response?.data?.detail || 'Failed to create event'),
+  })
+
+  // Use fresh API data; fall back to persisted tenantContext
+  const featureFlags = currentTenantResponse?.data?.feature_flags || tenantContext?.feature_flags || {}
+  const salesEnabled = !!(featureFlags.sales_marketing || featureFlags.sales_marketing_enabled || featureFlags.sales_marketting_enabled)
+
+  if (!salesEnabled && !isLoading) {
     return (
       <div className="p-6">
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -22,15 +50,6 @@ export default function SalesEvents() {
       </div>
     )
   }
-  const { data: eventsResponse, isLoading } = useQuery(['salesEvents'], () => salesAPI.list().then(r => r.data))
-  const [showCreate, setShowCreate] = useState(false)
-  const createMutation = useMutation((payload) => salesAPI.create(payload).then(r => r.data), {
-    onSuccess: () => { qc.invalidateQueries(['salesEvents']); setShowCreate(false); toast.success('Sales event created') },
-    onError: (err) => toast.error(err.response?.data?.detail || 'Failed to create event')
-  })
-
-  const [wizardStep, setWizardStep] = useState(1)
-  const [wizardData, setWizardData] = useState({})
 
   const handleWizardNext = (stepData) => {
     setWizardData({ ...wizardData, ...stepData })

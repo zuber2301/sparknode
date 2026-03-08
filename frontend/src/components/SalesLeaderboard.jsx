@@ -2,9 +2,11 @@ import { useQuery } from '@tanstack/react-query'
 import { salesAPI } from '../lib/api'
 
 export default function SalesLeaderboard({ eventId }) {
-  const { data = [], isLoading } = useQuery(['salesEventLeaderboard', eventId], () =>
-    salesAPI.leaderboard(eventId).then(r => r.data)
-  )
+  const { data = [], isLoading } = useQuery({
+    queryKey: ['salesEventLeaderboard', eventId],
+    queryFn: () => salesAPI.leaderboard(eventId).then(r => r.data),
+    enabled: !!eventId,
+  })
 
   if (isLoading) return <div>Loading leaderboard…</div>
   if (data.length === 0) return <div>No progress yet</div>
