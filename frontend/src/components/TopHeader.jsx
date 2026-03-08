@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { notificationsAPI, platformAPI, tenantsAPI, authAPI } from '../lib/api'
 import toast from 'react-hot-toast'
 import {
@@ -118,6 +118,7 @@ export default function TopHeader() {
   const [controlsDropdownOpen, setControlsDropdownOpen] = useState(false)
   const [tenantSearch, setTenantSearch] = useState('')
   const profileRef = useRef(null)
+  const queryClient = useQueryClient()
 
   const {
     user,
@@ -274,6 +275,7 @@ export default function TopHeader() {
 
   const handleLogout = () => {
     logout()
+    queryClient.clear()
     navigate('/login')
   }
 

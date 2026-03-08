@@ -24,7 +24,7 @@ function fmt(pts) {
 
 // ── Campaign Builder Wizard ──────────────────────────────────────────────────
 
-function WizardStep1({ data, onChange, onNext }) {
+function WizardStep1({ data, onChange, onNext, onCancel }) {
   const [form, setForm] = useState({
     title: data.title || '',
     description: data.description || '',
@@ -89,7 +89,10 @@ function WizardStep1({ data, onChange, onNext }) {
         </div>
       </div>
 
-      <div className="flex justify-end pt-2">
+      <div className="flex justify-between pt-2">
+        <button type="button" onClick={onCancel} className="text-gray-600 text-sm px-4 py-2 border rounded-lg hover:bg-gray-50">
+          Cancel
+        </button>
         <button type="submit" className="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">
           Next →
         </button>
@@ -347,7 +350,7 @@ export default function CampaignBuilder() {
               ))}
             </div>
 
-            {step === 1 && <WizardStep1 data={wizardData} onChange={mergeData} onNext={() => setStep(2)} />}
+            {step === 1 && <WizardStep1 data={wizardData} onChange={mergeData} onNext={() => setStep(2)} onCancel={() => setShowWizard(false)} />}
             {step === 2 && <WizardStep2 data={wizardData} onChange={mergeData} onNext={() => setStep(3)} onBack={() => setStep(1)} />}
             {step === 3 && <WizardStep3 data={wizardData} onChange={mergeData} onSubmit={finalCreate} onBack={() => setStep(2)} isLoading={createMutation.isPending} />}
 

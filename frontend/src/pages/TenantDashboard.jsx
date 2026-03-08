@@ -213,7 +213,7 @@ export default function TenantDashboard() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{t.subscription_tier}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">{formatDisplayValue(t.master_budget_balance || 0, 'INR')}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right relative">
-                      <button className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg">
+                      <button onClick={() => setActionOpenFor(actionOpenFor === t.id ? null : t.id)} className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg">
                         <HiOutlineDotsVertical className="w-5 h-5 transition-transform group-hover:scale-110" />
                       </button>
                       {actionOpenFor === t.id && (

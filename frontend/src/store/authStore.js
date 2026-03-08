@@ -74,6 +74,7 @@ export const useAuthStore = create(
           token: null,
           isAuthenticated: false,
           tenantContext: null,
+          personaRole: null,
           currentRole: null,
           availableRoles: [],
         })
