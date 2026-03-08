@@ -1576,6 +1576,92 @@ class BudgetAllocationLedger(Base):
     actor = relationship("User")
 
 
+# -------------------- Sales Campaign / Exhibition Models ----------------------
+
+class SalesCampaign(Base):
+    """Exhibition / booth campaign with escrow-based instant payout."""
+    __tablename__ = "sales_campaigns"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+
+    title = Column(String(255), nullable=False)
+    description = Column(Text)
+    venue = Column(String(500))
+    campaign_type = Column(String(50), default="exhibition")
+
+    start_date = Column(DateTime(timezone=True), nullable=False)
+    end_date = Column(DateTime(timezone=True), nullable=False)
+
+    points_per_lead = Column(Numeric(15, 2), nullable=False, default=50)
+    max_leads_per_rep = Column(Integer)
+    total_budget_requested = Column(Numeric(15, 2), nullable=False)
+
+    budget_escrow = Column(Numeric(15, 2), nullable=False, default=0)
+    leads_rewarded = Column(Integer, nullable=False, default=0)
+    points_disbursed = Column(Numeric(15, 2), nullable=False, default=0)
+
+    # draft | pending_approval | active | closed | cancelled
+    status = Column(String(50), nullable=False, default="draft")
+
+    approved_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    rejection_reason = Column(Text, nullable=True)
+
+    swept_at = Column(DateTime(timezone=True), nullable=True)
+    swept_amount = Column(Numeric(15, 2), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    tenant = relationship("Tenant")
+    creator = relationship("User", foreign_keys=[created_by])
+    approver = relationship("User", foreign_keys=[approved_by])
+    participants = relationship("CampaignParticipant", back_populates="campaign", cascade="all, delete-orphan")
+    lead_registrations = relationship("LeadRegistration", back_populates="campaign", cascade="all, delete-orphan")
+
+
+class CampaignParticipant(Base):
+    """Sales/marketing reps assigned to a campaign booth."""
+    __tablename__ = "campaign_participants"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    campaign_id = Column(UUID(as_uuid=True), ForeignKey("sales_campaigns.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    role = Column(String(50), default="rep")  # rep | lead
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    campaign = relationship("SalesCampaign", back_populates="participants")
+    user = relationship("User")
+
+
+class LeadRegistration(Base):
+    """Visitor captured at the booth — triggers instant payout from escrow."""
+    __tablename__ = "lead_registrations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    campaign_id = Column(UUID(as_uuid=True), ForeignKey("sales_campaigns.id", ondelete="CASCADE"), nullable=False)
+    sales_rep_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+
+    visitor_name = Column(String(255))
+    visitor_email = Column(String(255))
+    visitor_phone = Column(String(50))
+    visitor_hash = Column(String(64), nullable=False)  # SHA-256 dedup key
+    interest_level = Column(String(50), default="medium")  # low|medium|high
+
+    # pending | verified | duplicate | rejected
+    status = Column(String(50), nullable=False, default="verified")
+    points_awarded = Column(Numeric(15, 2), default=0)
+    notes = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    campaign = relationship("SalesCampaign", back_populates="lead_registrations")
+    sales_rep = relationship("User")
+
+
 # -------------------- Compatibility aliases / legacy models --------------------
 # Provide simple aliases so existing imports in tests keep working.
 # Reward used to be a distinct model; map it to Voucher.

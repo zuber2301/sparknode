@@ -17,6 +17,12 @@ def make_celery() -> Celery:
         result_serializer="json",
         timezone="UTC",
         enable_utc=True,
+        beat_schedule={
+            "sweep-expired-campaigns": {
+                "task": "sweep_expired_campaigns",
+                "schedule": 3600.0,  # every hour
+            },
+        },
     )
     return celery_app
 

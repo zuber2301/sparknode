@@ -32,6 +32,7 @@ from platform_admin.alert_routes import router as platform_alert_router
 from copilot.routes import router as copilot_router
 from copilot.snpilot_routes import router as snpilot_router
 from sales.routes import router as sales_router
+from sales.campaign_routes import router as campaign_router
 from crm.routes import router as crm_router
 from catalog.platform_routes import router as catalog_platform_router
 from catalog.tenant_routes import router as catalog_tenant_router
@@ -108,6 +109,7 @@ app.include_router(audit_router, prefix="/api/audit", tags=["Audit"])
 app.include_router(events_router, prefix="/api/events", tags=["Events & Logistics"])
 app.include_router(analytics_router, prefix="/api/analytics", tags=["Analytics"])
 app.include_router(sales_router, prefix="/api/sales-events", tags=["Sales & Marketing"])
+app.include_router(campaign_router, prefix="/api/campaigns", tags=["Sales Campaigns"])
 app.include_router(crm_router, prefix="/api/crm", tags=["CRM Connectors"])
 app.include_router(platform_router, prefix="/api/platform", tags=["Platform Admin"])
 app.include_router(platform_ledger_router, tags=["Platform Budget Ledger"])

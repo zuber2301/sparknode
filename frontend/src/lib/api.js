@@ -454,6 +454,22 @@ export const catalogAPI = {
 }
 export const catalogApi = catalogAPI
 
+// ── Sales Campaigns (Exhibition / Booth) ─────────────────────────────────────
+export const campaignAPI = {
+  create: (data)                   => api.post('/campaigns/', data),
+  list: ()                         => api.get('/campaigns/'),
+  pendingApprovals: ()             => api.get('/campaigns/pending-approvals'),
+  get: (id)                        => api.get(`/campaigns/${id}`),
+  update: (id, data)               => api.patch(`/campaigns/${id}`, data),
+  submit: (id)                     => api.post(`/campaigns/${id}/submit`),
+  approve: (id, data)              => api.post(`/campaigns/${id}/approve`, data),
+  addParticipants: (id, data)      => api.post(`/campaigns/${id}/participants`, data),
+  removeParticipant: (id, userId)  => api.delete(`/campaigns/${id}/participants/${userId}`),
+  registerLead: (id, data)         => api.post(`/campaigns/${id}/register-lead`, data),
+  leads: (id)                      => api.get(`/campaigns/${id}/leads`),
+  leaderboard: (id)                => api.get(`/campaigns/${id}/leaderboard`),
+}
+
 // Alias exports for component compatibility
 export const recognitionApi = recognitionAPI
 export const usersApi = usersAPI

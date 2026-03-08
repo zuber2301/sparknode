@@ -27,6 +27,7 @@ import {
   HiOutlineCreditCard,
   HiOutlineMailOpen,
   HiOutlineCalendar,
+  HiOutlineBriefcase,
   HiOutlineCog as HiOutlineSettings,
 } from 'react-icons/hi'
 
@@ -35,6 +36,7 @@ const navigation = [
   // this is the employee-facing events browser; not the manager dashboard
   { name: 'Events', href: '/events/browse', icon: HiOutlineNewspaper },
   { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: true },
+  { name: 'Campaigns', href: '/campaigns', icon: HiOutlineBriefcase, featureFlag: true },
   { name: 'Feed', href: '/feed', icon: HiOutlineNewspaper },
   { name: 'Recognize', href: '/recognize', icon: HiOutlineSparkles },
   { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
@@ -83,6 +85,8 @@ const tenantManagerNavigation = [
   { name: 'Analytics & Reports', href: '/analytics', icon: HiOutlineChartBar },
   { name: 'Event Management', href: '/events', icon: HiOutlineNewspaper },
   { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: true },
+  { name: 'Campaigns', href: '/campaigns', icon: HiOutlineBriefcase, featureFlag: true },
+  { name: 'Escrow Approval', href: '/campaigns/escrow', icon: HiOutlineClipboardList, featureFlag: true },
 ]
 
 // Tenant Lead specific navigation
@@ -91,6 +95,7 @@ const tenantLeadNavigation = [
   // tenant leads only browse events; not full management
   { name: 'Events', href: '/events/browse', icon: HiOutlineNewspaper },
   { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: true },
+  { name: 'Campaigns', href: '/campaigns', icon: HiOutlineBriefcase, featureFlag: true },
   { name: 'Recognize', href: '/recognize', icon: HiOutlineSparkles },
   { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
   { name: 'Wallet', href: '/wallet', icon: HiOutlineCash },
