@@ -1,6 +1,6 @@
 # SparkNode Docker Compose Configuration
 # All ports and settings are loaded from .env file
-# Run: docker-compose up -d
+# Run: docker compose up -d
 
 services:
   postgres:
@@ -14,10 +14,6 @@ services:
       - "${POSTGRES_EXTERNAL_PORT:-6432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # Only runs on first boot (empty data dir). Schema changes after that
-      # are managed by Alembic (alembic upgrade head) in the backend entrypoint.
-      - ./database/init.sql:/docker-entrypoint-initdb.d/01_init.sql
-      - ./database/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sparknode}"]
       interval: 5s
@@ -101,14 +97,13 @@ services:
     command: celery -A core.celery_app.celery_app worker --loglevel=info
 
   frontend:
-    image: nginx:alpine
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: ${PROJECT_NAME:-sparknode}-frontend
-    environment:
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:7100}
     ports:
       - "${FRONTEND_EXTERNAL_PORT:-6173}:80"
     volumes:
-      - ./frontend/dist:/usr/share/nginx/html:ro
       - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - backend
@@ -122,6 +117,7 @@ services:
 
 volumes:
   postgres_data:
+    external: true
     name: ${PROJECT_NAME:-sparknode}_postgres_data
 
 networks:

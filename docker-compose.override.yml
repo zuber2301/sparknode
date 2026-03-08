@@ -1,0 +1,29 @@
+# ──────────────────────────────────────────────────────────────
+# SparkNode — Bootstrap-Only Override Configuration
+#
+# Purpose: Initialize fresh database with schema and seed data.
+#
+# IMPORTANT: This file is ONLY for initial bootstrapping!
+# 
+# Usage:
+#   1. First-time setup (creates volume + initializes DB):
+#      docker volume create sparknode_postgres_data
+#      docker-compose -f docker-compose.yml -f docker-compose.override.yml up -d
+#
+#   2. Normal rebuilds (data persists in volume):
+#      docker-compose up -d --build
+#
+#   3. Full reset (wipes DB and reinitializes):
+#      docker-compose down -v
+#      docker volume rm sparknode_postgres_data
+#      docker volume create sparknode_postgres_data
+#      docker-compose -f docker-compose.yml -f docker-compose.override.yml up -d
+#
+# ──────────────────────────────────────────────────────────────
+
+services:
+  postgres:
+    volumes:
+      # Add init scripts to populate schema and seed data on fresh database
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01_init.sql
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql

@@ -169,8 +169,7 @@ async def create_tenant(
             last_name=tenant_data.admin_last_name,
             org_role=admin_org_role,
             department_id=hr_dept.id,
-            status='ACTIVE',
-            is_super_admin=True
+            status='ACTIVE'
         )
         db.add(admin_user)
         db.flush()
@@ -242,6 +241,7 @@ async def create_tenant(
                 is_system=False # Tenant-local copy
             )
             db.add(new_badge)
+            db.flush()  # Flush each badge individually to avoid batch insert UUID issues
 
         # Audit log
         audit = AuditLog(

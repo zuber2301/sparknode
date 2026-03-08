@@ -6,7 +6,7 @@
 services:
   # ── Backend ─────────────────────────────────────────────────
   backend:
-    image: ${DOCKERHUB_ORG:-zuber2301}/sparknode-backend:${APP_VERSION:-latest}
+    image: ${DOCKERHUB_ORG:-zuber2301}/sparknode-app-backend:${APP_VERSION:-latest}
     restart: unless-stopped
     env_file: .env
     depends_on:
@@ -17,7 +17,7 @@ services:
 
   # ── Celery ──────────────────────────────────────────────────
   celery:
-    image: ${DOCKERHUB_ORG:-zuber2301}/sparknode-backend:${APP_VERSION:-latest}
+    image: ${DOCKERHUB_ORG:-zuber2301}/sparknode-app-backend:${APP_VERSION:-latest}
     command: celery -A core.celery_app.celery_app worker --loglevel=info
     restart: unless-stopped
     env_file: .env
@@ -26,7 +26,7 @@ services:
 
   # ── Frontend ────────────────────────────────────────────────
   frontend:
-    image: ${DOCKERHUB_ORG:-zuber2301}/sparknode-frontend:${APP_VERSION:-latest}
+    image: ${DOCKERHUB_ORG:-zuber2301}/sparknode-app-frontend:${APP_VERSION:-latest}
     restart: unless-stopped
     networks:
       - app-network

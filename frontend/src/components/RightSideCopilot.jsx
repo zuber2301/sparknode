@@ -50,20 +50,22 @@ export default function RightSideCopilot() {
     ? [...SUGGESTED_PROMPTS_EMPLOYEE, ...SUGGESTED_PROMPTS_MANAGER]
     : SUGGESTED_PROMPTS_EMPLOYEE
 
-  // Fetch feature flags if not already in tenantContext (skip for platform admin — no tenant)
+  // Always fetch fresh feature flags (skip for platform admin — no tenant)
   const { data: currentTenantResponse } = useQuery({
     queryKey: ['currentTenant-copilot'],
     queryFn: () => tenantsAPI.getCurrent(),
-    enabled: !isPlatformAdmin && !tenantContext?.feature_flags,
-    onSuccess: (response) => {
-      if (response?.data?.feature_flags && !tenantContext?.feature_flags) {
-        updateTenantContext({ feature_flags: response.data.feature_flags })
-      }
-    },
+    enabled: !isPlatformAdmin,
   })
 
-  // Check if AI copilot is enabled for this tenant
-  const featureFlags = tenantContext?.feature_flags || currentTenantResponse?.data?.feature_flags
+  // Sync fresh feature flags into tenantContext (onSuccess removed in React Query v5)
+  useEffect(() => {
+    if (currentTenantResponse?.data?.feature_flags) {
+      updateTenantContext({ feature_flags: currentTenantResponse.data.feature_flags })
+    }
+  }, [currentTenantResponse?.data?.feature_flags])
+
+  // Use fresh API data first — tenantContext may be stale from a previous session
+  const featureFlags = currentTenantResponse?.data?.feature_flags || tenantContext?.feature_flags
   const aiCopilotEnabled = isPlatformAdmin || featureFlags?.ai_copilot || featureFlags?.ai_module_enabled
 
   // Keep the panel open if pinned (must be before early return - Rules of Hooks)

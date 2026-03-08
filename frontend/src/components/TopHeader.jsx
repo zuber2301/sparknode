@@ -27,6 +27,7 @@ import {
   HiOutlineCreditCard,
   HiOutlineMailOpen,
   HiOutlineCalendar,
+  HiOutlineBriefcase,
   HiOutlineCog as HiOutlineSettings,
 } from 'react-icons/hi'
 
@@ -35,6 +36,7 @@ const navigation = [
   // this is the employee-facing events browser; not the manager dashboard
   { name: 'Events', href: '/events/browse', icon: HiOutlineNewspaper },
   { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: true },
+  { name: 'Campaigns', href: '/campaigns', icon: HiOutlineBriefcase, featureFlag: true },
   { name: 'Feed', href: '/feed', icon: HiOutlineNewspaper },
   { name: 'Recognize', href: '/recognize', icon: HiOutlineSparkles },
   { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
@@ -83,6 +85,8 @@ const tenantManagerNavigation = [
   { name: 'Analytics & Reports', href: '/analytics', icon: HiOutlineChartBar },
   { name: 'Event Management', href: '/events', icon: HiOutlineNewspaper },
   { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: true },
+  { name: 'Campaigns', href: '/campaigns', icon: HiOutlineBriefcase, featureFlag: true },
+  { name: 'Escrow Approval', href: '/campaigns/escrow', icon: HiOutlineClipboardList, featureFlag: true },
 ]
 
 // Tenant Lead specific navigation
@@ -91,6 +95,7 @@ const tenantLeadNavigation = [
   // tenant leads only browse events; not full management
   { name: 'Events', href: '/events/browse', icon: HiOutlineNewspaper },
   { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: true },
+  { name: 'Campaigns', href: '/campaigns', icon: HiOutlineBriefcase, featureFlag: true },
   { name: 'Recognize', href: '/recognize', icon: HiOutlineSparkles },
   { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
   { name: 'Wallet', href: '/wallet', icon: HiOutlineCash },
@@ -138,15 +143,15 @@ export default function TopHeader() {
     queryKey: ['currentUser'],
     queryFn: () => authAPI.me(),
     staleTime: 5 * 60 * 1000, // 5 minutes
-    onSuccess: (response) => {
-      if (response?.data?.id) {
-        // Ensure auth store has full user/roles state populated.
-        // If the persisted store already has a token, preserve it.
-        const token = useAuthStore.getState().token
-        setAuth(response.data, token)
-      }
-    },
   })
+
+  // onSuccess was removed in React Query v5 — use useEffect instead
+  useEffect(() => {
+    if (currentUser?.data?.id) {
+      const token = useAuthStore.getState().token
+      setAuth(currentUser.data, token)
+    }
+  }, [currentUser])
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -174,17 +179,31 @@ export default function TopHeader() {
     queryKey: ['currentTenant'],
     queryFn: () => tenantsAPI.getCurrent(),
     enabled: !isPlatformUser,
-    onSuccess: (response) => {
-      if (response?.data?.feature_flags && !tenantContext?.feature_flags) {
-        updateTenantContext({ feature_flags: response.data.feature_flags })
-      }
-    },
   })
 
-  const salesEnabled = (() => {
-    const flags = (tenantContext && tenantContext.feature_flags) || (user && user.tenant_flags) || (currentTenantResponse && currentTenantResponse.data && currentTenantResponse.data.feature_flags) || {}
-    return !!(flags.sales_marketing || flags.sales_marketing_enabled || flags.sales_marketting_enabled)
-  })()
+  // Sync fresh feature flags into tenantContext (onSuccess removed in React Query v5)
+  useEffect(() => {
+    if (currentTenantResponse?.data?.feature_flags) {
+      updateTenantContext({ feature_flags: currentTenantResponse.data.feature_flags })
+    }
+  }, [currentTenantResponse?.data?.feature_flags])
+
+  // Use fresh API data first — tenantContext may be stale from a previous session
+  const _featureFlags = currentTenantResponse?.data?.feature_flags
+    || tenantContext?.feature_flags
+    || user?.tenant_flags
+    || {}
+
+  const salesEnabled = !!(
+    _featureFlags.sales_marketing ||
+    _featureFlags.sales_marketing_enabled ||
+    _featureFlags.sales_marketting_enabled
+  )
+
+  const aiEnabled = !!(
+    _featureFlags.ai_copilot ||
+    _featureFlags.ai_module_enabled
+  )
 
   // Check if user has sales_marketing role for menu access
   const hasSalesRole = user?.org_role === 'sales_marketing'
