@@ -167,7 +167,7 @@ async def get_departments(
         # Users can access their own tenant's departments
         # Platform admins can access any tenant's departments
         if tenant_id != current_user.tenant_id:
-            if not (current_user.is_platform_admin or current_user.is_super_admin):
+            if not current_user.is_platform_admin:
                 raise HTTPException(status_code=403, detail="Insufficient permissions to access other tenants' departments")
 
         # If the special "All Tenants" selector is used, detect and return
@@ -209,7 +209,7 @@ async def get_department_management_data(
         # Users can access their own tenant's departments
         # Platform admins can access any tenant's departments
         if tenant_id != current_user.tenant_id:
-            if not (current_user.is_platform_admin or current_user.is_super_admin):
+            if not current_user.is_platform_admin:
                 raise HTTPException(status_code=403, detail="Insufficient permissions to access other tenants' departments")
 
     # Fallback to the current user's tenant

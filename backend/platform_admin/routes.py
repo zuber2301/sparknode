@@ -169,8 +169,7 @@ async def create_tenant(
             last_name=tenant_data.admin_last_name,
             org_role=admin_org_role,
             department_id=hr_dept.id,
-            status='ACTIVE',
-            is_super_admin=True
+            status='ACTIVE'
         )
         db.add(admin_user)
         db.flush()

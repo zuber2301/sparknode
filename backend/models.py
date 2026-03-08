@@ -334,7 +334,7 @@ class User(Base):
     @property
     def is_platform_admin(self):
         """Check if user has platform-level privileges"""
-        return self.system_admin is not None or self.org_role == "platform_admin" or self.is_super_admin
+        return self.system_admin is not None or self.org_role == "platform_admin"
 
     @property
     def full_name(self):
