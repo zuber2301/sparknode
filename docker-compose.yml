@@ -31,6 +31,7 @@ services:
       - app-network
 
   backend:
+    image: zuber2301/sparknode-app-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -68,6 +69,7 @@ services:
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
   celery:
+    image: zuber2301/sparknode-app-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -97,6 +99,7 @@ services:
     command: celery -A core.celery_app.celery_app worker --loglevel=info
 
   frontend:
+    image: zuber2301/sparknode-app-frontend:latest
     build:
       context: ./frontend
       dockerfile: Dockerfile

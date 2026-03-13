@@ -39,6 +39,8 @@ on:
           - all
           - backend
           - frontend
+          - manager-ui
+          - orchestrator
       version_bump:
         description: 'Version bump type'
         required: true
@@ -91,8 +93,12 @@ jobs:
       should_push: ${{ steps.version.outputs.should_push }}
       build_backend: ${{ steps.matrix.outputs.build_backend }}
       build_frontend: ${{ steps.matrix.outputs.build_frontend }}
+      build_manager_ui: ${{ steps.matrix.outputs.build_manager_ui }}
+      build_orchestrator: ${{ steps.matrix.outputs.build_orchestrator }}
       all_tags_backend: ${{ steps.tags.outputs.backend }}
       all_tags_frontend: ${{ steps.tags.outputs.frontend }}
+      all_tags_manager_ui: ${{ steps.tags.outputs.manager_ui }}
+      all_tags_orchestrator: ${{ steps.tags.outputs.orchestrator }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -167,14 +173,30 @@ jobs:
 
           # On push/PR events or when "all" is selected, build everything
           if [ -z "$IMAGE_INPUT" ] || [ "$IMAGE_INPUT" = "all" ]; then
-            echo "build_backend=true"  >> $GITHUB_OUTPUT
-            echo "build_frontend=true" >> $GITHUB_OUTPUT
+            echo "build_backend=true"       >> $GITHUB_OUTPUT
+            echo "build_frontend=true"      >> $GITHUB_OUTPUT
+            echo "build_manager_ui=true"    >> $GITHUB_OUTPUT
+            echo "build_orchestrator=true"  >> $GITHUB_OUTPUT
           elif [ "$IMAGE_INPUT" = "backend" ]; then
-            echo "build_backend=true"   >> $GITHUB_OUTPUT
-            echo "build_frontend=false" >> $GITHUB_OUTPUT
+            echo "build_backend=true"       >> $GITHUB_OUTPUT
+            echo "build_frontend=false"     >> $GITHUB_OUTPUT
+            echo "build_manager_ui=false"   >> $GITHUB_OUTPUT
+            echo "build_orchestrator=false" >> $GITHUB_OUTPUT
           elif [ "$IMAGE_INPUT" = "frontend" ]; then
-            echo "build_backend=false"  >> $GITHUB_OUTPUT
-            echo "build_frontend=true"  >> $GITHUB_OUTPUT
+            echo "build_backend=false"      >> $GITHUB_OUTPUT
+            echo "build_frontend=true"      >> $GITHUB_OUTPUT
+            echo "build_manager_ui=false"   >> $GITHUB_OUTPUT
+            echo "build_orchestrator=false" >> $GITHUB_OUTPUT
+          elif [ "$IMAGE_INPUT" = "manager-ui" ]; then
+            echo "build_backend=false"      >> $GITHUB_OUTPUT
+            echo "build_frontend=false"     >> $GITHUB_OUTPUT
+            echo "build_manager_ui=true"    >> $GITHUB_OUTPUT
+            echo "build_orchestrator=false" >> $GITHUB_OUTPUT
+          elif [ "$IMAGE_INPUT" = "orchestrator" ]; then
+            echo "build_backend=false"      >> $GITHUB_OUTPUT
+            echo "build_frontend=false"     >> $GITHUB_OUTPUT
+            echo "build_manager_ui=false"   >> $GITHUB_OUTPUT
+            echo "build_orchestrator=true"  >> $GITHUB_OUTPUT
           fi
 
           echo "Image selection: ${IMAGE_INPUT:-all}"
@@ -233,7 +255,7 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           push: ${{ needs.prepare.outputs.should_push == 'true' }}
-          tags: ${{ needs.prepare.outputs.tags.outputs.backend }}
+          tags: ${{ needs.prepare.outputs.all_tags_backend }}
           labels: |
             org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -277,7 +299,7 @@ jobs:
           context: ./frontend
           file: ./frontend/Dockerfile.prod
           push: ${{ needs.prepare.outputs.should_push == 'true' }}
-          tags: ${{ needs.prepare.outputs.tags.outputs.frontend }}
+          tags: ${{ needs.prepare.outputs.all_tags_frontend }}
           build-args: |
             VITE_API_URL=https://${{ vars.DOMAIN || 'app.sparknode.io' }}
           labels: |
@@ -302,7 +324,7 @@ jobs:
     name: Build Manager UI (${{ needs.prepare.outputs.version }})
     runs-on: ubuntu-latest
     needs: prepare
-    if: needs.prepare.outputs.build_frontend == 'true'
+    if: needs.prepare.outputs.build_manager_ui == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -323,7 +345,7 @@ jobs:
           context: ./deployment_sparknode/manager-ui
           file: ./deployment_sparknode/manager-ui/Dockerfile
           push: ${{ needs.prepare.outputs.should_push == 'true' }}
-          tags: ${{ needs.prepare.outputs.tags.outputs.manager_ui }}
+          tags: ${{ needs.prepare.outputs.all_tags_manager_ui }}
           labels: |
             org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -344,7 +366,7 @@ jobs:
     name: Build Orchestrator (${{ needs.prepare.outputs.version }})
     runs-on: ubuntu-latest
     needs: prepare
-    if: needs.prepare.outputs.build_backend == 'true'
+    if: needs.prepare.outputs.build_orchestrator == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -365,7 +387,7 @@ jobs:
           context: .
           file: ./deployment_sparknode/control-plane-api/Dockerfile
           push: ${{ needs.prepare.outputs.should_push == 'true' }}
-          tags: ${{ needs.prepare.outputs.tags.outputs.orchestrator }}
+          tags: ${{ needs.prepare.outputs.all_tags_orchestrator }}
           labels: |
             org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -394,35 +416,13 @@ jobs:
       (needs.build-manager-ui.result == 'success' || needs.build-manager-ui.result == 'skipped') &&
       (needs.build-orchestrator.result == 'success' || needs.build-orchestrator.result == 'skipped')
     steps:
-      - name: Get DockerHub JWT token
+      - name: Get DockerHub token
         id: auth
         run: |
           TOKEN=$(curl -sf "https://hub.docker.com/v2/users/login" \
             -H "Content-Type: application/json" \
-            -d '{"username":"${{ secrets.DOCKERHUB_USERNAME }}","password":"${{ secrets.DOCKERHUB_TOKEN }}"}' \
+            -d "{\"username\":\"${{ secrets.DOCKERHUB_USERNAME }}\",\"password\":\"${{ secrets.DOCKERHUB_TOKEN }}\"}" \
             | jq -r .token)
-          echo "token=$TOKEN" >> $GITHUB_OUTPUT
-
-      - name: Purge old tags
-        run: |
-          REPOS=("${{ env.APP_BACKEND_IMAGE }}" "${{ env.APP_FRONTEND_IMAGE }}" "${{ env.PLATFORM_UI_IMAGE }}" "${{ env.PLATFORM_API_IMAGE }}")
-          TOKEN="${{ steps.auth.outputs.token }}"
-          KEEP=${{ env.KEEP_VERSIONS }}
-
-          for REPO in "${REPOS[@]}"; do
-            echo "--- Purging $REPO ---"
-            # Get all tags for the repository
-            TAGS=$(curl -sf -H "Authorization: JWT $TOKEN" "https://hub.docker.com/v2/repositories/$REPO/tags/?page_size=100")
-            
-            # Extract semver-only tags, sort by semver, and identify ones to delete
-            TO_DELETE=$(echo "$TAGS" | jq -r '.results[].name' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V -r | tail -n +$((KEEP + 1)))
-
-            for TAG in $TO_DELETE; do
-              echo "Deleting $REPO:$TAG..."
-              curl -sf -X DELETE -H "Authorization: JWT $TOKEN" "https://hub.docker.com/v2/repositories/$REPO/tags/$TAG/"
-            done
-          done
-            | jq -r '.token')
           if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
             echo "::error::Failed to authenticate with DockerHub API"
             exit 1
@@ -430,79 +430,34 @@ jobs:
           echo "::add-mask::$TOKEN"
           echo "token=$TOKEN" >> $GITHUB_OUTPUT
 
-      - name: Purge old backend tags
-        if: needs.prepare.outputs.build_backend == 'true'
+      - name: Purge old tags (all images)
         run: |
-          REPO="sparknode-backend"
-          ORG="${{ env.DOCKERHUB_ORG }}"
+          REPOS=("${{ env.APP_BACKEND_IMAGE }}" "${{ env.APP_FRONTEND_IMAGE }}" "${{ env.PLATFORM_UI_IMAGE }}" "${{ env.PLATFORM_API_IMAGE }}")
           TOKEN="${{ steps.auth.outputs.token }}"
           KEEP=${{ env.KEEP_VERSIONS }}
 
-          echo ">>> Listing tags for $ORG/$REPO ..."
-          ALL_TAGS=$(curl -sf \
-            "https://hub.docker.com/v2/repositories/$ORG/$REPO/tags/?page_size=100&ordering=last_updated" \
-            -H "Authorization: Bearer $TOKEN" \
-            | jq -r '.results[].name')
-
-          # Filter semver tags only (X.Y.Z), sort descending
-          SEMVER_TAGS=$(echo "$ALL_TAGS" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -t. -k1,1nr -k2,2nr -k3,3nr)
-          TOTAL=$(echo "$SEMVER_TAGS" | grep -c . || true)
-
-          echo "  Found $TOTAL semver tags, keeping $KEEP"
-
-          if [ "$TOTAL" -le "$KEEP" ]; then
-            echo "  Nothing to purge."
-          else
-            TO_DELETE=$(echo "$SEMVER_TAGS" | tail -n +$((KEEP + 1)))
-            for TAG in $TO_DELETE; do
-              echo "  Deleting $ORG/$REPO:$TAG ..."
-              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
-                "https://hub.docker.com/v2/repositories/$ORG/$REPO/tags/$TAG/" \
-                -H "Authorization: Bearer $TOKEN")
-              if [ "$HTTP_CODE" = "204" ]; then
-                echo "    ✓ Deleted"
-              else
-                echo "    ✗ Failed (HTTP $HTTP_CODE)"
-              fi
-            done
-          fi
-
-      - name: Purge old frontend tags
-        if: needs.prepare.outputs.build_frontend == 'true'
-        run: |
-          REPO="sparknode-frontend"
-          ORG="${{ env.DOCKERHUB_ORG }}"
-          TOKEN="${{ steps.auth.outputs.token }}"
-          KEEP=${{ env.KEEP_VERSIONS }}
-
-          echo ">>> Listing tags for $ORG/$REPO ..."
-          ALL_TAGS=$(curl -sf \
-            "https://hub.docker.com/v2/repositories/$ORG/$REPO/tags/?page_size=100&ordering=last_updated" \
-            -H "Authorization: Bearer $TOKEN" \
-            | jq -r '.results[].name')
-
-          # Filter semver tags only (X.Y.Z), sort descending
-          SEMVER_TAGS=$(echo "$ALL_TAGS" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -t. -k1,1nr -k2,2nr -k3,3nr)
-          TOTAL=$(echo "$SEMVER_TAGS" | grep -c . || true)
-
-          echo "  Found $TOTAL semver tags, keeping $KEEP"
-
-          if [ "$TOTAL" -le "$KEEP" ]; then
-            echo "  Nothing to purge."
-          else
-            TO_DELETE=$(echo "$SEMVER_TAGS" | tail -n +$((KEEP + 1)))
-            for TAG in $TO_DELETE; do
-              echo "  Deleting $ORG/$REPO:$TAG ..."
-              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
-                "https://hub.docker.com/v2/repositories/$ORG/$REPO/tags/$TAG/" \
-                -H "Authorization: Bearer $TOKEN")
-              if [ "$HTTP_CODE" = "204" ]; then
-                echo "    ✓ Deleted"
-              else
-                echo "    ✗ Failed (HTTP $HTTP_CODE)"
-              fi
-            done
-          fi
+          for REPO in "${REPOS[@]}"; do
+            echo ">>> Purging $REPO (keeping latest $KEEP semver versions) ..."
+            ALL_TAGS=$(curl -sf \
+              "https://hub.docker.com/v2/repositories/$REPO/tags/?page_size=100&ordering=last_updated" \
+              -H "Authorization: Bearer $TOKEN" \
+              | jq -r '.results[].name')
+            SEMVER_TAGS=$(echo "$ALL_TAGS" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -t. -k1,1nr -k2,2nr -k3,3nr)
+            TOTAL=$(echo "$SEMVER_TAGS" | grep -c . || true)
+            echo "  Found $TOTAL semver tags"
+            if [ "$TOTAL" -le "$KEEP" ]; then
+              echo "  Nothing to purge."
+            else
+              TO_DELETE=$(echo "$SEMVER_TAGS" | tail -n +$((KEEP + 1)))
+              for TAG in $TO_DELETE; do
+                echo "  Deleting $REPO:$TAG ..."
+                HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
+                  "https://hub.docker.com/v2/repositories/$REPO/tags/$TAG/" \
+                  -H "Authorization: Bearer $TOKEN")
+                [ "$HTTP_CODE" = "204" ] && echo "    ✓ Deleted" || echo "    ✗ Failed (HTTP $HTTP_CODE)"
+              done
+            fi
+          done
 
       - name: Cleanup summary
         run: |
@@ -511,12 +466,12 @@ jobs:
           echo "The \`latest\` tag is always preserved." >> $GITHUB_STEP_SUMMARY
 
   # ────────────────────────────────────────────────────────────
-  # Job 5: Output summary
+  # Job 7: Output summary
   # ────────────────────────────────────────────────────────────
   summary:
     name: CI Summary
     runs-on: ubuntu-latest
-    needs: [prepare, build-backend, build-frontend, cleanup]
+    needs: [prepare, build-backend, build-frontend, build-manager-ui, build-orchestrator, cleanup]
     if: always()
     steps:
       - name: Results
@@ -524,27 +479,38 @@ jobs:
           echo "══════════════════════════════════════════"
           echo "  CI Build Results"
           echo "══════════════════════════════════════════"
-          echo "  Version:  ${{ needs.prepare.outputs.version }}"
-          echo "  Backend:  ${{ needs.build-backend.result }}"
-          echo "  Frontend: ${{ needs.build-frontend.result }}"
-          echo "  Cleanup:  ${{ needs.cleanup.result }}"
-          echo "  Pushed:   ${{ needs.prepare.outputs.should_push }}"
+          echo "  Version:      ${{ needs.prepare.outputs.version }}"
+          echo "  Backend:      ${{ needs.build-backend.result }}"
+          echo "  Frontend:     ${{ needs.build-frontend.result }}"
+          echo "  Manager UI:   ${{ needs.build-manager-ui.result }}"
+          echo "  Orchestrator: ${{ needs.build-orchestrator.result }}"
+          echo "  Cleanup:      ${{ needs.cleanup.result }}"
+          echo "  Pushed:       ${{ needs.prepare.outputs.should_push }}"
           echo "══════════════════════════════════════════"
 
           echo "### CI Build Results" >> $GITHUB_STEP_SUMMARY
           echo "| Component | Status | Image |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|--------|-------|" >> $GITHUB_STEP_SUMMARY
           if [ "${{ needs.build-backend.result }}" != "skipped" ]; then
-            echo "| Backend (+ celery) | ${{ needs.build-backend.result }} | \`${{ env.BACKEND_IMAGE }}:${{ needs.prepare.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| Backend (+ celery) | ${{ needs.build-backend.result }} | \`${{ env.APP_BACKEND_IMAGE }}:${{ needs.prepare.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
           fi
           if [ "${{ needs.build-frontend.result }}" != "skipped" ]; then
-            echo "| Frontend | ${{ needs.build-frontend.result }} | \`${{ env.FRONTEND_IMAGE }}:${{ needs.prepare.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| Frontend | ${{ needs.build-frontend.result }} | \`${{ env.APP_FRONTEND_IMAGE }}:${{ needs.prepare.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ needs.build-manager-ui.result }}" != "skipped" ]; then
+            echo "| Manager UI | ${{ needs.build-manager-ui.result }} | \`${{ env.PLATFORM_UI_IMAGE }}:${{ needs.prepare.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ needs.build-orchestrator.result }}" != "skipped" ]; then
+            echo "| Orchestrator | ${{ needs.build-orchestrator.result }} | \`${{ env.PLATFORM_API_IMAGE }}:${{ needs.prepare.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Retention:** ${{ env.KEEP_VERSIONS }} versions kept per image" >> $GITHUB_STEP_SUMMARY
 
           # Fail if any enabled build failed
-          if [ "${{ needs.build-backend.result }}" = "failure" ] || [ "${{ needs.build-frontend.result }}" = "failure" ]; then
+          if [ "${{ needs.build-backend.result }}" = "failure" ] || \
+             [ "${{ needs.build-frontend.result }}" = "failure" ] || \
+             [ "${{ needs.build-manager-ui.result }}" = "failure" ] || \
+             [ "${{ needs.build-orchestrator.result }}" = "failure" ]; then
             echo "::error::One or more image builds failed"
             exit 1
           fi

@@ -185,7 +185,9 @@ export default function TopHeader() {
   // Sync fresh feature flags into tenantContext (onSuccess removed in React Query v5)
   useEffect(() => {
     if (currentTenantResponse?.data?.feature_flags) {
-      updateTenantContext({ feature_flags: currentTenantResponse.data.feature_flags })
+      const patch = { feature_flags: currentTenantResponse.data.feature_flags }
+      if (currentTenantResponse.data.name) patch.tenant_name = currentTenantResponse.data.name
+      updateTenantContext(patch)
     }
   }, [currentTenantResponse?.data?.feature_flags])
 
@@ -322,7 +324,7 @@ export default function TopHeader() {
 
   useEffect(() => {
     if (isPlatformUser) return
-    if (tenantContext?.tenant_id) return
+    if (tenantContext?.tenant_id && tenantContext?.tenant_name) return
     const tenant = currentTenantResponse?.data
     if (tenant?.id) {
       updateTenantContext({ tenant_id: tenant.id, tenant_name: tenant.name })
@@ -626,6 +628,9 @@ export default function TopHeader() {
                   <p className="text-xs text-gray-500 truncate">
                     {getRoleDisplayName(effectiveRole)}
                   </p>
+                  {!isPlatformUser && tenantName && (
+                    <p className="text-xs text-indigo-500 font-medium truncate">{tenantName}</p>
+                  )}
                 </div>
                 <HiOutlineChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0 hidden sm:block" />
               </button>

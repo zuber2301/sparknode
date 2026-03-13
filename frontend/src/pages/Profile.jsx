@@ -1,10 +1,12 @@
+import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { useQuery } from '@tanstack/react-query'
 import { walletsAPI, recognitionAPI } from '../lib/api'
-import { HiOutlineUser, HiOutlineMail, HiOutlineBriefcase, HiOutlinePhone, HiOutlineOfficeBuilding } from 'react-icons/hi'
+import { HiOutlineUser, HiOutlineMail, HiOutlineBriefcase, HiOutlinePhone, HiOutlineOfficeBuilding, HiOutlineArrowLeft } from 'react-icons/hi'
 
 export default function Profile() {
   const { user, tenantContext } = useAuthStore()
+  const navigate = useNavigate()
 
   const { data: wallet } = useQuery({
     queryKey: ['myWallet'],
@@ -56,6 +58,17 @@ export default function Profile() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
+      {/* Back button */}
+      <div>
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 transition-colors"
+        >
+          <HiOutlineArrowLeft className="w-4 h-4" />
+          Back
+        </button>
+      </div>
+
       {/* Profile Header */}
       <div className="card text-center">
         <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-r from-sparknode-purple to-sparknode-blue flex items-center justify-center text-white text-3xl font-bold mb-4">

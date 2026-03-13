@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SparkNode — Local Development Bootstrap
-# Purpose: Builds frontend, starts dev docker-compose stack, and seeds DB.
+# Purpose: Pulls latest images from DockerHub, starts docker-compose stack, and seeds DB.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -14,7 +14,7 @@ echo "  • docker-compose.override.yml adds init scripts for fresh bootstrap on
 echo "  • For FIRST-TIME SETUP, run:"
 echo "    docker volume create sparknode_postgres_data"
 echo "    docker-compose -f docker-compose.yml -f docker-compose.override.yml up -d"
-echo "  • For subsequent runs, use: docker-compose up -d --build"
+echo "  • For subsequent runs, use: docker-compose pull && docker-compose up -d"
 echo "  • See DATABASE_BOOTSTRAP_STRATEGY.md for details"
 echo ""
 
@@ -48,37 +48,15 @@ if [ -f .env ]; then
 fi
 
 # ======================================================================
-# STEP 1: Build frontend (React/Vite)
-# Set SKIP_FRONTEND_BUILD=1 to skip if dist/ is already up to date.
+# STEP 1: Pull latest Docker images from DockerHub
+# Set SKIP_PULL=1 to bypass pulling and use locally cached images.
 # ======================================================================
-FRONTEND_DIR="$ROOT_DIR/frontend"
-if [ "${SKIP_FRONTEND_BUILD:-0}" = "1" ]; then
-  echo "SKIP_FRONTEND_BUILD=1 set — skipping frontend build."
-elif [ -d "$FRONTEND_DIR" ]; then
-  echo "=== Building frontend ==="
-  if [ ! -d "$FRONTEND_DIR/node_modules" ]; then
-    echo "Installing frontend dependencies..."
-    (cd "$FRONTEND_DIR" && npm ci --prefer-offline 2>/dev/null || npm install)
-  fi
-  echo "Running npm run build..."
-  (cd "$FRONTEND_DIR" && npm run build)
-  echo "Frontend build complete."
+if [ "${SKIP_PULL:-0}" = "1" ]; then
+  echo "SKIP_PULL=1 set — skipping image pull (using cached images)."
 else
-  echo "WARNING: frontend directory not found at $FRONTEND_DIR — skipping build."
-fi
-
-# ======================================================================
-# STEP 2: Build backend Docker image
-# Set SKIP_BACKEND_BUILD=1 to skip rebuild (uses cached image).
-# The backend is rebuilt by default so that code changes (e.g. Python
-# dependency updates, entrypoint changes) are picked up automatically.
-# ======================================================================
-if [ "${SKIP_BACKEND_BUILD:-0}" = "1" ]; then
-  echo "SKIP_BACKEND_BUILD=1 set — skipping backend Docker build."
-else
-  echo "=== Building backend Docker image ==="
-  docker-compose -f "$ROOT_DIR/docker-compose.yml" build --no-cache backend
-  echo "Backend image built."
+  echo "=== Pulling latest images from DockerHub ==="
+  docker-compose -f "$ROOT_DIR/docker-compose.yml" pull backend celery frontend
+  echo "Images pulled successfully."
 fi
 
 # ======================================================================
@@ -297,6 +275,5 @@ echo "║  Dept Lead:       dept_lead@sparknode.io                    ║"
 echo "║  Tenant User:     user@sparknode.io                         ║"
 echo "╠══════════════════════════════════════════════════════════════╣"
 echo "║  Env flags:                                                  ║"
-echo "║    SKIP_FRONTEND_BUILD=1  Skip npm build (use existing dist) ║"
-echo "║    SKIP_BACKEND_BUILD=1   Skip docker build backend          ║"
+echo "║    SKIP_PULL=1            Skip docker pull (use cached imgs) ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
