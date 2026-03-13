@@ -23,6 +23,20 @@ const CAT_COLOR = {
 }
 const catClass = (c) => CAT_COLOR[c?.toLowerCase()] || 'bg-gray-100 text-gray-700'
 
+// Category gradient backgrounds for card banners
+const CAT_GRADIENT = {
+  shopping:      'from-indigo-500 to-sky-400',
+  food:          'from-orange-500 to-amber-400',
+  experiences:   'from-purple-600 to-fuchsia-500',
+  merchandise:   'from-emerald-500 to-teal-400',
+  travel:        'from-sky-500 to-blue-400',
+  entertainment: 'from-pink-500 to-rose-400',
+  wellness:      'from-teal-500 to-green-400',
+  custom:        'from-violet-500 to-purple-400',
+}
+const catGradient = (c) => CAT_GRADIENT[c?.toLowerCase()] || 'from-slate-500 to-gray-400'
+const toTitle = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : ''
+
 // ── Toggle Switch ─────────────────────────────────────────────────────────────
 function Toggle({ checked, onChange, loading }) {
   return (
@@ -370,8 +384,8 @@ function GlobalCatalogTab() {
           </button>
           {cats.map(c => (
             <button key={c} onClick={() => setCatFilter(c === catFilter ? '' : c)}
-              className={`px-3 py-1 text-xs rounded-full font-medium capitalize ${catFilter === c ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'}`}>
-              {c}
+              className={`px-3 py-1 text-xs rounded-full font-medium ${catFilter === c ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'}`}>
+              {toTitle(c)}
             </button>
           ))}
         </div>
@@ -423,7 +437,7 @@ function GlobalCatalogTab() {
                 className={`relative flex flex-col bg-white rounded-2xl border shadow-sm overflow-hidden transition-all duration-200 ${
                   dirty
                     ? 'border-amber-300 ring-2 ring-amber-100 shadow-amber-100'
-                    : 'border-blue-100 hover:border-blue-300 hover:shadow-md'
+                    : 'border-slate-200 hover:border-indigo-300 hover:shadow-xl hover:-translate-y-0.5'
                 } ${!item.is_enabled ? 'opacity-60' : ''}`}
               >
                 {/* Unsaved badge */}
@@ -433,22 +447,27 @@ function GlobalCatalogTab() {
                   </span>
                 )}
 
-                {/* Brand image / placeholder */}
-                <div className="h-28 bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center relative overflow-hidden">
+                {/* Brand / gradient banner */}
+                <div className={`h-32 bg-gradient-to-br ${catGradient(item.category)} flex items-center justify-center relative overflow-hidden`}>
+                  {/* Faint watermark letter */}
+                  <span className="absolute text-9xl font-black text-white/20 select-none pointer-events-none leading-none">
+                    {item.brand?.charAt(0)}
+                  </span>
                   {item.image_url ? (
                     <img
                       src={item.image_url}
                       alt={item.brand}
-                      className="h-20 w-full object-contain p-3"
+                      className="relative z-10 h-16 w-auto max-w-[80%] object-contain drop-shadow"
                       onError={e => { e.currentTarget.style.display = 'none' }}
                     />
                   ) : (
-                    <span className="text-4xl font-extrabold text-blue-200 select-none">
+                    <span className="relative z-10 text-5xl font-extrabold text-white/80 select-none drop-shadow">
                       {item.brand?.charAt(0)}
                     </span>
                   )}
-                  <span className={`absolute bottom-2 right-2 px-2 py-0.5 rounded-full text-xs font-medium capitalize ${catClass(item.category)}`}>
-                    {item.category}
+                  {/* Category pill */}
+                  <span className={`absolute top-2 right-2 px-2.5 py-0.5 rounded-full text-xs font-semibold shadow-sm ${catClass(item.category)}`}>
+                    {toTitle(item.category)}
                   </span>
                 </div>
 
@@ -456,8 +475,8 @@ function GlobalCatalogTab() {
                 <div className="flex flex-col flex-1 px-4 py-3 gap-3">
                   {/* Brand + item name */}
                   <div>
-                    <div className="font-semibold text-sm text-gray-800 truncate">{item.brand}</div>
-                    <div className="text-xs text-gray-400 truncate">{item.name}</div>
+                    <div className="font-bold text-sm text-gray-900 truncate">{item.brand}</div>
+                    <div className="text-xs text-gray-500 truncate">{item.name}</div>
                   </div>
 
                   {/* Points input */}
