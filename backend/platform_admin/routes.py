@@ -22,6 +22,7 @@ from models import (
     ActorType, SystemAdmin, DepartmentBudget, Badge
 )
 from auth.utils import get_password_hash
+from auth.routes import get_user_roles
 from core import append_impersonation_metadata
 from core.rbac import get_platform_admin
 from platform_admin.schemas import (
@@ -156,9 +157,9 @@ async def create_tenant(
         db.add(hr_dept)
         db.flush()
         
-        # Default admin org_role is always tenant_manager to comply with DB check constraints.
-        # Specific role capabilities (sales, ai) are handled via separate 'roles' field or feature flags.
-        admin_org_role = 'tenant_manager'
+        # The provisioned account is the tenant's SUPER_ADMIN (Tenant Manager).
+        # org_role must be tenant_manager to comply with DB check constraints.
+        admin_roles_config = get_user_roles('tenant_manager')
         
         # Create admin user with correct field names (corporate_email, org_role)
         admin_user = User(
@@ -167,7 +168,10 @@ async def create_tenant(
             password_hash=get_password_hash(tenant_data.admin_password),
             first_name=tenant_data.admin_first_name,
             last_name=tenant_data.admin_last_name,
-            org_role=admin_org_role,
+            org_role='tenant_manager',
+            roles=admin_roles_config['roles'],
+            default_role=admin_roles_config['default_role'],
+            is_super_admin=True,
             department_id=hr_dept.id,
             status='ACTIVE'
         )
