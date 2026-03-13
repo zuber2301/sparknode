@@ -73,13 +73,15 @@ export default function SalesEvents() {
     createMutation.mutate(payload)
   }
 
+  const canManage = current_user?.org_role === 'tenant_manager' || current_user?.org_role === 'platform_admin'
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold">Sales Events</h2>
-        <div>
+        {canManage && (
           <button className="btn-primary" onClick={() => setShowCreate(true)}>Create Sales Event</button>
-        </div>
+        )}
       </div>
 
       <div className="bg-white rounded-md shadow p-4">
@@ -130,6 +132,7 @@ export default function SalesEvents() {
                 <th>Start</th>
                 <th>Eligible</th>
                 <th>Status</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -140,6 +143,16 @@ export default function SalesEvents() {
                   <td>{new Date(ev.start_at).toLocaleString('en-IN')}</td>
                   <td>{ev.eligible_dept_ids && ev.eligible_dept_ids.length > 0 ? ev.eligible_dept_ids.length : 'all'}</td>
                   <td>{ev.status}</td>
+                  <td className="py-2">
+                    {ev.status === 'published' && (
+                      <a
+                        href={`/e/sales/${ev.id}`}
+                        className="text-sm text-indigo-600 hover:underline font-medium"
+                      >
+                        Participate →
+                      </a>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

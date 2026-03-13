@@ -210,12 +210,15 @@ async def list_campaigns(
     """List all campaigns for the tenant (scoped by role)."""
     query = db.query(SalesCampaign).filter(SalesCampaign.tenant_id == current_user.tenant_id)
 
-    # Sales reps only see campaigns they are assigned to
+    # Sales reps only see active campaigns they are assigned to
     if current_user.org_role == "tenant_user":
         sub = db.query(CampaignParticipant.campaign_id).filter(
             CampaignParticipant.user_id == current_user.id
         ).subquery()
-        query = query.filter(SalesCampaign.id.in_(sub))
+        query = query.filter(
+            SalesCampaign.id.in_(sub),
+            SalesCampaign.status == "active",
+        )
 
     campaigns = query.order_by(SalesCampaign.created_at.desc()).all()
     return [_campaign_response(c) for c in campaigns]

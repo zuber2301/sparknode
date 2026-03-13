@@ -68,7 +68,11 @@ async def list_sales_events(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    events = db.query(SalesEvent).filter(SalesEvent.tenant_id == current_user.tenant_id).all()
+    query = db.query(SalesEvent).filter(SalesEvent.tenant_id == current_user.tenant_id)
+    # Tenant users only see published events (upcoming) — not drafts or internal states
+    if current_user.org_role not in ('tenant_manager', 'dept_lead', 'platform_admin'):
+        query = query.filter(SalesEvent.status == 'published')
+    events = query.order_by(SalesEvent.start_at.asc()).all()
     return events
 
 

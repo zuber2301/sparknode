@@ -319,7 +319,7 @@ export default function CampaignBuilder() {
     createMutation.mutate(payload)
   }
 
-  const canManage = ['tenant_manager', 'platform_admin', 'dept_lead'].includes(user?.org_role)
+  const canManage = ['tenant_manager', 'platform_admin'].includes(user?.org_role)
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
