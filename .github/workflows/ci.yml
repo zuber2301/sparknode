@@ -7,10 +7,10 @@
 #   3. Deploy workflow pulls images onto the VM
 #
 # Versioning (semver):
-#   - Push to main   → reads VERSION file, tags as X.Y.Z + latest
-#   - Git tag v*     → uses tag version (e.g. v1.2.3 → 1.2.3)
-#   - Pull request   → build only (no push)
-#   - Manual dispatch → tick checkboxes to select images + version bump, push to DockerHub
+#   - Push to main        → reads VERSION file, tags as X.Y.Z + latest
+#   - Push to feature/**  → reads VERSION file, tags as {branch-slug} only (no latest)
+#   - Git tag v*          → uses tag version (e.g. v1.2.3 → 1.2.3)
+#   - Manual dispatch     → tick checkboxes to select images + version bump, push to DockerHub
 #
 # Image selection (manual dispatch):
 #   - "Build ALL images" checked (default) → builds every image
@@ -33,6 +33,10 @@
 name: CI — Build & Push Images
 
 on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
   workflow_dispatch:
     inputs:
       build_all:
@@ -118,6 +122,7 @@ jobs:
       all_tags_frontend: ${{ steps.tags.outputs.frontend }}
       all_tags_manager_ui: ${{ steps.tags.outputs.manager_ui }}
       all_tags_orchestrator: ${{ steps.tags.outputs.orchestrator }}
+      branch_tag: ${{ steps.version.outputs.branch_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -134,6 +139,13 @@ jobs:
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/v}"
             echo "Source: git tag (${{ github.ref }})"
+
+          elif [[ "${{ github.ref }}" == refs/heads/feature/* ]]; then
+            VERSION=$(cat VERSION | tr -d '[:space:]')
+            # Slugify branch name: feature/v0.2.1 → feature-v0-2-1
+            BRANCH_TAG=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]')
+            echo "branch_tag=$BRANCH_TAG" >> $GITHUB_OUTPUT
+            echo "Source: feature branch (${{ github.ref_name }} → tag: $BRANCH_TAG)"
 
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             CURRENT=$(cat VERSION | tr -d '[:space:]')
@@ -173,6 +185,8 @@ jobs:
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             SHOULD_PUSH="true"
           elif [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            SHOULD_PUSH="true"
+          elif [ "${{ github.event_name }}" = "push" ] && [[ "${{ github.ref }}" == refs/heads/feature/* ]]; then
             SHOULD_PUSH="true"
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.push }}" = "true" ]; then
             SHOULD_PUSH="true"
@@ -249,12 +263,21 @@ jobs:
         id: tags
         run: |
           VERSION="${{ steps.version.outputs.version }}"
+          BRANCH_TAG="${{ steps.version.outputs.branch_tag }}"
 
-          # Tags: X.Y.Z + latest
-          echo "backend=${{ env.APP_BACKEND_IMAGE }}:${VERSION},${{ env.APP_BACKEND_IMAGE }}:latest" >> $GITHUB_OUTPUT
-          echo "frontend=${{ env.APP_FRONTEND_IMAGE }}:${VERSION},${{ env.APP_FRONTEND_IMAGE }}:latest" >> $GITHUB_OUTPUT
-          echo "manager_ui=${{ env.PLATFORM_UI_IMAGE }}:${VERSION},${{ env.PLATFORM_UI_IMAGE }}:latest" >> $GITHUB_OUTPUT
-          echo "orchestrator=${{ env.PLATFORM_API_IMAGE }}:${VERSION},${{ env.PLATFORM_API_IMAGE }}:latest" >> $GITHUB_OUTPUT
+          if [ -n "$BRANCH_TAG" ]; then
+            # Feature branch: tag with branch slug only — never overwrite :latest
+            echo "backend=${{ env.APP_BACKEND_IMAGE }}:${BRANCH_TAG}" >> $GITHUB_OUTPUT
+            echo "frontend=${{ env.APP_FRONTEND_IMAGE }}:${BRANCH_TAG}" >> $GITHUB_OUTPUT
+            echo "manager_ui=${{ env.PLATFORM_UI_IMAGE }}:${BRANCH_TAG}" >> $GITHUB_OUTPUT
+            echo "orchestrator=${{ env.PLATFORM_API_IMAGE }}:${BRANCH_TAG}" >> $GITHUB_OUTPUT
+          else
+            # Main / git-tag / dispatch: semver + latest
+            echo "backend=${{ env.APP_BACKEND_IMAGE }}:${VERSION},${{ env.APP_BACKEND_IMAGE }}:latest" >> $GITHUB_OUTPUT
+            echo "frontend=${{ env.APP_FRONTEND_IMAGE }}:${VERSION},${{ env.APP_FRONTEND_IMAGE }}:latest" >> $GITHUB_OUTPUT
+            echo "manager_ui=${{ env.PLATFORM_UI_IMAGE }}:${VERSION},${{ env.PLATFORM_UI_IMAGE }}:latest" >> $GITHUB_OUTPUT
+            echo "orchestrator=${{ env.PLATFORM_API_IMAGE }}:${VERSION},${{ env.PLATFORM_API_IMAGE }}:latest" >> $GITHUB_OUTPUT
+          fi
 
       - name: Update VERSION file
         if: github.event_name == 'workflow_dispatch' && steps.version.outputs.should_push == 'true'
