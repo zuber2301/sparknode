@@ -135,6 +135,13 @@ async def create_tenant(
             base_currency=tenant_data.base_currency or 'USD',  # Selected billing currency
             display_currency=tenant_data.display_currency,  # User-selected currency (USD, EUR, INR)
             fx_rate=tenant_data.fx_rate or Decimal("1.0"),  # Exchange rate
+            # Billing & Subscription fields
+            billing_cycle=tenant_data.billing_cycle or 'monthly',
+            billing_amount=tenant_data.billing_amount,
+            billing_discount_pct=tenant_data.billing_discount_pct or Decimal('0'),
+            billing_final_amount=tenant_data.billing_final_amount,
+            billing_currency=tenant_data.display_currency,
+            billing_contact_email=tenant_data.admin_email,
             settings=tenant_data.settings or {
                 "copay_enabled": False,
                 "points_to_currency_ratio": 0.10,

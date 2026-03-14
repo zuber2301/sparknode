@@ -485,4 +485,25 @@ export const eventsApi = eventsAPI
 export const analyticsApi = analyticsAPI
 export const platformApi = platformAPI
 
+// ── Billing & Invoicing API ──────────────────────────────────────────────────
+export const billingAPI = {
+  /** List all invoices (platform admin). Accepts { status, tenant_id, skip, limit } */
+  listInvoices: (params) =>
+    api.get('/billing/invoices', { params, headers: { 'X-Skip-Tenant': '1' } }),
+  /** List invoices for a specific tenant. */
+  getTenantInvoices: (tenantId, params) =>
+    api.get(`/billing/tenants/${tenantId}/invoices`, { params, headers: { 'X-Skip-Tenant': '1' } }),
+  /** Manually generate an invoice for a tenant: { tenant_id, notes?, period_start? } */
+  generateInvoice: (data) =>
+    api.post('/billing/invoices/generate', data, { headers: { 'X-Skip-Tenant': '1' } }),
+  /** (Re)send an existing invoice by id. */
+  sendInvoice: (invoiceId) =>
+    api.post(`/billing/invoices/${invoiceId}/send`, {}, { headers: { 'X-Skip-Tenant': '1' } }),
+  /** Update invoice status: { status, notes? } */
+  updateStatus: (invoiceId, data) =>
+    api.patch(`/billing/invoices/${invoiceId}/status`, data, { headers: { 'X-Skip-Tenant': '1' } }),
+  /** Returns the URL to stream/download the invoice PDF (open in a new tab). */
+  getPdfUrl: (invoiceId) => `/api/billing/invoices/${invoiceId}/pdf`,
+}
+
 export default api
