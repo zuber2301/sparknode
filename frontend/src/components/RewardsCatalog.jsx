@@ -8,7 +8,8 @@ export default function RewardsCatalog({
   isRedeeming, 
   balance = 0,
   displayCurrency = 'INR',
-  fxRate = 1
+  fxRate = 1,
+  isLoading = false,
 }) {
   const [search, setSearch] = useState('')
   const [selectedBrand, setSelectedBrand] = useState('')
@@ -74,7 +75,12 @@ export default function RewardsCatalog({
       </div>
 
       {/* Rewards Grid */}
-      {filteredVouchers.length === 0 ? (
+      {isLoading ? (
+        <div className="text-center py-12">
+          <div className="inline-block w-8 h-8 border-4 border-sparknode-purple border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-gray-400 text-sm">Loading rewards…</p>
+        </div>
+      ) : filteredVouchers.length === 0 ? (
         <div className="text-center py-12">
           <HiOutlineGift className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-500">No rewards found</p>

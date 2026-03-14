@@ -213,6 +213,15 @@ export default function PlatformTenants() {
   // Feature flags state
   const [featureFlagsValue, setFeatureFlagsValue] = useState('{}')
 
+  // Billing fields for the create-tenant form (reactive)
+  const BILLING_DEFAULTS = { INR: 200000, USD: 2500, EUR: 2500 }
+  const [createDisplayCurrency, setCreateDisplayCurrency] = useState('INR')
+  const [billingCycle, setBillingCycle] = useState('monthly')
+  const [billingAmount, setBillingAmount] = useState(BILLING_DEFAULTS['INR'])
+  const [discountPct, setDiscountPct] = useState(0)
+  const billingFinalAmount = Math.round(billingAmount * (1 - Math.min(Math.max(discountPct, 0), 100) / 100))
+  const currencySymbol = (c) => CURRENCY_SYMBOLS[c] || c
+
   const { data: tiersResponse } = useQuery({
     queryKey: ['subscriptionTiers'],
     queryFn: () => platformAPI.getSubscriptionTiers(),
@@ -412,7 +421,11 @@ export default function PlatformTenants() {
       admin_first_name: formData.get('admin_first_name'),
       admin_last_name: formData.get('admin_last_name'),
       admin_password: formData.get('admin_password'),
-      feature_flags: featureFlags
+      feature_flags: featureFlags,
+      billing_cycle: billingCycle,
+      billing_amount: billingAmount,
+      billing_discount_pct: discountPct,
+      billing_final_amount: billingFinalAmount,
     })
   }
 
@@ -1308,7 +1321,18 @@ export default function PlatformTenants() {
 
                 <div>
                   <label className="label">Display Currency <span className="text-red-500">*</span></label>
-                  <select name="display_currency" className="input" defaultValue="INR" required>
+                  <select
+                    name="display_currency"
+                    className="input"
+                    value={createDisplayCurrency}
+                    onChange={e => {
+                      const cur = e.target.value
+                      setCreateDisplayCurrency(cur)
+                      setBillingAmount(BILLING_DEFAULTS[cur] ?? 2500)
+                      setDiscountPct(0)
+                    }}
+                    required
+                  >
                     <option value="INR">INR ({CURRENCY_SYMBOLS.INR})</option>
                     <option value="USD">USD ({CURRENCY_SYMBOLS.USD})</option>
                     <option value="EUR">EUR ({CURRENCY_SYMBOLS.EUR})</option>
@@ -1321,6 +1345,90 @@ export default function PlatformTenants() {
                   <label className="label">FX Rate (Base → Display Currency)</label>
                   <input name="fx_rate" type="number" className="input" defaultValue="1" min="0.0001" step="any" />
                   <p className="text-xs text-gray-500 mt-1">Leave as 1 for INR. For USD base → INR display, enter ~83</p>
+                </div>
+
+                {/* ── Billing ───────────────────────────────────────── */}
+                <div className="md:col-span-2">
+                  <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 space-y-4">
+                    <p className="text-xs font-bold text-indigo-600 uppercase tracking-widest">Billing</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+                      {/* Billing Cycle */}
+                      <div>
+                        <label className="label">Billing Cycle</label>
+                        <select
+                          className="input"
+                          value={billingCycle}
+                          onChange={e => setBillingCycle(e.target.value)}
+                        >
+                          <option value="monthly">Monthly</option>
+                          <option value="quarterly">Quarterly</option>
+                          <option value="annually">Annually</option>
+                        </select>
+                      </div>
+
+                      {/* Billing Amount */}
+                      <div>
+                        <label className="label">
+                          Amount / month&nbsp;
+                          <span className="font-normal text-gray-400 normal-case">(default: {currencySymbol(createDisplayCurrency)}{BILLING_DEFAULTS[createDisplayCurrency]?.toLocaleString()})</span>
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 select-none">
+                            {currencySymbol(createDisplayCurrency)}
+                          </span>
+                          <input
+                            type="number"
+                            className="input pl-8"
+                            min="0"
+                            step="1"
+                            value={billingAmount}
+                            onChange={e => setBillingAmount(Number(e.target.value))}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Discount % */}
+                      <div>
+                        <label className="label">Discount&nbsp;<span className="font-normal text-gray-400">(%)</span></label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            className="input pr-8"
+                            min="0"
+                            max="100"
+                            step="0.5"
+                            value={discountPct}
+                            onChange={e => setDiscountPct(Math.min(100, Math.max(0, Number(e.target.value))))}
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">%</span>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* Final amount summary */}
+                    <div className="flex items-center justify-between rounded-lg bg-white border border-indigo-100 px-4 py-3">
+                      <div className="text-xs text-gray-500">
+                        {discountPct > 0 ? (
+                          <>
+                            <span className="line-through text-gray-400 mr-2">
+                              {currencySymbol(createDisplayCurrency)}{Number(billingAmount).toLocaleString()}
+                            </span>
+                            <span className="text-green-600 font-semibold">{discountPct}% off</span>
+                          </>
+                        ) : (
+                          <span className="text-gray-400">No discount applied</span>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Final / month</span>
+                        <div className="text-lg font-extrabold text-indigo-700 leading-tight">
+                          {currencySymbol(createDisplayCurrency)}{billingFinalAmount.toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Optional Modules */}
