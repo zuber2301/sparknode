@@ -65,6 +65,31 @@ fi
 echo "=== Starting services ==="
 docker-compose -f "$ROOT_DIR/docker-compose.yml" up -d --force-recreate
 
+# ======================================================================
+# STEP 3.5: Sync Python packages in the backend container with the
+# local requirements.txt.
+#
+# The DockerHub image may be behind the local requirements.txt — e.g.
+# when new packages were added but the CI pipeline hasn't yet built and
+# pushed a new image. Without this step, "--force-recreate" recreates
+# from the stale image and the backend crashes with ModuleNotFoundError,
+# making login impossible until the image is rebuilt.
+# ======================================================================
+BACKEND_CONTAINER="${PROJECT_NAME:-sparknode}-backend"
+echo "=== Syncing backend Python packages ==="
+sleep 3  # give the entrypoint a moment to reach the pip phase
+if docker ps --format '{{.Names}}' | grep -q "$BACKEND_CONTAINER"; then
+  echo "Installing/verifying packages from requirements.txt inside container..."
+  docker exec "$BACKEND_CONTAINER" pip install -r /app/requirements.txt -q 2>&1 \
+    | grep -vE '^[[:space:]]*$' || true
+  echo "Package sync complete. Restarting backend and celery to apply..."
+  docker restart "$BACKEND_CONTAINER" > /dev/null
+  docker restart "${PROJECT_NAME:-sparknode}-celery" > /dev/null 2>&1 || true
+  echo "Containers restarted."
+else
+  echo "WARNING: Backend container not running yet — skipping package sync."
+fi
+
 # (moved) STEP 4: backend health check will run later after migrations.
 # The original health wait block was relocated below to avoid timing out
 # while the container executes its own migrations during startup.
@@ -81,7 +106,7 @@ DB_NAME="${POSTGRES_DB:-sparknode}"
 
 until docker exec "$DB_CONTAINER" pg_isready -U "$DB_USER" > /dev/null 2>&1 || [ $COUNT -eq $MAX_RETRIES ]; do
   sleep 2
-  ((COUNT++))
+  ((COUNT++)) || true
 done
 
 if [ $COUNT -ge $MAX_RETRIES ]; then
@@ -133,7 +158,7 @@ COUNT=0
 MAX_RETRIES=60
 until curl -sSf "http://localhost:$BACKEND_PORT/health" > /dev/null 2>&1 || [ $COUNT -eq $MAX_RETRIES ]; do
   sleep 1
-  ((COUNT++))
+  ((COUNT++)) || true
 done
 if [ $COUNT -ge $MAX_RETRIES ]; then
   echo "ERROR: Backend HTTP health did not become available on port $BACKEND_PORT (after migrations)"
