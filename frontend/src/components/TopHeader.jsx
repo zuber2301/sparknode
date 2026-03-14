@@ -58,7 +58,6 @@ const adminNavigation = [
 // Platform Admin specific navigation - displayed in top nav with Controls dropdown
 const platformAdminNavigation = [
   { name: 'Tenants', href: '/platform/tenants', icon: HiOutlineOfficeBuilding },
-  { name: 'Users', href: '/users', icon: HiOutlineUsers },
   { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar },
   // event management is handled only by tenant managers, not platform admins
   { name: 'Global Catalog', href: '/platform/catalog', icon: HiOutlineShoppingCart },
