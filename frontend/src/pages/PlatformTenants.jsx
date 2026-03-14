@@ -402,12 +402,41 @@ export default function PlatformTenants() {
 
   // Billing fields for the create-tenant form (reactive)
   const BILLING_DEFAULTS = { INR: 200000, USD: 2500, EUR: 2500 }
-  const [createDisplayCurrency, setCreateDisplayCurrency] = useState('INR')
   const [billingCycle, setBillingCycle] = useState('monthly')
   const [billingAmount, setBillingAmount] = useState(BILLING_DEFAULTS['INR'])
   const [discountPct, setDiscountPct] = useState(0)
   const billingFinalAmount = Math.round(billingAmount * (1 - Math.min(Math.max(discountPct, 0), 100) / 100))
   const currencySymbol = (c) => CURRENCY_SYMBOLS[c] || c
+
+  // Provision wizard
+  const PROVISION_STEPS = [
+    { key: 'tenant',     label: 'Tenant Setup',      desc: 'Basic identity and access limits' },
+    { key: 'financials', label: 'Financials',         desc: 'Budget and currency configuration' },
+    { key: 'billing',    label: 'Billing',            desc: 'Subscription pricing and discounts' },
+    { key: 'modules',    label: 'Modules',            desc: 'Optional feature modules' },
+    { key: 'admin',      label: 'Admin Setup',        desc: 'Tenant Manager (SUPER_ADMIN) credentials' },
+    { key: 'review',     label: 'Review & Provision', desc: 'Confirm and create the tenant' },
+  ]
+  const BLANK_TENANT = {
+    name: '', slug: '', domain: '', subscription_tier: 'starter', max_users: 50,
+    master_budget_balance: 0, base_currency: 'USD', display_currency: 'INR', fx_rate: 1,
+    modules_ai: false, modules_sales: false,
+    admin_first_name: '', admin_last_name: '', admin_email: '', admin_password: '',
+  }
+  const [createStep, setCreateStep] = useState('tenant')
+  const [newTenant, setNewTenant] = useState(BLANK_TENANT)
+  const ntSet = (field, val) => setNewTenant(prev => ({ ...prev, [field]: val }))
+  const closeCreateModal = () => {
+    setShowCreateModal(false)
+    setCreateStep('tenant')
+    setNewTenant({ ...BLANK_TENANT })
+    setBillingCycle('monthly')
+    setBillingAmount(BILLING_DEFAULTS['INR'])
+    setDiscountPct(0)
+  }
+  const provisionStepIdx = PROVISION_STEPS.findIndex(s => s.key === createStep)
+  const goProvisionNext = () => setCreateStep(PROVISION_STEPS[Math.min(provisionStepIdx + 1, PROVISION_STEPS.length - 1)].key)
+  const goProvisionBack = () => provisionStepIdx === 0 ? closeCreateModal() : setCreateStep(PROVISION_STEPS[provisionStepIdx - 1].key)
 
   const { data: tiersResponse } = useQuery({
     queryKey: ['subscriptionTiers'],
@@ -435,7 +464,7 @@ export default function PlatformTenants() {
     onSuccess: () => {
       toast.success('Tenant created successfully')
       queryClient.invalidateQueries(['platformTenants'])
-      setShowCreateModal(false)
+      closeCreateModal()
     },
     onError: (error) => {
       toast.error(error.response?.data?.detail || 'Failed to create tenant')
@@ -577,37 +606,24 @@ export default function PlatformTenants() {
     return data
   }, [tenantsByTierResponse])
 
-  const handleCreateTenant = (e) => {
-    e.preventDefault()
-    const formData = new FormData(e.target)
-    
-    // Process selected modules
-    const selectedModules = formData.getAll('enabled_modules')
+  const submitCreateTenant = () => {
     const featureFlags = {}
-    
-    // Map module selections to feature flags
-    if (selectedModules.includes('ai_module')) {
-      featureFlags.ai_module_enabled = true
-      featureFlags.ai_copilot = true
-    }
-    if (selectedModules.includes('sales_marketing')) {
-      featureFlags.sales_marketing = true
-    }
-    
+    if (newTenant.modules_ai) { featureFlags.ai_module_enabled = true; featureFlags.ai_copilot = true }
+    if (newTenant.modules_sales) { featureFlags.sales_marketing = true }
     createMutation.mutate({
-      name: formData.get('name'),
-      slug: formData.get('slug') || undefined,
-      domain: formData.get('domain') || undefined,
-      subscription_tier: formData.get('subscription_tier'),
-      max_users: parseInt(formData.get('max_users'), 10),
-      master_budget_balance: parseFloat(formData.get('master_budget_balance') || '0'),
-      base_currency: formData.get('base_currency'),
-      display_currency: formData.get('display_currency'),
-      fx_rate: parseFloat(formData.get('fx_rate') || '1'),
-      admin_email: formData.get('admin_email'),
-      admin_first_name: formData.get('admin_first_name'),
-      admin_last_name: formData.get('admin_last_name'),
-      admin_password: formData.get('admin_password'),
+      name: newTenant.name,
+      slug: newTenant.slug || undefined,
+      domain: newTenant.domain || undefined,
+      subscription_tier: newTenant.subscription_tier,
+      max_users: parseInt(newTenant.max_users, 10),
+      master_budget_balance: parseFloat(newTenant.master_budget_balance || 0),
+      base_currency: newTenant.base_currency,
+      display_currency: newTenant.display_currency,
+      fx_rate: parseFloat(newTenant.fx_rate || 1),
+      admin_email: newTenant.admin_email,
+      admin_first_name: newTenant.admin_first_name,
+      admin_last_name: newTenant.admin_last_name,
+      admin_password: newTenant.admin_password,
       feature_flags: featureFlags,
       billing_cycle: billingCycle,
       billing_amount: billingAmount,
@@ -1453,160 +1469,196 @@ export default function PlatformTenants() {
         </div>
       )}
 
-      {/* Create Tenant Modal */}
+      {/* Create Tenant Modal — Left-nav wizard */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 px-6 py-4 rounded-t-2xl">
-              <h2 className="text-xl font-semibold text-white">Provision New Tenant</h2>
-              <p className="text-sm text-indigo-100">Creates tenant, initializes master budget, and provisions a SUPER_ADMIN.</p>
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex shadow-2xl overflow-hidden">
+
+            {/* ── Left Nav ── */}
+            <div className="w-52 bg-gray-50 border-r border-gray-200 flex flex-col flex-shrink-0">
+              <div className="px-5 pt-5 pb-3">
+                <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">Provision</p>
+                <h2 className="text-sm font-bold text-gray-900 leading-tight mt-0.5">New Tenant</h2>
+              </div>
+              <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto">
+                {PROVISION_STEPS.map((s, i) => {
+                  const active = createStep === s.key
+                  const done = i < provisionStepIdx
+                  return (
+                    <button
+                      key={s.key}
+                      onClick={() => setCreateStep(s.key)}
+                      className={`w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-2.5 text-sm transition-all ${
+                        active ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
+                      }`}
+                    >
+                      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
+                        active ? 'bg-white/20 text-white' : done ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-400'
+                      }`}>
+                        {done ? '✓' : i + 1}
+                      </span>
+                      <span className="truncate font-medium">{s.label}</span>
+                    </button>
+                  )
+                })}
+              </nav>
+              <div className="px-4 py-4 border-t border-gray-200">
+                <div className="h-1.5 rounded-full bg-gray-200 overflow-hidden">
+                  <div
+                    className="h-1.5 rounded-full bg-indigo-500 transition-all duration-300"
+                    style={{ width: `${((provisionStepIdx + 1) / PROVISION_STEPS.length) * 100}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1.5">{provisionStepIdx + 1} of {PROVISION_STEPS.length}</p>
+              </div>
             </div>
-            <div className="p-6">
-            <form onSubmit={handleCreateTenant} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="label">Tenant Name</label>
-                  <input name="name" className="input" required />
-                </div>
-                <div>
-                  <label className="label">Slug</label>
-                  <input name="slug" className="input" placeholder="triton-energy" />
-                </div>
-                <div>
-                  <label className="label">Domain</label>
-                  <input name="domain" className="input" placeholder="triton-energy.sparknode.io" />
-                </div>
-                <div>
-                  <label className="label">Subscription Tier</label>
-                  <select name="subscription_tier" className="input" defaultValue="starter">
-                    {tiers.length === 0 && (
-                      <>
-                        <option value="free">Free</option>
-                        <option value="starter">Starter</option>
-                        <option value="professional">Professional</option>
-                        <option value="enterprise">Enterprise</option>
-                      </>
-                    )}
-                    {tiers.map((tier) => (
-                      <option key={tier.tier} value={tier.tier}>{tier.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="label">Max Users</label>
-                  <input name="max_users" type="number" className="input" defaultValue="50" min="1" required />
-                </div>
-                <div>
-                  <label className="label">Master Budget Balance (Points)</label>
-                  <input name="master_budget_balance" type="number" className="input" defaultValue="0" min="0" step="0.01" />
-                </div>
-                
-                {/* Currency Configuration - Mandatory */}
-                <div>
-                  <label className="label">Base Currency (Billing) <span className="text-red-500">*</span></label>
-                  <select name="base_currency" className="input" defaultValue="USD" required>
-                    <option value="INR">INR ({CURRENCY_SYMBOLS.INR})</option>
-                    <option value="USD">USD ({CURRENCY_SYMBOLS.USD})</option>
-                    <option value="EUR">EUR ({CURRENCY_SYMBOLS.EUR})</option>
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">Currency the tenant will be billed in</p>
-                </div>
 
+            {/* ── Right Content ── */}
+            <div className="flex-1 flex flex-col min-w-0">
+              {/* Step header */}
+              <div className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 px-6 py-4 flex items-center justify-between flex-shrink-0">
                 <div>
-                  <label className="label">Display Currency <span className="text-red-500">*</span></label>
-                  <select
-                    name="display_currency"
-                    className="input"
-                    value={createDisplayCurrency}
-                    onChange={e => {
-                      const cur = e.target.value
-                      setCreateDisplayCurrency(cur)
-                      setBillingAmount(BILLING_DEFAULTS[cur] ?? 2500)
-                      setDiscountPct(0)
-                    }}
-                    required
-                  >
-                    <option value="INR">INR ({CURRENCY_SYMBOLS.INR})</option>
-                    <option value="USD">USD ({CURRENCY_SYMBOLS.USD})</option>
-                    <option value="EUR">EUR ({CURRENCY_SYMBOLS.EUR})</option>
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">Currency shown in the tenant UI</p>
+                  <h3 className="text-base font-semibold text-white">{PROVISION_STEPS[provisionStepIdx]?.label}</h3>
+                  <p className="text-xs text-indigo-200 mt-0.5">{PROVISION_STEPS[provisionStepIdx]?.desc}</p>
                 </div>
+                <button onClick={closeCreateModal} className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+                  <HiOutlineX className="w-5 h-5" />
+                </button>
+              </div>
 
-                {/* FX Rate - for non-INR tenants */}
-                <div>
-                  <label className="label">FX Rate (Base → Display Currency)</label>
-                  <input name="fx_rate" type="number" className="input" defaultValue="1" min="0.0001" step="any" />
-                  <p className="text-xs text-gray-500 mt-1">Leave as 1 for INR. For USD base → INR display, enter ~83</p>
-                </div>
+              {/* Step body */}
+              <div className="flex-1 overflow-y-auto p-6">
 
-                {/* ── Billing ───────────────────────────────────────── */}
-                <div className="md:col-span-2">
-                  <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 space-y-4">
-                    <p className="text-xs font-bold text-indigo-600 uppercase tracking-widest">Billing</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* ── Tenant Setup ── */}
+                {createStep === 'tenant' && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="label">Tenant Name <span className="text-red-500">*</span></label>
+                        <input className="input" value={newTenant.name} onChange={e => ntSet('name', e.target.value)} placeholder="Triton Energy" autoFocus />
+                      </div>
+                      <div>
+                        <label className="label">Slug</label>
+                        <input className="input" value={newTenant.slug} onChange={e => ntSet('slug', e.target.value)} placeholder="triton-energy" />
+                        <p className="text-xs text-gray-400 mt-1">Auto-generated from name if left blank</p>
+                      </div>
+                      <div>
+                        <label className="label">Domain</label>
+                        <input className="input" value={newTenant.domain} onChange={e => ntSet('domain', e.target.value)} placeholder="triton-energy.sparknode.io" />
+                      </div>
+                      <div>
+                        <label className="label">Subscription Tier</label>
+                        <select className="input" value={newTenant.subscription_tier} onChange={e => ntSet('subscription_tier', e.target.value)}>
+                          {tiers.length === 0 ? (
+                            <>
+                              <option value="free">Free</option>
+                              <option value="starter">Starter</option>
+                              <option value="professional">Professional</option>
+                              <option value="enterprise">Enterprise</option>
+                            </>
+                          ) : tiers.map(t => (
+                            <option key={t.tier} value={t.tier}>{t.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="label">Max Users <span className="text-red-500">*</span></label>
+                        <input className="input" type="number" min="1" value={newTenant.max_users} onChange={e => ntSet('max_users', Number(e.target.value))} />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-                      {/* Billing Cycle */}
+                {/* ── Financials ── */}
+                {createStep === 'financials' && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <label className="label">Master Budget Balance (Points)</label>
+                        <input className="input" type="number" min="0" step="1"
+                          value={newTenant.master_budget_balance}
+                          onChange={e => ntSet('master_budget_balance', Number(e.target.value))} />
+                        <p className="text-xs text-gray-400 mt-1">Initial pts pool allocated to this tenant. Can be topped up later.</p>
+                      </div>
+                      <div>
+                        <label className="label">Base Currency (Billing) <span className="text-red-500">*</span></label>
+                        <select className="input" value={newTenant.base_currency} onChange={e => ntSet('base_currency', e.target.value)}>
+                          <option value="INR">INR ({CURRENCY_SYMBOLS.INR})</option>
+                          <option value="USD">USD ({CURRENCY_SYMBOLS.USD})</option>
+                          <option value="EUR">EUR ({CURRENCY_SYMBOLS.EUR})</option>
+                        </select>
+                        <p className="text-xs text-gray-400 mt-1">Currency the tenant will be invoiced in</p>
+                      </div>
+                      <div>
+                        <label className="label">Display Currency <span className="text-red-500">*</span></label>
+                        <select className="input" value={newTenant.display_currency} onChange={e => {
+                          const cur = e.target.value
+                          ntSet('display_currency', cur)
+                          setBillingAmount(BILLING_DEFAULTS[cur] ?? 2500)
+                          setDiscountPct(0)
+                        }}>
+                          <option value="INR">INR ({CURRENCY_SYMBOLS.INR})</option>
+                          <option value="USD">USD ({CURRENCY_SYMBOLS.USD})</option>
+                          <option value="EUR">EUR ({CURRENCY_SYMBOLS.EUR})</option>
+                        </select>
+                        <p className="text-xs text-gray-400 mt-1">Currency shown in the tenant dashboard</p>
+                      </div>
+                      <div>
+                        <label className="label">FX Rate (Base → Display)</label>
+                        <input className="input" type="number" min="0.0001" step="any"
+                          value={newTenant.fx_rate}
+                          onChange={e => ntSet('fx_rate', parseFloat(e.target.value) || 1)} />
+                        <p className="text-xs text-gray-400 mt-1">Leave as 1 if both currencies match. For USD → INR, enter ~83.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Billing ── */}
+                {createStep === 'billing' && (
+                  <div className="space-y-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="label">Billing Cycle</label>
-                        <select
-                          className="input"
-                          value={billingCycle}
-                          onChange={e => setBillingCycle(e.target.value)}
-                        >
+                        <select className="input" value={billingCycle} onChange={e => setBillingCycle(e.target.value)}>
                           <option value="monthly">Monthly</option>
                           <option value="quarterly">Quarterly</option>
                           <option value="annually">Annually</option>
                         </select>
                       </div>
-
-                      {/* Billing Amount */}
                       <div>
                         <label className="label">
                           Amount / month&nbsp;
-                          <span className="font-normal text-gray-400 normal-case">(default: {currencySymbol(createDisplayCurrency)}{BILLING_DEFAULTS[createDisplayCurrency]?.toLocaleString()})</span>
+                          <span className="font-normal text-gray-400 text-xs normal-case">
+                            (default: {currencySymbol(newTenant.display_currency)}{BILLING_DEFAULTS[newTenant.display_currency]?.toLocaleString()})
+                          </span>
                         </label>
                         <div className="relative">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 select-none">
-                            {currencySymbol(createDisplayCurrency)}
+                            {currencySymbol(newTenant.display_currency)}
                           </span>
-                          <input
-                            type="number"
-                            className="input pl-8"
-                            min="0"
-                            step="1"
-                            value={billingAmount}
-                            onChange={e => setBillingAmount(Number(e.target.value))}
-                          />
+                          <input type="number" className="input pl-8" min="0" step="1"
+                            value={billingAmount} onChange={e => setBillingAmount(Number(e.target.value))} />
                         </div>
                       </div>
-
-                      {/* Discount % */}
                       <div>
-                        <label className="label">Discount&nbsp;<span className="font-normal text-gray-400">(%)</span></label>
+                        <label className="label">Discount <span className="font-normal text-gray-400">(%)</span></label>
                         <div className="relative">
-                          <input
-                            type="number"
-                            className="input pr-8"
-                            min="0"
-                            max="100"
-                            step="0.5"
+                          <input type="number" className="input pr-8" min="0" max="100" step="0.5"
                             value={discountPct}
-                            onChange={e => setDiscountPct(Math.min(100, Math.max(0, Number(e.target.value))))}
-                          />
+                            onChange={e => setDiscountPct(Math.min(100, Math.max(0, Number(e.target.value))))} />
                           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">%</span>
                         </div>
                       </div>
-
                     </div>
 
-                    {/* Final amount summary */}
-                    <div className="flex items-center justify-between rounded-lg bg-white border border-indigo-100 px-4 py-3">
-                      <div className="text-xs text-gray-500">
+                    {/* Final amount summary card */}
+                    <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 px-5 py-4 flex items-center justify-between">
+                      <div className="text-sm text-gray-500">
                         {discountPct > 0 ? (
                           <>
                             <span className="line-through text-gray-400 mr-2">
-                              {currencySymbol(createDisplayCurrency)}{Number(billingAmount).toLocaleString()}
+                              {currencySymbol(newTenant.display_currency)}{Number(billingAmount).toLocaleString()}
                             </span>
                             <span className="text-green-600 font-semibold">{discountPct}% off</span>
                           </>
@@ -1616,86 +1668,137 @@ export default function PlatformTenants() {
                       </div>
                       <div className="text-right">
                         <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Final / month</span>
-                        <div className="text-lg font-extrabold text-indigo-700 leading-tight">
-                          {currencySymbol(createDisplayCurrency)}{billingFinalAmount.toLocaleString()}
+                        <div className="text-2xl font-extrabold text-indigo-700 leading-tight">
+                          {currencySymbol(newTenant.display_currency)}{billingFinalAmount.toLocaleString()}
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
 
-                {/* Optional Modules */}
-                <div className="md:col-span-2">
-                  <label className="label">Optional Modules (Select multiple)</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-gray-50 border border-gray-200 rounded-xl">
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                      <input 
-                        type="checkbox" 
-                        name="enabled_modules" 
-                        value="ai_module"
-                        className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
-                      />
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-gray-700 group-hover:text-indigo-600 transition-colors">AI Module</span>
-                        <span className="text-xs text-gray-500">Sparky AI Copilot & predictive analytics</span>
+                {/* ── Modules ── */}
+                {createStep === 'modules' && (
+                  <div className="space-y-4">
+                    <p className="text-sm text-gray-500">Select optional feature modules to enable for this tenant. These can be changed later via Feature Flags.</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {[
+                        { key: 'modules_ai', label: 'AI Module', desc: 'Sparky AI Copilot & predictive analytics' },
+                        { key: 'modules_sales', label: 'Sales & Marketing', desc: 'Events, campaigns & marketing automation' },
+                      ].map(mod => (
+                        <label key={mod.key} className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                          newTenant[mod.key] ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 bg-white hover:border-indigo-200 hover:bg-indigo-50/30'
+                        }`}>
+                          <input type="checkbox" checked={newTenant[mod.key]}
+                            onChange={e => ntSet(mod.key, e.target.checked)}
+                            className="mt-0.5 w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                          <div>
+                            <p className="text-sm font-semibold text-gray-800">{mod.label}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">{mod.desc}</p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Admin Setup ── */}
+                {createStep === 'admin' && (
+                  <div className="space-y-4">
+                    <p className="text-sm text-gray-500">
+                      This user will be provisioned as the Tenant Manager&nbsp;
+                      <span className="font-semibold text-gray-700">(SUPER_ADMIN)</span> for this organization.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="label">First Name <span className="text-red-500">*</span></label>
+                        <input className="input" value={newTenant.admin_first_name} onChange={e => ntSet('admin_first_name', e.target.value)} autoFocus />
                       </div>
-                    </label>
-                    <label className="flex items-center gap-3 cursor-pointer group">
-                      <input 
-                        type="checkbox" 
-                        name="enabled_modules" 
-                        value="sales_marketing"
-                        className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
-                      />
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-gray-700 group-hover:text-indigo-600 transition-colors">Sales & Marketing</span>
-                        <span className="text-xs text-gray-500">Events, campaigns & marketing automation</span>
+                      <div>
+                        <label className="label">Last Name <span className="text-red-500">*</span></label>
+                        <input className="input" value={newTenant.admin_last_name} onChange={e => ntSet('admin_last_name', e.target.value)} />
                       </div>
-                    </label>
+                      <div>
+                        <label className="label">Email <span className="text-red-500">*</span></label>
+                        <input className="input" type="email" value={newTenant.admin_email} onChange={e => ntSet('admin_email', e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="label">Password <span className="text-red-500">*</span></label>
+                        <input className="input" type="password" minLength={8} value={newTenant.admin_password} onChange={e => ntSet('admin_password', e.target.value)} />
+                        <p className="text-xs text-gray-400 mt-1">Minimum 8 characters</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {/* ── Review & Provision ── */}
+                {createStep === 'review' && (
+                  <div className="space-y-3">
+                    <p className="text-sm text-gray-500">Review all settings before creating the tenant. Click a step in the left nav to make changes.</p>
+                    <div className="rounded-xl border border-gray-200 overflow-hidden divide-y divide-gray-100">
+                      {[
+                        { section: 'Tenant Setup', rows: [
+                          ['Tenant Name', newTenant.name || '—'],
+                          ['Slug', newTenant.slug || '(auto-generated)'],
+                          ['Domain', newTenant.domain || '—'],
+                          ['Subscription Tier', newTenant.subscription_tier],
+                          ['Max Users', newTenant.max_users],
+                        ]},
+                        { section: 'Financials', rows: [
+                          ['Master Budget', `${Number(newTenant.master_budget_balance).toLocaleString()} pts`],
+                          ['Base Currency', newTenant.base_currency],
+                          ['Display Currency', newTenant.display_currency],
+                          ['FX Rate', newTenant.fx_rate],
+                        ]},
+                        { section: 'Billing', rows: [
+                          ['Billing Cycle', billingCycle.charAt(0).toUpperCase() + billingCycle.slice(1)],
+                          ['Amount / Month', `${currencySymbol(newTenant.display_currency)}${Number(billingAmount).toLocaleString()}`],
+                          ['Discount', discountPct > 0 ? `${discountPct}%` : 'None'],
+                          ['Final / Month', `${currencySymbol(newTenant.display_currency)}${billingFinalAmount.toLocaleString()}`],
+                        ]},
+                        { section: 'Modules', rows: [
+                          ['AI Module', newTenant.modules_ai ? '✓ Enabled' : 'Disabled'],
+                          ['Sales & Marketing', newTenant.modules_sales ? '✓ Enabled' : 'Disabled'],
+                        ]},
+                        { section: 'Admin Setup', rows: [
+                          ['Name', `${newTenant.admin_first_name} ${newTenant.admin_last_name}`.trim() || '—'],
+                          ['Email', newTenant.admin_email || '—'],
+                        ]},
+                      ].map(({ section, rows }) => (
+                        <div key={section}>
+                          <div className="px-4 py-2 bg-gray-50">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{section}</p>
+                          </div>
+                          {rows.map(([label, val]) => (
+                            <div key={label} className="px-4 py-2.5 flex items-center justify-between border-t border-gray-100 first:border-0">
+                              <span className="text-sm text-gray-500">{label}</span>
+                              <span className={`text-sm font-semibold ${String(val).includes('✓') ? 'text-green-600' : 'text-gray-900'}`}>{val}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
               </div>
 
-              <div className="border-t border-gray-200 pt-4">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">Tenant Manager (SUPER_ADMIN)</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="label">First Name</label>
-                    <input name="admin_first_name" className="input" required />
-                  </div>
-                  <div>
-                    <label className="label">Last Name</label>
-                    <input name="admin_last_name" className="input" required />
-                  </div>
-                  <div>
-                    <label className="label">Email</label>
-                    <input name="admin_email" type="email" className="input" required />
-                  </div>
-                  <div>
-                    <label className="label">Password</label>
-                    <input name="admin_password" type="password" className="input" minLength={8} required />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="btn-secondary flex-1"
-                >
-                  Cancel
+              {/* Footer nav */}
+              <div className="border-t border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0 bg-white">
+                <button type="button" onClick={goProvisionBack} className="btn-secondary">
+                  {provisionStepIdx === 0 ? 'Cancel' : '← Back'}
                 </button>
-                <button
-                  type="submit"
-                  disabled={createMutation.isPending}
-                  className="btn-primary flex-1"
-                >
-                  {createMutation.isPending ? 'Provisioning...' : 'Create Tenant'}
-                </button>
+                {provisionStepIdx === PROVISION_STEPS.length - 1 ? (
+                  <button type="button" onClick={submitCreateTenant} disabled={createMutation.isPending} className="btn-primary">
+                    {createMutation.isPending ? 'Provisioning...' : 'Create Tenant'}
+                  </button>
+                ) : (
+                  <button type="button" onClick={goProvisionNext} className="btn-primary">
+                    Next →
+                  </button>
+                )}
               </div>
-            </form>
             </div>
+
           </div>
         </div>
       )}

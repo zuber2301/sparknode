@@ -319,7 +319,7 @@ function GlobalCatalogTab() {
   const publishItem = async (item) => {
     const d = drafts[item.master_item_id]
     if (!d || d.points === '') return
-    const pts = Number(d.points)
+    const pts = Math.round(Number(d.points))
     await catalogAPI.upsertTenantItem(item.master_item_id, {
       master_item_id: item.master_item_id,
       is_enabled: item.is_enabled,
@@ -501,46 +501,47 @@ function GlobalCatalogTab() {
 
                   {/* Row 3: Points Required */}
                   <div>
+                    {/* Label (2-line) + pill side by side */}
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Points Required</span>
-                      {hasCustom && !dirty && (
-                        <button
-                          onClick={() => resetMutation.mutate(item)}
-                          disabled={resetMutation.isPending}
-                          className="flex items-center gap-0.5 text-xs text-gray-400 hover:text-red-500 disabled:opacity-40 transition-colors"
-                          title="Reset to global default"
-                        >
-                          <HiOutlineArrowPath className="w-3 h-3" />
-                          Reset
-                        </button>
-                      )}
+                      <div className="flex flex-col leading-tight">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Points</span>
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Required</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {hasCustom && !dirty && (
+                          <button
+                            onClick={() => resetMutation.mutate(item)}
+                            disabled={resetMutation.isPending}
+                            className="p-0.5 text-gray-300 hover:text-red-400 disabled:opacity-40 transition-colors"
+                            title="Reset to global default"
+                          >
+                            <HiOutlineArrowPath className="w-3 h-3" />
+                          </button>
+                        )}
+                        <div className={`inline-flex items-center gap-1 px-4 py-1.5 rounded-full font-bold text-base ${
+                          dirty || hasCustom ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+                        }`}>
+                          {dirty
+                            ? (inputVal !== '' ? Math.round(Number(inputVal)).toLocaleString() : Number(savedPts).toLocaleString())
+                            : Number(savedPts).toLocaleString()}
+                          <span className="text-sm font-medium ml-0.5">pts</span>
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Points pill badge */}
-                    {!dirty && (
-                      <div className={`mb-2 inline-flex items-center gap-1 px-4 py-1.5 rounded-full font-bold text-base ${
-                        hasCustom ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
-                      }`}>
-                        {Number(savedPts).toLocaleString()}
-                        <span className="text-sm font-medium ml-0.5">pts</span>
-                      </div>
-                    )}
-
-                    {/* Inline edit input */}
+                    {/* Pill-styled integer input */}
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
                         min="0"
-                        step="50"
-                        className={`w-full border rounded-lg px-3 py-2 text-sm font-mono font-semibold focus:outline-none focus:ring-2 transition-colors ${
-                          dirty
-                            ? 'border-amber-300 bg-amber-50 text-amber-800 focus:ring-amber-300'
-                            : hasCustom
-                            ? 'border-amber-200 bg-amber-50/60 text-amber-700 focus:ring-amber-300'
-                            : 'border-blue-100 bg-blue-50/30 text-gray-800 focus:ring-blue-400'
+                        step="1"
+                        className={`w-full rounded-full px-4 py-1.5 text-base font-bold text-center focus:outline-none focus:ring-2 transition-colors ${
+                          dirty || hasCustom
+                            ? 'bg-amber-100 text-amber-700 focus:ring-amber-300'
+                            : 'bg-blue-100 text-blue-700 focus:ring-blue-300'
                         }`}
                         value={inputVal}
-                        onChange={e => setDraftPoints(item.master_item_id, e.target.value)}
+                        onChange={e => setDraftPoints(item.master_item_id, String(Math.round(Number(e.target.value)) || e.target.value))}
                         onKeyDown={e => {
                           if (e.key === 'Enter' && dirty) {
                             publishItem(item)
@@ -562,20 +563,14 @@ function GlobalCatalogTab() {
                               })
                               .catch(() => toast.error('Publish failed'))
                           }
-                          className="shrink-0 flex items-center gap-1 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg shadow-sm transition-colors"
-                          title="Publish this change"
+                          className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-full shadow-sm transition-colors"
+                          title="Save"
                         >
                           <HiOutlineCheck className="w-3.5 h-3.5" />
                           Save
                         </button>
                       )}
                     </div>
-
-                    {dirty && (
-                      <p className="mt-1 text-xs text-amber-600">
-                        Was {Number(savedPts).toLocaleString()} pts — Enter or Save to publish
-                      </p>
-                    )}
                   </div>
 
                   <hr className="border-gray-100" />

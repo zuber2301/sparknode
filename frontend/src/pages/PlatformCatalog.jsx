@@ -3,8 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import {
   HiOutlinePlus, HiOutlinePencil, HiOutlineTrash,
-  HiOutlineEye, HiOutlineEyeSlash, HiOutlineGlobeAlt, HiOutlineSparkles,
-  HiXMark, HiOutlineCheck, HiMagnifyingGlass,
+  HiOutlineGlobeAlt, HiOutlineSparkles,
+  HiXMark, HiMagnifyingGlass,
 } from 'react-icons/hi2'
 import { catalogAPI } from '../lib/api'
 
@@ -103,6 +103,7 @@ const CAT_COLOR = {
   custom:       'bg-gray-100 text-gray-700',
 }
 const catClass = (c) => CAT_COLOR[c?.toLowerCase()] || 'bg-gray-100 text-gray-700'
+const toTitle = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : ''
 
 const FULFILLMENT_LABELS = {
   voucher:      '🎫 Voucher',
@@ -376,73 +377,75 @@ export default function PlatformCatalog() {
           {items.map(item => (
             <div
               key={item.id}
-              className={`bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden ${
-                !item.is_active_global ? 'opacity-50' : ''
+              className={`relative bg-white rounded-2xl border shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden ${
+                item.is_active_global ? 'border-slate-200 hover:border-indigo-300' : 'border-slate-200 opacity-70'
               }`}
             >
-              {/* Brand header */}
-              <div className="px-5 pt-5 pb-4 flex items-center gap-3">
-                <BrandLogo brand={item.brand} imageUrl={item.image_url} size="w-12 h-12" />
-                <div className="min-w-0 flex-1">
-                  <div className="font-bold text-gray-900 truncate text-base leading-snug">{item.brand}</div>
-                  <div className="text-sm text-gray-500 truncate mt-0.5 leading-snug">{item.name}</div>
+              {/* Card body */}
+              <div className="flex flex-col flex-1 p-4 gap-3">
+
+                {/* Row 1: Brand name + Active/Paused toggle top-right */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                    <BrandLogo brand={item.brand} imageUrl={item.image_url} size="w-9 h-9" />
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-base text-gray-900 leading-tight truncate">{item.brand}</h3>
+                      <p className="text-xs text-gray-500 font-medium mt-0.5 leading-snug truncate">{item.name}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => toggleMutation.mutate(item.id)}
+                    className={`shrink-0 mt-0.5 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all focus:outline-none select-none ${
+                      item.is_active_global
+                        ? 'bg-green-100 text-green-700 hover:bg-green-200 ring-1 ring-green-200'
+                        : 'bg-gray-100 text-gray-400 hover:bg-gray-200 ring-1 ring-gray-200'
+                    }`}
+                  >
+                    <span className={`inline-block w-2 h-2 rounded-full ${
+                      item.is_active_global ? 'bg-green-500' : 'bg-gray-400'
+                    }`} />
+                    {item.is_active_global ? 'ON' : 'OFF'}
+                  </button>
                 </div>
-              </div>
 
-              {/* Divider */}
-              <div className="h-px bg-slate-100 mx-0" />
+                <hr className="border-gray-100" />
 
-              {/* Body */}
-              <div className="px-5 py-4 flex-1 space-y-3">
-                {/* Category + type row */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold capitalize ${catClass(item.category)}`}>
-                    {item.category}
+                {/* Row 2: Category tag (left) + Fulfillment tag (right) */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${catClass(item.category)}`}>
+                    {toTitle(item.category)}
                   </span>
-                  <span className="px-2.5 py-1 text-xs font-medium text-slate-500 bg-slate-100 rounded-lg">
+                  <span className="px-2.5 py-0.5 text-xs font-medium text-slate-500 bg-slate-100 rounded-full">
                     {FULFILLMENT_LABELS[item.fulfillment_type] || item.fulfillment_type}
                   </span>
                 </div>
 
-                {/* Points band — prominent */}
-                <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5">
-                  <div className="text-xs text-blue-500 font-semibold uppercase tracking-wide mb-0.5">Points Range</div>
-                  <div className="font-bold text-blue-700 text-base font-mono">
-                    {Number(item.min_points).toLocaleString()} – {Number(item.max_points).toLocaleString()}
-                    <span className="text-blue-400 font-normal text-sm ml-1">pts</span>
+                {/* Row 3: Two-line POINTS/REQUIRED label + pts pill */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex flex-col leading-tight">
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Points</span>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Required</span>
+                    </div>
+                    <div className="inline-flex items-baseline gap-1 px-4 py-1.5 rounded-full font-bold text-base bg-blue-100 text-blue-700">
+                      {Number(item.min_points).toLocaleString()}
+                      <span className="text-sm font-medium ml-0.5">pts</span>
+                    </div>
                   </div>
+                  {item.provider_code && (
+                    <div className="text-xs text-slate-400 font-mono truncate" title={item.provider_code}>
+                      SKU: {item.provider_code}
+                    </div>
+                  )}
                 </div>
 
-                {/* SKU */}
-                {item.provider_code ? (
-                  <div className="text-sm text-slate-400 font-mono truncate" title={item.provider_code}>
-                    SKU: {item.provider_code}
-                  </div>
-                ) : (
-                  <div className="text-sm text-slate-300 italic">No provider SKU</div>
-                )}
-              </div>
+                <hr className="border-gray-100" />
 
-              {/* Footer */}
-              <div className="h-px bg-slate-100" />
-              <div className="px-5 py-3 flex items-center justify-between">
-                <button
-                  onClick={() => toggleMutation.mutate(item.id)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                    item.is_active_global
-                      ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                      : 'bg-red-50 text-red-600 hover:bg-red-100'
-                  }`}
-                >
-                  {item.is_active_global
-                    ? <HiOutlineEye className="w-4 h-4" />
-                    : <HiOutlineEyeSlash className="w-4 h-4" />}
-                  {item.is_active_global ? 'Active' : 'Paused'}
-                </button>
-                <div className="flex items-center gap-1">
+                {/* Footer: edit/delete actions */}
+                <div className="flex items-center justify-end gap-1">
                   <button
                     onClick={() => { setEditItem(item); setShowModal(true) }}
-                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                     title="Edit"
                   >
                     <HiOutlinePencil className="w-4 h-4" />
@@ -453,12 +456,13 @@ export default function PlatformCatalog() {
                         deleteMutation.mutate(item.id)
                       }
                     }}
-                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                     title="Delete"
                   >
                     <HiOutlineTrash className="w-4 h-4" />
                   </button>
                 </div>
+
               </div>
             </div>
           ))}
