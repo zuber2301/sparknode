@@ -260,9 +260,13 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && steps.version.outputs.should_push == 'true'
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          echo "$VERSION" > VERSION
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Sync with remote main before committing so the push is never a
+          # non-fast-forward rejection (the checkout is pinned to the SHA that
+          # queued the workflow; main may have moved forward since then).
+          git pull --rebase origin main
+          echo "$VERSION" > VERSION
           git add VERSION
           git diff --cached --quiet || {
             git commit -m "chore: bump version to $VERSION [skip ci]"
