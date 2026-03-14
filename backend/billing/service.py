@@ -56,10 +56,16 @@ def _resolve_billing_contact(tenant: Tenant, db: Session) -> str:
 
 
 def _build_line_items(tenant: Tenant) -> list:
-    amount = tenant.billing_final_amount or tenant.billing_amount or BILLING_DEFAULTS.get(tenant.billing_currency or "INR")
+    currency = tenant.billing_currency or "INR"
+    amount = (
+        tenant.billing_final_amount
+        or tenant.billing_amount
+        or BILLING_DEFAULTS.get(currency)
+    )
+    cycle = (tenant.billing_cycle or 'monthly').capitalize()
     return [
         {
-            "description": f"SparkNode Platform Subscription ({(tenant.billing_cycle or 'monthly').capitalize()})",
+            "description": f"SparkNode Platform Subscription ({cycle})",
             "unit_price": float(amount),
             "qty": 1,
             "amount": float(amount),

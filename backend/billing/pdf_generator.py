@@ -13,8 +13,8 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import mm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.enums import TA_RIGHT
 
 CURRENCY_SYMBOLS = {"INR": "₹", "USD": "$", "EUR": "€"}
 INVOICE_DIR = "/tmp/invoices"
@@ -54,7 +54,6 @@ def generate_invoice_pdf(
         bottomMargin=15 * mm,
     )
 
-    styles = getSampleStyleSheet()
     brand_color = colors.HexColor("#4F46E5")  # indigo-600
     light_gray  = colors.HexColor("#F3F4F6")
     mid_gray    = colors.HexColor("#6B7280")
@@ -62,10 +61,7 @@ def generate_invoice_pdf(
 
     h1 = ParagraphStyle("h1", fontSize=22, fontName="Helvetica-Bold", textColor=brand_color)
     h2 = ParagraphStyle("h2", fontSize=11, fontName="Helvetica-Bold", textColor=dark)
-    body = ParagraphStyle("body", fontSize=9, fontName="Helvetica", textColor=dark, leading=14)
     small = ParagraphStyle("small", fontSize=8, fontName="Helvetica", textColor=mid_gray)
-    right_bold = ParagraphStyle("right_bold", fontSize=11, fontName="Helvetica-Bold", textColor=dark, alignment=TA_RIGHT)
-    right_small = ParagraphStyle("right_small", fontSize=9, fontName="Helvetica", textColor=mid_gray, alignment=TA_RIGHT)
 
     elements = []
 
@@ -73,7 +69,10 @@ def generate_invoice_pdf(
     header_data = [
         [
             Paragraph("SparkNode", h1),
-            Paragraph(f"INVOICE", ParagraphStyle("inv", fontSize=18, fontName="Helvetica-Bold", textColor=mid_gray, alignment=TA_RIGHT)),
+            Paragraph("INVOICE", ParagraphStyle(
+                "inv", fontSize=18, fontName="Helvetica-Bold",
+                textColor=mid_gray, alignment=TA_RIGHT,
+            )),
         ]
     ]
     header_table = Table(header_data, colWidths=["60%", "40%"])
@@ -84,15 +83,10 @@ def generate_invoice_pdf(
     elements.append(Spacer(1, 5 * mm))
 
     # ── Meta row: bill-to + invoice details ─────────────────────────────────
-    meta_left = [
-        Paragraph("BILL TO", ParagraphStyle("label", fontSize=8, fontName="Helvetica-Bold", textColor=mid_gray)),
-        Paragraph(tenant_name, h2),
-        Paragraph(billing_contact_email, small),
-    ]
     meta_right_rows = [
         ("Invoice #",  invoice_number),
         ("Invoice Date", str(date.today())),
-        ("Period",     f"{period_start} – {period_end}"),
+        ("Period",     f"{period_start} \u2013 {period_end}"),
         ("Cycle",      billing_cycle.capitalize()),
         ("Due Date",   str(due_date) if due_date else "Upon receipt"),
     ]
@@ -100,16 +94,7 @@ def generate_invoice_pdf(
         f'<b>{k}:</b> &nbsp;{v}<br/>'
         for k, v in meta_right_rows
     )
-    meta_data = [
-        [
-            [p for p in meta_left],
-            Paragraph(meta_right_text, small),
-        ]
-    ]
-    meta_table = Table([["\n".join([]+[]), Paragraph(meta_right_text, small)]], colWidths=["55%", "45%"])
 
-    # build left cell properly
-    from reportlab.platypus import KeepTogether
     left_cell_elements = [
         Paragraph("BILL TO", ParagraphStyle("lbl", fontSize=8, fontName="Helvetica-Bold", textColor=mid_gray)),
         Paragraph(tenant_name, h2),
