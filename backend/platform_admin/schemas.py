@@ -45,6 +45,12 @@ class TenantCreateRequest(BaseModel):
     # Initial feature flags for tenant provisioning (e.g., enable AI module)
     feature_flags: Optional[Dict[str, Any]] = {}
 
+    # Billing & Subscription
+    billing_cycle: Optional[str] = Field(default="monthly", pattern="^(monthly|quarterly|annually)$")
+    billing_amount: Optional[Decimal] = Field(default=None, ge=0)
+    billing_discount_pct: Optional[Decimal] = Field(default=Decimal("0"), ge=0, le=100)
+    billing_final_amount: Optional[Decimal] = Field(default=None, ge=0)
+
 
 class TenantUpdateRequest(BaseModel):
     """Request to update tenant details."""

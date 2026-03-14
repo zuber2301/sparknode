@@ -11,7 +11,8 @@ from database import get_db
 from core import append_impersonation_metadata
 from models import (
     Brand, Voucher, TenantVoucher, Redemption, User,
-    Wallet, WalletLedger, Feed, Notification, AuditLog
+    Wallet, WalletLedger, Feed, Notification, AuditLog,
+    RewardCatalogMaster, RewardCatalogTenant,
 )
 from auth.utils import get_current_user
 from redemption.schemas import (
@@ -155,72 +156,116 @@ async def initiate_redemption(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Initiate a redemption and send OTP"""
-    # Get voucher
-    voucher_result = db.query(Voucher, Brand).join(
-        Brand, Voucher.brand_id == Brand.id
-    ).filter(Voucher.id == redemption_data.voucher_id).first()
-    
-    if not voucher_result:
-        raise HTTPException(status_code=404, detail="Voucher not found")
-    
-    voucher, brand = voucher_result
-    
-    if not voucher.is_active:
-        raise HTTPException(status_code=400, detail="Voucher is not available")
-    
-    # Check if voucher is available for tenant
-    tenant_voucher = db.query(TenantVoucher).filter(
-        TenantVoucher.tenant_id == current_user.tenant_id,
-        TenantVoucher.voucher_id == voucher.id,
-        TenantVoucher.is_active == True
-    ).first()
-    
-    if not tenant_voucher:
-        raise HTTPException(status_code=400, detail="Voucher not available for your organization")
-    
-    # Get user's wallet
+    """Initiate a redemption and send OTP.
+
+    Supports two paths:
+    - Legacy vouchers: pass ``voucher_id`` (UUID from the ``vouchers`` table).
+    - Catalog items:   pass ``catalog_item_id`` (UUID from ``reward_catalog_master``).
+    """
+    if not redemption_data.voucher_id and not redemption_data.catalog_item_id:
+        raise HTTPException(status_code=422, detail="Either voucher_id or catalog_item_id is required")
+
+    # ------------------------------------------------------------------ #
+    #  Resolve the item and the points required                           #
+    # ------------------------------------------------------------------ #
+    if redemption_data.catalog_item_id:
+        # -- NEW CATALOG PATH --
+        master_item = db.query(RewardCatalogMaster).filter(
+            RewardCatalogMaster.id == redemption_data.catalog_item_id,
+            RewardCatalogMaster.is_active_global == True,
+        ).first()
+        if not master_item:
+            raise HTTPException(status_code=404, detail="Catalog item not found")
+
+        # Tenant override (may set a different points value or disable the item)
+        tenant_override = db.query(RewardCatalogTenant).filter(
+            RewardCatalogTenant.master_item_id == master_item.id,
+            RewardCatalogTenant.tenant_id == current_user.tenant_id,
+        ).first()
+
+        if tenant_override and not tenant_override.is_enabled:
+            raise HTTPException(status_code=400, detail="This reward is not available for your organisation")
+
+        points_required = Decimal(str(
+            tenant_override.custom_min_points if (tenant_override and tenant_override.custom_min_points)
+            else master_item.min_points
+        ))
+        item_name = master_item.name
+        item_reward_type = master_item.fulfillment_type or 'voucher'
+        voucher_id_for_row = None
+        catalog_item_id_for_row = master_item.id
+        otp_message = f"Your verification code for {master_item.name} is: {{otp}}. It expires in 10 minutes."
+    else:
+        # -- LEGACY VOUCHER PATH --
+        voucher_result = db.query(Voucher, Brand).join(
+            Brand, Voucher.brand_id == Brand.id
+        ).filter(Voucher.id == redemption_data.voucher_id).first()
+
+        if not voucher_result:
+            raise HTTPException(status_code=404, detail="Voucher not found")
+
+        voucher, brand = voucher_result
+
+        if not voucher.is_active:
+            raise HTTPException(status_code=400, detail="Voucher is not available")
+
+        tenant_voucher = db.query(TenantVoucher).filter(
+            TenantVoucher.tenant_id == current_user.tenant_id,
+            TenantVoucher.voucher_id == voucher.id,
+            TenantVoucher.is_active == True
+        ).first()
+
+        if not tenant_voucher:
+            raise HTTPException(status_code=400, detail="Voucher not available for your organization")
+
+        points_required = Decimal(str(tenant_voucher.custom_points_required or voucher.points_required))
+        item_name = voucher.name
+        item_reward_type = voucher.reward_type or 'voucher'
+        voucher_id_for_row = voucher.id
+        catalog_item_id_for_row = None
+        otp_message = f"Your verification code for {voucher.name} is: {{otp}}. It expires in 10 minutes."
+
+        # Check stock (legacy vouchers only)
+        if voucher.stock_quantity is not None and voucher.stock_quantity <= 0:
+            raise HTTPException(status_code=400, detail="Voucher out of stock")
+
+    # ------------------------------------------------------------------ #
+    #  Wallet balance check                                               #
+    # ------------------------------------------------------------------ #
     wallet = db.query(Wallet).filter(Wallet.user_id == current_user.id).first()
     if not wallet:
         raise HTTPException(status_code=400, detail="Wallet not found")
-    
-    points_required = tenant_voucher.custom_points_required or voucher.points_required
-    
-    # Check wallet balance
+
     if wallet.balance < points_required:
         raise HTTPException(
             status_code=400,
             detail=f"Insufficient balance. Required: {points_required}, Available: {wallet.balance}"
         )
-    
-    # Check stock (if applicable)
-    if voucher.stock_quantity is not None and voucher.stock_quantity <= 0:
-        raise HTTPException(status_code=400, detail="Voucher out of stock")
-    
-    # Generate OTP
+
+    # ------------------------------------------------------------------ #
+    #  Create redemption record                                           #
+    # ------------------------------------------------------------------ #
     otp = str(secrets.randbelow(1000000)).zfill(6)
-    
-    # Create redemption in pending_otp status
+
     redemption = Redemption(
         tenant_id=current_user.tenant_id,
         user_id=current_user.id,
-        voucher_id=voucher.id,
+        voucher_id=voucher_id_for_row,
+        catalog_item_id=catalog_item_id_for_row,
         points_used=points_required,
-        copay_amount=voucher.copay_amount or Decimal(0),
+        copay_amount=Decimal(0),
         status='pending_otp',
-        reward_type=voucher.reward_type or 'voucher',
+        reward_type=item_reward_type,
         otp_code=otp,
         otp_expires_at=datetime.utcnow() + timedelta(minutes=10)
     )
     db.add(redemption)
     db.flush()
-    
-    # Debit wallet (Lock points)
-    old_balance = wallet.balance
+
+    # Debit wallet
     wallet.balance = Decimal(str(wallet.balance)) - points_required
     wallet.lifetime_spent = Decimal(str(wallet.lifetime_spent)) + points_required
-    
-    # Create ledger entry
+
     ledger_entry = WalletLedger(
         tenant_id=current_user.tenant_id,
         wallet_id=wallet.id,
@@ -230,26 +275,28 @@ async def initiate_redemption(
         balance_after=wallet.balance,
         reference_type='redemption',
         reference_id=redemption.id,
-        description=f"Redemption initiated: {voucher.name} (OTP pending)"
+        description=f"Redemption initiated: {item_name} (OTP pending)"
     )
     db.add(ledger_entry)
-    
-    # Create notification with OTP
+
     notification = Notification(
         tenant_id=current_user.tenant_id,
         user_id=current_user.id,
         type='redemption_otp',
         title='Redemption Verification Code',
-        message=f"Your verification code for {voucher.name} is: {otp}. It expires in 10 minutes.",
+        message=otp_message.format(otp=otp),
         reference_type='redemption',
         reference_id=redemption.id
     )
     db.add(notification)
-    
+
     db.commit()
     db.refresh(redemption)
-    
+
     return redemption
+
+
+
 
 
 @router.post("/verify-otp", response_model=RedemptionResponse)
@@ -285,12 +332,29 @@ async def verify_redemption_otp(
     if redemption.reward_type == 'voucher':
         # Issue voucher logic
         try:
-            voucher = db.query(Voucher).get(redemption.voucher_id)
+            if redemption.voucher_id:
+                # Legacy voucher path
+                voucher = db.query(Voucher).get(redemption.voucher_id)
+                vendor_code = voucher.vendor_code or f"MOCK-{voucher.denomination}"
+                amount = float(voucher.denomination)
+                validity_days = voucher.validity_days
+                item_name = voucher.name
+                # Update stock for legacy vouchers
+                if voucher.stock_quantity is not None:
+                    voucher.stock_quantity -= 1
+            else:
+                # New catalog item path
+                catalog_item = db.query(RewardCatalogMaster).get(redemption.catalog_item_id)
+                vendor_code = catalog_item.provider_code or f"MOCK-{redemption.points_used}"
+                amount = float(redemption.points_used)
+                validity_days = catalog_item.validity_days or 365
+                item_name = catalog_item.name
+
             client = get_aggregator_client()
             issue_res = client.issue_voucher(
                 tenant_id=redemption.tenant_id,
-                vendor_code=voucher.vendor_code or f"MOCK-{voucher.denomination}",
-                amount=float(voucher.denomination),
+                vendor_code=vendor_code,
+                amount=amount,
                 metadata={
                     "redemption_id": str(redemption.id),
                     "email": current_user.corporate_email,
@@ -305,11 +369,7 @@ async def verify_redemption_otp(
                 redemption.voucher_pin = issue_res.get("pin")
                 redemption.provider_reference = issue_res.get("vendor_reference")
                 redemption.fulfilled_at = datetime.utcnow()
-                redemption.expires_at = datetime.utcnow() + timedelta(days=voucher.validity_days)
-                
-                # Update voucher stock
-                if voucher.stock_quantity is not None:
-                    voucher.stock_quantity -= 1
+                redemption.expires_at = datetime.utcnow() + timedelta(days=validity_days)
                     
                 # Create final notification
                 notification = Notification(
@@ -317,7 +377,7 @@ async def verify_redemption_otp(
                     user_id=current_user.id,
                     type='redemption_completed',
                     title='Reward Issued!',
-                    message=f"Your {voucher.name} reward has been issued successfully.",
+                    message=f"Your {item_name} reward has been issued successfully.",
                     reference_type='redemption',
                     reference_id=redemption.id
                 )

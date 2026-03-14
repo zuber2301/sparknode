@@ -36,14 +36,45 @@ from sales.campaign_routes import router as campaign_router
 from crm.routes import router as crm_router
 from catalog.platform_routes import router as catalog_platform_router
 from catalog.tenant_routes import router as catalog_tenant_router
+from billing.routes import router as billing_router
+
+
+# ── APScheduler (monthly billing) ────────────────────────────────────────────
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+from database import SessionLocal
+
+_billing_scheduler = BackgroundScheduler(timezone="UTC")
+
+
+def _run_monthly_invoicing():
+    """Scheduler job — runs at 00:05 UTC on day 1 of every month."""
+    from billing.service import generate_monthly_invoices
+    db = SessionLocal()
+    try:
+        generate_monthly_invoices(db)
+    except Exception as exc:
+        logging.error("Monthly billing scheduler error: %s", exc)
+    finally:
+        db.close()
+
+
+_billing_scheduler.add_job(
+    _run_monthly_invoicing,
+    CronTrigger(day=1, hour=0, minute=5),
+    id="monthly_billing",
+    replace_existing=True,
+)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     logging.info("Starting SparkNode Multi-Tenant API...")
+    _billing_scheduler.start()
     yield
     # Shutdown
+    _billing_scheduler.shutdown(wait=False)
     logging.info("Shutting down SparkNode API...")
 
 
@@ -119,6 +150,7 @@ app.include_router(copilot_router, prefix="/api", tags=["AI Copilot"])
 app.include_router(snpilot_router, prefix="/api", tags=["SNPilot Intents"])
 app.include_router(catalog_platform_router, prefix="/api/catalog/admin", tags=["Catalog — Platform Admin"])
 app.include_router(catalog_tenant_router, prefix="/api/catalog", tags=["Catalog — Tenant & Browse"])
+app.include_router(billing_router, prefix="/api/billing", tags=["Billing & Invoicing"])
 
 
 @app.get("/")

@@ -10,7 +10,12 @@
 #   - Push to main   → reads VERSION file, tags as X.Y.Z + latest
 #   - Git tag v*     → uses tag version (e.g. v1.2.3 → 1.2.3)
 #   - Pull request   → build only (no push)
-#   - Manual dispatch → choose image + version bump, push to DockerHub
+#   - Manual dispatch → tick checkboxes to select images + version bump, push to DockerHub
+#
+# Image selection (manual dispatch):
+#   - "Build ALL images" checked (default) → builds every image
+#   - Uncheck "Build ALL" and tick individual images → builds only those selected
+#   - Uncheck "Build ALL" with nothing else ticked → safety fallback, builds all
 #
 # Retention: only 3 semver versions kept per image (current + 2 previous).
 # Older versions are automatically purged after each push.
@@ -30,17 +35,31 @@ name: CI — Build & Push Images
 on:
   workflow_dispatch:
     inputs:
-      image:
-        description: 'Which image to build and push'
-        required: true
-        default: 'all'
-        type: choice
-        options:
-          - all
-          - backend
-          - frontend
-          - manager-ui
-          - orchestrator
+      build_all:
+        description: 'Build ALL images (overrides individual selections below)'
+        required: false
+        default: true
+        type: boolean
+      build_backend:
+        description: 'Build backend image'
+        required: false
+        default: false
+        type: boolean
+      build_frontend:
+        description: 'Build frontend image'
+        required: false
+        default: false
+        type: boolean
+      build_manager_ui:
+        description: 'Build manager-ui image'
+        required: false
+        default: false
+        type: boolean
+      build_orchestrator:
+        description: 'Build orchestrator image'
+        required: false
+        default: false
+        type: boolean
       version_bump:
         description: 'Version bump type'
         required: true
@@ -169,37 +188,62 @@ jobs:
       - name: Determine build matrix
         id: matrix
         run: |
-          IMAGE_INPUT="${{ github.event.inputs.image }}"
+          BUILD_ALL="${{ github.event.inputs.build_all }}"
+          B_BACKEND="${{ github.event.inputs.build_backend }}"
+          B_FRONTEND="${{ github.event.inputs.build_frontend }}"
+          B_MANAGER_UI="${{ github.event.inputs.build_manager_ui }}"
+          B_ORCHESTRATOR="${{ github.event.inputs.build_orchestrator }}"
 
-          # On push/PR events or when "all" is selected, build everything
-          if [ -z "$IMAGE_INPUT" ] || [ "$IMAGE_INPUT" = "all" ]; then
+          # On push/PR events (no dispatch inputs) always build everything
+          if [ -z "$BUILD_ALL" ]; then
             echo "build_backend=true"       >> $GITHUB_OUTPUT
             echo "build_frontend=true"      >> $GITHUB_OUTPUT
             echo "build_manager_ui=true"    >> $GITHUB_OUTPUT
             echo "build_orchestrator=true"  >> $GITHUB_OUTPUT
-          elif [ "$IMAGE_INPUT" = "backend" ]; then
-            echo "build_backend=true"       >> $GITHUB_OUTPUT
-            echo "build_frontend=false"     >> $GITHUB_OUTPUT
-            echo "build_manager_ui=false"   >> $GITHUB_OUTPUT
-            echo "build_orchestrator=false" >> $GITHUB_OUTPUT
-          elif [ "$IMAGE_INPUT" = "frontend" ]; then
-            echo "build_backend=false"      >> $GITHUB_OUTPUT
-            echo "build_frontend=true"      >> $GITHUB_OUTPUT
-            echo "build_manager_ui=false"   >> $GITHUB_OUTPUT
-            echo "build_orchestrator=false" >> $GITHUB_OUTPUT
-          elif [ "$IMAGE_INPUT" = "manager-ui" ]; then
-            echo "build_backend=false"      >> $GITHUB_OUTPUT
-            echo "build_frontend=false"     >> $GITHUB_OUTPUT
-            echo "build_manager_ui=true"    >> $GITHUB_OUTPUT
-            echo "build_orchestrator=false" >> $GITHUB_OUTPUT
-          elif [ "$IMAGE_INPUT" = "orchestrator" ]; then
-            echo "build_backend=false"      >> $GITHUB_OUTPUT
-            echo "build_frontend=false"     >> $GITHUB_OUTPUT
-            echo "build_manager_ui=false"   >> $GITHUB_OUTPUT
-            echo "build_orchestrator=true"  >> $GITHUB_OUTPUT
+            echo "Image selection: all (push/PR trigger)"
+            exit 0
           fi
 
-          echo "Image selection: ${IMAGE_INPUT:-all}"
+          # If build_all is checked, build everything regardless of individual boxes
+          if [ "$BUILD_ALL" = "true" ]; then
+            echo "build_backend=true"       >> $GITHUB_OUTPUT
+            echo "build_frontend=true"      >> $GITHUB_OUTPUT
+            echo "build_manager_ui=true"    >> $GITHUB_OUTPUT
+            echo "build_orchestrator=true"  >> $GITHUB_OUTPUT
+            echo "Image selection: all"
+            exit 0
+          fi
+
+          # build_all unchecked — check if at least one individual image was selected
+          ANY="false"
+          [ "$B_BACKEND" = "true" ]      && ANY="true"
+          [ "$B_FRONTEND" = "true" ]     && ANY="true"
+          [ "$B_MANAGER_UI" = "true" ]   && ANY="true"
+          [ "$B_ORCHESTRATOR" = "true" ] && ANY="true"
+
+          # Safety fallback: nothing ticked → build all
+          if [ "$ANY" = "false" ]; then
+            echo "::warning::No image was selected; falling back to building all images."
+            echo "build_backend=true"       >> $GITHUB_OUTPUT
+            echo "build_frontend=true"      >> $GITHUB_OUTPUT
+            echo "build_manager_ui=true"    >> $GITHUB_OUTPUT
+            echo "build_orchestrator=true"  >> $GITHUB_OUTPUT
+            echo "Image selection: all (fallback — nothing was ticked)"
+            exit 0
+          fi
+
+          # Build only the ticked images
+          echo "build_backend=$B_BACKEND"           >> $GITHUB_OUTPUT
+          echo "build_frontend=$B_FRONTEND"         >> $GITHUB_OUTPUT
+          echo "build_manager_ui=$B_MANAGER_UI"     >> $GITHUB_OUTPUT
+          echo "build_orchestrator=$B_ORCHESTRATOR" >> $GITHUB_OUTPUT
+
+          SELECTED=""
+          [ "$B_BACKEND" = "true" ]      && SELECTED="$SELECTED backend"
+          [ "$B_FRONTEND" = "true" ]     && SELECTED="$SELECTED frontend"
+          [ "$B_MANAGER_UI" = "true" ]   && SELECTED="$SELECTED manager-ui"
+          [ "$B_ORCHESTRATOR" = "true" ] && SELECTED="$SELECTED orchestrator"
+          echo "Image selection:$SELECTED"
 
       - name: Build tag lists
         id: tags

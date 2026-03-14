@@ -44,13 +44,16 @@ function Toggle({ checked, onChange, loading }) {
       type="button"
       onClick={onChange}
       disabled={loading}
-      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
-        checked ? 'bg-blue-600' : 'bg-gray-200'
+      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all focus:outline-none select-none ${
+        checked
+          ? 'bg-green-100 text-green-700 hover:bg-green-200 ring-1 ring-green-200'
+          : 'bg-gray-100 text-gray-400 hover:bg-gray-200 ring-1 ring-gray-200'
       } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
     >
-      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
-        checked ? 'translate-x-4' : 'translate-x-1'
+      <span className={`inline-block w-2 h-2 rounded-full transition-colors ${
+        checked ? 'bg-green-500' : 'bg-gray-400'
       }`} />
+      {checked ? 'ON' : 'OFF'}
     </button>
   )
 }
@@ -257,7 +260,7 @@ function GlobalCatalogTab() {
   const [drafts, setDrafts] = useState({})
   const [publishing, setPublishing] = useState(false)
 
-  const { data: items = [], isLoading } = useQuery({
+  const { data: items = [], isLoading, isError } = useQuery({
     queryKey: ['catalog-tenant', search, catFilter],
     queryFn: async () => {
       const params = {}
@@ -423,6 +426,27 @@ function GlobalCatalogTab() {
       {/* Card grid */}
       {isLoading ? (
         <div className="py-16 text-center text-gray-400 text-sm">Loading rewards…</div>
+      ) : isError ? (
+        <div className="py-16 text-center bg-white rounded-2xl border border-red-100">
+          <HiOutlineExclamationTriangle className="w-10 h-10 text-red-300 mx-auto mb-3" />
+          <p className="text-red-500 text-sm font-medium">Failed to load catalog</p>
+          <p className="text-gray-400 text-xs mt-1">Check your connection or refresh the page.</p>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="py-16 text-center bg-white rounded-2xl border border-dashed border-blue-200">
+          <HiOutlineShoppingBag className="w-10 h-10 text-blue-200 mx-auto mb-3" />
+          <p className="text-gray-400 text-sm font-medium">
+            {search || catFilter ? 'No rewards match your filter.' : 'No rewards in the catalog yet.'}
+          </p>
+          {(search || catFilter) && (
+            <button
+              onClick={() => { setSearch(''); setCatFilter('') }}
+              className="mt-3 text-xs text-blue-500 hover:text-blue-700 underline underline-offset-2"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {items.map(item => {
@@ -438,53 +462,47 @@ function GlobalCatalogTab() {
                   dirty
                     ? 'border-amber-300 ring-2 ring-amber-100 shadow-amber-100'
                     : 'border-slate-200 hover:border-indigo-300 hover:shadow-xl hover:-translate-y-0.5'
-                } ${!item.is_enabled ? 'opacity-60' : ''}`}
+                } ${!item.is_enabled ? 'opacity-70' : ''}`}
               >
                 {/* Unsaved badge */}
                 {dirty && (
-                  <span className="absolute top-2 left-2 z-10 px-1.5 py-0.5 bg-amber-500 text-white text-xs font-bold rounded-md">
+                  <span className="absolute top-3 left-3 z-10 px-1.5 py-0.5 bg-amber-500 text-white text-[10px] font-bold rounded-md">
                     Unsaved
                   </span>
                 )}
 
-                {/* Brand / gradient banner */}
-                <div className={`h-32 bg-gradient-to-br ${catGradient(item.category)} flex items-center justify-center relative overflow-hidden`}>
-                  {/* Faint watermark letter */}
-                  <span className="absolute text-9xl font-black text-white/20 select-none pointer-events-none leading-none">
-                    {item.brand?.charAt(0)}
-                  </span>
-                  {item.image_url ? (
-                    <img
-                      src={item.image_url}
-                      alt={item.brand}
-                      className="relative z-10 h-16 w-auto max-w-[80%] object-contain drop-shadow"
-                      onError={e => { e.currentTarget.style.display = 'none' }}
-                    />
-                  ) : (
-                    <span className="relative z-10 text-5xl font-extrabold text-white/80 select-none drop-shadow">
-                      {item.brand?.charAt(0)}
-                    </span>
-                  )}
-                  {/* Category pill */}
-                  <span className={`absolute top-2 right-2 px-2.5 py-0.5 rounded-full text-xs font-semibold shadow-sm ${catClass(item.category)}`}>
-                    {toTitle(item.category)}
-                  </span>
-                </div>
+                {/* Card body */}
+                <div className="flex flex-col flex-1 p-4 gap-3">
 
-                {/* Content */}
-                <div className="flex flex-col flex-1 px-4 py-3 gap-3">
-                  {/* Brand + item name */}
-                  <div>
-                    <div className="font-bold text-sm text-gray-900 truncate">{item.brand}</div>
-                    <div className="text-xs text-gray-500 truncate">{item.name}</div>
+                  {/* Row 1: Reward name + Toggle top-right */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0 pr-1">
+                      <h3 className="font-bold text-base text-gray-900 leading-tight line-clamp-1">{item.brand}</h3>
+                      <p className="text-sm text-gray-500 font-medium mt-0.5 leading-snug line-clamp-2">{item.name}</p>
+                    </div>
+                    <div className="shrink-0 mt-0.5">
+                      <Toggle
+                        checked={item.is_enabled}
+                        onChange={() => toggleMutation.mutate(item.master_item_id)}
+                        loading={toggleMutation.isPending}
+                      />
+                    </div>
                   </div>
 
-                  {/* Points input */}
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                        Points Required
-                      </label>
+                  <hr className="border-gray-100" />
+
+                  {/* Row 2: Category colored tag */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-gray-400 shrink-0">Category</span>
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${catClass(item.category)}`}>
+                      {toTitle(item.category)}
+                    </span>
+                  </div>
+
+                  {/* Row 3: Points Required */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Points Required</span>
                       {hasCustom && !dirty && (
                         <button
                           onClick={() => resetMutation.mutate(item)}
@@ -498,6 +516,17 @@ function GlobalCatalogTab() {
                       )}
                     </div>
 
+                    {/* Points pill badge */}
+                    {!dirty && (
+                      <div className={`mb-2 inline-flex items-center gap-1 px-4 py-1.5 rounded-full font-bold text-base ${
+                        hasCustom ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {Number(savedPts).toLocaleString()}
+                        <span className="text-sm font-medium ml-0.5">pts</span>
+                      </div>
+                    )}
+
+                    {/* Inline edit input */}
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
@@ -507,8 +536,8 @@ function GlobalCatalogTab() {
                           dirty
                             ? 'border-amber-300 bg-amber-50 text-amber-800 focus:ring-amber-300'
                             : hasCustom
-                            ? 'border-amber-200 bg-amber-50 text-amber-700 focus:ring-amber-300'
-                            : 'border-blue-200 text-gray-800 focus:ring-blue-400'
+                            ? 'border-amber-200 bg-amber-50/60 text-amber-700 focus:ring-amber-300'
+                            : 'border-blue-100 bg-blue-50/30 text-gray-800 focus:ring-blue-400'
                         }`}
                         value={inputVal}
                         onChange={e => setDraftPoints(item.master_item_id, e.target.value)}
@@ -537,39 +566,45 @@ function GlobalCatalogTab() {
                           title="Publish this change"
                         >
                           <HiOutlineCheck className="w-3.5 h-3.5" />
-                          Publish
+                          Save
                         </button>
                       )}
                     </div>
 
-                    {/* Source label */}
-                    <div className="mt-1 h-4">
-                      {hasCustom && !dirty && (
-                        <span className="text-xs text-amber-600 font-medium flex items-center gap-1">
-                          <HiOutlineAdjustmentsHorizontal className="w-3 h-3" />
-                          Custom override active
-                        </span>
-                      )}
-                      {!hasCustom && !dirty && (
-                        <span className="text-xs text-gray-400">Global default</span>
-                      )}
-                      {dirty && (
-                        <span className="text-xs text-amber-600">
-                          Was: {Number(savedPts).toLocaleString()} pts — press Enter or Publish to save
-                        </span>
-                      )}
-                    </div>
+                    {dirty && (
+                      <p className="mt-1 text-xs text-amber-600">
+                        Was {Number(savedPts).toLocaleString()} pts — Enter or Save to publish
+                      </p>
+                    )}
                   </div>
 
-                  {/* Visibility toggle */}
-                  <div className="flex items-center justify-between pt-2 border-t border-blue-50">
-                    <span className="text-xs text-gray-500">Employee Visible</span>
-                    <Toggle
-                      checked={item.is_enabled}
-                      onChange={() => toggleMutation.mutate(item.master_item_id)}
-                      loading={toggleMutation.isPending}
-                    />
+                  <hr className="border-gray-100" />
+
+                  {/* Footer: source + employee visibility status */}
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1">
+                      {hasCustom && !dirty ? (
+                        <>
+                          <HiOutlineAdjustmentsHorizontal className="w-3.5 h-3.5 text-amber-500" />
+                          <span className="font-medium text-amber-600">Custom Override</span>
+                        </>
+                      ) : (
+                        <>
+                          <HiOutlineGlobeAlt className="w-3.5 h-3.5 text-gray-400" />
+                          <span className="text-gray-400">Global Default</span>
+                        </>
+                      )}
+                    </span>
+                    <span className={`flex items-center gap-1 font-medium ${
+                      item.is_enabled ? 'text-green-600' : 'text-gray-400'
+                    }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${
+                        item.is_enabled ? 'bg-green-500' : 'bg-gray-300'
+                      }`} />
+                      Employee Visible
+                    </span>
                   </div>
+
                 </div>
               </div>
             )

@@ -43,7 +43,12 @@ export default function RedemptionFlow({ voucher, isOpen, onClose, onSuccess }) 
   const handleInitiate = async () => {
     setIsSubmitting(true)
     try {
-      const resp = await redemptionAPI.initiate({ voucher_id: voucher.id })
+      // Use catalog_item_id for new catalog items (source_voucher_id is null);
+      // fall back to legacy voucher_id for old voucher-table items.
+      const payload = voucher.catalog_item_id && !voucher.source_voucher_id
+        ? { catalog_item_id: voucher.catalog_item_id }
+        : { voucher_id: voucher.id }
+      const resp = await redemptionAPI.initiate(payload)
       setRedemption(resp.data)
       setStep('otp')
     } catch (error) {

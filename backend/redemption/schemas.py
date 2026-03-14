@@ -37,7 +37,8 @@ class VoucherResponse(BaseModel):
 
 
 class RedemptionCreate(BaseModel):
-    voucher_id: UUID
+    voucher_id: Optional[UUID] = None
+    catalog_item_id: Optional[UUID] = None
 
 
 class RedemptionVerifyOTPRequest(BaseModel):
@@ -61,7 +62,8 @@ class RedemptionResponse(BaseModel):
     id: UUID
     tenant_id: UUID
     user_id: UUID
-    voucher_id: UUID
+    voucher_id: Optional[UUID] = None
+    catalog_item_id: Optional[UUID] = None
     points_used: Decimal
     copay_amount: Decimal
     voucher_code: Optional[str] = None

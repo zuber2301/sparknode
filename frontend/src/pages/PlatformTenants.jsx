@@ -14,11 +14,14 @@ import {
   HiOutlineDotsVertical,
   HiOutlineLockClosed,
   HiOutlineLockOpen,
-  HiOutlineArrowNarrowLeft
+  HiOutlineArrowNarrowLeft,
+  HiOutlineDocumentText,
+  HiOutlineMailOpen,
+  HiOutlineEye
 } from 'react-icons/hi'
 import ConfirmModal from '../components/ConfirmModal'
 import AddBudgetModal from '../components/AddBudgetModal'
-import { platformAPI } from '../lib/api'
+import { platformAPI, billingAPI } from '../lib/api'
 import TenantCurrencySettings from '../components/TenantCurrencySettings'
 import TenantSettingsTab from '../components/TenantSettingsTab'
 import OrganizationInfoCard from '../components/OrganizationInfoCard'
@@ -165,6 +168,190 @@ function RecallBudgetModal({ tenant, onClose, onConfirm, isPending }) {
   )
 }
 
+// ── BillingTab ────────────────────────────────────────────────────────────────
+const STATUS_COLORS = {
+  pending:   'bg-yellow-100 text-yellow-700',
+  sent:      'bg-blue-100 text-blue-700',
+  paid:      'bg-green-100 text-green-700',
+  overdue:   'bg-red-100 text-red-700',
+  cancelled: 'bg-gray-100 text-gray-500',
+  void:      'bg-gray-100 text-gray-400',
+}
+
+function BillingTab({ tenant }) {
+  const queryClient = useQueryClient()
+  const [generating, setGenerating] = useState(false)
+
+  const { data: invoices = [], isLoading, refetch } = useQuery({
+    queryKey: ['billing-invoices', tenant.id],
+    queryFn: () => billingAPI.getTenantInvoices(tenant.id).then(r => r.data),
+    staleTime: 30_000,
+  })
+
+  const sendMutation = useMutation({
+    mutationFn: (invoiceId) => billingAPI.sendInvoice(invoiceId),
+    onSuccess: () => {
+      toast.success('Invoice sent successfully')
+      refetch()
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.detail || 'Failed to send invoice')
+    },
+  })
+
+  const markPaidMutation = useMutation({
+    mutationFn: (invoiceId) => billingAPI.updateStatus(invoiceId, { status: 'paid' }),
+    onSuccess: () => { toast.success('Marked as paid'); refetch() },
+    onError: (err) => toast.error(err?.response?.data?.detail || 'Error'),
+  })
+
+  const handleGenerate = async () => {
+    setGenerating(true)
+    try {
+      await billingAPI.generateInvoice({ tenant_id: tenant.id })
+      toast.success('Invoice generated and sent')
+      refetch()
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Generation failed')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const fmt = (amount, currency) => {
+    const sym = CURRENCY_SYMBOLS[currency] || currency
+    return `${sym}${Number(amount).toLocaleString()}`
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header row */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-base font-bold text-gray-900">Invoices</h3>
+          <p className="text-xs text-gray-500 mt-0.5">Auto-generated on the 1st of every month. Sent to the tenant manager email.</p>
+        </div>
+        <button
+          onClick={handleGenerate}
+          disabled={generating}
+          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-2 px-4 rounded-lg text-xs uppercase tracking-widest shadow-sm"
+        >
+          <HiOutlinePlus className="w-4 h-4" />
+          {generating ? 'Generating…' : 'Generate Invoice'}
+        </button>
+      </div>
+
+      {/* Billing config summary */}
+      <div className="grid grid-cols-4 gap-3">
+        {[
+          { label: 'Cycle', value: (tenant.billing_cycle || 'monthly').charAt(0).toUpperCase() + (tenant.billing_cycle || 'monthly').slice(1) },
+          { label: 'Base Amount', value: tenant.billing_amount ? fmt(tenant.billing_amount, tenant.billing_currency || tenant.display_currency) : '—' },
+          { label: 'Discount', value: tenant.billing_discount_pct ? `${tenant.billing_discount_pct}%` : '0%' },
+          { label: 'Final Amount', value: tenant.billing_final_amount ? fmt(tenant.billing_final_amount, tenant.billing_currency || tenant.display_currency) : '—' },
+        ].map(({ label, value }) => (
+          <div key={label} className="bg-gray-50 rounded-xl p-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">{label}</p>
+            <p className="text-sm font-bold text-gray-800">{value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Invoice table */}
+      {isLoading ? (
+        <div className="py-12 text-center text-sm text-gray-400">Loading invoices…</div>
+      ) : invoices.length === 0 ? (
+        <div className="py-12 text-center border-2 border-dashed border-gray-200 rounded-2xl">
+          <HiOutlineDocumentText className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+          <p className="text-sm text-gray-500 font-medium">No invoices yet</p>
+          <p className="text-xs text-gray-400 mt-1">Click "Generate Invoice" to create the first one for this tenant.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-2xl border border-gray-100 shadow-sm">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left">Invoice #</th>
+                <th className="px-4 py-3 text-left">Period</th>
+                <th className="px-4 py-3 text-left">Cycle</th>
+                <th className="px-4 py-3 text-right">Amount</th>
+                <th className="px-4 py-3 text-center">Status</th>
+                <th className="px-4 py-3 text-left">Sent</th>
+                <th className="px-4 py-3 text-left">Due</th>
+                <th className="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {invoices.map((inv) => (
+                <tr key={inv.id} className="hover:bg-gray-50/60 transition-colors">
+                  <td className="px-4 py-3 font-mono text-xs font-semibold text-gray-700">{inv.invoice_number}</td>
+                  <td className="px-4 py-3 text-xs text-gray-600">
+                    {inv.period_start} → {inv.period_end}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-600 capitalize">{inv.billing_cycle}</td>
+                  <td className="px-4 py-3 text-xs font-bold text-gray-800 text-right">
+                    {fmt(inv.total, inv.currency)}
+                    {Number(inv.discount_pct) > 0 && (
+                      <span className="ml-1 text-green-600 font-normal">(-{inv.discount_pct}%)</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold capitalize ${STATUS_COLORS[inv.status] || 'bg-gray-100 text-gray-500'}`}>
+                      {inv.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-500">
+                    {inv.sent_at ? new Date(inv.sent_at).toLocaleDateString() : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-500">{inv.due_date || '—'}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-2">
+                      {/* Send / Resend — only for pending/sent/overdue */}
+                      {['pending', 'sent', 'overdue'].includes(inv.status) && (
+                        <button
+                          onClick={() => sendMutation.mutate(inv.id)}
+                          disabled={sendMutation.isPending}
+                          title="Send invoice email"
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-semibold disabled:opacity-50"
+                        >
+                          <HiOutlineMailOpen className="w-3.5 h-3.5" />
+                          {inv.status === 'sent' ? 'Resend' : 'Send'}
+                        </button>
+                      )}
+                      {/* Mark Paid — only for sent/overdue */}
+                      {['sent', 'overdue'].includes(inv.status) && (
+                        <button
+                          onClick={() => markPaidMutation.mutate(inv.id)}
+                          disabled={markPaidMutation.isPending}
+                          title="Mark as paid"
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-xs font-semibold disabled:opacity-50"
+                        >
+                          <HiOutlineCheckCircle className="w-3.5 h-3.5" />
+                          Paid
+                        </button>
+                      )}
+                      {/* View PDF */}
+                      <a
+                        href={billingAPI.getPdfUrl(inv.id)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="View / download PDF"
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-semibold"
+                      >
+                        <HiOutlineEye className="w-3.5 h-3.5" />
+                        PDF
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function PlatformTenants() {
   const queryClient = useQueryClient()
   const { isPlatformOwner } = useAuthStore()
@@ -212,6 +399,15 @@ export default function PlatformTenants() {
   
   // Feature flags state
   const [featureFlagsValue, setFeatureFlagsValue] = useState('{}')
+
+  // Billing fields for the create-tenant form (reactive)
+  const BILLING_DEFAULTS = { INR: 200000, USD: 2500, EUR: 2500 }
+  const [createDisplayCurrency, setCreateDisplayCurrency] = useState('INR')
+  const [billingCycle, setBillingCycle] = useState('monthly')
+  const [billingAmount, setBillingAmount] = useState(BILLING_DEFAULTS['INR'])
+  const [discountPct, setDiscountPct] = useState(0)
+  const billingFinalAmount = Math.round(billingAmount * (1 - Math.min(Math.max(discountPct, 0), 100) / 100))
+  const currencySymbol = (c) => CURRENCY_SYMBOLS[c] || c
 
   const { data: tiersResponse } = useQuery({
     queryKey: ['subscriptionTiers'],
@@ -412,7 +608,11 @@ export default function PlatformTenants() {
       admin_first_name: formData.get('admin_first_name'),
       admin_last_name: formData.get('admin_last_name'),
       admin_password: formData.get('admin_password'),
-      feature_flags: featureFlags
+      feature_flags: featureFlags,
+      billing_cycle: billingCycle,
+      billing_amount: billingAmount,
+      billing_discount_pct: discountPct,
+      billing_final_amount: billingFinalAmount,
     })
   }
 
@@ -675,6 +875,7 @@ export default function PlatformTenants() {
                   { key: 'branding', label: 'Settings', Icon: HiOutlineShieldCheck },
                   { key: 'security', label: 'Security', Icon: HiOutlineCheckCircle },
                   { key: 'economic', label: 'Budget Management', Icon: HiOutlineCurrencyRupee },
+                  { key: 'billing', label: 'Billing', Icon: HiOutlineDocumentText },
                   { key: 'danger', label: 'Danger Zone', Icon: HiOutlineLockClosed }
                 ].map(({ key, label, Icon }) => (
                   <button
@@ -1078,8 +1279,13 @@ export default function PlatformTenants() {
 
             )}
 
+            {/* ── Billing Tab ──────────────────────────────────────────── */}
+            {activeTab === 'billing' && (
+              <BillingTab tenant={selectedTenant} />
+            )}
+
             {/* Save Actions */}
-            {activeTab !== 'danger' && activeTab !== 'overview' && activeTab !== 'economic' && (
+            {activeTab !== 'danger' && activeTab !== 'overview' && activeTab !== 'economic' && activeTab !== 'billing' && (
               <div className="mt-12 pt-8 border-t border-gray-100 flex justify-end gap-3">
                 <button
                   onClick={() => setSelectedTenant(null)}
@@ -1308,7 +1514,18 @@ export default function PlatformTenants() {
 
                 <div>
                   <label className="label">Display Currency <span className="text-red-500">*</span></label>
-                  <select name="display_currency" className="input" defaultValue="INR" required>
+                  <select
+                    name="display_currency"
+                    className="input"
+                    value={createDisplayCurrency}
+                    onChange={e => {
+                      const cur = e.target.value
+                      setCreateDisplayCurrency(cur)
+                      setBillingAmount(BILLING_DEFAULTS[cur] ?? 2500)
+                      setDiscountPct(0)
+                    }}
+                    required
+                  >
                     <option value="INR">INR ({CURRENCY_SYMBOLS.INR})</option>
                     <option value="USD">USD ({CURRENCY_SYMBOLS.USD})</option>
                     <option value="EUR">EUR ({CURRENCY_SYMBOLS.EUR})</option>
@@ -1321,6 +1538,90 @@ export default function PlatformTenants() {
                   <label className="label">FX Rate (Base → Display Currency)</label>
                   <input name="fx_rate" type="number" className="input" defaultValue="1" min="0.0001" step="any" />
                   <p className="text-xs text-gray-500 mt-1">Leave as 1 for INR. For USD base → INR display, enter ~83</p>
+                </div>
+
+                {/* ── Billing ───────────────────────────────────────── */}
+                <div className="md:col-span-2">
+                  <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 space-y-4">
+                    <p className="text-xs font-bold text-indigo-600 uppercase tracking-widest">Billing</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+                      {/* Billing Cycle */}
+                      <div>
+                        <label className="label">Billing Cycle</label>
+                        <select
+                          className="input"
+                          value={billingCycle}
+                          onChange={e => setBillingCycle(e.target.value)}
+                        >
+                          <option value="monthly">Monthly</option>
+                          <option value="quarterly">Quarterly</option>
+                          <option value="annually">Annually</option>
+                        </select>
+                      </div>
+
+                      {/* Billing Amount */}
+                      <div>
+                        <label className="label">
+                          Amount / month&nbsp;
+                          <span className="font-normal text-gray-400 normal-case">(default: {currencySymbol(createDisplayCurrency)}{BILLING_DEFAULTS[createDisplayCurrency]?.toLocaleString()})</span>
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 select-none">
+                            {currencySymbol(createDisplayCurrency)}
+                          </span>
+                          <input
+                            type="number"
+                            className="input pl-8"
+                            min="0"
+                            step="1"
+                            value={billingAmount}
+                            onChange={e => setBillingAmount(Number(e.target.value))}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Discount % */}
+                      <div>
+                        <label className="label">Discount&nbsp;<span className="font-normal text-gray-400">(%)</span></label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            className="input pr-8"
+                            min="0"
+                            max="100"
+                            step="0.5"
+                            value={discountPct}
+                            onChange={e => setDiscountPct(Math.min(100, Math.max(0, Number(e.target.value))))}
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">%</span>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* Final amount summary */}
+                    <div className="flex items-center justify-between rounded-lg bg-white border border-indigo-100 px-4 py-3">
+                      <div className="text-xs text-gray-500">
+                        {discountPct > 0 ? (
+                          <>
+                            <span className="line-through text-gray-400 mr-2">
+                              {currencySymbol(createDisplayCurrency)}{Number(billingAmount).toLocaleString()}
+                            </span>
+                            <span className="text-green-600 font-semibold">{discountPct}% off</span>
+                          </>
+                        ) : (
+                          <span className="text-gray-400">No discount applied</span>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Final / month</span>
+                        <div className="text-lg font-extrabold text-indigo-700 leading-tight">
+                          {currencySymbol(createDisplayCurrency)}{billingFinalAmount.toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Optional Modules */}
