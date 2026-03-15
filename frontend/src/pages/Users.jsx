@@ -41,7 +41,12 @@ export default function Users() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterDepartment, setFilterDepartment] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
-  
+
+  // Form state for auto-email derivation
+  const [formFirstName, setFormFirstName] = useState('')
+  const [formLastName, setFormLastName]   = useState('')
+  const [formOrgRole, setFormOrgRole]     = useState('tenant_user')
+
   const queryClient = useQueryClient()
   const { isHRAdmin, tenantContext } = useAuthStore()
 
@@ -55,6 +60,22 @@ export default function Users() {
 
   // Get departments - only if we have a valid tenant context
   const isValidTenant = tenantContext?.tenant_id && tenantContext.tenant_id !== '00000000-0000-0000-0000-000000000000'
+
+  // Current tenant – needed to derive tenant_manager email domain
+  const { data: currentTenantData } = useQuery({
+    queryKey: ['currentTenant'],
+    queryFn: () => tenantsAPI.getCurrent().then(r => r.data),
+    enabled: isValidTenant,
+  })
+  const tenantSlug = currentTenantData?.slug || ''
+
+  // Derive auto-email for tenant_manager: firstname.lastname@slug.sparkcloud.io
+  const toEmailPart = (str) =>
+    str.trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+  const autoTenantManagerEmail =
+    formOrgRole === 'tenant_manager' && tenantSlug
+      ? `${toEmailPart(formFirstName)}.${toEmailPart(formLastName)}@${tenantSlug}.sparkcloud.io`
+      : null
   
   const { data: departments, isLoading: loadingDepartments, error: deptError } = useQuery({
     queryKey: ['departments', tenantContext?.tenant_id],
@@ -91,6 +112,19 @@ export default function Users() {
       console.error('[DEPT ERROR]', deptError)
     }
   }, [departments, deptList, deptError])
+
+  // Sync form state when editing an existing user
+  useEffect(() => {
+    if (selectedUser) {
+      setFormFirstName(selectedUser.first_name || '')
+      setFormLastName(selectedUser.last_name || '')
+      setFormOrgRole(selectedUser.org_role || 'tenant_user')
+    } else {
+      setFormFirstName('')
+      setFormLastName('')
+      setFormOrgRole('tenant_user')
+    }
+  }, [selectedUser])
 
   const createMutation = useMutation({
     mutationFn: (data) => usersAPI.create(data),
@@ -867,7 +901,7 @@ export default function Users() {
                 {selectedUser ? 'Edit Employee Details' : 'New Employee Setup'}
               </h2>
               <button 
-                onClick={() => { setShowCreateModal(false); setSelectedUser(null); }}
+                onClick={() => { setShowCreateModal(false); setSelectedUser(null); setFormFirstName(''); setFormLastName(''); setFormOrgRole('tenant_user'); }}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <HiOutlineX className="w-6 h-6" />
@@ -878,18 +912,46 @@ export default function Users() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="label">First Name</label>
-                  <input name="first_name" className="input" defaultValue={selectedUser?.first_name} placeholder="John" required />
+                  <input
+                    name="first_name"
+                    className="input"
+                    defaultValue={selectedUser?.first_name}
+                    placeholder="John"
+                    required
+                    onChange={e => setFormFirstName(e.target.value)}
+                  />
                 </div>
                 <div>
                   <label className="label">Last Name</label>
-                  <input name="last_name" className="input" defaultValue={selectedUser?.last_name} placeholder="Doe" required />
+                  <input
+                    name="last_name"
+                    className="input"
+                    defaultValue={selectedUser?.last_name}
+                    placeholder="Doe"
+                    required
+                    onChange={e => setFormLastName(e.target.value)}
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="label">Work Email</label>
-                  <input name="corporate_email" type="email" className="input" defaultValue={selectedUser?.corporate_email} placeholder="john@sparknode.com" required />
+                  {autoTenantManagerEmail && !selectedUser ? (
+                    <>
+                      <input
+                        name="corporate_email"
+                        type="email"
+                        className="input bg-gray-50 text-gray-500 cursor-not-allowed"
+                        value={autoTenantManagerEmail}
+                        readOnly
+                        required
+                      />
+                      <p className="text-[10px] text-gray-400 mt-1 ml-1">Auto-generated from tenant domain — cannot be changed</p>
+                    </>
+                  ) : (
+                    <input name="corporate_email" type="email" className="input" defaultValue={selectedUser?.corporate_email} placeholder="john@sparknode.com" required />
+                  )}
                 </div>
                 <div>
                   <label className="label">Personal Email</label>
@@ -918,7 +980,13 @@ export default function Users() {
                 </div>
                 <div>
                   <label className="label">Org Role</label>
-                  <select name="org_role" className="input" defaultValue={selectedUser?.org_role || 'tenant_user'} required>
+                  <select
+                    name="org_role"
+                    className="input"
+                    value={formOrgRole}
+                    onChange={e => setFormOrgRole(e.target.value)}
+                    required
+                  >
                     <option value="tenant_user">User</option>
                     <option value="dept_lead">Department Lead</option>
                     <option value="tenant_manager">Tenant Manager</option>
@@ -968,7 +1036,7 @@ export default function Users() {
               <div className="pt-6 flex gap-3">
                 <button 
                   type="button" 
-                  onClick={() => { setShowCreateModal(false); setSelectedUser(null); }}
+                  onClick={() => { setShowCreateModal(false); setSelectedUser(null); setFormFirstName(''); setFormLastName(''); setFormOrgRole('tenant_user'); }}
                   className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-50 rounded-2xl transition-all"
                 >
                   Cancel
