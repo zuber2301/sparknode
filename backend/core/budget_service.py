@@ -190,8 +190,8 @@ class BudgetService:
                 f"Requested: {amount}"
             )
         
-        # Get or create lead's wallet
-        lead_wallet = db.query(Wallet).filter(
+        # Get or create lead's wallet; lock the row to prevent concurrent distribution races.
+        lead_wallet = db.query(Wallet).with_for_update().filter(
             Wallet.user_id == to_lead.id,
             Wallet.tenant_id == tenant.id
         ).first()
@@ -213,7 +213,7 @@ class BudgetService:
         
         # Deduct from department budget if user belongs to one
         if from_manager.department_id:
-            dept = db.query(Department).filter(Department.id == from_manager.department_id).first()
+            dept = db.query(Department).with_for_update().filter(Department.id == from_manager.department_id).first()
             if dept:
                 if Decimal(str(dept.budget_balance)) < Decimal(str(amount)):
                     raise BudgetAllocationError(
@@ -353,8 +353,8 @@ class BudgetService:
                 f"Requested: {amount}"
             )
         
-        # Get or create user's wallet
-        wallet = db.query(Wallet).filter(
+        # Get or create user's wallet; lock the row to prevent concurrent award races.
+        wallet = db.query(Wallet).with_for_update().filter(
             Wallet.user_id == to_user.id,
             Wallet.tenant_id == tenant.id
         ).first()
@@ -376,7 +376,7 @@ class BudgetService:
         
         # Deduct from department budget if user belongs to one
         if from_user.department_id:
-            dept = db.query(Department).filter(Department.id == from_user.department_id).first()
+            dept = db.query(Department).with_for_update().filter(Department.id == from_user.department_id).first()
             if dept:
                 if Decimal(str(dept.budget_balance)) < Decimal(str(amount)):
                     # Optional: Fall back to tenant pool or raise error

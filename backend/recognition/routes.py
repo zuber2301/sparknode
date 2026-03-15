@@ -135,8 +135,9 @@ async def create_recognition(
     if any(rid == current_user.id for rid in recipient_ids):
         raise HTTPException(status_code=400, detail="Cannot recognize yourself")
     
-    # Get tenant
-    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+    # Get tenant — acquire a row lock to prevent concurrent over-spend of the
+    # allocation pool by multiple simultaneous recognition requests.
+    tenant = db.query(Tenant).with_for_update().filter(Tenant.id == current_user.tenant_id).first()
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
     

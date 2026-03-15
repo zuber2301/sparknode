@@ -146,37 +146,41 @@ async def allocate_points(
     if not wallet:
         raise HTTPException(status_code=404, detail="User wallet not found")
     
-    # Update wallet balance
-    old_balance = wallet.balance
-    wallet.balance = Decimal(str(wallet.balance)) + allocation.points
-    wallet.lifetime_earned = Decimal(str(wallet.lifetime_earned)) + allocation.points
-    
-    # Create ledger entry
-    ledger_entry = WalletLedger(
-        tenant_id=current_user.tenant_id,
-        wallet_id=wallet.id,
-        transaction_type='credit',
-        source='hr_allocation',
-        points=allocation.points,
-        balance_after=wallet.balance,
-        description=allocation.description or "HR Points Allocation",
-        created_by=current_user.id
-    )
-    db.add(ledger_entry)
-    
-    # Audit log
-    audit = AuditLog(
-        tenant_id=current_user.tenant_id,
-        actor_id=current_user.id,
-        action="points_allocated",
-        entity_type="wallet",
-        entity_id=wallet.id,
-        old_values={"balance": str(old_balance)},
-        new_values=append_impersonation_metadata({"balance": str(wallet.balance), "points_added": str(allocation.points)})
-    )
-    db.add(audit)
-    
-    db.commit()
+    try:
+        # Update wallet balance
+        old_balance = wallet.balance
+        wallet.balance = Decimal(str(wallet.balance)) + allocation.points
+        wallet.lifetime_earned = Decimal(str(wallet.lifetime_earned)) + allocation.points
+        
+        # Create ledger entry
+        ledger_entry = WalletLedger(
+            tenant_id=current_user.tenant_id,
+            wallet_id=wallet.id,
+            transaction_type='credit',
+            source='hr_allocation',
+            points=allocation.points,
+            balance_after=wallet.balance,
+            description=allocation.description or "HR Points Allocation",
+            created_by=current_user.id
+        )
+        db.add(ledger_entry)
+        
+        # Audit log
+        audit = AuditLog(
+            tenant_id=current_user.tenant_id,
+            actor_id=current_user.id,
+            action="points_allocated",
+            entity_type="wallet",
+            entity_id=wallet.id,
+            old_values={"balance": str(old_balance)},
+            new_values=append_impersonation_metadata({"balance": str(wallet.balance), "points_added": str(allocation.points)})
+        )
+        db.add(audit)
+        
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     
     return {
         "message": "Points allocated successfully",

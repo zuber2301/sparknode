@@ -280,10 +280,10 @@ async def allocate_budget_to_department(
     if not is_tenant_manager(current_user):
         raise HTTPException(status_code=403, detail="Only tenant managers can allocate to departments")
     
-    # Verify tenant budget allocation exists
+    # Lock the allocation row to prevent concurrent over-allocation.
     tenant_allocation = db.query(TenantBudgetAllocation).filter(
         TenantBudgetAllocation.id == allocation_data.tenant_budget_allocation_id
-    ).first()
+    ).with_for_update().first()
     
     if not tenant_allocation:
         raise HTTPException(status_code=404, detail="Tenant budget allocation not found")
@@ -383,8 +383,8 @@ async def allocate_budget_to_department(
     department.budget_allocated = allocation_data.allocated_budget
     department.budget_balance = allocation_data.allocated_budget
     
-    # Update tenant master pool balance
-    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+    # Update tenant master pool balance; lock to prevent concurrent deductions.
+    tenant = db.query(Tenant).with_for_update().filter(Tenant.id == current_user.tenant_id).first()
     if tenant:
         # Subtract the amount from master pool
         tenant.master_budget_balance = Decimal(str(tenant.master_budget_balance)) - amount_to_subtract

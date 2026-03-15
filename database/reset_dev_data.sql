@@ -94,13 +94,18 @@ DELETE FROM sales_campaigns
 DELETE FROM users WHERE corporate_email NOT LIKE '%@sparknode.io';
 
 -- Step 4: delete non-seed tenants (except seed UUIDs)
+-- NOTE: '550e8400-e29b-41d4-a716-446655440000' (Demo Company) is intentionally
+-- preserved here — it was created outside seed.sql but is treated as a baseline
+-- demo tenant. API-provisioned tenants (t01, TestTenant3, etc.) ARE deleted so
+-- that their manager accounts are always re-provisioned cleanly through the API.
 DELETE FROM tenants WHERE id NOT IN (
     '00000000-0000-0000-0000-000000000000',
     '100e8400-e29b-41d4-a716-446655440000',
     '100e8400-e29b-41d4-a716-446655440001',
     '100e8400-e29b-41d4-a716-446655440010',
     '100e8400-e29b-41d4-a716-446655440011',
-    '100e8400-e29b-41d4-a716-446655440012'
+    '100e8400-e29b-41d4-a716-446655440012',
+    '550e8400-e29b-41d4-a716-446655440000'   -- Demo Company (baseline demo tenant)
 );
 
 -- Step 5: clean up orphaned system_admins

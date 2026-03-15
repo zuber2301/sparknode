@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import logging
 from prometheus_fastapi_instrumentator import Instrumentator
+from sqlalchemy import text
 
 from config import settings
 from database import engine, Base
@@ -52,6 +53,11 @@ def _run_monthly_invoicing():
     from billing.service import generate_monthly_invoices
     db = SessionLocal()
     try:
+        # Prevent duplicate execution when multiple uvicorn workers all fire the same job.
+        # pg_try_advisory_lock acquires a session-level lock; only the first worker proceeds.
+        acquired = db.execute(text("SELECT pg_try_advisory_lock(202501)")).scalar()
+        if not acquired:
+            return
         generate_monthly_invoices(db)
     except Exception as exc:
         logging.error("Monthly billing scheduler error: %s", exc)

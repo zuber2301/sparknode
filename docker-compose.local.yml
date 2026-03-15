@@ -1,0 +1,51 @@
+# ──────────────────────────────────────────────────────────────────
+# SparkNode — Local-Build Override
+#
+# This file is a PATCH on top of docker-compose.yml.
+# It only lists services whose settings differ for local development.
+# ALL other services (postgres, redis, frontend, celery) are inherited
+# unchanged from docker-compose.yml and start automatically.
+#
+# FULL STACK started by local_bootstrap_sn.sh:
+#   ✓ postgres   — database          (port 6432)
+#   ✓ redis      — cache / broker    (port 7379)
+#   ✓ backend    — FastAPI API       (port 6100)  ← hot-reload ON
+#   ✓ celery     — async workers     (no port)    ← watchmedo auto-restart ON
+#   ✓ frontend   — nginx + React SPA (port 6173)
+#
+# Usage (managed automatically by the script — do not run manually):
+#   docker-compose -f docker-compose.yml -f docker-compose.local.yml up -d
+# ──────────────────────────────────────────────────────────────────
+services:
+
+  # ── Backend: uvicorn hot-reload ────────────────────────────────
+  # Any .py file saved under ./backend/ triggers an automatic reload.
+  # No container restart or rebuild required for Python code changes.
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      ENABLE_DOCS: "true"
+    volumes:
+      - ./backend:/app
+      - ./database:/app/database:ro
+
+  # ── Celery: watchmedo auto-restart ────────────────────────────
+  # watchdog (already in requirements.txt via celery[watchdog]) monitors
+  # .py files under /app and restarts the worker when they change.
+  # This means task code changes are reflected without a manual restart.
+  celery:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: >
+      watchmedo auto-restart
+        --directory=/app
+        --pattern="*.py"
+        --recursive
+        -- celery -A core.celery_app.celery_app worker --loglevel=info
+
+  # postgres, redis and frontend are NOT listed here —
+  # they start as-is from docker-compose.yml with zero changes.

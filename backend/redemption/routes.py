@@ -4,6 +4,7 @@ from typing import List, Optional
 from uuid import UUID
 from decimal import Decimal
 from datetime import datetime, timedelta
+import logging
 import secrets
 import string
 
@@ -385,7 +386,10 @@ async def verify_redemption_otp(
             else:
                 redemption.status = 'failed'
         except Exception as e:
-            # In a real app, you'd log this and mark for retry
+            logging.error("Redemption fulfillment error for %s: %s", redemption.id, e)
+            # Roll back any partial writes inside this try (e.g. stock_quantity decrement)
+            # before persisting the failed status.
+            db.rollback()
             redemption.status = 'failed'
             
     db.commit()
