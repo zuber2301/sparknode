@@ -97,12 +97,14 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STEP 3: Start database and Redis (no force-recreate — preserves data)
+# STEP 3: Start database and Redis (force-recreate so compose config changes
+#         — e.g. new volume mounts or command overrides — are always applied).
+#         Named volumes are NOT affected by container recreation; data is safe.
 # ─────────────────────────────────────────────────────────────────────────────
 echo ""
 echo "=== Starting database and Redis ==="
 # shellcheck disable=SC2086
-docker-compose $COMPOSE_BASE up -d postgres redis
+docker-compose $COMPOSE_BASE up -d --force-recreate postgres redis
 echo "Waiting for postgres health check..."
 sleep 3
 
