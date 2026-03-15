@@ -889,6 +889,8 @@ async def update_tenant_currency(
 
 
 @router.post("/tenants/{tenant_id}/recalculate-balances")
+async def recalculate_tenant_balances(
+    tenant_id: UUID,
     current_user: User = Depends(get_platform_admin),
     db: Session = Depends(get_db)
 ):
