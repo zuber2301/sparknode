@@ -228,7 +228,7 @@ function ActivityFeed({ recognitions, onRefresh }) {
                 </div>
                 <div className="text-right flex flex-col items-end flex-shrink-0">
                   <span className="text-sm font-black text-sparknode-purple mb-1">
-                    +{item.points} pts
+                    +{Math.round(Number(item.points))} pts
                   </span>
                   <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">
                     {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}

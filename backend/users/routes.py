@@ -246,6 +246,31 @@ async def get_profile(
     return UserResponse(**user_dict)
 
 
+@router.get("/search", response_model=List[UserListResponse])
+async def search_users(
+    q: str = Query(..., min_length=1, description="Search term matched against name and email"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Search users within the current tenant by name or email (used by recognition/award flows)."""
+    term = f"%{q.lower()}%"
+    users = (
+        db.query(User)
+        .filter(
+            User.tenant_id == current_user.tenant_id,
+            User.status.in_(["ACTIVE", "PENDING_INVITE"]),
+            (
+                func.lower(User.first_name).like(term)
+                | func.lower(User.last_name).like(term)
+                | func.lower(User.corporate_email).like(term)
+            ),
+        )
+        .limit(20)
+        .all()
+    )
+    return users
+
+
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user(
     user_id: UUID,

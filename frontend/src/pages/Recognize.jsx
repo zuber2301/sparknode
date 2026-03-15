@@ -26,12 +26,12 @@ export default function Recognize() {
 
   const { data: recentRecognitions } = useQuery({
     queryKey: ['recognitions', { user_id: user?.id }],
-    queryFn: () => recognitionAPI.getAll({ limit: 10 }),
+    queryFn: () => recognitionAPI.getAll({ limit: 10 }).then(r => r.data),
   })
 
   const { data: badges } = useQuery({
     queryKey: ['badges'],
-    queryFn: () => recognitionAPI.getBadges(),
+    queryFn: () => recognitionAPI.getBadges().then(r => r.data),
   })
 
   const handleSelectUser = (user) => {
@@ -191,7 +191,7 @@ export default function Recognize() {
                   )}
                 </div>
                 <p className="font-bold text-gray-900 mb-1">{badge.name}</p>
-                <p className="text-xs font-bold text-blue-600 uppercase tracking-wider">{badge.points_value} pts</p>
+                <p className="text-xs font-bold text-blue-600 uppercase tracking-wider">{Math.round(Number(badge.points_value))} pts</p>
               </div>
             ))
           ) : (

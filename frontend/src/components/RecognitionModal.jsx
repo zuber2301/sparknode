@@ -13,10 +13,10 @@ const ecardTemplates = [
   { id: 'anniversary', name: 'Happy Anniversary', color: 'bg-yellow-100 text-yellow-800', icon: '🎈' },
 ]
 
-export default function RecognitionModal({ isOpen, onClose, initialData = {} }) {
+export default function RecognitionModal({ isOpen, onClose, initialSelectedUser = null, defaultType = 'individual_award' }) {
   const [step, setStep] = useState(1) // 1: Select Type, 2: Select Recipients, 3: Message & Points
-  const [type, setType] = useState(initialData.type || 'individual_award')
-  const [recipients, setRecipients] = useState(initialData.user ? [initialData.user] : [])
+  const [type, setType] = useState('individual_award')
+  const [recipients, setRecipients] = useState([])
   const [message, setMessage] = useState('')
   const [points, setPoints] = useState(10)
   const [badgeId, setBadgeId] = useState('')
@@ -27,6 +27,25 @@ export default function RecognitionModal({ isOpen, onClose, initialData = {} }) 
   
   const queryClient = useQueryClient()
   const { user, getEffectiveRole, tenantContext } = useAuthStore()
+
+  // Sync incoming props into state each time the modal opens so pre-selected
+  // users and pathway types are applied even after a previous close/reset.
+  useEffect(() => {
+    if (isOpen) {
+      const resolvedType = ['individual_award', 'group_award', 'ecard'].includes(defaultType)
+        ? defaultType
+        : 'individual_award'
+      setType(resolvedType)
+      setRecipients(initialSelectedUser ? [initialSelectedUser] : [])
+      setStep(initialSelectedUser ? 2 : 1)
+      setMessage('')
+      setPoints(10)
+      setBadgeId('')
+      setIsEqualSplit(true)
+      setEcardTemplate('thank_you')
+      setSearchTerm('')
+    }
+  }, [isOpen]) // eslint-disable-line react-hooks/exhaustive-deps
   const effectiveRole = getEffectiveRole()
   const isManager = ['tenant_manager', 'dept_lead', 'platform_admin'].includes(effectiveRole)
   const displayCurrency = tenantContext?.display_currency || 'INR'
@@ -105,7 +124,8 @@ export default function RecognitionModal({ isOpen, onClose, initialData = {} }) 
 
   if (!isOpen) return null
 
-  const filteredUsers = users?.filter(u => 
+  // usersAPI.getAll() returns an Axios response; the actual array is in .data
+  const filteredUsers = users?.data?.filter(u => 
     u.id !== user?.id && 
     (u.first_name + ' ' + u.last_name + ' ' + u.corporate_email).toLowerCase().includes(searchTerm.toLowerCase())
   )

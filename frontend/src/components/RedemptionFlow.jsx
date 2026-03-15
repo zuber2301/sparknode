@@ -175,7 +175,7 @@ export default function RedemptionFlow({ voucher, isOpen, onClose, onSuccess }) 
                     <p className="text-gray-500">{voucher.brand_name}</p>
                     <div className="flex items-center gap-2 mt-2 text-sparknode-purple font-semibold">
                       <HiOutlineTicket className="w-5 h-5" />
-                      <span>{voucher.points_required} Points</span>
+                      <span>{Math.round(Number(voucher.points_required))} Points</span>
                     </div>
                   </div>
                 </div>

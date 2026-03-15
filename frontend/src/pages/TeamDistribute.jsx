@@ -44,19 +44,19 @@ export default function TeamDistribute() {
             <div className="bg-blue-50 rounded-lg p-4">
               <p className="text-sm text-gray-500">Allocated</p>
               <p className="text-xl font-semibold text-blue-600">
-                {summary.department_budget_allocated ?? summary.allocated_points ?? '—'}
+                {summary.department_budget_allocated != null ? Math.round(Number(summary.department_budget_allocated)) : summary.allocated_points != null ? Math.round(Number(summary.allocated_points)) : '—'}
               </p>
             </div>
             <div className="bg-green-50 rounded-lg p-4">
               <p className="text-sm text-gray-500">Remaining</p>
               <p className="text-xl font-semibold text-green-600">
-                {summary.department_budget_remaining ?? summary.remaining_points ?? '—'}
+                {summary.department_budget_remaining != null ? Math.round(Number(summary.department_budget_remaining)) : summary.remaining_points != null ? Math.round(Number(summary.remaining_points)) : '—'}
               </p>
             </div>
             <div className="bg-purple-50 rounded-lg p-4">
               <p className="text-sm text-gray-500">Spent</p>
               <p className="text-xl font-semibold text-purple-600">
-                {summary.department_budget_spent ?? summary.spent_points ?? '—'}
+                {summary.department_budget_spent != null ? Math.round(Number(summary.department_budget_spent)) : summary.spent_points != null ? Math.round(Number(summary.spent_points)) : '—'}
               </p>
             </div>
           </div>
