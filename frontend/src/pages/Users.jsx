@@ -970,11 +970,14 @@ export default function Users() {
                     </div>
                     <input 
                       name="mobile_number" 
+                      type="tel"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       className="flex-1 border-none focus:ring-0 text-sm px-4" 
                       defaultValue={selectedUser?.mobile_number ? selectedUser.mobile_number.replace(/^\+91/, '') : ''}
                       placeholder="10 digit number" 
                       maxLength="10"
-                      onKeyPress={(e) => !/[0-9]/.test(e.key) && e.preventDefault()}
+                      onInput={(e) => { e.target.value = e.target.value.replace(/[^0-9]/g, '') }}
                     />
                   </div>
                 </div>
