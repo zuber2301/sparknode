@@ -204,10 +204,10 @@ export default function EventCreateWizard({ editingEventId = null }) {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex flex-col md:flex-row gap-12 items-start">
+    <div className="max-w-7xl mx-auto px-2 sm:px-3 lg:px-4 py-6">
+      <div className="flex flex-col md:flex-row gap-6 items-start">
         {/* Left Navigation Sidebar - Modern Stacked Style */}
-        <aside className="w-full md:w-72 shrink-0 md:sticky md:top-8">
+        <aside className="w-full md:w-56 shrink-0 md:sticky md:top-8">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="p-6 bg-gray-50/50 border-b border-gray-100">
               <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">Creation Workflow</h3>

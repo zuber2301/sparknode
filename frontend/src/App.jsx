@@ -47,6 +47,9 @@ import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 import Challenges from './pages/Challenges'
 import CompanyValues from './pages/CompanyValues'
+import Gateway from './pages/Gateway'
+import Pricing from './pages/Pricing'
+import { ExperienceProvider } from './context/ExperienceContext'
 import { useParams } from 'react-router-dom'
 
 function EventCreateWizardEdit() {
@@ -130,12 +133,16 @@ function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/pricing" element={<Pricing />} />
       <Route path="/" element={
         <PrivateRoute>
-          <Layout />
+          <ExperienceProvider>
+            <Layout />
+          </ExperienceProvider>
         </PrivateRoute>
       }>
         <Route index element={<Navigate to="/dashboard" />} />
+        <Route path="gateway" element={<PrivateRoute><Gateway /></PrivateRoute>} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="admin-dashboard" element={<AdminDashboard />} />
         <Route path="feed" element={
