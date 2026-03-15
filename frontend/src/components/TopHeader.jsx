@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { notificationsAPI, platformAPI, tenantsAPI, authAPI } from '../lib/api'
@@ -28,6 +28,7 @@ import {
   HiOutlineMailOpen,
   HiOutlineCalendar,
   HiOutlineBriefcase,
+  HiOutlineLightningBolt,
   HiOutlineCog as HiOutlineSettings,
 } from 'react-icons/hi'
 
@@ -76,20 +77,47 @@ const platformAdminNavigation = [
   },
 ]
 
-// Tenant Manager specific navigation - "Nerve Center"
+// Tenant Manager specific navigation — grouped into dropdowns to avoid horizontal scrolling
+// Desktop layout: Dashboard | Feed | People ▾ | Finance ▾ | Growth ▾ | Analytics | Settings ▾
 const tenantManagerNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
   { name: 'Feed', href: '/feed', icon: HiOutlineNewspaper },
-  { name: 'Users', href: '/users', icon: HiOutlineUsers },
-  { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar },
-  { name: 'Company Catalog', href: '/catalog', icon: HiOutlineShoppingCart },
-  { name: 'Company Values', href: '/company-values', icon: HiOutlineSparkles },
-  { name: 'Challenges', href: '/challenges', icon: HiOutlineChartBar },
-  { name: 'Analytics & Reports', href: '/analytics', icon: HiOutlineChartBar },
-  { name: 'Event Management', href: '/events', icon: HiOutlineCalendar },
-  { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: true },
-  { name: 'Campaigns', href: '/campaigns', icon: HiOutlineBriefcase, featureFlag: true },
-  { name: 'Escrow Approval', href: '/campaigns/escrow', icon: HiOutlineClipboardList, featureFlag: true },
+  {
+    name: 'People',
+    icon: HiOutlineUsers,
+    submenu: [
+      { name: 'Users', href: '/users', icon: HiOutlineUsers },
+      { name: 'Company Values', href: '/company-values', icon: HiOutlineSparkles },
+      { name: 'Challenges', href: '/challenges', icon: HiOutlineLightningBolt },
+    ],
+  },
+  {
+    name: 'Finance',
+    icon: HiOutlineChartBar,
+    submenu: [
+      { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar },
+      { name: 'Escrow Approval', href: '/campaigns/escrow', icon: HiOutlineClipboardList, featureFlag: true },
+    ],
+  },
+  {
+    name: 'Growth',
+    icon: HiOutlineCalendar,
+    submenu: [
+      { name: 'Event Management', href: '/events', icon: HiOutlineCalendar },
+      { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: true },
+      { name: 'Campaigns', href: '/campaigns', icon: HiOutlineBriefcase, featureFlag: true },
+      { name: 'Company Catalog', href: '/catalog', icon: HiOutlineShoppingCart },
+    ],
+  },
+  { name: 'Analytics', href: '/analytics', icon: HiOutlineTrendingUp },
+  {
+    name: 'Settings',
+    icon: HiOutlineCog,
+    submenu: [
+      { name: 'Invite Users', href: '/admin/invite-users', icon: HiOutlineMailOpen },
+      { name: 'Audit Log', href: '/audit', icon: HiOutlineClipboardList },
+    ],
+  },
 ]
 
 // Tenant Lead specific navigation
@@ -144,6 +172,7 @@ export default function TopHeader() {
   } = useAuthStore()
   const { canGiveRecognition, canManageBudgets, canApproveTeamRecognitions, canViewAnalytics } = useAuthStore()
   const navigate = useNavigate()
+  const location = useLocation()
 
   // Fetch fresh user data on mount to ensure we have current first_name and last_name
   const { data: currentUser } = useQuery({
@@ -372,7 +401,7 @@ export default function TopHeader() {
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-1 flex-1">
+          <nav className="hidden lg:flex items-center gap-1 flex-1 justify-end">
             {effectiveRole === 'platform_admin' ? (
               <>
                 {/* Platform Admin: Custom navigation with Controls dropdown */}
@@ -427,60 +456,61 @@ export default function TopHeader() {
               </>
             ) : !isPlatformUser && effectiveRole === 'tenant_manager' ? (
               <>
-                {/* Tenant Manager: Nerve Center tabs */}
-                {tenantManagerNavigation.filter(item => !item.featureFlag || salesEnabled || hasSalesRole).map((item) => (
-                  <NavLink
-                    key={item.name}
-                    to={item.href}
-                    className={({ isActive }) =>
-                      `flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all ${
-                        isActive
-                          ? 'bg-sparknode-purple text-white font-semibold shadow-sm'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-medium'
-                      }`
-                    }
-                  >
-                    <item.icon className="w-4 h-4 flex-shrink-0" />
-                    {item.name}
-                  </NavLink>
-                ))}
-
-                {/* Settings Dropdown */}
-                <div className="relative group">
-                  <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all border border-transparent hover:border-gray-200">
-                    <HiOutlineCog className="w-4 h-4" />
-                    Settings
-                    <HiOutlineChevronDown className="w-3.5 h-3.5 opacity-60" />
-                  </button>
-                  <div className="absolute left-0 mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 py-1">
+                {/* Tenant Manager: Dashboard | Feed | People ▾ | Finance ▾ | Growth ▾ | Analytics | Settings ▾ */}
+                {tenantManagerNavigation.map((item) => {
+                  if (item.submenu) {
+                    const visibleSub = item.submenu.filter(s => !s.featureFlag || salesEnabled || hasSalesRole)
+                    if (visibleSub.length === 0) return null
+                    const isGroupActive = visibleSub.some(s => location.pathname === s.href || location.pathname.startsWith(s.href + '/'))
+                    return (
+                      <div key={item.name} className="relative group">
+                        <button className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                          isGroupActive
+                            ? 'bg-sparknode-purple text-white shadow-sm'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                        }`}>
+                          <item.icon className="w-4 h-4" />
+                          {item.name}
+                          <HiOutlineChevronDown className="w-3.5 h-3.5 opacity-60" />
+                        </button>
+                        <div className="absolute left-0 mt-1 w-52 bg-white border border-gray-200 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 py-1">
+                          {visibleSub.map((subitem) => (
+                            <NavLink
+                              key={subitem.name}
+                              to={subitem.href}
+                              className={({ isActive }) =>
+                                `flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
+                                  isActive
+                                    ? 'bg-sparknode-purple/10 text-sparknode-purple font-semibold'
+                                    : 'text-gray-700 hover:bg-gray-50 font-medium'
+                                }`
+                              }
+                            >
+                              <subitem.icon className="w-4 h-4" />
+                              {subitem.name}
+                            </NavLink>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  }
+                  return (
                     <NavLink
-                      to="/admin/invite-users"
+                      key={item.name}
+                      to={item.href}
                       className={({ isActive }) =>
-                        `flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
+                        `flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all ${
                           isActive
-                            ? 'bg-sparknode-purple/10 text-sparknode-purple font-semibold'
-                            : 'text-gray-700 hover:bg-gray-50 font-medium'
+                            ? 'bg-sparknode-purple text-white font-semibold shadow-sm'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-medium'
                         }`
                       }
                     >
-                      <HiOutlineMailOpen className="w-4 h-4" />
-                      Invite Users
+                      <item.icon className="w-4 h-4 flex-shrink-0" />
+                      {item.name}
                     </NavLink>
-                    <NavLink
-                      to="/audit"
-                      className={({ isActive }) =>
-                        `flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
-                          isActive
-                            ? 'bg-sparknode-purple/10 text-sparknode-purple font-semibold'
-                            : 'text-gray-700 hover:bg-gray-50 font-medium'
-                        }`
-                      }
-                    >
-                      <HiOutlineClipboardList className="w-4 h-4" />
-                      Audit Log
-                    </NavLink>
-                  </div>
-                </div>
+                  )
+                })}
               </>
             ) : !isPlatformUser && effectiveRole === 'dept_lead' ? (
               <>
