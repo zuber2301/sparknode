@@ -4,7 +4,7 @@ Platform Admin Schemas
 Pydantic models for platform-level tenant management.
 """
 
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, field_validator
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 from datetime import datetime
@@ -30,8 +30,8 @@ class TenantCreateRequest(BaseModel):
     master_budget_balance: Optional[Decimal] = Field(default=Decimal("0"), ge=0)
     
     # Multi-Currency Configuration (Mandatory)
-    base_currency: str = Field(default="USD", pattern="^(USD|EUR|INR)$")  # Internal billing currency
-    display_currency: str = Field(default="USD", pattern="^(USD|EUR|INR)$")  # Required currency choice
+    base_currency: str = Field(default="USD", pattern="^(USD|EUR|INR|GBP|JPY|AED|SGD|AUD|CAD)$")  # Internal billing currency
+    display_currency: str = Field(default="USD", pattern="^(USD|EUR|INR|GBP|JPY|AED|SGD|AUD|CAD)$")  # Required currency choice
     fx_rate: Optional[Decimal] = Field(default=Decimal("1.0"), gt=0)  # Exchange rate for display currency
     
     # Initial admin
@@ -77,8 +77,8 @@ class TenantUpdateRequest(BaseModel):
     auto_refill_threshold: Optional[Decimal] = None
     
     # Multi-Currency Support
-    base_currency: Optional[str] = Field(None, pattern="^(USD|EUR|INR)$")  # Internal billing currency
-    display_currency: Optional[str] = Field(None, pattern="^(USD|EUR|INR)$")  # Display currency for tenant
+    base_currency: Optional[str] = Field(None, pattern="^(USD|EUR|INR|GBP|JPY|AED|SGD|AUD|CAD)$")  # Internal billing currency
+    display_currency: Optional[str] = Field(None, pattern="^(USD|EUR|INR|GBP|JPY|AED|SGD|AUD|CAD)$")  # Display currency for tenant
     fx_rate: Optional[Decimal] = Field(None, gt=0)  # Exchange rate for display currency
 
     # Recognition Laws
@@ -374,3 +374,33 @@ class PlatformAuditResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+# =====================================================
+# TENANT CURRENCY SCHEMAS
+# =====================================================
+
+SUPPORTED_CURRENCIES = ["USD", "EUR", "INR", "GBP", "JPY", "AED", "SGD", "AUD", "CAD"]
+
+class TenantCurrencyUpdate(BaseModel):
+    """Request to update a tenant's display currency and FX rate."""
+    display_currency: str = Field(..., description="ISO 4217 currency code, e.g. USD, EUR, INR, GBP")
+    fx_rate: Decimal = Field(..., gt=0, description="How many display-currency units equal 1 point")
+    currency_label: Optional[str] = Field(None, max_length=50, description="Custom label for points, e.g. 'SparkPoints'")
+
+    @field_validator('display_currency')
+    @classmethod
+    def validate_currency(cls, v):
+        if v not in SUPPORTED_CURRENCIES:
+            raise ValueError(f"display_currency must be one of: {', '.join(SUPPORTED_CURRENCIES)}")
+        return v
+
+
+class TenantCurrencyResponse(BaseModel):
+    """Response after updating tenant currency."""
+    tenant_id: UUID
+    tenant_name: str
+    display_currency: str
+    fx_rate: Decimal
+    currency_label: str
+    updated_at: datetime

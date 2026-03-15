@@ -188,14 +188,20 @@ export default function TopHeader() {
     enabled: !isPlatformUser,
   })
 
-  // Sync fresh feature flags into tenantContext (onSuccess removed in React Query v5)
+  // Sync fresh feature flags AND currency into tenantContext (onSuccess removed in React Query v5)
   useEffect(() => {
-    if (currentTenantResponse?.data?.feature_flags) {
-      const patch = { feature_flags: currentTenantResponse.data.feature_flags }
-      if (currentTenantResponse.data.name) patch.tenant_name = currentTenantResponse.data.name
+    if (currentTenantResponse?.data) {
+      const t = currentTenantResponse.data
+      const patch = {}
+      if (t.feature_flags) patch.feature_flags = t.feature_flags
+      if (t.name)             patch.tenant_name = t.name
+      // Currency — always sync so every component reads fresh values
+      if (t.display_currency) patch.display_currency = t.display_currency
+      if (t.fx_rate != null)  patch.fx_rate = t.fx_rate
+      if (t.currency_label)   patch.currency_label = t.currency_label
       updateTenantContext(patch)
     }
-  }, [currentTenantResponse?.data?.feature_flags])
+  }, [currentTenantResponse?.data])
 
   // Use fresh API data first — tenantContext may be stale from a previous session
   const _featureFlags = currentTenantResponse?.data?.feature_flags

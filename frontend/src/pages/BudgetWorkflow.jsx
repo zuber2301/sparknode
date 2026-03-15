@@ -12,6 +12,7 @@ import { useAuthStore } from '../store/authStore'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { formatDisplayValue } from '../lib/currency'
+import { useCurrency } from '../hooks/useCurrency'
 import api from '../lib/api'
 import {
   HiOutlinePlus,
@@ -110,8 +111,7 @@ export default function BudgetWorkflow() {
   const [selectedDeptAllocation, setSelectedDeptAllocation] = useState(null)
   const queryClient = useQueryClient()
 
-  // Use currency from tenant settings if available
-  const currencyCode = tenantContext?.settings?.currency || user?.display_currency || 'INR'
+  const { currency: currencyCode } = useCurrency()
 
   // Fetch current tenant's allocation (Total Allocated Budget)
   const { data: tenantAllocation, isLoading: loadingTenantAlloc } = useQuery({

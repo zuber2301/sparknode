@@ -261,6 +261,7 @@ export const platformAPI = {
   getTenantById: (tenantId) => api.get(`/platform/tenants/${tenantId}`, { headers: { 'X-Skip-Tenant': '1' } }),
   createTenant: (data) => api.post('/platform/tenants', data, { headers: { 'X-Skip-Tenant': '1' } }),
   updateTenant: (tenantId, data) => api.put(`/platform/tenants/${tenantId}`, data, { headers: { 'X-Skip-Tenant': '1' } }),
+  updateTenantCurrency: (tenantId, data) => api.patch(`/platform/tenants/${tenantId}/currency`, data, { headers: { 'X-Skip-Tenant': '1' } }),
   uploadLogo: (tenantId, file) => {
     const formData = new FormData()
     formData.append('logo', file)

@@ -529,6 +529,23 @@ export default function PlatformTenants() {
     }
   })
 
+  const currencyMutation = useMutation({
+    mutationFn: ({ tenantId, payload }) => platformAPI.updateTenantCurrency(tenantId, payload),
+    onSuccess: (data) => {
+      toast.success(`Currency updated to ${data?.display_currency || editForm.display_currency}`)
+      queryClient.invalidateQueries(['platformTenants'])
+      setSelectedTenant(prev => ({
+        ...prev,
+        display_currency: editForm.display_currency,
+        fx_rate: editForm.fx_rate,
+        currency_label: editForm.currency_label,
+      }))
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.detail || 'Failed to update currency')
+    }
+  })
+
 
 
   const updateFlagsMutation = useMutation({
@@ -1140,22 +1157,18 @@ export default function PlatformTenants() {
                 {/* ── Economic Configuration ──────────────────────────────── */}
                 <div className="border-t border-gray-100 pt-6">
                   <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Economic Configuration</h3>
-                  <form onSubmit={(e) => { e.preventDefault(); updateMutation.mutate({ tenantId: selectedTenant.id, payload: { base_currency: editForm.base_currency, display_currency: editForm.display_currency, fx_rate: editForm.fx_rate, currency_label: editForm.currency_label, point_symbol: editForm.point_symbol, redemption_markup: editForm.redemption_markup } }) }} className="space-y-6">
+                  <form onSubmit={(e) => { e.preventDefault(); currencyMutation.mutate({ tenantId: selectedTenant.id, payload: { display_currency: editForm.display_currency, fx_rate: editForm.fx_rate, currency_label: editForm.currency_label } }) }} className="space-y-6">
                     <div className="grid grid-cols-2 gap-6">
                       <div>
                         <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Base Currency (Billing)</label>
                         <select value={editForm.base_currency} onChange={(e) => setEditForm({ ...editForm, base_currency: e.target.value })} className="w-full bg-gray-50 border-none rounded-lg text-sm py-3 px-4">
-                          <option>INR</option>
-                          <option>USD</option>
-                          <option>EUR</option>
+                          {['USD', 'EUR', 'INR', 'GBP', 'JPY', 'AED', 'SGD', 'AUD', 'CAD'].map(c => <option key={c}>{c}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Display Currency</label>
                         <select value={editForm.display_currency} onChange={(e) => setEditForm({ ...editForm, display_currency: e.target.value })} className="w-full bg-gray-50 border-none rounded-lg text-sm py-3 px-4">
-                          <option>INR</option>
-                          <option>USD</option>
-                          <option>EUR</option>
+                          {['USD', 'EUR', 'INR', 'GBP', 'JPY', 'AED', 'SGD', 'AUD', 'CAD'].map(c => <option key={c}>{c}</option>)}
                         </select>
                       </div>
                     </div>
@@ -1179,7 +1192,7 @@ export default function PlatformTenants() {
                       <p className="text-xs text-gray-500 mt-2">Example: 10% means a {formatDisplayValue(500, editForm.display_currency || 'INR')} voucher costs 550 points.</p>
                     </div>
                     <div className="flex justify-end gap-3 pt-2">
-                      <button type="submit" disabled={updateMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs uppercase tracking-widest">{updateMutation.isPending ? 'Saving...' : 'Save Economic Config'}</button>
+                      <button type="submit" disabled={currencyMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs uppercase tracking-widest">{currencyMutation.isPending ? 'Saving...' : 'Save Currency Config'}</button>
                     </div>
                   </form>
                 </div>
@@ -1583,9 +1596,7 @@ export default function PlatformTenants() {
                       <div>
                         <label className="label">Base Currency (Billing) <span className="text-red-500">*</span></label>
                         <select className="input" value={newTenant.base_currency} onChange={e => ntSet('base_currency', e.target.value)}>
-                          <option value="INR">INR ({CURRENCY_SYMBOLS.INR})</option>
-                          <option value="USD">USD ({CURRENCY_SYMBOLS.USD})</option>
-                          <option value="EUR">EUR ({CURRENCY_SYMBOLS.EUR})</option>
+                          {Object.keys(SUPPORTED_CURRENCIES).map(c => <option key={c} value={c}>{c} ({CURRENCY_SYMBOLS[c]})</option>)}
                         </select>
                         <p className="text-xs text-gray-400 mt-1">Currency the tenant will be invoiced in</p>
                       </div>
@@ -1597,9 +1608,7 @@ export default function PlatformTenants() {
                           setBillingAmount(BILLING_DEFAULTS[cur] ?? 2500)
                           setDiscountPct(0)
                         }}>
-                          <option value="INR">INR ({CURRENCY_SYMBOLS.INR})</option>
-                          <option value="USD">USD ({CURRENCY_SYMBOLS.USD})</option>
-                          <option value="EUR">EUR ({CURRENCY_SYMBOLS.EUR})</option>
+                          {Object.keys(SUPPORTED_CURRENCIES).map(c => <option key={c} value={c}>{c} ({CURRENCY_SYMBOLS[c]})</option>)}
                         </select>
                         <p className="text-xs text-gray-400 mt-1">Currency shown in the tenant dashboard</p>
                       </div>

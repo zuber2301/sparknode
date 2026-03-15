@@ -12,7 +12,11 @@ export const SUPPORTED_CURRENCIES = {
   INR: 'INR',
   EUR: 'EUR',
   GBP: 'GBP',
-  JPY: 'JPY'
+  JPY: 'JPY',
+  AED: 'AED',
+  SGD: 'SGD',
+  AUD: 'AUD',
+  CAD: 'CAD'
 }
 
 /**
@@ -23,7 +27,11 @@ export const CURRENCY_SYMBOLS = {
   INR: '₹',
   EUR: '€',
   GBP: '£',
-  JPY: '¥'
+  JPY: '¥',
+  AED: 'د.إ',
+  SGD: 'S$',
+  AUD: 'A$',
+  CAD: 'C$'
 }
 
 /**
@@ -34,7 +42,11 @@ export const CURRENCY_LOCALES = {
   INR: 'en-IN',
   EUR: 'de-DE',
   GBP: 'en-GB',
-  JPY: 'ja-JP'
+  JPY: 'ja-JP',
+  AED: 'ar-AE',
+  SGD: 'en-SG',
+  AUD: 'en-AU',
+  CAD: 'en-CA'
 }
 
 /**
@@ -46,7 +58,11 @@ export const DECIMAL_PLACES = {
   INR: 0,
   EUR: 0,
   GBP: 0,
-  JPY: 0
+  JPY: 0,
+  AED: 0,
+  SGD: 0,
+  AUD: 0,
+  CAD: 0
 }
 
 /**

@@ -31,7 +31,8 @@ from platform_admin.schemas import (
     SubscriptionTiersResponse, SUBSCRIPTION_TIERS,
     PlatformHealthResponse, SystemHealthCheck,
     PlatformAuditEntry, PlatformAuditResponse, FeatureFlagsUpdate, BudgetActivityResponse,
-    MasterBudgetAdjustRequest, RecallMasterBudgetRequest
+    MasterBudgetAdjustRequest, RecallMasterBudgetRequest,
+    TenantCurrencyUpdate, TenantCurrencyResponse,
 )
 
 router = APIRouter()
@@ -834,9 +835,60 @@ async def patch_tenant(
     )
 
 
-@router.post("/tenants/{tenant_id}/recalculate-balances")
-async def recalculate_balances(
+@router.patch("/tenants/{tenant_id}/currency", response_model=TenantCurrencyResponse)
+async def update_tenant_currency(
     tenant_id: UUID,
+    payload: TenantCurrencyUpdate,
+    current_user: User = Depends(get_platform_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Update a tenant's display currency and FX rate (Platform Admin only).
+    This is the authoritative endpoint for changing how all monetary values are
+    displayed across the entire tenant. The change is immediately reflected in
+    every wallet, budget, redemption, and analytics display.
+    """
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    old_currency = tenant.display_currency
+    old_fx_rate = tenant.fx_rate
+
+    tenant.display_currency = payload.display_currency
+    tenant.fx_rate = payload.fx_rate
+    if payload.currency_label:
+        tenant.currency_label = payload.currency_label
+
+    audit = AuditLog(
+        tenant_id=tenant.id,
+        actor_id=current_user.id,
+        actor_type=ActorType.SYSTEM_ADMIN,
+        action="tenant_currency_updated",
+        entity_type="tenant",
+        entity_id=tenant.id,
+        old_values={"display_currency": str(old_currency), "fx_rate": str(old_fx_rate)},
+        new_values=append_impersonation_metadata({
+            "display_currency": payload.display_currency,
+            "fx_rate": str(payload.fx_rate),
+            "currency_label": payload.currency_label or tenant.currency_label or "Points",
+        })
+    )
+    db.add(audit)
+    db.commit()
+    db.refresh(tenant)
+
+    return TenantCurrencyResponse(
+        tenant_id=tenant.id,
+        tenant_name=tenant.name,
+        display_currency=tenant.display_currency,
+        fx_rate=tenant.fx_rate,
+        currency_label=tenant.currency_label or "Points",
+        updated_at=tenant.updated_at,
+    )
+
+
+@router.post("/tenants/{tenant_id}/recalculate-balances")
     current_user: User = Depends(get_platform_admin),
     db: Session = Depends(get_db)
 ):

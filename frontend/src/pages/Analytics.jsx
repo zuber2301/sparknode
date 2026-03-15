@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { analyticsAPI, tenantsAPI } from '../lib/api'
 import { HiOutlineChartBar, HiOutlineTrendingUp, HiOutlineCurrencyDollar, HiOutlineUsers } from 'react-icons/hi'
+import { useCurrency } from '../hooks/useCurrency'
 
 export default function Analytics() {
   const [period, setPeriod] = useState('30d')
+  const { format, currency, symbol } = useCurrency()
 
   const { data: spendAnalysis, isLoading: spendLoading } = useQuery({
     queryKey: ['spendAnalysis', period],
@@ -38,7 +40,8 @@ export default function Analytics() {
           <h1 className="text-2xl font-bold text-gray-900">Analytics & Reports</h1>
           <p className="text-gray-600">Insights into recognition activity and spending patterns</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full font-medium">{currency}</span>
           <select
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
@@ -61,7 +64,7 @@ export default function Analytics() {
             <div>
               <p className="text-sm font-medium text-gray-600">Total Spent</p>
               <p className="text-2xl font-bold text-gray-900">
-                ${spendAnalysis?.total_spent?.toLocaleString('en-IN') || 0}
+                {format(spendAnalysis?.total_spent ?? 0)}
               </p>
             </div>
           </div>
@@ -75,7 +78,7 @@ export default function Analytics() {
             <div>
               <p className="text-sm font-medium text-gray-600">Recognitions</p>
               <p className="text-2xl font-bold text-gray-900">
-                {spendAnalysis?.total_recognitions?.toLocaleString('en-IN') || 0}
+                {(spendAnalysis?.total_recognitions ?? 0).toLocaleString()}
               </p>
             </div>
           </div>
@@ -89,7 +92,7 @@ export default function Analytics() {
             <div>
               <p className="text-sm font-medium text-gray-600">Active Users</p>
               <p className="text-2xl font-bold text-gray-900">
-                {spendAnalysis?.active_users?.toLocaleString('en-IN') || 0}
+                {(spendAnalysis?.active_users ?? 0).toLocaleString()}
               </p>
             </div>
           </div>
@@ -103,7 +106,7 @@ export default function Analytics() {
             <div>
               <p className="text-sm font-medium text-gray-600">Avg per Recognition</p>
               <p className="text-2xl font-bold text-gray-900">
-                ${spendAnalysis?.avg_points_per_recognition?.toFixed(0) || 0}
+                {format(spendAnalysis?.avg_points_per_recognition ?? 0)}
               </p>
             </div>
           </div>
@@ -117,20 +120,17 @@ export default function Analytics() {
           {spendAnalysis?.department_breakdown?.length > 0 ? (
             <div className="space-y-4">
               {spendAnalysis.department_breakdown.map((dept) => (
-                <div key={(dept.department_id || dept.department_id)} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                <div key={dept.department_id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                   <div>
                     <h3 className="font-medium text-gray-900">
-                      {departments?.data?.find(d => d.id === (dept.department_id || dept.department_id))?.name || `Department ${dept.department_id || dept.department_id}`}
+                      {departments?.data?.find(d => d.id === dept.department_id)?.name
+                        || `Department ${dept.department_id}`}
                     </h3>
-                    <p className="text-sm text-gray-500">
-                      {dept.recognitions_count} recognitions
-                    </p>
+                    <p className="text-sm text-gray-500">{dept.recognitions_count} recognitions</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-gray-900">${dept.total_spent}</p>
-                    <p className="text-sm text-gray-500">
-                      {dept.percentage_of_total}% of total
-                    </p>
+                    <p className="font-semibold text-gray-900">{format(dept.total_spent)}</p>
+                    <p className="text-sm text-gray-500">{dept.percentage_of_total}% of total</p>
                   </div>
                 </div>
               ))}
