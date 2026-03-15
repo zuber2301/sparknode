@@ -565,6 +565,8 @@ class Recognition(Base):
     ecard_template = Column(String(50))
     is_equal_split = Column(Boolean, default=False)
     visibility = Column(String(20), default='public')  # public/private/department
+    core_value_tag = Column(String(100))  # EEE: company value this recognition aligns to
+    status = Column(String(50), default='active')  # pending/active/rejected/revoked
     status = Column(String(50), default='active')  # pending/active/rejected/revoked
     department_budget_id = Column(UUID(as_uuid=True), ForeignKey("department_budgets.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -1661,6 +1663,78 @@ class LeadRegistration(Base):
 
     campaign = relationship("SalesCampaign", back_populates="lead_registrations")
     sales_rep = relationship("User")
+
+
+# -------------------- EEE: Enterprise Employee Engagement ---------------------
+
+class CompanyValue(Base):
+    """Tenant-defined core/company values for value-based recognition."""
+    __tablename__ = "company_values"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(100), nullable=False)
+    emoji = Column(String(10), default="⭐")
+    description = Column(Text)
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    tenant = relationship("Tenant")
+
+
+class RecognitionAddOn(Base):
+    """Peer add-on points to an existing manager recognition (community appreciation)."""
+    __tablename__ = "recognition_add_ons"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    recognition_id = Column(UUID(as_uuid=True), ForeignKey("recognitions.id", ondelete="CASCADE"), nullable=False)
+    from_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    points = Column(Numeric(15, 2), nullable=False, default=5)
+    message = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    recognition = relationship("Recognition")
+    from_user = relationship("User", foreign_keys=[from_user_id])
+    tenant = relationship("Tenant")
+
+
+class EngagementChallenge(Base):
+    """Gamified challenges/missions employees can complete for points/badges."""
+    __tablename__ = "engagement_challenges"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(255), nullable=False)
+    description = Column(Text)
+    challenge_type = Column(String(50), default="manual")  # manual, learning, wellness, security
+    points_reward = Column(Numeric(15, 2), default=100)
+    badge_icon = Column(String(10), default="🎯")
+    is_active = Column(Boolean, default=True)
+    deadline = Column(DateTime(timezone=True))
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    tenant = relationship("Tenant")
+    creator = relationship("User", foreign_keys=[created_by])
+    completions = relationship("ChallengeCompletion", back_populates="challenge")
+
+
+class ChallengeCompletion(Base):
+    """Tracks when an employee completes a challenge."""
+    __tablename__ = "challenge_completions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    challenge_id = Column(UUID(as_uuid=True), ForeignKey("engagement_challenges.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    completed_at = Column(DateTime(timezone=True), server_default=func.now())
+    points_awarded = Column(Numeric(15, 2), default=0)
+
+    challenge = relationship("EngagementChallenge", back_populates="completions")
+    user = relationship("User")
+    tenant = relationship("Tenant")
 
 
 # -------------------- Compatibility aliases / legacy models --------------------

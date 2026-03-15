@@ -11,13 +11,13 @@ from core.budget_service import BudgetService, BudgetAllocationError
 from models import (
     Recognition, Badge, User, Wallet, WalletLedger, Tenant,
     DepartmentBudget, Feed, Notification, AuditLog,
-    RecognitionComment, RecognitionReaction
+    RecognitionComment, RecognitionReaction, RecognitionAddOn
 )
 from auth.utils import get_current_user, get_manager_or_above
 from recognition.schemas import (
     BadgeResponse, RecognitionCreate, RecognitionResponse,
     RecognitionDetailResponse, RecognitionCommentCreate, RecognitionCommentResponse,
-    RecognitionStats
+    RecognitionStats, AddOnCreate, AddOnResponse
 )
 
 router = APIRouter()
@@ -62,20 +62,29 @@ async def get_recognitions(
         from_user = db.query(User).filter(User.id == rec.from_user_id).first()
         to_user = db.query(User).filter(User.id == rec.to_user_id).first()
         badge = db.query(Badge).filter(Badge.id == rec.badge_id).first() if rec.badge_id else None
-        
+
         comments_count = db.query(RecognitionComment).filter(
             RecognitionComment.recognition_id == rec.id
         ).count()
-        
-        reactions_count = db.query(RecognitionReaction).filter(
+
+        all_reactions = db.query(RecognitionReaction).filter(
             RecognitionReaction.recognition_id == rec.id
-        ).count()
-        
-        user_reacted = db.query(RecognitionReaction).filter(
+        ).all()
+        reactions_count = len(all_reactions)
+        reactions_breakdown = {}
+        for r in all_reactions:
+            reactions_breakdown[r.reaction_type] = reactions_breakdown.get(r.reaction_type, 0) + 1
+
+        user_reaction = db.query(RecognitionReaction).filter(
             RecognitionReaction.recognition_id == rec.id,
             RecognitionReaction.user_id == current_user.id
-        ).first() is not None
-        
+        ).first()
+
+        addon_pts = db.query(func.sum(RecognitionAddOn.points)).filter(
+            RecognitionAddOn.recognition_id == rec.id
+        ).scalar()
+        addon_points_total = int(addon_pts or 0)
+
         result.append(RecognitionDetailResponse(
             id=rec.id,
             tenant_id=rec.tenant_id,
@@ -89,15 +98,19 @@ async def get_recognitions(
             ecard_template=rec.ecard_template,
             is_equal_split=rec.is_equal_split or False,
             status=rec.status,
+            core_value_tag=rec.core_value_tag,
             created_at=rec.created_at,
             from_user_name=f"{from_user.first_name} {from_user.last_name}" if from_user else "Unknown",
             to_user_name=f"{to_user.first_name} {to_user.last_name}" if to_user else "Unknown",
             badge_name=badge.name if badge else None,
             comments_count=comments_count,
             reactions_count=reactions_count,
-            user_reacted=user_reacted
+            reactions_breakdown=reactions_breakdown,
+            user_reacted=user_reaction is not None,
+            user_reaction_type=user_reaction.reaction_type if user_reaction else None,
+            addon_points_total=addon_points_total
         ))
-    
+
     return result
 
 
@@ -184,6 +197,7 @@ async def create_recognition(
             recognition_type=recognition_data.recognition_type,
             ecard_template=recognition_data.ecard_template,
             is_equal_split=recognition_data.is_equal_split,
+            core_value_tag=recognition_data.core_value_tag,
             status='active'
         )
         db.add(recognition)
@@ -318,36 +332,129 @@ async def get_recognition(
 @router.post("/{recognition_id}/react")
 async def toggle_reaction(
     recognition_id: UUID,
+    reaction_data: Optional[dict] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Toggle reaction (like) on a recognition"""
+    """Toggle emoji reaction on a recognition. Supports: like, fire, clap, love"""
     recognition = db.query(Recognition).filter(
         Recognition.id == recognition_id,
         Recognition.tenant_id == current_user.tenant_id
     ).first()
-    
+
     if not recognition:
         raise HTTPException(status_code=404, detail="Recognition not found")
-    
+
+    allowed_types = {'like', 'fire', 'clap', 'love'}
+    reaction_type = (reaction_data or {}).get('reaction_type', 'like')
+    if reaction_type not in allowed_types:
+        reaction_type = 'like'
+
     existing_reaction = db.query(RecognitionReaction).filter(
         RecognitionReaction.recognition_id == recognition_id,
-        RecognitionReaction.user_id == current_user.id
+        RecognitionReaction.user_id == current_user.id,
+        RecognitionReaction.reaction_type == reaction_type
     ).first()
-    
+
     if existing_reaction:
         db.delete(existing_reaction)
         db.commit()
-        return {"action": "removed", "message": "Reaction removed"}
+        return {"action": "removed", "reaction_type": reaction_type}
     else:
         reaction = RecognitionReaction(
             recognition_id=recognition_id,
+            tenant_id=current_user.tenant_id,
             user_id=current_user.id,
-            reaction_type='like'
+            reaction_type=reaction_type
         )
         db.add(reaction)
         db.commit()
-        return {"action": "added", "message": "Reaction added"}
+        return {"action": "added", "reaction_type": reaction_type}
+
+
+@router.post("/{recognition_id}/addon", response_model=AddOnResponse)
+async def add_on_points(
+    recognition_id: UUID,
+    addon_data: AddOnCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Peer add-on points to boost a recognition (5 or 10 points from the peer's wallet)."""
+    recognition = db.query(Recognition).filter(
+        Recognition.id == recognition_id,
+        Recognition.tenant_id == current_user.tenant_id
+    ).first()
+    if not recognition:
+        raise HTTPException(status_code=404, detail="Recognition not found")
+
+    # Prevent self add-on
+    if recognition.to_user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot add-on to your own recognition")
+
+    # Allowed add-on amounts
+    allowed_amounts = {5, 10, 25}
+    points = int(addon_data.points)
+    if points not in allowed_amounts:
+        points = 5
+
+    # Deduct from peer's wallet (soft deduction — no budget required for P2P microtips)
+    wallet = db.query(Wallet).filter(
+        Wallet.user_id == current_user.id,
+        Wallet.tenant_id == current_user.tenant_id
+    ).first()
+    if not wallet or float(wallet.balance) < points:
+        raise HTTPException(status_code=400, detail="Insufficient wallet balance for add-on")
+
+    wallet.balance = float(wallet.balance) - points
+    ledger_debit = WalletLedger(
+        wallet_id=wallet.id,
+        tenant_id=current_user.tenant_id,
+        transaction_type='debit',
+        amount=points,
+        description=f"Points add-on to recognition by {current_user.first_name}",
+        reference_type='recognition_addon',
+        reference_id=recognition_id
+    )
+    db.add(ledger_debit)
+
+    # Credit recipient's wallet
+    recipient_wallet = db.query(Wallet).filter(
+        Wallet.user_id == recognition.to_user_id,
+        Wallet.tenant_id == current_user.tenant_id
+    ).first()
+    if recipient_wallet:
+        recipient_wallet.balance = float(recipient_wallet.balance) + points
+        ledger_credit = WalletLedger(
+            wallet_id=recipient_wallet.id,
+            tenant_id=current_user.tenant_id,
+            transaction_type='credit',
+            amount=points,
+            description=f"Points add-on from {current_user.first_name} {current_user.last_name}",
+            reference_type='recognition_addon',
+            reference_id=recognition_id
+        )
+        db.add(ledger_credit)
+
+    addon = RecognitionAddOn(
+        tenant_id=current_user.tenant_id,
+        recognition_id=recognition_id,
+        from_user_id=current_user.id,
+        points=points,
+        message=addon_data.message
+    )
+    db.add(addon)
+    db.commit()
+    db.refresh(addon)
+
+    return AddOnResponse(
+        id=addon.id,
+        recognition_id=addon.recognition_id,
+        from_user_id=addon.from_user_id,
+        from_user_name=f"{current_user.first_name} {current_user.last_name}",
+        points=addon.points,
+        message=addon.message,
+        created_at=addon.created_at
+    )
 
 
 @router.get("/{recognition_id}/comments", response_model=List[RecognitionCommentResponse])

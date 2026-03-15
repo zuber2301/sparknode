@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict
 from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
@@ -27,6 +27,7 @@ class RecognitionCreate(BaseModel):
     ecard_template: Optional[str] = None
     is_equal_split: bool = False
     visibility: str = 'public'
+    core_value_tag: Optional[str] = None  # EEE: core value alignment
 
 
 class RecognitionResponse(BaseModel):
@@ -42,6 +43,7 @@ class RecognitionResponse(BaseModel):
     is_equal_split: bool
     visibility: str
     status: str
+    core_value_tag: Optional[str] = None
     created_at: datetime
 
     class Config:
@@ -54,7 +56,10 @@ class RecognitionDetailResponse(RecognitionResponse):
     badge_name: Optional[str] = None
     comments_count: int = 0
     reactions_count: int = 0
+    reactions_breakdown: Dict[str, int] = {}  # e.g. {"like": 2, "fire": 1}
     user_reacted: bool = False
+    user_reaction_type: Optional[str] = None
+    addon_points_total: int = 0
 
 
 class RecognitionCommentCreate(BaseModel):
@@ -76,3 +81,21 @@ class RecognitionStats(BaseModel):
     points_given: Decimal
     points_received: Decimal
     top_badges: List[dict]
+
+
+class AddOnCreate(BaseModel):
+    points: int = 5  # 5, 10, or 25
+    message: Optional[str] = None
+
+
+class AddOnResponse(BaseModel):
+    id: UUID
+    recognition_id: UUID
+    from_user_id: UUID
+    from_user_name: str
+    points: Decimal
+    message: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

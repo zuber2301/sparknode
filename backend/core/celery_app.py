@@ -17,13 +17,16 @@ def make_celery() -> Celery:
         result_serializer="json",
         timezone="UTC",
         enable_utc=True,
-        # Re-queue tasks that were in-flight when a worker crashed or was killed.
         task_acks_late=True,
         task_reject_on_worker_lost=True,
         beat_schedule={
             "sweep-expired-campaigns": {
                 "task": "sweep_expired_campaigns",
                 "schedule": 3600.0,  # every hour
+            },
+            "milestone-daily-check": {
+                "task": "check_milestones_daily",
+                "schedule": 86400.0,  # every 24 hours
             },
         },
     )

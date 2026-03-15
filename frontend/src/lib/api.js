@@ -164,11 +164,25 @@ export const recognitionAPI = {
   getById: (id) => api.get(`/recognitions/${id}`),
   create: (data) => api.post('/recognitions', data),
   getBadges: () => api.get('/recognitions/badges'),
-  toggleReaction: (id) => api.post(`/recognitions/${id}/react`),
+  toggleReaction: (id, reactionType = 'like') => api.post(`/recognitions/${id}/react`, { reaction_type: reactionType }),
+  addOnPoints: (id, data) => api.post(`/recognitions/${id}/addon`, data),
   getComments: (id) => api.get(`/recognitions/${id}/comments`),
   addComment: (id, data) => api.post(`/recognitions/${id}/comments`, data),
   getMyStats: () => api.get('/recognitions/stats/me'),
   getUserStats: (userId) => api.get(`/recognitions/stats/${userId}`),
+}
+
+// Engagement (EEE) API
+export const engagementAPI = {
+  getValues: () => api.get('/engagement/values'),
+  createValue: (data) => api.post('/engagement/values', data),
+  updateValue: (id, data) => api.put(`/engagement/values/${id}`, data),
+  deleteValue: (id) => api.delete(`/engagement/values/${id}`),
+  getChallenges: () => api.get('/engagement/challenges'),
+  createChallenge: (data) => api.post('/engagement/challenges', data),
+  updateChallenge: (id, data) => api.put(`/engagement/challenges/${id}`, data),
+  completeChallenge: (id) => api.post(`/engagement/challenges/${id}/complete`),
+  getMilestones: (days = 30) => api.get('/engagement/milestones/upcoming', { params: { days } }),
 }
 
 // Redemption API
@@ -471,6 +485,7 @@ export const campaignAPI = {
 }
 
 // Alias exports for component compatibility
+export const engagementApi = engagementAPI
 export const recognitionApi = recognitionAPI
 export const usersApi = usersAPI
 export const walletsApi = walletsAPI

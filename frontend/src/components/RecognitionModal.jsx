@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { HiX, HiOutlineStar, HiOutlineGift, HiOutlineUsers, HiOutlineMailOpen, HiOutlineChevronRight, HiOutlineChevronLeft, HiCheck } from 'react-icons/hi'
 import toast from 'react-hot-toast'
-import { recognitionAPI, usersAPI } from '../lib/api'
+import { recognitionAPI, usersAPI, engagementAPI } from '../lib/api'
 import { useAuthStore } from '../store/authStore'
 import { formatPoints } from '../lib/currency'
 
@@ -24,6 +24,7 @@ export default function RecognitionModal({ isOpen, onClose, initialSelectedUser 
   const [isEqualSplit, setIsEqualSplit] = useState(true)
   const [visibility, setVisibility] = useState('public')
   const [searchTerm, setSearchTerm] = useState('')
+  const [coreValueTag, setCoreValueTag] = useState('')
   
   const queryClient = useQueryClient()
   const { user, getEffectiveRole, tenantContext } = useAuthStore()
@@ -44,6 +45,7 @@ export default function RecognitionModal({ isOpen, onClose, initialSelectedUser 
       setIsEqualSplit(true)
       setEcardTemplate('thank_you')
       setSearchTerm('')
+      setCoreValueTag('')
     }
   }, [isOpen]) // eslint-disable-line react-hooks/exhaustive-deps
   const effectiveRole = getEffectiveRole()
@@ -60,6 +62,13 @@ export default function RecognitionModal({ isOpen, onClose, initialSelectedUser 
     queryKey: ['badges'],
     queryFn: () => recognitionAPI.getBadges(),
     enabled: isOpen && step === 3
+  })
+
+  const { data: companyValues } = useQuery({
+    queryKey: ['engagement', 'values'],
+    queryFn: () => engagementAPI.getValues().then(r => r.data),
+    enabled: isOpen && step === 3,
+    staleTime: 5 * 60 * 1000,
   })
 
   const recognitionMutation = useMutation({
@@ -112,7 +121,8 @@ export default function RecognitionModal({ isOpen, onClose, initialSelectedUser 
       recognition_type: type,
       ecard_template: type === 'ecard' ? ecardTemplate : null,
       is_equal_split: isEqualSplit,
-      visibility
+      visibility,
+      core_value_tag: coreValueTag || null
     }
 
     if (recipients.length === 1) {
@@ -322,6 +332,32 @@ export default function RecognitionModal({ isOpen, onClose, initialSelectedUser 
                         displayCurrency
                       )}
                     </span>
+                  </div>
+                </div>
+              )}
+
+              {type !== 'ecard' && companyValues && companyValues.length > 0 && (
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 mb-2'>Core Value <span className='text-gray-400 font-normal'>(optional)</span></label>
+                  <div className='flex flex-wrap gap-2'>
+                    <button
+                      type='button'
+                      onClick={() => setCoreValueTag('')}
+                      className={`px-3 py-1.5 rounded-lg border text-sm transition ${!coreValueTag ? 'bg-sparknode-purple/10 border-sparknode-purple text-sparknode-purple font-medium' : 'border-gray-200 hover:border-gray-300 text-gray-600'}`}
+                    >
+                      None
+                    </button>
+                    {companyValues.map(v => (
+                      <button
+                        key={v.id}
+                        type='button'
+                        onClick={() => setCoreValueTag(v.name)}
+                        className={`px-3 py-1.5 rounded-lg border text-sm transition flex items-center gap-1.5 ${coreValueTag === v.name ? 'bg-emerald-50 border-emerald-500 text-emerald-700 font-medium' : 'border-gray-200 hover:border-emerald-300 text-gray-600'}`}
+                      >
+                        {v.emoji && <span>{v.emoji}</span>}
+                        {v.name}
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}

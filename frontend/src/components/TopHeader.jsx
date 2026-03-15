@@ -79,11 +79,14 @@ const platformAdminNavigation = [
 // Tenant Manager specific navigation - "Nerve Center"
 const tenantManagerNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
+  { name: 'Feed', href: '/feed', icon: HiOutlineNewspaper },
   { name: 'Users', href: '/users', icon: HiOutlineUsers },
   { name: 'Budgets', href: '/budgets', icon: HiOutlineChartBar },
   { name: 'Company Catalog', href: '/catalog', icon: HiOutlineShoppingCart },
+  { name: 'Company Values', href: '/company-values', icon: HiOutlineSparkles },
+  { name: 'Challenges', href: '/challenges', icon: HiOutlineChartBar },
   { name: 'Analytics & Reports', href: '/analytics', icon: HiOutlineChartBar },
-  { name: 'Event Management', href: '/events', icon: HiOutlineNewspaper },
+  { name: 'Event Management', href: '/events', icon: HiOutlineCalendar },
   { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: true },
   { name: 'Campaigns', href: '/campaigns', icon: HiOutlineBriefcase, featureFlag: true },
   { name: 'Escrow Approval', href: '/campaigns/escrow', icon: HiOutlineClipboardList, featureFlag: true },
@@ -92,8 +95,9 @@ const tenantManagerNavigation = [
 // Tenant Lead specific navigation
 const tenantLeadNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
-  // tenant leads only browse events; not full management
-  { name: 'Events', href: '/events/browse', icon: HiOutlineNewspaper },
+  { name: 'Feed', href: '/feed', icon: HiOutlineNewspaper },
+  { name: 'Challenges', href: '/challenges', icon: HiOutlineChartBar },
+  { name: 'Events', href: '/events/browse', icon: HiOutlineCalendar },
   { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: true },
   { name: 'Campaigns', href: '/campaigns', icon: HiOutlineBriefcase, featureFlag: true },
   { name: 'Recognize', href: '/recognize', icon: HiOutlineSparkles },
@@ -105,6 +109,8 @@ const tenantLeadNavigation = [
 // Regular user navigation — limited to core actions only
 const userNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
+  { name: 'Feed', href: '/feed', icon: HiOutlineNewspaper },
+  { name: 'Challenges', href: '/challenges', icon: HiOutlineChartBar },
   { name: 'Recognize', href: '/recognize', icon: HiOutlineSparkles },
   { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
   { name: 'Wallet', href: '/wallet', icon: HiOutlineCash },

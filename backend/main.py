@@ -38,6 +38,7 @@ from crm.routes import router as crm_router
 from catalog.platform_routes import router as catalog_platform_router
 from catalog.tenant_routes import router as catalog_tenant_router
 from billing.routes import router as billing_router
+from engagement.routes import router as engagement_router
 
 
 # ── APScheduler (monthly billing) ────────────────────────────────────────────
@@ -157,6 +158,7 @@ app.include_router(snpilot_router, prefix="/api", tags=["SNPilot Intents"])
 app.include_router(catalog_platform_router, prefix="/api/catalog/admin", tags=["Catalog — Platform Admin"])
 app.include_router(catalog_tenant_router, prefix="/api/catalog", tags=["Catalog — Tenant & Browse"])
 app.include_router(billing_router, prefix="/api/billing", tags=["Billing & Invoicing"])
+app.include_router(engagement_router, prefix="/api/engagement", tags=["Engagement — EEE"])
 
 
 @app.get("/")

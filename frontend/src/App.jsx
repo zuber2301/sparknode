@@ -45,6 +45,8 @@ import PlatformCatalog from './pages/PlatformCatalog'
 import TenantCatalog from './pages/TenantCatalog'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
+import Challenges from './pages/Challenges'
+import CompanyValues from './pages/CompanyValues'
 import { useParams } from 'react-router-dom'
 
 function EventCreateWizardEdit() {
@@ -137,13 +139,14 @@ function App() {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="admin-dashboard" element={<AdminDashboard />} />
         <Route path="feed" element={
-          <NonUserRoute>
+          <PrivateRoute>
             <Feed />
-          </NonUserRoute>
+          </PrivateRoute>
         } />
         <Route path="recognize" element={<Recognize />} />
         <Route path="redeem" element={<Redeem />} />
         <Route path="wallet" element={<Wallet />} />
+        <Route path="challenges" element={<PrivateRoute><Challenges /></PrivateRoute>} />
         <Route path="events/browse" element={<EmployeeEvents />} />
         
         {/* Admin Pages - Only Tenant Manager & Platform Admin */}
@@ -227,6 +230,11 @@ function App() {
           <PlatformAdminRoute>
             <Settings />
           </PlatformAdminRoute>
+        } />
+        <Route path="company-values" element={
+          <TenantManagerRoute>
+            <CompanyValues />
+          </TenantManagerRoute>
         } />
         
         {/* Platform Admin Only */}
