@@ -92,81 +92,16 @@ VALUES
 (uuid_generate_v4(), '100e8400-e29b-41d4-a716-446655440000', '220e8400-e29b-41d4-a716-446655440003', 0, 0, 0)
 ON CONFLICT (user_id) DO NOTHING;
 
--- Clean up: Remove FK references to non-@sparknode.io users before deleting them.
--- Step 1: nullify nullable FK columns
-UPDATE users SET manager_id = NULL
-    WHERE manager_id IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-UPDATE budget_allocation_ledger SET actor_id = NULL
-    WHERE actor_id IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-UPDATE budgets SET created_by = NULL
-    WHERE created_by IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-UPDATE department_budget_allocations SET allocated_by = NULL
-    WHERE allocated_by IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-UPDATE employee_points_allocations SET allocated_by = NULL
-    WHERE allocated_by IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-UPDATE event_nominations SET created_by = NULL
-    WHERE created_by IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-UPDATE event_nominations SET reviewed_by = NULL
-    WHERE reviewed_by IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-UPDATE event_participants SET approved_by = NULL
-    WHERE approved_by IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-UPDATE event_participants SET checked_in_by = NULL
-    WHERE checked_in_by IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-UPDATE events SET created_by = NULL
-    WHERE created_by IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-UPDATE feed SET actor_id = NULL
-    WHERE actor_id IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-UPDATE feed SET target_id = NULL
-    WHERE target_id IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-UPDATE invitation_tokens SET used_by_user_id = NULL
-    WHERE used_by_user_id IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-UPDATE invoices SET created_by = NULL
-    WHERE created_by IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-UPDATE master_budget_ledger SET created_by = NULL
-    WHERE created_by IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-UPDATE reward_catalog_custom SET created_by = NULL
-    WHERE created_by IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-UPDATE reward_catalog_master SET created_by = NULL
-    WHERE created_by IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-UPDATE reward_catalog_tenant SET created_by = NULL
-    WHERE created_by IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-UPDATE sales_campaigns SET approved_by = NULL
-    WHERE approved_by IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-UPDATE sales_event_leads SET owner_user_id = NULL
-    WHERE owner_user_id IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-UPDATE sales_events SET marketing_owner_id = NULL
-    WHERE marketing_owner_id IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-UPDATE sales_events SET owner_user_id = NULL
-    WHERE owner_user_id IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-UPDATE tenant_budget_allocations SET allocated_by = NULL
-    WHERE allocated_by IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
--- Step 2: delete rows whose NOT-NULL FK column references a non-seed user
-DELETE FROM budget_allocation_logs
-    WHERE admin_id IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-DELETE FROM budget_distribution_logs
-    WHERE from_user_id IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io')
-       OR to_user_id   IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-DELETE FROM event_progress
-    WHERE user_id IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-DELETE FROM event_teams
-    WHERE leader_user_id IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-DELETE FROM lead_registrations
-    WHERE sales_rep_id IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-DELETE FROM platform_billing_logs
-    WHERE admin_id IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-DELETE FROM recognition_comments
-    WHERE user_id IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-DELETE FROM recognition_reactions
-    WHERE user_id IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-DELETE FROM recognitions
-    WHERE from_user_id IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io')
-       OR to_user_id   IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-DELETE FROM redemptions
-    WHERE user_id IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
-DELETE FROM sales_campaigns
-    WHERE created_by IN (SELECT id FROM users WHERE corporate_email NOT LIKE '%@sparknode.io');
--- Step 3: delete the non-seed users (CASCADE handles wallets, notifications, etc.)
-DELETE FROM users WHERE corporate_email NOT LIKE '%@sparknode.io';
-
--- Clean up: Delete all system_admins not linked to @sparknode.io users
-DELETE FROM system_admins WHERE user_id NOT IN (SELECT id FROM users WHERE corporate_email LIKE '%@sparknode.io');
+-- =====================================================
+-- NOTE: destructive cleanup (wipe non-seed users) was
+-- intentionally removed from this file.
+--
+-- seed.sql is now TRULY safe to re-run: it only does
+-- idempotent INSERTs (ON CONFLICT DO NOTHING/UPDATE).
+-- All runtime tenants, users, and their data are
+-- preserved across bootstrap re-runs.
+--
+-- To wipe ALL non-seed user data and reset to a clean
+-- state (dev/demo only), run the separate utility:
+--   database/reset_dev_data.sql
+-- =====================================================

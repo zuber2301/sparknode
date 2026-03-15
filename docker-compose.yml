@@ -6,6 +6,7 @@ services:
   postgres:
     image: postgres:15.8-alpine
     container_name: ${PROJECT_NAME:-sparknode}-db
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-sparknode}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sparknode_secret_2024}
@@ -25,8 +26,13 @@ services:
   redis:
     image: redis:7-alpine
     container_name: ${PROJECT_NAME:-sparknode}-redis
+    restart: unless-stopped
+    # Persist Celery job state and cached data across container restarts
+    command: redis-server --appendonly yes --appendfsync everysec
     ports:
       - "${REDIS_EXTERNAL_PORT:-7379}:6379"
+    volumes:
+      - redis_data:/data
     networks:
       - app-network
 
@@ -36,13 +42,18 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: ${PROJECT_NAME:-sparknode}-backend
+    restart: unless-stopped
     environment:
-      APP_DATABASE_URL: ${APP_DATABASE_URL:-postgresql://sparknode_app:change_me_in_production@postgres:5432/sparknode}
+      # PRODUCTION: set APP_DATABASE_URL in .env — do NOT use the default below in production
+      APP_DATABASE_URL: ${APP_DATABASE_URL:-postgresql://sparknode:sparknode_secret_2024@postgres:5432/sparknode}
       DATABASE_URL: ${DATABASE_URL:-postgresql://sparknode:sparknode_secret_2024@postgres:5432/sparknode}
+      # PRODUCTION: generate a strong key: openssl rand -hex 32
       SECRET_KEY: ${SECRET_KEY:-sparknode-super-secret-key-change-in-production}
       ALGORITHM: ${ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:6173}
+      # PRODUCTION: set ENABLE_DOCS=false to hide /docs and /redoc
+      ENABLE_DOCS: ${ENABLE_DOCS:-true}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
@@ -66,7 +77,9 @@ services:
         condition: service_started
     networks:
       - app-network
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    # --reload is a development-only flag; use multiple workers for production.
+    # Override UVICORN_WORKERS in .env (default: 1 for local dev).
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --workers ${UVICORN_WORKERS:-1}
 
   celery:
     image: zuber2301/sparknode-app-backend:latest
@@ -74,7 +87,9 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: ${PROJECT_NAME:-sparknode}-celery
+    restart: unless-stopped
     environment:
+      APP_DATABASE_URL: ${APP_DATABASE_URL:-postgresql://sparknode:sparknode_secret_2024@postgres:5432/sparknode}
       DATABASE_URL: ${DATABASE_URL:-postgresql://sparknode:sparknode_secret_2024@postgres:5432/sparknode}
       SECRET_KEY: ${SECRET_KEY:-sparknode-super-secret-key-change-in-production}
       ALGORITHM: ${ALGORITHM:-HS256}
@@ -104,6 +119,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: ${PROJECT_NAME:-sparknode}-frontend
+    restart: unless-stopped
     ports:
       - "${FRONTEND_EXTERNAL_PORT:-6173}:80"
     volumes:
@@ -122,6 +138,8 @@ volumes:
   postgres_data:
     external: true
     name: ${PROJECT_NAME:-sparknode}_postgres_data
+  # Redis AOF persistence — survives container restarts without external volume flag
+  redis_data:
 
 networks:
   app-network:

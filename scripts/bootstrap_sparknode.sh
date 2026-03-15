@@ -60,10 +60,31 @@ else
 fi
 
 # ======================================================================
-# STEP 3: Start all services
+# STEP 2: Ensure the external Postgres data volume exists.
+# If this is a first-time setup on a new machine the named volume will
+# not exist yet; docker-compose will refuse to start until it does.
 # ======================================================================
-echo "=== Starting services ==="
-docker-compose -f "$ROOT_DIR/docker-compose.yml" up -d --force-recreate
+VOLUME_NAME="${PROJECT_NAME:-sparknode}_postgres_data"
+if ! docker volume inspect "$VOLUME_NAME" > /dev/null 2>&1; then
+  echo "External volume '$VOLUME_NAME' not found — creating it now."
+  docker volume create "$VOLUME_NAME"
+  echo "Volume created."
+else
+  echo "Volume '$VOLUME_NAME' exists — data will be preserved."
+fi
+
+# ======================================================================
+# STEP 3: Start all services.
+# Postgres is brought up WITHOUT --force-recreate so its container is
+# only replaced when the image tag changes — not on every bootstrap run.
+# App containers (backend, celery, frontend) are force-recreated so they
+# always pick up the freshly pulled image.
+# ======================================================================
+echo "=== Starting database ==="
+docker-compose -f "$ROOT_DIR/docker-compose.yml" up -d postgres redis
+
+echo "=== Starting app services (force-recreate) ==="
+docker-compose -f "$ROOT_DIR/docker-compose.yml" up -d --force-recreate backend celery frontend
 
 # ======================================================================
 # STEP 3.5: Sync Python packages in the backend container with the
@@ -114,9 +135,19 @@ if [ $COUNT -ge $MAX_RETRIES ]; then
   exit 1
 fi
 
-echo "Database is ready. Running seed script..."
-docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" < "$ROOT_DIR/database/seed.sql"
-echo "Seeding completed."
+# Determine whether this is a fresh (empty) database by checking user count.
+# Seed is only applied when no runtime users exist to avoid wiping live data.
+USER_COUNT=$(docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" \
+  -t -A -c "SELECT COUNT(*) FROM users;" 2>/dev/null | tr -d '[:space:]' || echo "0")
+
+if [ "${USER_COUNT:-0}" = "0" ] || [ "${FORCE_SEED:-0}" = "1" ]; then
+  echo "Database is empty (user count: ${USER_COUNT}). Running seed script..."
+  docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" < "$ROOT_DIR/database/seed.sql"
+  echo "Seeding completed."
+else
+  echo "Database already has ${USER_COUNT} user(s) — skipping seed to preserve runtime data."
+  echo "  (Run with FORCE_SEED=1 to override, or use database/reset_dev_data.sql to wipe first.)"
+fi
 
 # ======================================================================
 # STEP 6: Ensure Alembic version table and app role grants

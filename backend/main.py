@@ -82,7 +82,11 @@ app = FastAPI(
     title="SparkNode API",
     description="Multi-Tenant Employee Rewards & Recognition Platform",
     version="2.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    # Disable interactive docs in production (ENABLE_DOCS=false)
+    docs_url="/docs" if settings.enable_docs else None,
+    redoc_url="/redoc" if settings.enable_docs else None,
+    openapi_url="/openapi.json" if settings.enable_docs else None,
 )
 
 # Prometheus instrumentation
@@ -101,10 +105,6 @@ app.add_middleware(SubscriptionEnforcementMiddleware)
 cors_origins = settings.cors_origins
 if not isinstance(cors_origins, list):
     cors_origins = [cors_origins]
-# Ensure common local dev origins are allowed
-for origin in ("http://localhost:6173", "http://localhost:5173", "http://localhost:3000"):
-    if origin not in cors_origins:
-        cors_origins.append(origin)
 
 app.add_middleware(
     CORSMiddleware,

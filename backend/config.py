@@ -2,6 +2,10 @@ from pydantic_settings import BaseSettings
 from pydantic import field_validator
 from typing import List, Union, Optional
 import os
+import logging
+import warnings
+
+_INSECURE_DEFAULT_KEY = "sparknode-super-secret-key-change-in-production"
 
 
 class Settings(BaseSettings):
@@ -39,6 +43,9 @@ class Settings(BaseSettings):
     tango_api_key: Optional[str] = os.getenv("TANGO_API_KEY")
     tango_account_identifier: Optional[str] = os.getenv("TANGO_ACCOUNT_IDENTIFIER")
 
+    # API docs — disable in production by setting ENABLE_DOCS=false
+    enable_docs: bool = os.getenv("ENABLE_DOCS", "true").lower() == "true"
+
     # CORS - accept string or list
     cors_origins: Union[str, List[str]] = "http://localhost:3000,http://localhost:5173,http://localhost:5180,http://localhost:6173"
     
@@ -55,3 +62,17 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Warn loudly if the insecure default secret key is in use
+if settings.secret_key == _INSECURE_DEFAULT_KEY:
+    warnings.warn(
+        "SECRET_KEY is set to the insecure default value. "
+        "Set a strong random key via the SECRET_KEY environment variable "
+        "(e.g. `openssl rand -hex 32`) before deploying to production.",
+        UserWarning,
+        stacklevel=1,
+    )
+    logging.warning(
+        "SECURITY WARNING: SECRET_KEY is the insecure default. "
+        "All JWT tokens are trivially forgeable. Set SECRET_KEY in your .env file."
+    )
