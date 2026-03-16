@@ -179,6 +179,7 @@ async def create_event(
 @router.get("/", response_model=List[EventListResponse], tags=["Events"])
 async def list_events(
     status: Optional[str] = Query(None, description="Filter by status: draft, published, ongoing, closed"),
+    experience_type: Optional[str] = Query(None, description="Filter by experience: engagement | growth"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     current_user: User = Depends(get_current_user),
@@ -200,6 +201,14 @@ async def list_events(
     else:
         if current_user.org_role != 'tenant_manager':
             query = query.filter(Event.status == 'published')
+
+    # experience_type filter — defaults to 'engagement' so Growth events don't
+    # pollute the standard Events Management page
+    if experience_type:
+        query = query.filter(Event.experience_type == experience_type)
+    else:
+        # Default: only show engagement events unless explicitly requesting growth
+        query = query.filter(Event.experience_type == 'engagement')
     
     events = query.order_by(Event.start_datetime.desc()).offset(skip).limit(limit).all()
     

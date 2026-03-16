@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useCopilot } from '../context/copilotContext'
 import { useAuthStore } from '../store/authStore'
 import { tenantsAPI } from '../lib/api'
+import SnpilotCard from './SnpilotCard'
+import { INTENT_CATALOG } from '../lib/snpilotClient'
 import {
   HiOutlineTrash,
   HiOutlinePaperAirplane,
@@ -29,26 +31,14 @@ export default function RightSideCopilot() {
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
 
+  // Intent panel state
+  const [activeIntentTab, setActiveIntentTab] = useState('employee')
+  const [expandedIntentKey, setExpandedIntentKey] = useState(null) // '{tab}:{id}'
+  const [intentParams, setIntentParams] = useState({})
+
   const isPlatformAdmin = user?.org_role === 'platform_admin'
   const isManager = isPlatformAdmin || ['tenant_manager', 'hr_admin', 'dept_lead'].includes(user?.org_role)
-
-  // Role-aware suggested prompts shown before first message
-  const SUGGESTED_PROMPTS_EMPLOYEE = [
-    'What is my points balance?',
-    'When are my points expiring?',
-    'What can I buy with 500 points?',
-    'Show my last 10 redemptions',
-    'Show my recent recognitions',
-  ]
-  const SUGGESTED_PROMPTS_MANAGER = [
-    'Top 5 departments by budget',
-    'Which departments have under-utilised budgets?',
-    'Which employees haven\'t been recognised in 60 days?',
-    'How many recognitions last 30 days?',
-  ]
-  const suggestedPrompts = isManager
-    ? [...SUGGESTED_PROMPTS_EMPLOYEE, ...SUGGESTED_PROMPTS_MANAGER]
-    : SUGGESTED_PROMPTS_EMPLOYEE
+  const isAdminAccess = isPlatformAdmin || ['tenant_manager', 'hr_admin'].includes(user?.org_role)
 
   // Always fetch fresh feature flags (skip for platform admin — no tenant)
   const { data: currentTenantResponse } = useQuery({
@@ -193,31 +183,138 @@ export default function RightSideCopilot() {
                     : 'text-gray-500'
                 }`}>[{timeStr}]</span>
               </p>
+              {message.type === 'assistant' && message.payload && (
+                <SnpilotCard intentId={message.intentId} data={message.payload} />
+              )}
             </div>
           </div>
           )
         })}
 
-        {/* Suggested prompts — shown only before first user message */}
-        {messages.length <= 1 && !isLoading && (
-          <div className="space-y-2 mt-2">
-            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide px-1">Try asking…</p>
-            <div className="flex flex-wrap gap-2">
-              {suggestedPrompts.map((prompt) => (
-                <button
-                  key={prompt}
-                  onClick={() => {
-                    setInputValue(prompt)
-                    setTimeout(() => inputRef.current?.focus(), 50)
-                  }}
-                  className="text-xs bg-white border border-sparknode-purple/30 text-sparknode-purple rounded-full px-3 py-1.5 hover:bg-sparknode-purple/5 hover:border-sparknode-purple/60 transition-colors text-left"
-                >
-                  {prompt}
-                </button>
-              ))}
+        {/* Intent Panel — shown only before first user message */}
+        {messages.length <= 1 && !isLoading && (() => {
+          const availableTabs = [
+            { key: 'employee', label: 'Employee', show: true },
+            { key: 'manager', label: 'Manager', show: isManager },
+            { key: 'admin', label: 'Admin', show: isAdminAccess },
+          ].filter(t => t.show)
+
+          const currentIntents = INTENT_CATALOG[activeIntentTab] || []
+
+          const fireIntent = async (intent) => {
+            const msg = intent.msg || intent.buildMsg(intentParams)
+            setInputValue('')
+            setExpandedIntentKey(null)
+            await sendMessage(msg)
+          }
+
+          return (
+            <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden">
+              {/* Tab row */}
+              <div className="flex border-b border-gray-200">
+                {availableTabs.map(t => (
+                  <button
+                    key={t.key}
+                    onClick={() => { setActiveIntentTab(t.key); setExpandedIntentKey(null); setIntentParams({}) }}
+                    className={`flex-1 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition-colors ${
+                      activeIntentTab === t.key
+                        ? 'bg-sparknode-purple text-white'
+                        : 'text-gray-500 hover:bg-gray-100'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Intent chips */}
+              <div className="p-2 space-y-1.5">
+                {currentIntents.map(intent => {
+                  const key = `${activeIntentTab}:${intent.id}:${intent.label}`
+                  const isExpanded = expandedIntentKey === key
+
+                  // Initialise params with defaults when expanding
+                  const handleChipClick = () => {
+                    if (!intent.params) {
+                      fireIntent(intent)
+                      return
+                    }
+                    if (isExpanded) {
+                      setExpandedIntentKey(null)
+                    } else {
+                      const defaults = {}
+                      intent.params.forEach(p => { defaults[p.key] = p.default })
+                      setIntentParams(defaults)
+                      setExpandedIntentKey(key)
+                    }
+                  }
+
+                  return (
+                    <div key={key} className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+                      <button
+                        onClick={handleChipClick}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-indigo-50 transition-colors ${
+                          isExpanded ? 'border-b border-gray-200' : ''
+                        }`}
+                      >
+                        <span className="text-base leading-none">{intent.emoji}</span>
+                        <span className="font-medium text-gray-800 flex-1">{intent.label}</span>
+                        {intent.params && (
+                          <span className="text-[10px] text-gray-400">{isExpanded ? '▲' : '▼'}</span>
+                        )}
+                      </button>
+
+                      {/* Inline param form */}
+                      {isExpanded && intent.params && (
+                        <div className="px-3 py-2 space-y-2 bg-gray-50">
+                          {intent.params.map(param => (
+                            <div key={param.key} className="flex items-center gap-2">
+                              <label className="text-[10px] text-gray-500 w-24 shrink-0">{param.label}</label>
+                              {param.type === 'select' ? (
+                                <select
+                                  value={intentParams[param.key] ?? param.default}
+                                  onChange={e => setIntentParams(prev => ({ ...prev, [param.key]: e.target.value }))}
+                                  className="flex-1 text-xs border border-gray-300 rounded px-1.5 py-1 bg-white focus:ring-1 focus:ring-sparknode-purple outline-none"
+                                >
+                                  {param.options.map(opt => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                  ))}
+                                </select>
+                              ) : param.type === 'text' ? (
+                                <input
+                                  type="text"
+                                  placeholder={param.default}
+                                  value={intentParams[param.key] ?? param.default}
+                                  onChange={e => setIntentParams(prev => ({ ...prev, [param.key]: e.target.value }))}
+                                  className="flex-1 text-xs border border-gray-300 rounded px-1.5 py-1 bg-white focus:ring-1 focus:ring-sparknode-purple outline-none"
+                                />
+                              ) : (
+                                <input
+                                  type="number"
+                                  min={param.min}
+                                  step={param.step}
+                                  value={intentParams[param.key] ?? param.default}
+                                  onChange={e => setIntentParams(prev => ({ ...prev, [param.key]: e.target.value }))}
+                                  className="flex-1 text-xs border border-gray-300 rounded px-1.5 py-1 bg-white focus:ring-1 focus:ring-sparknode-purple outline-none"
+                                />
+                              )}
+                            </div>
+                          ))}
+                          <button
+                            onClick={() => fireIntent(intent)}
+                            className="w-full text-xs bg-sparknode-purple text-white rounded py-1.5 hover:opacity-90 transition-opacity font-medium"
+                          >
+                            Ask SNPilot
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         {isLoading && (
           <div className="flex justify-start">

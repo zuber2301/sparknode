@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { salesAPI, tenantsAPI } from '../lib/api'
+import ProGate from '../components/ProGate'
 import SalesLeaderboard from '../components/SalesLeaderboard'
 import Countdown from '../components/Countdown'
 import toast from 'react-hot-toast'
@@ -37,19 +38,7 @@ export default function SalesEvents() {
   })
 
   // Use fresh API data; fall back to persisted tenantContext
-  const featureFlags = currentTenantResponse?.data?.feature_flags || tenantContext?.feature_flags || {}
-  const salesEnabled = !!(featureFlags.sales_marketing || featureFlags.sales_marketing_enabled || featureFlags.sales_marketting_enabled)
-
-  if (!salesEnabled && !isLoading) {
-    return (
-      <div className="p-6">
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <h3 className="text-lg font-medium text-yellow-800">Feature Not Available</h3>
-          <p className="text-yellow-700">Sales & Marketing module is not enabled for your organization.</p>
-        </div>
-      </div>
-    )
-  }
+  // Feature availability is now gated by ProGate (uses ExperienceContext / isProUser)
 
   const handleWizardNext = (stepData) => {
     setWizardData({ ...wizardData, ...stepData })
@@ -76,6 +65,7 @@ export default function SalesEvents() {
   const canManage = current_user?.org_role === 'tenant_manager' || current_user?.org_role === 'platform_admin'
 
   return (
+    <ProGate feature="Sales & Marketing">
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold">Sales Events</h2>
@@ -322,5 +312,6 @@ export default function SalesEvents() {
         </div>
       )}
     </div>
+    </ProGate>
   )
 }

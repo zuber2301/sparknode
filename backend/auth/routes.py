@@ -364,6 +364,34 @@ async def get_current_user_info(
     )
 
 
+@router.get("/experiences")
+async def get_available_experiences(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return the list of experience types available to the current tenant.
+
+    All tenants have access to the 'engagement' experience.  The 'growth'
+    experience (Sales Events, Campaigns, Escrow Approvals) is unlocked when:
+      - The tenant subscription tier is 'pro' or 'enterprise', OR
+      - The tenant feature_flags include a sales_marketing flag set to True.
+    """
+    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+    flags = tenant.feature_flags if (tenant and tenant.feature_flags) else {}
+    tier = (tenant.subscription_tier or 'core') if tenant else 'core'
+
+    experiences = ['engagement']
+    sales_enabled = (
+        flags.get('sales_marketing')
+        or flags.get('sales_marketing_enabled')
+        or flags.get('sales_marketting_enabled')  # tolerate historical typo
+    )
+    if tier in ('pro', 'enterprise') or sales_enabled:
+        experiences.append('growth')
+
+    return {"experiences": experiences, "active_tier": tier}
+
+
 @router.post("/impersonate/{tenant_id}")
 async def impersonate_tenant(
     tenant_id: UUID,

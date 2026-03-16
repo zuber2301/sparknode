@@ -10,7 +10,6 @@ import { useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { useExperience } from '../context/ExperienceContext'
-import { useCurrency } from '../hooks/useCurrency'
 import {
   HiOutlineSparkles,
   HiOutlineUsers,
@@ -142,7 +141,6 @@ export default function Gateway() {
     experienceMeta,
     isProUser,
   } = useExperience()
-  const { currency, symbol } = useCurrency()
 
   // If only one experience is available, skip the gateway entirely
   useEffect(() => {

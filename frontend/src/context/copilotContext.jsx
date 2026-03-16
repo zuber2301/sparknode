@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback } from 'react'
-import { trySnpilotIntent } from '../lib/snpilotClient'
+import { trySnpilotIntent, logUsage } from '../lib/snpilotClient'
 import { useAuthStore } from '../store/authStore'
 
 const CopilotContext = createContext(undefined)
@@ -27,12 +27,13 @@ export function CopilotProvider({ children }) {
   ])
   const [isLoading, setIsLoading] = useState(false)
 
-  const addMessage = useCallback((content, type = 'user') => {
+  const addMessage = useCallback((content, type = 'user', extra = {}) => {
     const newMessage = {
       id: Date.now().toString(),
       type,
       content,
       timestamp: new Date(),
+      ...extra,
     }
     setMessages((prev) => [...prev, newMessage])
     return newMessage
@@ -47,7 +48,11 @@ export function CopilotProvider({ children }) {
       // ── 1. Try structured SNPilot intent first (no LLM needed) ──────────
       const snpilotResponse = await trySnpilotIntent(userMessage)
       if (snpilotResponse !== null) {
-        addMessage(snpilotResponse, 'assistant')
+        addMessage(snpilotResponse.text, 'assistant', {
+          payload: snpilotResponse.payload,
+          intentId: snpilotResponse.intentId,
+        })
+        logUsage(snpilotResponse.intentId, {})
         return
       }
 

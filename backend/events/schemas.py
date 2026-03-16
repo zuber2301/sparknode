@@ -40,6 +40,7 @@ class EventBase(BaseModel):
     
     planned_budget: float = Field(default=0)
     currency: str = Field(default='USD')
+    experience_type: str = Field(default='engagement', description="engagement | growth")
 
 
 class EventCreate(EventBase):
@@ -74,6 +75,7 @@ class EventUpdate(BaseModel):
     
     planned_budget: Optional[float] = None
     currency: Optional[str] = None
+    experience_type: Optional[str] = None
 
 
 class EventDetailResponse(EventBase):
@@ -107,6 +109,7 @@ class EventListResponse(BaseModel):
     nomination_count: int = 0
     banner_url: Optional[str] = None
     color_code: Optional[str] = None
+    experience_type: str = 'engagement'
     
     class Config:
         from_attributes = True

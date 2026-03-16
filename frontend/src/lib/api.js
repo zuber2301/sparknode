@@ -522,4 +522,42 @@ export const billingAPI = {
   getPdfUrl: (invoiceId) => `/api/billing/invoices/${invoiceId}/pdf`,
 }
 
+// ── Experiences API ──────────────────────────────────────────────────────────
+export const experiencesAPI = {
+  /** Return the list of experience types available to the current tenant. */
+  getAvailable: () => api.get('/auth/experiences'),
+}
+
+// ── Pulse Surveys API ────────────────────────────────────────────────────────
+export const surveysAPI = {
+  /** Admin: create a pulse survey. body: { title?, target_department?, nps_enabled?, closes_in_days?, extra_questions? } */
+  createPulse: (body) => api.post('/surveys/create-pulse', body),
+  /** Admin: list all surveys. params: { status? } */
+  list: (params) => api.get('/surveys/', { params }),
+  /** Employee: pending surveys not yet responded to. */
+  myPending: () => api.get('/surveys/my-pending'),
+  /** Employee: submit anonymous response. body: { answers: [{question_id, score?, comment?}] } */
+  respond: (surveyId, body) => api.post(`/surveys/${surveyId}/respond`, body),
+  /** Admin: anonymized results. params: { survey_id? } */
+  results: (params) => api.get('/surveys/results', { params }),
+  /** Admin: engagement trend data. params: { weeks? } */
+  engagementTrends: (params) => api.get('/surveys/engagement-trends', { params }),
+}
+
+// ── Growth Events API ────────────────────────────────────────────────────────
+export const growthEventsAPI = {
+  /** Admin: create growth event. */
+  create: (body) => api.post('/experience/growth/events', body),
+  /** Admin: list growth events. params: { status? } */
+  list: (params) => api.get('/experience/growth/events', { params }),
+  /** Admin: update a growth event. */
+  update: (eventId, body) => api.put(`/experience/growth/events/${eventId}`, body),
+  /** Admin: delete a growth event. */
+  delete: (eventId) => api.delete(`/experience/growth/events/${eventId}`),
+  /** Admin: get registrations (leads) as JSON. */
+  getRegistrations: (eventId) => api.get(`/experience/growth/events/${eventId}/registrations`),
+  /** Admin: download registrations as CSV (returns URL for download). */
+  getCsvUrl: (eventId) => `/api/experience/growth/events/${eventId}/registrations/csv`,
+}
+
 export default api

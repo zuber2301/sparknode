@@ -30,8 +30,8 @@ export default function Events() {
 
   // Fetch events
   const { data: events = [], isLoading } = useQuery({
-    queryKey: ['events', { status: statusFilter }],
-    queryFn: () => eventsAPI.getAll({ status: statusFilter }),
+    queryKey: ['events', { status: statusFilter, experience_type: 'engagement' }],
+    queryFn: () => eventsAPI.getAll({ status: statusFilter, experience_type: 'engagement' }),
   })
 
   // Filter events by search

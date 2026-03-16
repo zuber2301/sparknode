@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { campaignAPI, tenantsAPI } from '../lib/api'
 import { useAuthStore } from '../store/authStore'
+import ProGate from '../components/ProGate'
 import toast from 'react-hot-toast'
 
 const STATUS_BADGE = {
@@ -204,6 +205,7 @@ export default function EscrowApproval() {
   const isProcessing = approveMutation.isPending || rejectMutation.isPending
 
   return (
+    <ProGate feature="Campaign Escrow">
     <div className="p-6 max-w-4xl mx-auto">
       {/* Header */}
       <div className="mb-6">
@@ -289,5 +291,6 @@ export default function EscrowApproval() {
         </section>
       )}
     </div>
+    </ProGate>
   )
 }

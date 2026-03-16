@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
+import PersonaSwitcher from './PersonaSwitcher'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { notificationsAPI, platformAPI, tenantsAPI, authAPI } from '../lib/api'
 import toast from 'react-hot-toast'
@@ -646,6 +647,9 @@ export default function TopHeader() {
 
           {/* Right side actions */}
           <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+            {/* Experience Switcher — tenant managers only */}
+            <PersonaSwitcher />
+
             {/* Notifications */}
             <button className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors">
               <HiOutlineBell className="w-5 h-5 text-gray-600" />

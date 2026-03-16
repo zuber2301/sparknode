@@ -30,6 +30,7 @@ from models import (
     Budget, DepartmentBudget,
     RewardCatalogMaster, RewardCatalogTenant,
     Voucher,
+    SnpilotQueryLog,
 )
 
 router = APIRouter(prefix="/snpilot", tags=["SNPilot Intents"])
@@ -670,3 +671,101 @@ def my_redemptions(
         }
         for r, v in rows
     ]
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# USAGE ANALYTICS
+# ══════════════════════════════════════════════════════════════════════════
+
+from pydantic import BaseModel
+from typing import Any
+
+
+class UsageLogRequest(BaseModel):
+    intent_slug: str
+    params: Optional[dict] = None
+
+
+@router.post("/usage", status_code=201)
+def log_usage(
+    body: UsageLogRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Fire-and-forget usage logging called from the frontend after each successful
+    structured-intent fetch.  Used to power the /admin/usage/summary dashboard.
+    """
+    import uuid as _uuid
+    log = SnpilotQueryLog(
+        id=_uuid.uuid4(),
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
+        intent_slug=body.intent_slug[:80],
+        params=body.params or {},
+    )
+    db.add(log)
+    db.commit()
+    return {"ok": True}
+
+
+@router.get("/admin/usage/summary")
+def usage_summary(
+    days: int = Query(30, ge=1, le=365, description="Look-back window"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Intent: "Which SNPilot queries are most popular in the last 30 days?"
+    Returns top intents by frequency plus a daily sparkline series.
+    """
+    _require_admin(current_user)
+    cutoff = _now() - timedelta(days=days)
+
+    # ── Intent frequency ───────────────────────────────────────────────────
+    intent_counts = (
+        db.query(SnpilotQueryLog.intent_slug, func.count(SnpilotQueryLog.id))
+        .filter(
+            SnpilotQueryLog.tenant_id == current_user.tenant_id,
+            SnpilotQueryLog.created_at >= cutoff,
+        )
+        .group_by(SnpilotQueryLog.intent_slug)
+        .order_by(func.count(SnpilotQueryLog.id).desc())
+        .all()
+    )
+
+    total = sum(c for _, c in intent_counts)
+
+    # ── Daily totals for a simple bar sparkline ────────────────────────────
+    from sqlalchemy import cast, Date as SADate
+    daily_rows = (
+        db.query(
+            cast(SnpilotQueryLog.created_at, SADate).label("day"),
+            func.count(SnpilotQueryLog.id).label("count"),
+        )
+        .filter(
+            SnpilotQueryLog.tenant_id == current_user.tenant_id,
+            SnpilotQueryLog.created_at >= cutoff,
+        )
+        .group_by("day")
+        .order_by("day")
+        .all()
+    )
+
+    return {
+        "days": days,
+        "total_queries": total,
+        "top_intents": [
+            {
+                "intent": slug,
+                "count": count,
+                "pct": round(count / total * 100, 1) if total else 0,
+            }
+            for slug, count in intent_counts
+        ],
+        "daily_series": [
+            {"date": str(row.day), "count": row.count}
+            for row in daily_rows
+        ],
+    }
+

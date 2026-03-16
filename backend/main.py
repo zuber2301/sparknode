@@ -39,6 +39,8 @@ from catalog.platform_routes import router as catalog_platform_router
 from catalog.tenant_routes import router as catalog_tenant_router
 from billing.routes import router as billing_router
 from engagement.routes import router as engagement_router
+from surveys.routes import router as surveys_router
+from experience.routes import router as experience_router
 
 
 # ── APScheduler (monthly billing) ────────────────────────────────────────────
@@ -159,6 +161,8 @@ app.include_router(catalog_platform_router, prefix="/api/catalog/admin", tags=["
 app.include_router(catalog_tenant_router, prefix="/api/catalog", tags=["Catalog — Tenant & Browse"])
 app.include_router(billing_router, prefix="/api/billing", tags=["Billing & Invoicing"])
 app.include_router(engagement_router, prefix="/api/engagement", tags=["Engagement — EEE"])
+app.include_router(surveys_router, prefix="/api/surveys", tags=["Pulse Surveys"])
+app.include_router(experience_router, prefix="/api/experience", tags=["Experience — Growth Events"])
 
 
 @app.get("/")

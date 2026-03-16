@@ -49,6 +49,8 @@ import Challenges from './pages/Challenges'
 import CompanyValues from './pages/CompanyValues'
 import Gateway from './pages/Gateway'
 import Pricing from './pages/Pricing'
+import EngagementDashboard from './pages/EngagementDashboard'
+import GrowthEventRegistrationPage from './pages/GrowthEventRegistrationPage'
 import { ExperienceProvider } from './context/ExperienceContext'
 import { useParams } from 'react-router-dom'
 
@@ -134,6 +136,7 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/pricing" element={<Pricing />} />
+      <Route path="/e/:slug" element={<GrowthEventRegistrationPage />} />
       <Route path="/" element={
         <PrivateRoute>
           <ExperienceProvider>
@@ -353,6 +356,13 @@ function App() {
           </TenantManagerRoute>
         } />
         
+        {/* Engagement Dashboard - Tenant Manager Only */}
+        <Route path="engagement" element={
+          <TenantManagerRoute>
+            <EngagementDashboard />
+          </TenantManagerRoute>
+        } />
+
         {/* Legacy Routes */}
         <Route path="tenant/:slug" element={<TenantDashboard />} />
       </Route>

@@ -893,6 +893,9 @@ class Event(Base):
     # Budget & Tracking
     planned_budget = Column(Numeric(15, 2), default=0)
     currency = Column(String(10), default='USD')
+
+    # Experience classification — engagement (company events) | growth (sales/campaigns)
+    experience_type = Column(String(20), nullable=False, server_default='engagement')
     
     # Metadata
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
@@ -1735,6 +1738,158 @@ class ChallengeCompletion(Base):
     challenge = relationship("EngagementChallenge", back_populates="completions")
     user = relationship("User")
     tenant = relationship("Tenant")
+
+
+class SnpilotQueryLog(Base):
+    """Tracks which SNPilot intents are invoked and how often.
+
+    Written on every successful structured-intent fetch from the frontend.
+    Used for the /admin/usage/summary analytics endpoint so platform teams
+    can see which questions managers ask most.
+    """
+
+    __tablename__ = "snpilot_query_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    intent_slug = Column(String(80), nullable=False, index=True)
+    params = Column(JSONB, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
+
+    tenant = relationship("Tenant")
+    user = relationship("User")
+
+
+# ═══════════════════════════════════════
+# PULSE SURVEYS
+# ═══════════════════════════════════════
+
+class SurveyStatus(str, enum.Enum):
+    DRAFT = "draft"
+    ACTIVE = "active"
+    CLOSED = "closed"
+
+
+class PulseSurvey(Base):
+    __tablename__ = "pulse_surveys"
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(GUID(), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_by = Column(GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    title = Column(String(200), nullable=False)
+    target_department = Column(String(200), nullable=True)  # None = company-wide
+    status = Column(SQLEnum(SurveyStatus), default=SurveyStatus.ACTIVE, nullable=False, index=True)
+    nps_enabled = Column(Boolean, default=False, nullable=False)
+    closes_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    tenant = relationship("Tenant")
+    questions = relationship(
+        "PulseSurveyQuestion", back_populates="survey",
+        cascade="all, delete-orphan",
+        order_by="PulseSurveyQuestion.sort_order",
+    )
+    responses = relationship("PulseSurveyResponse", back_populates="survey", cascade="all, delete-orphan")
+
+
+class PulseSurveyQuestion(Base):
+    __tablename__ = "pulse_survey_questions"
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    survey_id = Column(GUID(), ForeignKey("pulse_surveys.id", ondelete="CASCADE"), nullable=False, index=True)
+    text = Column(Text, nullable=False)
+    question_type = Column(String(20), nullable=False, default="rating_5")  # rating_5 | rating_10 | text
+    sort_order = Column(Integer, default=0, nullable=False)
+
+    survey = relationship("PulseSurvey", back_populates="questions")
+    responses = relationship("PulseSurveyResponse", back_populates="question")
+
+
+class PulseSurveyResponse(Base):
+    __tablename__ = "pulse_survey_responses"
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    survey_id = Column(GUID(), ForeignKey("pulse_surveys.id", ondelete="CASCADE"), nullable=False, index=True)
+    question_id = Column(GUID(), ForeignKey("pulse_survey_questions.id", ondelete="CASCADE"), nullable=False)
+    tenant_id = Column(GUID(), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    # HMAC of user_id + survey_id — allows duplicate detection without linking to a user
+    respondent_hash = Column(String(64), nullable=False, index=True)
+    department = Column(String(200), nullable=True)  # snapshot at response time for aggregation
+    score = Column(Integer, nullable=True)            # 1-5 (rating_5) or 0-10 (rating_10)
+    comment = Column(Text, nullable=True)
+    submitted_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    survey = relationship("PulseSurvey", back_populates="responses")
+    question = relationship("PulseSurveyQuestion", back_populates="responses")
+
+
+# ═══════════════════════════════════════
+# GROWTH EVENTS (Sales / Lead Capture)
+# ═══════════════════════════════════════
+
+class GrowthEventStatus(str, enum.Enum):
+    DRAFT = "draft"
+    PUBLISHED = "published"
+    CLOSED = "closed"
+
+
+class GrowthEvent(Base):
+    __tablename__ = "growth_events"
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(GUID(), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
+    created_by = Column(GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    title = Column(String(300), nullable=False)
+    slug = Column(String(120), nullable=False, unique=True, index=True)
+    description = Column(Text, nullable=True)
+    event_date = Column(DateTime(timezone=True), nullable=True)
+    location = Column(String(300), nullable=True)
+    timezone_str = Column(String(60), nullable=True, default="UTC")
+    status = Column(SQLEnum(GrowthEventStatus), default=GrowthEventStatus.DRAFT, nullable=False, index=True)
+    registration_schema = Column(JSONB, nullable=True)  # [{field, label, required, type}]
+    max_registrations = Column(Integer, nullable=True)
+    banner_url = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True
+    )
+
+    tenant = relationship("Tenant")
+    registrations = relationship(
+        "GrowthEventRegistration", back_populates="event", cascade="all, delete-orphan"
+    )
+
+
+class GrowthEventRegistration(Base):
+    __tablename__ = "growth_event_registrations"
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    event_id = Column(GUID(), ForeignKey("growth_events.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(200), nullable=False)
+    email = Column(String(254), nullable=False, index=True)
+    company = Column(String(200), nullable=True)
+    phone = Column(String(30), nullable=True)
+    extra_fields = Column(JSONB, nullable=True)
+    registered_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    utm_source = Column(String(100), nullable=True)
+    utm_medium = Column(String(100), nullable=True)
+    utm_campaign = Column(String(100), nullable=True)
+    ip_hash = Column(String(64), nullable=True)   # SHA-256 of client IP — spam detection aid
+
+    event = relationship("GrowthEvent", back_populates="registrations")
 
 
 # -------------------- Compatibility aliases / legacy models --------------------

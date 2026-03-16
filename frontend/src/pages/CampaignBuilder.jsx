@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { campaignAPI, usersAPI } from '../lib/api'
 import { useAuthStore } from '../store/authStore'
+import ProGate from '../components/ProGate'
 import toast from 'react-hot-toast'
 
 const INTEREST_OPTS = [
@@ -322,6 +323,7 @@ export default function CampaignBuilder() {
   const canManage = ['tenant_manager', 'platform_admin'].includes(user?.org_role)
 
   return (
+    <ProGate feature="Sales Campaigns">
     <div className="p-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
@@ -381,6 +383,7 @@ export default function CampaignBuilder() {
         </div>
       )}
     </div>
+    </ProGate>
   )
 }
 
