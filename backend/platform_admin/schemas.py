@@ -100,6 +100,14 @@ class TenantUpdateRequest(BaseModel):
     max_users: Optional[int] = Field(None, ge=1)
     master_budget_balance: Optional[Decimal] = None
     
+    # Billing / Invoicing
+    billing_cycle: Optional[str] = Field(None, pattern="^(monthly|quarterly|annually)$")
+    billing_amount: Optional[Decimal] = None
+    billing_discount_pct: Optional[Decimal] = Field(None, ge=0, le=100)
+    billing_final_amount: Optional[Decimal] = None
+    billing_currency: Optional[str] = None
+    billing_contact_email: Optional[str] = None
+
     # Legacy settings (backwards compatibility)
     branding_config: Optional[Dict[str, Any]] = None
     settings: Optional[Dict[str, Any]] = None
@@ -197,7 +205,15 @@ class TenantDetailResponse(BaseModel):
     settings: Dict[str, Any]
     catalog_settings: Dict[str, Any]
     branding: Dict[str, Any]
-    
+
+    # Billing / Invoicing
+    billing_cycle: Optional[str] = 'monthly'
+    billing_amount: Optional[Decimal] = None
+    billing_discount_pct: Optional[Decimal] = Decimal('0')
+    billing_final_amount: Optional[Decimal] = None
+    billing_currency: Optional[str] = None
+    billing_contact_email: Optional[str] = None
+
     # Timestamps
     created_at: datetime
     updated_at: datetime

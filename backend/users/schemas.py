@@ -131,6 +131,7 @@ class UserListResponse(BaseModel):
     dept_id: Optional[UUID] = None
     avatar_url: Optional[str] = None
     status: str
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

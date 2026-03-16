@@ -17,7 +17,8 @@ import {
   HiOutlineArrowNarrowLeft,
   HiOutlineDocumentText,
   HiOutlineMailOpen,
-  HiOutlineEye
+  HiOutlineEye,
+  HiOutlineUsers
 } from 'react-icons/hi'
 import ConfirmModal from '../components/ConfirmModal'
 import AddBudgetModal from '../components/AddBudgetModal'
@@ -164,6 +165,173 @@ function RecallBudgetModal({ tenant, onClose, onConfirm, isPending }) {
           </div>
         </form>
       </div>
+    </div>
+  )
+}
+
+// ── UsersTab ─────────────────────────────────────────────────────────────────
+const ROLE_COLORS = {
+  platform_admin:  'bg-purple-100 text-purple-700',
+  tenant_manager:  'bg-blue-100 text-blue-700',
+  dept_lead:       'bg-indigo-100 text-indigo-700',
+  tenant_user:     'bg-gray-100 text-gray-600',
+}
+const ROLE_LABELS = {
+  platform_admin: 'Platform Admin',
+  tenant_manager: 'Tenant Manager',
+  dept_lead:      'Dept Lead',
+  tenant_user:    'User',
+}
+const USER_STATUS_COLORS = {
+  active:          'bg-green-100 text-green-700',
+  ACTIVE:          'bg-green-100 text-green-700',
+  deactivated:     'bg-red-100 text-red-600',
+  DEACTIVATED:     'bg-red-100 text-red-600',
+  pending_invite:  'bg-yellow-100 text-yellow-700',
+  PENDING_INVITE:  'bg-yellow-100 text-yellow-700',
+}
+
+function UsersTab({ tenant }) {
+  const [search, setSearch] = useState('')
+  const [roleFilter, setRoleFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('active')
+
+  const { data: users = [], isLoading } = useQuery({
+    queryKey: ['tenant-users', tenant.id, statusFilter],
+    queryFn: () =>
+      platformAPI.getTenantUsers(tenant.id, {
+        status: statusFilter || undefined,
+        limit: 200,
+      }).then(r => r.data),
+    staleTime: 30_000,
+  })
+
+  const filtered = users.filter(u => {
+    const q = search.toLowerCase()
+    const matchSearch =
+      !q ||
+      u.first_name?.toLowerCase().includes(q) ||
+      u.last_name?.toLowerCase().includes(q) ||
+      u.corporate_email?.toLowerCase().includes(q)
+    const matchRole = !roleFilter || u.org_role === roleFilter
+    return matchSearch && matchRole
+  })
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-base font-bold text-gray-900">Users</h3>
+          <p className="text-xs text-gray-500 mt-0.5">
+            All members of <span className="font-semibold">{tenant.name}</span>
+          </p>
+        </div>
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold">
+          <HiOutlineUsers className="w-4 h-4" />
+          {users.length} total
+        </span>
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-xs">
+          <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by name or email…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+          />
+        </div>
+        <select
+          value={roleFilter}
+          onChange={e => setRoleFilter(e.target.value)}
+          className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+        >
+          <option value="">All Roles</option>
+          <option value="tenant_manager">Tenant Manager</option>
+          <option value="dept_lead">Dept Lead</option>
+          <option value="tenant_user">User</option>
+        </select>
+        <select
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+          className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+        >
+          <option value="">All Statuses</option>
+          <option value="active">Active</option>
+          <option value="deactivated">Deactivated</option>
+          <option value="pending_invite">Pending Invite</option>
+        </select>
+      </div>
+
+      {/* Table */}
+      {isLoading ? (
+        <div className="py-16 text-center text-sm text-gray-400">Loading users…</div>
+      ) : filtered.length === 0 ? (
+        <div className="py-16 text-center border-2 border-dashed border-gray-200 rounded-2xl">
+          <HiOutlineUsers className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+          <p className="text-sm text-gray-500 font-medium">
+            {users.length === 0 ? 'No users found for this tenant' : 'No users match your filters'}
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-2xl border border-gray-100 shadow-sm">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left">#</th>
+                <th className="px-4 py-3 text-left">Name</th>
+                <th className="px-4 py-3 text-left">Email</th>
+                <th className="px-4 py-3 text-left">Role</th>
+                <th className="px-4 py-3 text-center">Status</th>
+                <th className="px-4 py-3 text-left">Joined</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {filtered.map((u, idx) => (
+                <tr key={u.id} className="hover:bg-gray-50/60 transition-colors">
+                  <td className="px-4 py-3 text-xs text-gray-400 font-mono">{idx + 1}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2.5">
+                      {u.avatar_url ? (
+                        <img src={u.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-xs font-bold">
+                          {u.first_name?.[0]}{u.last_name?.[0]}
+                        </div>
+                      )}
+                      <span className="text-sm font-semibold text-gray-800">
+                        {u.first_name} {u.last_name}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-600">{u.corporate_email}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      ROLE_COLORS[u.org_role] || 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {ROLE_LABELS[u.org_role] || u.org_role}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${
+                      USER_STATUS_COLORS[u.status] || 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {u.status?.toLowerCase().replace('_', ' ')}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-500">
+                    {u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }
@@ -394,7 +562,12 @@ export default function PlatformTenants() {
     },
     domain_whitelist: [],
     award_tiers: {},
-    expiry_policy: 'NEVER'
+    expiry_policy: 'NEVER',
+    billing_cycle: 'monthly',
+    billing_amount: '',
+    billing_discount_pct: 0,
+    billing_currency: 'INR',
+    billing_contact_email: '',
   })
   
   // Feature flags state
@@ -685,7 +858,12 @@ export default function PlatformTenants() {
         award_tiers: full.award_tiers || {},
         expiry_policy: full.expiry_policy || 'never',
         logoPreview: full.logo_url || full.logo || null,
-        feature_flags: full.feature_flags || {}
+        feature_flags: full.feature_flags || {},
+        billing_cycle: full.billing_cycle || 'monthly',
+        billing_amount: full.billing_amount != null ? Number(full.billing_amount) : '',
+        billing_discount_pct: full.billing_discount_pct != null ? Number(full.billing_discount_pct) : 0,
+        billing_currency: full.billing_currency || full.display_currency || 'INR',
+        billing_contact_email: full.billing_contact_email || '',
       })
     } catch (err) {
       // fallback to shallow tenant object if API fetch fails
@@ -771,6 +949,27 @@ export default function PlatformTenants() {
       award_tiers: editForm.award_tiers,
       expiry_policy: editForm.expiry_policy,
       branding_config: editForm.branding_config || {}
+    }
+    updateMutation.mutate({ tenantId: selectedTenant.id, payload })
+  }
+
+  const handleSaveSettings = () => {
+    if (!selectedTenant) return
+    const payload = {
+      name: editForm.name,
+      domain: editForm.domain,
+      slug: editForm.slug,
+      primary_contact_email: editForm.primary_contact_email,
+      subscription_tier: editForm.subscription_tier,
+      max_users: parseInt(editForm.max_users, 10),
+      base_currency: editForm.base_currency,
+      display_currency: editForm.display_currency,
+      fx_rate: parseFloat(editForm.fx_rate) || 1,
+      billing_cycle: editForm.billing_cycle,
+      billing_amount: editForm.billing_amount !== '' ? parseFloat(editForm.billing_amount) : null,
+      billing_discount_pct: parseFloat(editForm.billing_discount_pct) || 0,
+      billing_currency: editForm.billing_currency,
+      billing_contact_email: editForm.billing_contact_email || null,
     }
     updateMutation.mutate({ tenantId: selectedTenant.id, payload })
   }
@@ -908,6 +1107,7 @@ export default function PlatformTenants() {
                   { key: 'branding', label: 'Settings', Icon: HiOutlineShieldCheck },
                   { key: 'security', label: 'Security', Icon: HiOutlineCheckCircle },
                   { key: 'economic', label: 'Budget Management', Icon: HiOutlineCurrencyRupee },
+                  { key: 'users', label: 'Users', Icon: HiOutlineUsers },
                   { key: 'billing', label: 'Billing', Icon: HiOutlineDocumentText },
                   { key: 'danger', label: 'Danger Zone', Icon: HiOutlineLockClosed }
                 ].map(({ key, label, Icon }) => (
@@ -1238,26 +1438,186 @@ export default function PlatformTenants() {
 
             )}
 
-            {activeTab === 'branding' && (
-              <div className="space-y-6 max-w-4xl">
-                <TenantSettingsTab
-                  tenant={selectedTenant}
-                  onUpdate={(updated) => {
-                    // refresh selected tenant with returned values
-                    const updatedData = updated?.data || updated || {}
-                    setSelectedTenant(prev => ({ ...prev, ...(updatedData || {}) }))
-                    queryClient.invalidateQueries(['platformTenants'])
-                    queryClient.invalidateQueries(['platformTenant', selectedTenant.id])
-                  }}
-                  setMessage={(msg) => {
-                    // optional: show messages in page header or toast
-                    if (msg?.type === 'success') {
-                      // no-op for now
-                    }
-                  }}
-                />
-              </div>
-            )}
+            {activeTab === 'branding' && (() => {
+              const billingFinalAmt = Math.round(
+                (parseFloat(editForm.billing_amount) || 0) *
+                (1 - Math.min(Math.max(parseFloat(editForm.billing_discount_pct) || 0, 0), 100) / 100)
+              )
+              const sym = (c) => CURRENCY_SYMBOLS[c] || c
+              return (
+                <div className="space-y-10 max-w-3xl">
+
+                  {/* ── Section: Tenant Identity ────────────────────── */}
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 pb-2 border-b border-gray-100">Tenant Identity</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="label">Organization Name <span className="text-red-500">*</span></label>
+                        <input className="input" value={editForm.name || ''} onChange={e => setEditForm({ ...editForm, name: e.target.value })} />
+                      </div>
+                      <div>
+                        <label className="label">Primary Contact Email</label>
+                        <input className="input" type="email" value={editForm.primary_contact_email || ''} onChange={e => setEditForm({ ...editForm, primary_contact_email: e.target.value })} />
+                      </div>
+                      <div>
+                        <label className="label">Slug</label>
+                        <input className="input font-mono" value={editForm.slug || ''} readOnly />
+                        <p className="text-xs text-gray-400 mt-1">Read-only after creation.</p>
+                      </div>
+                      <div>
+                        <label className="label">Company Domain</label>
+                        <input className="input" value={editForm.domain || ''} onChange={e => setEditForm({ ...editForm, domain: e.target.value })} placeholder="example.com" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Section: Subscription ────────────────────────── */}
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 pb-2 border-b border-gray-100">Subscription</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="label">Subscription Tier</label>
+                        <select className="input" value={editForm.subscription_tier || 'starter'} onChange={e => setEditForm({ ...editForm, subscription_tier: e.target.value })}>
+                          {tiers.length === 0 ? (
+                            <>
+                              <option value="free">Free</option>
+                              <option value="starter">Starter</option>
+                              <option value="professional">Professional</option>
+                              <option value="enterprise">Enterprise</option>
+                            </>
+                          ) : tiers.map(t => (
+                            <option key={t.tier} value={t.tier}>{t.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="label">Max Users <span className="text-red-500">*</span></label>
+                        <input className="input" type="number" min="1" value={editForm.max_users || 50} onChange={e => setEditForm({ ...editForm, max_users: Number(e.target.value) })} />
+                      </div>
+                      <div>
+                        <label className="label">Subscription End Date</label>
+                        <input className="input" type="date" value={editForm.subscription_ends_at ? editForm.subscription_ends_at.toString().slice(0, 10) : ''} onChange={e => setEditForm({ ...editForm, subscription_ends_at: e.target.value })} />
+                      </div>
+                      <div>
+                        <label className="label">Account Status</label>
+                        <select className="input" value={editForm.status || selectedTenant.status || 'active'} onChange={e => setEditForm({ ...editForm, status: e.target.value })}>
+                          <option value="active">Active</option>
+                          <option value="suspended">Suspended</option>
+                          <option value="maintenance">Maintenance</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Section: Financials ───────────────────────────── */}
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 pb-2 border-b border-gray-100">Financials & Currency</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="label">Base Currency (Billing) <span className="text-red-500">*</span></label>
+                        <select className="input" value={editForm.base_currency || 'USD'} onChange={e => setEditForm({ ...editForm, base_currency: e.target.value })}>
+                          {Object.keys(SUPPORTED_CURRENCIES).map(c => <option key={c} value={c}>{c} ({CURRENCY_SYMBOLS[c]})</option>)}
+                        </select>
+                        <p className="text-xs text-gray-400 mt-1">Currency the tenant is invoiced in</p>
+                      </div>
+                      <div>
+                        <label className="label">Display Currency <span className="text-red-500">*</span></label>
+                        <select className="input" value={editForm.display_currency || 'INR'} onChange={e => setEditForm({ ...editForm, display_currency: e.target.value, billing_currency: e.target.value })}>
+                          {Object.keys(SUPPORTED_CURRENCIES).map(c => <option key={c} value={c}>{c} ({CURRENCY_SYMBOLS[c]})</option>)}
+                        </select>
+                        <p className="text-xs text-gray-400 mt-1">Currency shown in the tenant dashboard</p>
+                      </div>
+                      <div>
+                        <label className="label">FX Rate (Base → Display)</label>
+                        <input className="input" type="number" min="0.0001" step="any" value={editForm.fx_rate || 1} onChange={e => setEditForm({ ...editForm, fx_rate: parseFloat(e.target.value) || 1 })} />
+                        <p className="text-xs text-gray-400 mt-1">Leave as 1 if both currencies match. For USD → INR, enter ~83.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Section: Billing ─────────────────────────────── */}
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 pb-2 border-b border-gray-100">Billing Configuration</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="label">Billing Cycle</label>
+                        <select className="input" value={editForm.billing_cycle || 'monthly'} onChange={e => setEditForm({ ...editForm, billing_cycle: e.target.value })}>
+                          <option value="monthly">Monthly</option>
+                          <option value="quarterly">Quarterly</option>
+                          <option value="annually">Annually</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="label">
+                          Amount / month
+                          <span className="ml-1 font-normal text-gray-400 text-xs normal-case">
+                            ({sym(editForm.billing_currency || editForm.display_currency || 'INR')})
+                          </span>
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 select-none">
+                            {sym(editForm.billing_currency || editForm.display_currency || 'INR')}
+                          </span>
+                          <input type="number" className="input pl-8" min="0" step="1"
+                            value={editForm.billing_amount}
+                            onChange={e => setEditForm({ ...editForm, billing_amount: e.target.value })} />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="label">Discount <span className="font-normal text-gray-400">(%)</span></label>
+                        <div className="relative">
+                          <input type="number" className="input pr-8" min="0" max="100" step="0.5"
+                            value={editForm.billing_discount_pct}
+                            onChange={e => setEditForm({ ...editForm, billing_discount_pct: Math.min(100, Math.max(0, Number(e.target.value))) })} />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">%</span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="label">Billing Contact Email</label>
+                        <input className="input" type="email" value={editForm.billing_contact_email || ''} onChange={e => setEditForm({ ...editForm, billing_contact_email: e.target.value })} placeholder="billing@company.com" />
+                      </div>
+                    </div>
+
+                    {/* Final amount card */}
+                    {parseFloat(editForm.billing_amount) > 0 && (
+                      <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/60 px-5 py-4 flex items-center justify-between">
+                        <div className="text-sm text-gray-500">
+                          {parseFloat(editForm.billing_discount_pct) > 0 ? (
+                            <>
+                              <span className="line-through text-gray-400 mr-2">
+                                {sym(editForm.billing_currency || 'INR')}{Number(editForm.billing_amount).toLocaleString()}
+                              </span>
+                              <span className="text-green-600 font-semibold">{editForm.billing_discount_pct}% off</span>
+                            </>
+                          ) : (
+                            <span className="text-gray-400">No discount applied</span>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Final / month</span>
+                          <div className="text-2xl font-extrabold text-indigo-700 leading-tight">
+                            {sym(editForm.billing_currency || 'INR')}{billingFinalAmt.toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── Actions ───────────────────────────────────────── */}
+                  <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
+                    <button type="button" onClick={() => setSelectedTenant(null)} className="px-6 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-widest hover:text-gray-700">Discard</button>
+                    <button
+                      type="button"
+                      onClick={handleSaveSettings}
+                      disabled={updateMutation.isPending}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-8 rounded-xl text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 disabled:opacity-50 transition-all"
+                    >
+                      {updateMutation.isPending ? 'Saving…' : 'Save Settings'}
+                    </button>
+                  </div>
+                </div>
+              )
+            })()}
 
             {activeTab === 'features' && (
               <div className="space-y-6 max-w-3xl">
@@ -1308,13 +1668,18 @@ export default function PlatformTenants() {
 
             )}
 
+            {/* ── Users Tab ────────────────────────────────────────────── */}
+            {activeTab === 'users' && (
+              <UsersTab tenant={selectedTenant} />
+            )}
+
             {/* ── Billing Tab ──────────────────────────────────────────── */}
             {activeTab === 'billing' && (
               <BillingTab tenant={selectedTenant} />
             )}
 
             {/* Save Actions */}
-            {activeTab !== 'danger' && activeTab !== 'overview' && activeTab !== 'economic' && activeTab !== 'billing' && (
+            {activeTab !== 'danger' && activeTab !== 'overview' && activeTab !== 'economic' && activeTab !== 'billing' && activeTab !== 'users' && activeTab !== 'features' && activeTab !== 'branding' && (
               <div className="mt-12 pt-8 border-t border-gray-100 flex justify-end gap-3">
                 <button
                   onClick={() => setSelectedTenant(null)}
