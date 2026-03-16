@@ -169,6 +169,14 @@ class Tenant(Base):
     subscription_ends_at = Column(DateTime(timezone=True))
     max_users = Column(Integer, default=50)  # User limit based on plan
 
+    # Billing / Invoicing fields (added by migration d1e2f3a4b5c6)
+    billing_cycle = Column(String(20), default='monthly')
+    billing_amount = Column(Numeric(15, 2), nullable=True)
+    billing_discount_pct = Column(Numeric(5, 2), default=0)
+    billing_final_amount = Column(Numeric(15, 2), nullable=True)
+    billing_currency = Column(String(3), default='INR')
+    billing_contact_email = Column(String(255), nullable=True)
+
     # Master budget pool
     master_budget_balance = Column(Numeric(15, 2), nullable=False, default=0)
     
