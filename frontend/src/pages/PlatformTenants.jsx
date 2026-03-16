@@ -18,7 +18,8 @@ import {
   HiOutlineDocumentText,
   HiOutlineMailOpen,
   HiOutlineEye,
-  HiOutlineUsers
+  HiOutlineUsers,
+  HiOutlineChevronRight
 } from 'react-icons/hi'
 import ConfirmModal from '../components/ConfirmModal'
 import AddBudgetModal from '../components/AddBudgetModal'
@@ -532,6 +533,7 @@ export default function PlatformTenants() {
   // Selected tenant & tabs
   const [selectedTenant, setSelectedTenant] = useState(null)
   const [activeTab, setActiveTab] = useState('identity')
+  const [settingsStep, setSettingsStep] = useState('tenant')
   const [actionOpenFor, setActionOpenFor] = useState(null)
   const [isAddBudgetOpen, setIsAddBudgetOpen] = useState(false)
   const [budgetTarget, setBudgetTarget] = useState(null)
@@ -580,6 +582,14 @@ export default function PlatformTenants() {
   const [discountPct, setDiscountPct] = useState(0)
   const billingFinalAmount = Math.round(billingAmount * (1 - Math.min(Math.max(discountPct, 0), 100) / 100))
   const currencySymbol = (c) => CURRENCY_SYMBOLS[c] || c
+
+  // Settings wizard
+  const SETTINGS_STEPS = [
+    { key: 'tenant',     label: 'Tenant Setup',    desc: 'Basic identity and access limits' },
+    { key: 'financials', label: 'Financials',       desc: 'Budget and currency configuration' },
+    { key: 'billing',    label: 'Billing',          desc: 'Subscription pricing and discounts' },
+    { key: 'review',     label: 'Review & Save',    desc: 'Confirm and apply your changes' },
+  ]
 
   // Provision wizard
   const PROVISION_STEPS = [
@@ -1439,181 +1449,287 @@ export default function PlatformTenants() {
             )}
 
             {activeTab === 'branding' && (() => {
+              const sym = (c) => CURRENCY_SYMBOLS[c] || c
               const billingFinalAmt = Math.round(
                 (parseFloat(editForm.billing_amount) || 0) *
                 (1 - Math.min(Math.max(parseFloat(editForm.billing_discount_pct) || 0, 0), 100) / 100)
               )
-              const sym = (c) => CURRENCY_SYMBOLS[c] || c
+              const settingsStepIdx = SETTINGS_STEPS.findIndex(s => s.key === settingsStep)
               return (
-                <div className="space-y-10 max-w-3xl">
+                <div className="-m-8 flex" style={{ minHeight: 580 }}>
 
-                  {/* ── Section: Tenant Identity ────────────────────── */}
-                  <div>
-                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 pb-2 border-b border-gray-100">Tenant Identity</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="label">Organization Name <span className="text-red-500">*</span></label>
-                        <input className="input" value={editForm.name || ''} onChange={e => setEditForm({ ...editForm, name: e.target.value })} />
+                  {/* ── Left Sidebar ── */}
+                  <div className="w-56 flex-shrink-0 border-r border-gray-100 bg-gray-50/50 flex flex-col">
+                    <div className="px-5 py-5 border-b border-gray-100">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Settings</p>
+                      <p className="text-base font-bold text-gray-800 mt-0.5 truncate">{selectedTenant?.name}</p>
+                    </div>
+                    <nav className="flex-1 py-3 px-3 space-y-0.5">
+                      {SETTINGS_STEPS.map((s, i) => {
+                        const active = settingsStep === s.key
+                        const done = settingsStepIdx > i
+                        return (
+                          <button
+                            key={s.key}
+                            onClick={() => setSettingsStep(s.key)}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-left transition-all ${
+                              active ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
+                            }`}
+                          >
+                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
+                              active ? 'bg-white/20 text-white' : done ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-400'
+                            }`}>
+                              {done ? '✓' : i + 1}
+                            </span>
+                            <span className="truncate font-medium">{s.label}</span>
+                          </button>
+                        )
+                      })}
+                    </nav>
+                    <div className="px-4 py-4 border-t border-gray-100">
+                      <div className="h-1.5 rounded-full bg-gray-200 overflow-hidden">
+                        <div
+                          className="h-1.5 rounded-full bg-indigo-500 transition-all duration-300"
+                          style={{ width: `${((settingsStepIdx + 1) / SETTINGS_STEPS.length) * 100}%` }}
+                        />
                       </div>
-                      <div>
-                        <label className="label">Primary Contact Email</label>
-                        <input className="input" type="email" value={editForm.primary_contact_email || ''} onChange={e => setEditForm({ ...editForm, primary_contact_email: e.target.value })} />
-                      </div>
-                      <div>
-                        <label className="label">Slug</label>
-                        <input className="input font-mono" value={editForm.slug || ''} readOnly />
-                        <p className="text-xs text-gray-400 mt-1">Read-only after creation.</p>
-                      </div>
-                      <div>
-                        <label className="label">Company Domain</label>
-                        <input className="input" value={editForm.domain || ''} onChange={e => setEditForm({ ...editForm, domain: e.target.value })} placeholder="example.com" />
-                      </div>
+                      <p className="text-[10px] text-gray-400 mt-1.5">{settingsStepIdx + 1} of {SETTINGS_STEPS.length}</p>
                     </div>
                   </div>
 
-                  {/* ── Section: Subscription ────────────────────────── */}
-                  <div>
-                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 pb-2 border-b border-gray-100">Subscription</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="label">Subscription Tier</label>
-                        <select className="input" value={editForm.subscription_tier || 'starter'} onChange={e => setEditForm({ ...editForm, subscription_tier: e.target.value })}>
-                          {tiers.length === 0 ? (
-                            <>
-                              <option value="free">Free</option>
-                              <option value="starter">Starter</option>
-                              <option value="professional">Professional</option>
-                              <option value="enterprise">Enterprise</option>
-                            </>
-                          ) : tiers.map(t => (
-                            <option key={t.tier} value={t.tier}>{t.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="label">Max Users <span className="text-red-500">*</span></label>
-                        <input className="input" type="number" min="1" value={editForm.max_users || 50} onChange={e => setEditForm({ ...editForm, max_users: Number(e.target.value) })} />
-                      </div>
-                      <div>
-                        <label className="label">Subscription End Date</label>
-                        <input className="input" type="date" value={editForm.subscription_ends_at ? editForm.subscription_ends_at.toString().slice(0, 10) : ''} onChange={e => setEditForm({ ...editForm, subscription_ends_at: e.target.value })} />
-                      </div>
-                      <div>
-                        <label className="label">Account Status</label>
-                        <select className="input" value={editForm.status || selectedTenant.status || 'active'} onChange={e => setEditForm({ ...editForm, status: e.target.value })}>
-                          <option value="active">Active</option>
-                          <option value="suspended">Suspended</option>
-                          <option value="maintenance">Maintenance</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
+                  {/* ── Right Content ── */}
+                  <div className="flex-1 flex flex-col min-w-0">
 
-                  {/* ── Section: Financials ───────────────────────────── */}
-                  <div>
-                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 pb-2 border-b border-gray-100">Financials & Currency</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="label">Base Currency (Billing) <span className="text-red-500">*</span></label>
-                        <select className="input" value={editForm.base_currency || 'USD'} onChange={e => setEditForm({ ...editForm, base_currency: e.target.value })}>
-                          {Object.keys(SUPPORTED_CURRENCIES).map(c => <option key={c} value={c}>{c} ({CURRENCY_SYMBOLS[c]})</option>)}
-                        </select>
-                        <p className="text-xs text-gray-400 mt-1">Currency the tenant is invoiced in</p>
-                      </div>
-                      <div>
-                        <label className="label">Display Currency <span className="text-red-500">*</span></label>
-                        <select className="input" value={editForm.display_currency || 'INR'} onChange={e => setEditForm({ ...editForm, display_currency: e.target.value, billing_currency: e.target.value })}>
-                          {Object.keys(SUPPORTED_CURRENCIES).map(c => <option key={c} value={c}>{c} ({CURRENCY_SYMBOLS[c]})</option>)}
-                        </select>
-                        <p className="text-xs text-gray-400 mt-1">Currency shown in the tenant dashboard</p>
-                      </div>
-                      <div>
-                        <label className="label">FX Rate (Base → Display)</label>
-                        <input className="input" type="number" min="0.0001" step="any" value={editForm.fx_rate || 1} onChange={e => setEditForm({ ...editForm, fx_rate: parseFloat(e.target.value) || 1 })} />
-                        <p className="text-xs text-gray-400 mt-1">Leave as 1 if both currencies match. For USD → INR, enter ~83.</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* ── Section: Billing ─────────────────────────────── */}
-                  <div>
-                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 pb-2 border-b border-gray-100">Billing Configuration</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="label">Billing Cycle</label>
-                        <select className="input" value={editForm.billing_cycle || 'monthly'} onChange={e => setEditForm({ ...editForm, billing_cycle: e.target.value })}>
-                          <option value="monthly">Monthly</option>
-                          <option value="quarterly">Quarterly</option>
-                          <option value="annually">Annually</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="label">
-                          Amount / month
-                          <span className="ml-1 font-normal text-gray-400 text-xs normal-case">
-                            ({sym(editForm.billing_currency || editForm.display_currency || 'INR')})
-                          </span>
-                        </label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 select-none">
-                            {sym(editForm.billing_currency || editForm.display_currency || 'INR')}
-                          </span>
-                          <input type="number" className="input pl-8" min="0" step="1"
-                            value={editForm.billing_amount}
-                            onChange={e => setEditForm({ ...editForm, billing_amount: e.target.value })} />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="label">Discount <span className="font-normal text-gray-400">(%)</span></label>
-                        <div className="relative">
-                          <input type="number" className="input pr-8" min="0" max="100" step="0.5"
-                            value={editForm.billing_discount_pct}
-                            onChange={e => setEditForm({ ...editForm, billing_discount_pct: Math.min(100, Math.max(0, Number(e.target.value))) })} />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">%</span>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="label">Billing Contact Email</label>
-                        <input className="input" type="email" value={editForm.billing_contact_email || ''} onChange={e => setEditForm({ ...editForm, billing_contact_email: e.target.value })} placeholder="billing@company.com" />
-                      </div>
+                    {/* Gradient header */}
+                    <div className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 px-6 py-4 flex-shrink-0">
+                      <h3 className="text-base font-semibold text-white">{SETTINGS_STEPS[settingsStepIdx]?.label}</h3>
+                      <p className="text-xs text-indigo-200 mt-0.5">{SETTINGS_STEPS[settingsStepIdx]?.desc}</p>
                     </div>
 
-                    {/* Final amount card */}
-                    {parseFloat(editForm.billing_amount) > 0 && (
-                      <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/60 px-5 py-4 flex items-center justify-between">
-                        <div className="text-sm text-gray-500">
-                          {parseFloat(editForm.billing_discount_pct) > 0 ? (
-                            <>
-                              <span className="line-through text-gray-400 mr-2">
-                                {sym(editForm.billing_currency || 'INR')}{Number(editForm.billing_amount).toLocaleString()}
-                              </span>
-                              <span className="text-green-600 font-semibold">{editForm.billing_discount_pct}% off</span>
-                            </>
-                          ) : (
-                            <span className="text-gray-400">No discount applied</span>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Final / month</span>
-                          <div className="text-2xl font-extrabold text-indigo-700 leading-tight">
-                            {sym(editForm.billing_currency || 'INR')}{billingFinalAmt.toLocaleString()}
+                    {/* Step body */}
+                    <div className="flex-1 overflow-y-auto p-6">
+
+                      {/* ── Step 1: Tenant Setup ── */}
+                      {settingsStep === 'tenant' && (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="label">Organization Name <span className="text-red-500">*</span></label>
+                              <input className="input" value={editForm.name || ''} onChange={e => setEditForm({ ...editForm, name: e.target.value })} />
+                            </div>
+                            <div>
+                              <label className="label">Slug</label>
+                              <input className="input font-mono" value={editForm.slug || ''} readOnly />
+                              <p className="text-xs text-gray-400 mt-1">Read-only after creation.</p>
+                            </div>
+                            <div>
+                              <label className="label">Company Domain</label>
+                              <input className="input" value={editForm.domain || ''} onChange={e => setEditForm({ ...editForm, domain: e.target.value })} placeholder="example.com" />
+                            </div>
+                            <div>
+                              <label className="label">Subscription Tier</label>
+                              <select className="input" value={editForm.subscription_tier || 'starter'} onChange={e => setEditForm({ ...editForm, subscription_tier: e.target.value })}>
+                                {tiers.length === 0 ? (
+                                  <>
+                                    <option value="free">Free</option>
+                                    <option value="starter">Starter</option>
+                                    <option value="professional">Professional</option>
+                                    <option value="enterprise">Enterprise</option>
+                                  </>
+                                ) : tiers.map(t => (
+                                  <option key={t.tier} value={t.tier}>{t.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="label">Max Users <span className="text-red-500">*</span></label>
+                              <input className="input" type="number" min="1" value={editForm.max_users || 50} onChange={e => setEditForm({ ...editForm, max_users: Number(e.target.value) })} />
+                            </div>
+                            <div>
+                              <label className="label">Account Status</label>
+                              <select className="input" value={editForm.status || selectedTenant?.status || 'active'} onChange={e => setEditForm({ ...editForm, status: e.target.value })}>
+                                <option value="active">Active</option>
+                                <option value="suspended">Suspended</option>
+                                <option value="maintenance">Maintenance</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="label">Primary Contact Email</label>
+                              <input className="input" type="email" value={editForm.primary_contact_email || ''} onChange={e => setEditForm({ ...editForm, primary_contact_email: e.target.value })} />
+                            </div>
+                            <div>
+                              <label className="label">Subscription End Date</label>
+                              <input className="input" type="date" value={editForm.subscription_ends_at ? editForm.subscription_ends_at.toString().slice(0, 10) : ''} onChange={e => setEditForm({ ...editForm, subscription_ends_at: e.target.value })} />
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
+                      )}
 
-                  {/* ── Actions ───────────────────────────────────────── */}
-                  <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
-                    <button type="button" onClick={() => setSelectedTenant(null)} className="px-6 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-widest hover:text-gray-700">Discard</button>
-                    <button
-                      type="button"
-                      onClick={handleSaveSettings}
-                      disabled={updateMutation.isPending}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-8 rounded-xl text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 disabled:opacity-50 transition-all"
-                    >
-                      {updateMutation.isPending ? 'Saving…' : 'Save Settings'}
-                    </button>
+                      {/* ── Step 2: Financials ── */}
+                      {settingsStep === 'financials' && (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="label">Base Currency (Billing) <span className="text-red-500">*</span></label>
+                              <select className="input" value={editForm.base_currency || 'USD'} onChange={e => setEditForm({ ...editForm, base_currency: e.target.value })}>
+                                {Object.keys(SUPPORTED_CURRENCIES).map(c => <option key={c} value={c}>{c} ({CURRENCY_SYMBOLS[c]})</option>)}
+                              </select>
+                              <p className="text-xs text-gray-400 mt-1">Currency the tenant is invoiced in</p>
+                            </div>
+                            <div>
+                              <label className="label">Display Currency <span className="text-red-500">*</span></label>
+                              <select className="input" value={editForm.display_currency || 'INR'} onChange={e => setEditForm({ ...editForm, display_currency: e.target.value, billing_currency: e.target.value })}>
+                                {Object.keys(SUPPORTED_CURRENCIES).map(c => <option key={c} value={c}>{c} ({CURRENCY_SYMBOLS[c]})</option>)}
+                              </select>
+                              <p className="text-xs text-gray-400 mt-1">Currency shown in the tenant dashboard</p>
+                            </div>
+                            <div>
+                              <label className="label">FX Rate (Base → Display)</label>
+                              <input className="input" type="number" min="0.0001" step="any" value={editForm.fx_rate || 1} onChange={e => setEditForm({ ...editForm, fx_rate: parseFloat(e.target.value) || 1 })} />
+                              <p className="text-xs text-gray-400 mt-1">Leave as 1 if both currencies match. For USD → INR, enter ~83.</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── Step 3: Billing ── */}
+                      {settingsStep === 'billing' && (
+                        <div className="space-y-5">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="label">Billing Cycle</label>
+                              <select className="input" value={editForm.billing_cycle || 'monthly'} onChange={e => setEditForm({ ...editForm, billing_cycle: e.target.value })}>
+                                <option value="monthly">Monthly</option>
+                                <option value="quarterly">Quarterly</option>
+                                <option value="annually">Annually</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="label">
+                                Amount / month
+                                <span className="ml-1 font-normal text-gray-400 text-xs normal-case">
+                                  ({sym(editForm.billing_currency || editForm.display_currency || 'INR')})
+                                </span>
+                              </label>
+                              <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 select-none">
+                                  {sym(editForm.billing_currency || editForm.display_currency || 'INR')}
+                                </span>
+                                <input type="number" className="input pl-8" min="0" step="1"
+                                  value={editForm.billing_amount}
+                                  onChange={e => setEditForm({ ...editForm, billing_amount: e.target.value })} />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="label">Discount <span className="font-normal text-gray-400">(%)</span></label>
+                              <div className="relative">
+                                <input type="number" className="input pr-8" min="0" max="100" step="0.5"
+                                  value={editForm.billing_discount_pct}
+                                  onChange={e => setEditForm({ ...editForm, billing_discount_pct: Math.min(100, Math.max(0, Number(e.target.value))) })} />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">%</span>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="label">Billing Contact Email</label>
+                              <input className="input" type="email" value={editForm.billing_contact_email || ''} onChange={e => setEditForm({ ...editForm, billing_contact_email: e.target.value })} placeholder="billing@company.com" />
+                            </div>
+                          </div>
+                          <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 px-5 py-4 flex items-center justify-between">
+                            <div className="text-sm text-gray-500">
+                              {parseFloat(editForm.billing_discount_pct) > 0 ? (
+                                <>
+                                  <span className="line-through text-gray-400 mr-2">
+                                    {sym(editForm.billing_currency || 'INR')}{Number(editForm.billing_amount).toLocaleString()}
+                                  </span>
+                                  <span className="text-green-600 font-semibold">{editForm.billing_discount_pct}% off</span>
+                                </>
+                              ) : (
+                                <span className="text-gray-400">No discount applied</span>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Final / month</span>
+                              <div className="text-2xl font-extrabold text-indigo-700 leading-tight">
+                                {sym(editForm.billing_currency || 'INR')}{billingFinalAmt.toLocaleString()}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── Step 4: Review & Save ── */}
+                      {settingsStep === 'review' && (
+                        <div className="space-y-3">
+                          <p className="text-sm text-gray-500">Review your changes before saving. Click a section in the left nav to make edits.</p>
+                          <div className="rounded-xl border border-gray-200 overflow-hidden divide-y divide-gray-100">
+                            {[
+                              { section: 'Tenant Setup', rows: [
+                                ['Organization Name', editForm.name || '—'],
+                                ['Domain', editForm.domain || '—'],
+                                ['Subscription Tier', editForm.subscription_tier || '—'],
+                                ['Max Users', editForm.max_users],
+                                ['Status', editForm.status || selectedTenant?.status || '—'],
+                              ]},
+                              { section: 'Financials', rows: [
+                                ['Base Currency', editForm.base_currency || '—'],
+                                ['Display Currency', editForm.display_currency || '—'],
+                                ['FX Rate', editForm.fx_rate || 1],
+                              ]},
+                              { section: 'Billing', rows: [
+                                ['Billing Cycle', editForm.billing_cycle || 'monthly'],
+                                ['Amount / month', editForm.billing_amount ? `${sym(editForm.billing_currency || 'INR')}${Number(editForm.billing_amount).toLocaleString()}` : '—'],
+                                ['Discount', editForm.billing_discount_pct ? `${editForm.billing_discount_pct}%` : 'None'],
+                                ['Contact Email', editForm.billing_contact_email || '—'],
+                              ]},
+                            ].map(({ section, rows }) => (
+                              <div key={section}>
+                                <div className="px-4 py-2 bg-gray-50">
+                                  <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">{section}</p>
+                                </div>
+                                <div className="divide-y divide-gray-50">
+                                  {rows.map(([label, value]) => (
+                                    <div key={label} className="px-4 py-2.5 flex items-center justify-between text-sm">
+                                      <span className="text-gray-500">{label}</span>
+                                      <span className="font-medium text-gray-800 text-right max-w-[60%] truncate">{String(value)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                    </div>
+
+                    {/* Footer navigation */}
+                    <div className="border-t border-gray-100 px-6 py-4 flex items-center justify-between flex-shrink-0">
+                      <button
+                        onClick={() => {
+                          if (settingsStepIdx === 0) setActiveTab('overview')
+                          else setSettingsStep(SETTINGS_STEPS[settingsStepIdx - 1].key)
+                        }}
+                        className="px-5 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-widest hover:text-gray-700"
+                      >
+                        {settingsStepIdx === 0 ? 'Cancel' : '← Back'}
+                      </button>
+                      {settingsStepIdx < SETTINGS_STEPS.length - 1 ? (
+                        <button
+                          onClick={() => setSettingsStep(SETTINGS_STEPS[settingsStepIdx + 1].key)}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs uppercase tracking-widest flex items-center gap-2"
+                        >
+                          Next <HiOutlineChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleSaveSettings}
+                          disabled={updateMutation.isPending}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-8 rounded-xl text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 disabled:opacity-50 transition-all"
+                        >
+                          {updateMutation.isPending ? 'Saving…' : 'Save Settings'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )
