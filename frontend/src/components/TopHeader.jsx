@@ -216,6 +216,7 @@ export default function TopHeader() {
     queryKey: ['currentTenant'],
     queryFn: () => tenantsAPI.getCurrent(),
     enabled: !isPlatformUser,
+    staleTime: 5 * 60 * 1000,
   })
 
   // Sync fresh feature flags AND currency into tenantContext (onSuccess removed in React Query v5)

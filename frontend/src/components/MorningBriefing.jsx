@@ -21,6 +21,7 @@ export default function MorningBriefing() {
   const { data: tenantData } = useQuery({
     queryKey: ['tenant', user?.tenant_id],
     queryFn: () => tenantsAPI.getCurrent(),
+    staleTime: 5 * 60 * 1000,
     enabled: !!user?.tenant_id && !tenantContext?.display_currency,
   })
 

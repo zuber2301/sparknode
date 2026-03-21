@@ -131,7 +131,7 @@ export const authAPI = {
 
 // Users API
 export const usersAPI = {
-  getAll: (params) => api.get('/users', { params }),
+  getAll: (params) => api.get('/users/', { params }),
   getById: (id) => api.get(`/users/${id}`),
   create: (data) => api.post('/users', data),
   update: (id, data) => api.put(`/users/${id}`, data),
@@ -170,7 +170,7 @@ export const walletsAPI = {
 
 // Budgets API
 export const budgetsAPI = {
-  getAll: (params) => api.get('/budgets', { params }),
+  getAll: (params) => api.get('/budgets/', { params }),
   getById: (id) => api.get(`/budgets/${id}`),
   create: (data) => api.post('/budgets', data),
   update: (id, data) => api.put(`/budgets/${id}`, data),
@@ -203,7 +203,7 @@ export const tmDistributeApi = {
 
 // Recognition API
 export const recognitionAPI = {
-  getAll: (params) => api.get('/recognitions', { params }),
+  getAll: (params) => api.get('/recognitions/', { params }),
   getById: (id) => api.get(`/recognitions/${id}`),
   create: (data) => api.post('/recognitions', data),
   getBadges: () => api.get('/recognitions/badges'),
@@ -248,14 +248,14 @@ export const redemptionAPI = {
 
 // Feed API
 export const feedAPI = {
-  getAll: (params) => api.get('/feed', { params }),
+  getAll: (params) => api.get('/feed/', { params }),
   getMyFeed: (params) => api.get('/feed/my', { params }),
   getDepartmentFeed: (params) => api.get('/feed/department', { params }),
 }
 
 // Notifications API
 export const notificationsAPI = {
-  getAll: (params) => api.get('/notifications', { params }),
+  getAll: (params) => api.get('/notifications/', { params }),
   getCount: () => api.get('/notifications/count'),
   markAsRead: (id) => api.put(`/notifications/${id}/read`),
   markAllAsRead: () => api.put('/notifications/read-all'),
@@ -378,7 +378,7 @@ export const platformAPI = {
 // Events API (New - Multi-tenant Events & Logistics)
 export const eventsAPI = {
   // Events CRUD
-  getAll: (params) => api.get('/events', { params }),
+  getAll: (params) => api.get('/events/', { params }),
   getById: (id) => api.get(`/events/${id}`),
   create: (data) => api.post('/events', data),
   update: (id, data) => api.put(`/events/${id}`, data),

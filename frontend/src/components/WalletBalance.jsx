@@ -11,7 +11,8 @@ export default function WalletBalance({ wallet }) {
   const { data: tenantData } = useQuery({
     queryKey: ['tenant', 'current'],
     queryFn: () => tenantsAPI.getCurrentTenant(),
-    enabled: !tenantContext?.display_currency
+    enabled: !tenantContext?.display_currency,
+    staleTime: 5 * 60 * 1000,
   })
 
   if (!wallet) {

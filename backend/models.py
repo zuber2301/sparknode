@@ -8,6 +8,7 @@ import uuid as _uuid
 # Cross-dialect GUID/UUID type: uses PostgreSQL UUID on Postgres, CHAR(36) elsewhere.
 class GUID(TypeDecorator):
     impl = CHAR
+    cache_ok = True  # type state does not vary per instance; safe to cache
 
     def __init__(self, as_uuid=False, *args, **kwargs):
         self.as_uuid = as_uuid

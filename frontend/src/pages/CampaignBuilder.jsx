@@ -4,12 +4,7 @@ import { campaignAPI, usersAPI } from '../lib/api'
 import { useAuthStore } from '../store/authStore'
 import ProGate from '../components/ProGate'
 import toast from 'react-hot-toast'
-
-const INTEREST_OPTS = [
-  { value: 'high',   label: '🔥 High'   },
-  { value: 'medium', label: '👍 Medium' },
-  { value: 'low',    label: '❄️ Low'    },
-]
+import { HiOutlineX } from 'react-icons/hi'
 
 const STATUS_BADGE = {
   draft:            'bg-gray-100 text-gray-700',
@@ -23,35 +18,27 @@ function fmt(pts) {
   return Number(pts).toLocaleString()
 }
 
-// ── Campaign Builder Wizard ──────────────────────────────────────────────────
+// ── Wizard step definitions ──────────────────────────────────────────────────
 
-function WizardStep1({ data, onChange, onNext, onCancel }) {
-  const [form, setForm] = useState({
-    title: data.title || '',
-    description: data.description || '',
-    venue: data.venue || '',
-    campaign_type: data.campaign_type || 'exhibition',
-  })
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+const CAMPAIGN_STEPS = [
+  { key: 'details', label: 'Campaign Details', desc: 'Name, type and venue'          },
+  { key: 'rewards', label: 'Dates & Rewards',  desc: 'Schedule and point allocation' },
+  { key: 'team',    label: 'Booth Team',        desc: 'Assign reps to this campaign' },
+]
 
-  const handleNext = (e) => {
-    e.preventDefault()
-    if (!form.title.trim()) return toast.error('Title is required')
-    onChange(form)
-    onNext()
-  }
+// ── Field-only step panels (no navigation buttons) ───────────────────────────
 
+function DetailsStep({ form, set }) {
   return (
-    <form onSubmit={handleNext} className="space-y-4">
-      <h3 className="font-semibold text-gray-700">Step 1 — Campaign Details</h3>
-
+    <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Campaign Title *</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Campaign Title <span className="text-red-500">*</span></label>
         <input
           className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
           placeholder="e.g. Tech Expo Booth 2026"
           value={form.title}
           onChange={e => set('title', e.target.value)}
+          autoFocus
         />
       </div>
 
@@ -89,49 +76,20 @@ function WizardStep1({ data, onChange, onNext, onCancel }) {
           </select>
         </div>
       </div>
-
-      <div className="flex justify-between pt-2">
-        <button type="button" onClick={onCancel} className="text-gray-600 text-sm px-4 py-2 border rounded-lg hover:bg-gray-50">
-          Cancel
-        </button>
-        <button type="submit" className="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">
-          Next →
-        </button>
-      </div>
-    </form>
+    </div>
   )
 }
 
-function WizardStep2({ data, onChange, onNext, onBack }) {
-  const [form, setForm] = useState({
-    start_date: data.start_date || '',
-    end_date: data.end_date || '',
-    points_per_lead: data.points_per_lead ?? 50,
-    max_leads_per_rep: data.max_leads_per_rep ?? '',
-    total_budget_requested: data.total_budget_requested || '',
-  })
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-
+function RewardsStep({ form, set }) {
   const ppl = Number(form.points_per_lead) || 0
   const budget = Number(form.total_budget_requested) || 0
   const maxLeads = budget > 0 && ppl > 0 ? Math.floor(budget / ppl) : 0
 
-  const handleNext = (e) => {
-    e.preventDefault()
-    if (!form.start_date || !form.end_date) return toast.error('Dates are required')
-    if (form.points_per_lead < 1) return toast.error('Points per lead must be ≥ 1')
-    if (budget < 1) return toast.error('Budget is required')
-    onChange(form)
-    onNext()
-  }
-
   return (
-    <form onSubmit={handleNext} className="space-y-4">
-      <h3 className="font-semibold text-gray-700">Step 2 — Dates & Rewards</h3>
-
+    <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Start Date & Time *</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Start Date & Time <span className="text-red-500">*</span></label>
           <input
             type="datetime-local"
             className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
@@ -140,7 +98,7 @@ function WizardStep2({ data, onChange, onNext, onBack }) {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">End Date & Time *</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">End Date & Time <span className="text-red-500">*</span></label>
           <input
             type="datetime-local"
             className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
@@ -152,7 +110,7 @@ function WizardStep2({ data, onChange, onNext, onBack }) {
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Points per Lead *</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Points per Lead <span className="text-red-500">*</span></label>
           <input
             type="number"
             min="1"
@@ -175,7 +133,7 @@ function WizardStep2({ data, onChange, onNext, onBack }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Total Budget Requested (pts) *</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Total Budget Requested (pts) <span className="text-red-500">*</span></label>
         <input
           type="number"
           min="1"
@@ -190,22 +148,11 @@ function WizardStep2({ data, onChange, onNext, onBack }) {
           </p>
         )}
       </div>
-
-      <div className="flex justify-between pt-2">
-        <button type="button" onClick={onBack} className="text-gray-600 text-sm px-4 py-2 border rounded-lg hover:bg-gray-50">
-          ← Back
-        </button>
-        <button type="submit" className="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">
-          Next →
-        </button>
-      </div>
-    </form>
+    </div>
   )
 }
 
-function WizardStep3({ data, onChange, onSubmit, onBack, isLoading }) {
-  const [selectedIds, setSelectedIds] = useState(data.participant_ids || [])
-
+function TeamStep({ form, set }) {
   const { data: usersResp } = useQuery({
     queryKey: ['users-for-campaign'],
     queryFn: () => usersAPI.getAll({ limit: 200 }).then(r => r.data),
@@ -213,23 +160,16 @@ function WizardStep3({ data, onChange, onSubmit, onBack, isLoading }) {
   const users = Array.isArray(usersResp) ? usersResp : (usersResp?.users || usersResp?.data || [])
 
   const toggle = (uid) => {
-    setSelectedIds(prev =>
-      prev.includes(uid) ? prev.filter(x => x !== uid) : [...prev, uid]
+    set('participant_ids', form.participant_ids.includes(uid)
+      ? form.participant_ids.filter(x => x !== uid)
+      : [...form.participant_ids, uid]
     )
   }
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    onChange({ participant_ids: selectedIds })
-    onSubmit({ participant_ids: selectedIds })
-  }
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <h3 className="font-semibold text-gray-700">Step 3 — Booth Team</h3>
+    <div className="space-y-3">
       <p className="text-sm text-gray-500">Select the sales/marketing reps who will work this booth. You can add more later.</p>
-
-      <div className="border rounded-lg divide-y max-h-52 overflow-y-auto">
+      <div className="border rounded-lg divide-y max-h-64 overflow-y-auto">
         {users.length === 0 && (
           <p className="p-3 text-sm text-gray-400">Loading users…</p>
         )}
@@ -237,7 +177,7 @@ function WizardStep3({ data, onChange, onSubmit, onBack, isLoading }) {
           <label key={u.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50">
             <input
               type="checkbox"
-              checked={selectedIds.includes(u.id)}
+              checked={form.participant_ids.includes(u.id)}
               onChange={() => toggle(u.id)}
               className="rounded text-indigo-600"
             />
@@ -250,20 +190,7 @@ function WizardStep3({ data, onChange, onSubmit, onBack, isLoading }) {
           </label>
         ))}
       </div>
-
-      <div className="flex justify-between pt-2">
-        <button type="button" onClick={onBack} className="text-gray-600 text-sm px-4 py-2 border rounded-lg hover:bg-gray-50">
-          ← Back
-        </button>
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-60"
-        >
-          {isLoading ? 'Saving…' : 'Create Campaign ✓'}
-        </button>
-      </div>
-    </form>
+    </div>
   )
 }
 
@@ -274,8 +201,15 @@ export default function CampaignBuilder() {
   const qc = useQueryClient()
 
   const [showWizard, setShowWizard] = useState(false)
-  const [step, setStep] = useState(1)
-  const [wizardData, setWizardData] = useState({})
+  const [stepKey, setStepKey] = useState('details')
+  const [form, setForm] = useState({
+    title: '', description: '', venue: '', campaign_type: 'exhibition',
+    start_date: '', end_date: '', points_per_lead: 50, max_leads_per_rep: '',
+    total_budget_requested: '', participant_ids: [],
+  })
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const stepIdx = CAMPAIGN_STEPS.findIndex(s => s.key === stepKey)
 
   const { data: campaigns = [], isLoading } = useQuery({
     queryKey: ['campaigns'],
@@ -284,11 +218,9 @@ export default function CampaignBuilder() {
 
   const createMutation = useMutation({
     mutationFn: (payload) => campaignAPI.create(payload).then(r => r.data),
-    onSuccess: (created) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['campaigns'] })
       setShowWizard(false)
-      setStep(1)
-      setWizardData({})
       toast.success('Campaign created! Submit it for approval when ready.')
     },
     onError: (err) => toast.error(err.response?.data?.detail || 'Failed to create'),
@@ -300,24 +232,41 @@ export default function CampaignBuilder() {
     onError: (err) => toast.error(err.response?.data?.detail || 'Failed to submit'),
   })
 
-  const mergeData = (partial) => setWizardData(prev => ({ ...prev, ...partial }))
+  const openWizard = () => {
+    setForm({ title:'', description:'', venue:'', campaign_type:'exhibition', start_date:'', end_date:'', points_per_lead:50, max_leads_per_rep:'', total_budget_requested:'', participant_ids:[] })
+    setStepKey('details')
+    setShowWizard(true)
+  }
 
-  const finalCreate = (step3Data) => {
-    mergeData(step3Data)
-    const d = { ...wizardData, ...step3Data }
-    const payload = {
-      title: d.title,
-      description: d.description || null,
-      venue: d.venue || null,
-      campaign_type: d.campaign_type || 'exhibition',
-      start_date: d.start_date ? new Date(d.start_date).toISOString() : null,
-      end_date: d.end_date ? new Date(d.end_date).toISOString() : null,
-      points_per_lead: Number(d.points_per_lead),
-      max_leads_per_rep: d.max_leads_per_rep ? Number(d.max_leads_per_rep) : null,
-      total_budget_requested: Number(d.total_budget_requested),
-      participant_ids: d.participant_ids || [],
+  const handleNext = () => {
+    if (stepKey === 'details') {
+      if (!form.title.trim()) return toast.error('Title is required')
+      setStepKey('rewards')
+    } else if (stepKey === 'rewards') {
+      if (!form.start_date || !form.end_date) return toast.error('Dates are required')
+      if (Number(form.points_per_lead) < 1) return toast.error('Points per lead must be ≥ 1')
+      if (Number(form.total_budget_requested) < 1) return toast.error('Budget is required')
+      setStepKey('team')
+    } else {
+      const payload = {
+        title: form.title,
+        description: form.description || null,
+        venue: form.venue || null,
+        campaign_type: form.campaign_type || 'exhibition',
+        start_date: form.start_date ? new Date(form.start_date).toISOString() : null,
+        end_date: form.end_date ? new Date(form.end_date).toISOString() : null,
+        points_per_lead: Number(form.points_per_lead),
+        max_leads_per_rep: form.max_leads_per_rep ? Number(form.max_leads_per_rep) : null,
+        total_budget_requested: Number(form.total_budget_requested),
+        participant_ids: form.participant_ids || [],
+      }
+      createMutation.mutate(payload)
     }
-    createMutation.mutate(payload)
+  }
+
+  const handleBack = () => {
+    if (stepIdx === 0) setShowWizard(false)
+    else setStepKey(CAMPAIGN_STEPS[stepIdx - 1].key)
   }
 
   const canManage = ['tenant_manager', 'platform_admin'].includes(user?.org_role)
@@ -333,7 +282,7 @@ export default function CampaignBuilder() {
         </div>
         {canManage && (
           <button
-            onClick={() => { setShowWizard(true); setStep(1); setWizardData({}) }}
+            onClick={openWizard}
             className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2"
           >
             + New Campaign
@@ -343,23 +292,84 @@ export default function CampaignBuilder() {
 
       {/* Wizard Modal */}
       {showWizard && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
-            {/* Step indicator */}
-            <div className="flex items-center gap-2 mb-5">
-              {[1,2,3].map(n => (
-                <div key={n} className={`flex-1 h-1.5 rounded-full transition-colors ${n <= step ? 'bg-indigo-600' : 'bg-gray-200'}`} />
-              ))}
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] flex shadow-2xl overflow-hidden">
+
+            {/* ── Left Nav ── */}
+            <div className="w-52 bg-gray-50 border-r border-gray-200 flex flex-col flex-shrink-0">
+              <div className="px-5 pt-5 pb-3">
+                <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">Campaigns</p>
+                <h2 className="text-sm font-bold text-gray-900 leading-tight mt-0.5">New Campaign</h2>
+              </div>
+              <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto">
+                {CAMPAIGN_STEPS.map((s, i) => {
+                  const active = stepKey === s.key
+                  const done = i < stepIdx
+                  return (
+                    <button
+                      key={s.key}
+                      onClick={() => i <= stepIdx && setStepKey(s.key)}
+                      className={`w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-2.5 text-sm transition-all ${
+                        active ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
+                      }`}
+                    >
+                      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
+                        active ? 'bg-white/20 text-white' : done ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-400'
+                      }`}>
+                        {done ? '✓' : i + 1}
+                      </span>
+                      <span className="truncate font-medium">{s.label}</span>
+                    </button>
+                  )
+                })}
+              </nav>
+              <div className="px-4 py-4 border-t border-gray-200">
+                <div className="h-1.5 rounded-full bg-gray-200 overflow-hidden">
+                  <div
+                    className="h-1.5 rounded-full bg-indigo-500 transition-all duration-300"
+                    style={{ width: `${((stepIdx + 1) / CAMPAIGN_STEPS.length) * 100}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1.5">{stepIdx + 1} of {CAMPAIGN_STEPS.length}</p>
+              </div>
             </div>
 
-            {step === 1 && <WizardStep1 data={wizardData} onChange={mergeData} onNext={() => setStep(2)} onCancel={() => setShowWizard(false)} />}
-            {step === 2 && <WizardStep2 data={wizardData} onChange={mergeData} onNext={() => setStep(3)} onBack={() => setStep(1)} />}
-            {step === 3 && <WizardStep3 data={wizardData} onChange={mergeData} onSubmit={finalCreate} onBack={() => setStep(2)} isLoading={createMutation.isPending} />}
+            {/* ── Right Content ── */}
+            <div className="flex-1 flex flex-col min-w-0">
+              {/* Step header */}
+              <div className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 px-6 py-4 flex items-center justify-between flex-shrink-0">
+                <div>
+                  <h3 className="text-base font-semibold text-white">{CAMPAIGN_STEPS[stepIdx]?.label}</h3>
+                  <p className="text-xs text-indigo-200 mt-0.5">{CAMPAIGN_STEPS[stepIdx]?.desc}</p>
+                </div>
+                <button onClick={() => setShowWizard(false)} className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+                  <HiOutlineX className="w-5 h-5" />
+                </button>
+              </div>
 
-            <button
-              onClick={() => setShowWizard(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-xl"
-            >×</button>
+              {/* Step body */}
+              <div className="flex-1 overflow-y-auto p-6">
+                {stepKey === 'details' && <DetailsStep form={form} set={set} />}
+                {stepKey === 'rewards' && <RewardsStep form={form} set={set} />}
+                {stepKey === 'team'    && <TeamStep    form={form} set={set} />}
+              </div>
+
+              {/* Footer navigation */}
+              <div className="flex justify-between px-6 py-4 border-t border-gray-100 flex-shrink-0">
+                <button onClick={handleBack} className="text-gray-600 text-sm px-4 py-2 border rounded-lg hover:bg-gray-50">
+                  {stepIdx === 0 ? 'Cancel' : '← Back'}
+                </button>
+                <button
+                  onClick={handleNext}
+                  disabled={stepIdx === CAMPAIGN_STEPS.length - 1 && createMutation.isPending}
+                  className="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-60"
+                >
+                  {stepIdx === CAMPAIGN_STEPS.length - 1
+                    ? (createMutation.isPending ? 'Saving…' : 'Create Campaign ✓')
+                    : 'Next →'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

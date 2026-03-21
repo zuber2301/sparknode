@@ -13,6 +13,9 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
+      // Data is considered fresh for 2 minutes — prevents redundant refetches
+      // on every component mount / page navigation.
+      staleTime: 2 * 60 * 1000,
     },
   },
 })
