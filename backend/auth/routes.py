@@ -30,7 +30,7 @@ from auth.schemas import (
 )
 from auth.utils import verify_password, create_access_token, get_current_user, validate_otp_contact, require_tenant_manager_or_platform
 from auth.onboarding import resolve_tenant, validate_tenant_for_onboarding, generate_invitation_token
-from models import User, Tenant, OtpToken, InvitationToken, Department, Wallet, TenantMembership
+from models import User, Tenant, OtpToken, InvitationToken, Department, Wallet, TenantMembership, AuditLog, ActorType
 from core.security import generate_verification_code, hash_token, verify_token_hash
 from core.notifications import send_email_otp, send_sms_otp, NotificationError
 from uuid import UUID
@@ -656,8 +656,7 @@ async def request_email_otp(
     payload: EmailOtpRequest,
     db: Session = Depends(get_db)
 ):
-    """Request an email OTP.  Creates a minimal user account if email is new
-    within the given tenant (OTP-as-signup flow)."""
+    """Legacy OTP request — kept for backwards-compat.  Prefer /email-otp/request."""
     user, _ = _find_or_create_otp_user(db, payload.email, payload.tenant_id)
     code = generate_verification_code()
     try:
@@ -682,8 +681,7 @@ async def verify_email_otp(
     payload: EmailOtpVerify,
     db: Session = Depends(get_db)
 ):
-    """Verify an email OTP.  Returns a full JWT + user — combines sign-in and
-    sign-up into a single verify step so the client needs only one call."""
+    """Legacy OTP verify — kept for backwards-compat.  Prefer /email-otp/verify."""
     user, is_new_user = _find_or_create_otp_user(db, payload.email, payload.tenant_id)
     otp_token = db.query(OtpToken).filter(
         OtpToken.user_id == user.id,
@@ -698,6 +696,280 @@ async def verify_email_otp(
 
     otp_token.used_at = datetime.utcnow()
     db.commit()
+    return _build_login_response(db, user, is_new_user)
+
+
+# =====================================================
+# NEW UNIFIED PASSWORDLESS OTP FLOW
+# POST /auth/email-otp/request   — send code (login + signup)
+# POST /auth/email-otp/verify    — verify code → JWT
+# =====================================================
+
+def _get_tenant_from_request(request: Request, db: Session) -> Tenant:
+    """Resolve the tenant from the X-Tenant-Slug middleware header or
+    X-Tenant-ID header, whichever is available.  Raises 400 if neither."""
+    # Middleware injects x-tenant-slug from subdomain; frontend may also send
+    # X-Tenant-ID as a fallback (resolved via /auth/tenant-resolve).
+    tenant_slug = request.headers.get("x-tenant-slug")
+    tenant_id_raw = request.headers.get("x-tenant-id")
+
+    if tenant_slug:
+        tenant = db.query(Tenant).filter(
+            Tenant.slug == tenant_slug.lower().strip(),
+            Tenant.status == "active",
+        ).first()
+        if tenant:
+            return tenant
+
+    if tenant_id_raw:
+        try:
+            tid = UUID(tenant_id_raw)
+        except ValueError:
+            pass
+        else:
+            tenant = db.query(Tenant).filter(
+                Tenant.id == tid,
+                Tenant.status == "active",
+            ).first()
+            if tenant:
+                return tenant
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Could not determine your organisation. Access this page via your organisation's URL (e.g. yourcompany.sparknode.io).",
+    )
+
+
+def _auto_assign_role(tenant_id: UUID, db: Session) -> str:
+    """Return 'tenant_manager' for the very first member of a tenant
+    (so they can complete onboarding), otherwise 'tenant_user'."""
+    existing = db.query(TenantMembership).filter(
+        TenantMembership.tenant_id == tenant_id
+    ).count()
+    return "tenant_manager" if existing == 0 else "tenant_user"
+
+
+@router.post("/email-otp/request")
+async def request_email_otp_v2(
+    payload: EmailOtpRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Unified passwordless OTP request (login + signup in one call).
+
+    Rate-limited: 3 requests / 60 s per IP.
+    Always responds {"status": "otp_sent"} regardless of whether the email
+    is already registered — prevents user-enumeration attacks.
+    """
+    from core.rate_limit import check_rate_limit
+    from models import EmailOtpToken
+
+    client_ip = request.client.host if request.client else "unknown"
+    check_rate_limit(f"otp:req:{client_ip}", limit=3, window=60)
+
+    tenant = _get_tenant_from_request(request, db)
+    email = payload.email.lower().strip()
+
+    # Expire any existing pending tokens for this email+tenant
+    db.query(EmailOtpToken).filter(
+        EmailOtpToken.email == email,
+        EmailOtpToken.tenant_id == tenant.id,
+        EmailOtpToken.status == "pending",
+    ).update({"status": "expired"}, synchronize_session=False)
+
+    # Generate a fresh 6-digit code
+    import random
+    code = f"{random.SystemRandom().randint(0, 999999):06d}"
+    token = EmailOtpToken(
+        email=email,
+        tenant_id=tenant.id,
+        otp_code=code,
+        status="pending",
+        expires_at=datetime.utcnow() + timedelta(minutes=5),
+        attempts_left=5,
+    )
+    db.add(token)
+    db.commit()
+
+    # Fire-and-forget email — wrap in try so a mail error won't expose the code
+    try:
+        await send_email_otp(
+            email,
+            code,
+            tenant_name=tenant.name,
+            tenant_slug=tenant.slug or "",
+        )
+    except Exception as exc:
+        # In dev/staging SMTP may not be configured — log but still succeed
+        import logging
+        logging.getLogger(__name__).warning("OTP email not sent: %s", exc)
+
+    # Audit: record attempt (no user yet — use system actor)
+    try:
+        AuditLog(
+            tenant_id=tenant.id,
+            actor_id=None,
+            actor_type=ActorType.SYSTEM,
+            action="otp_requested",
+            entity_type="email_otp_token",
+            entity_id=token.id,
+            new_values={"email": email},
+            ip_address=client_ip,
+        )
+        # We don't flush here — fire-and-forget with its own add
+        db.add(AuditLog(
+            tenant_id=tenant.id,
+            actor_id=None,
+            actor_type=ActorType.SYSTEM,
+            action="otp_requested",
+            entity_type="email_otp_token",
+            entity_id=token.id,
+            new_values={"email": email},
+            ip_address=client_ip,
+        ))
+        db.commit()
+    except Exception:
+        pass  # audit failure must never break auth
+
+    return {"status": "otp_sent"}
+
+
+@router.post("/email-otp/verify", response_model=OtpLoginResponse)
+async def verify_email_otp_v2(
+    payload: EmailOtpVerify,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Verify OTP and issue JWT.  Auto-creates the user if they don't exist yet.
+
+    Rate-limited: 10 verify attempts / 60 s per IP.
+    Brute-force is also constrained by attempts_left on the token itself (5 max).
+    """
+    from core.rate_limit import check_rate_limit
+    from models import EmailOtpToken
+
+    client_ip = request.client.host if request.client else "unknown"
+    check_rate_limit(f"otp:ver:{client_ip}", limit=10, window=60)
+
+    tenant = _get_tenant_from_request(request, db)
+    email = payload.email.lower().strip()
+
+    # ── Fetch latest pending token ───────────────────────────────────────────
+    token = (
+        db.query(EmailOtpToken)
+        .filter(
+            EmailOtpToken.email == email,
+            EmailOtpToken.tenant_id == tenant.id,
+            EmailOtpToken.status == "pending",
+            EmailOtpToken.expires_at > datetime.utcnow(),
+        )
+        .order_by(EmailOtpToken.created_at.desc())
+        .first()
+    )
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No active code found. Please request a new one.",
+        )
+
+    # ── Brute-force guard ────────────────────────────────────────────────────
+    if token.attempts_left <= 0:
+        token.status = "expired"
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Too many incorrect attempts. Please request a new code.",
+        )
+
+    if token.otp_code != payload.code:
+        token.attempts_left -= 1
+        db.commit()
+        remaining = token.attempts_left
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Incorrect code. {remaining} attempt{'s' if remaining != 1 else ''} remaining.",
+        )
+
+    # ── OTP valid ────────────────────────────────────────────────────────────
+    token.status = "used"
+    db.commit()
+
+    # ── Find or create user ──────────────────────────────────────────────────
+    user = db.query(User).filter(
+        User.corporate_email == email,
+        User.tenant_id == tenant.id,
+    ).first()
+
+    is_new_user = False
+    if not user:
+        is_new_user = True
+        # Resolve department (FK required on User)
+        default_dept = db.query(Department).filter(
+            Department.tenant_id == tenant.id
+        ).first()
+        if not default_dept:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Organisation has no departments configured. Contact your administrator.",
+            )
+
+        # Smart role: first member becomes tenant_manager for onboarding
+        auto_role = _auto_assign_role(tenant.id, db)
+
+        from auth.utils import get_password_hash
+        import secrets as _secrets
+        user = User(
+            tenant_id=tenant.id,
+            corporate_email=email,
+            password_hash=get_password_hash(_secrets.token_urlsafe(32)),
+            first_name=email.split("@")[0].title(),
+            last_name="",
+            org_role=auto_role,
+            department_id=default_dept.id,
+            status="ACTIVE",
+            onboarding_completed=False,
+        )
+        db.add(user)
+        db.flush()
+
+        db.add(Wallet(tenant_id=tenant.id, user_id=user.id, balance=0))
+
+    # ── Ensure TenantMembership exists ───────────────────────────────────────
+    membership = db.query(TenantMembership).filter(
+        TenantMembership.user_id == user.id,
+        TenantMembership.tenant_id == tenant.id,
+    ).first()
+
+    if not membership:
+        role_for_member = _auto_assign_role(tenant.id, db) if is_new_user else "EMPLOYEE"
+        membership = TenantMembership(
+            tenant_id=tenant.id,
+            user_id=user.id,
+            role=role_for_member,
+            is_primary=True,
+        )
+        db.add(membership)
+
+    db.commit()
+    db.refresh(user)
+
+    # ── Audit: OTP verified + user resolved ──────────────────────────────────
+    try:
+        db.add(AuditLog(
+            tenant_id=tenant.id,
+            actor_id=user.id,
+            actor_type=ActorType.USER,
+            action="otp_verified" if not is_new_user else "otp_signup",
+            entity_type="user",
+            entity_id=user.id,
+            new_values={"email": email, "is_new_user": is_new_user},
+            ip_address=client_ip,
+        ))
+        db.commit()
+    except Exception:
+        pass
+
     return _build_login_response(db, user, is_new_user)
 
 

@@ -407,6 +407,35 @@ class OtpToken(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class EmailOtpToken(Base):
+    """Token for the unified passwordless email-OTP flow.
+
+    Scoped to (email, tenant_id) so the same email can have independent
+    active OTPs across different tenants (e.g. a consultant in two orgs).
+    Stores the raw code rather than a hash — code is 6 digits, short-lived
+    (5 min), and single-use, so plaintext is acceptable and avoids the cost
+    of bcrypt on every verify request.
+    """
+    __tablename__ = "email_otp_tokens"
+
+    id            = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email         = Column(String(255), nullable=False, index=True)
+    tenant_id     = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    otp_code      = Column(String(6), nullable=False)
+    # 'pending' → 'used' | 'expired'
+    status        = Column(String(10), nullable=False, default="pending")
+    expires_at    = Column(DateTime(timezone=True), nullable=False)
+    attempts_left = Column(Integer, nullable=False, default=5)
+    created_at    = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        __import__('sqlalchemy').Index(
+            'ix_email_otp_tokens_email_tenant_pending',
+            'email', 'tenant_id', 'status',
+        ),
+    )
+
+
 class TenantMembership(Base):
     """Many-to-many user ↔ tenant membership with role.  Primary tenant_id is
     still on User for backward compatibility; this table enables multi-tenant

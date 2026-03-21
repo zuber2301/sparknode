@@ -119,9 +119,11 @@ export const authAPI = {
   refreshToken: () => api.post('/auth/refresh'),
   // Subdomain → tenant_id public lookup (no auth required)
   resolveTenantSlug: (slug) => api.get('/auth/tenant-resolve', { params: { slug }, skipTenant: true }),
-  // OTP login/signup (find-or-create flow)
-  requestEmailOtp: (email, tenant_id) => api.post('/auth/otp/email/request', { email, tenant_id }, { skipTenant: true }),
-  verifyEmailOtp: (email, code, tenant_id) => api.post('/auth/otp/email/verify', { email, code, tenant_id }, { skipTenant: true }),
+  // Unified passwordless OTP — tenant resolved server-side from subdomain header.
+  // The X-Tenant-ID header is injected by the request interceptor when tenantId is in the store.
+  requestEmailOtp: (email) => api.post('/auth/email-otp/request', { email }, { skipTenant: true }),
+  verifyEmailOtp: (email, code) => api.post('/auth/email-otp/verify', { email, code }, { skipTenant: true }),
+  // SMS OTP (unchanged — uses old path)
   requestSmsOtp: (mobile_number, tenant_id) => api.post('/auth/otp/sms/request', { mobile_number, tenant_id }, { skipTenant: true }),
   verifySmsOtp: (mobile_number, code, tenant_id) => api.post('/auth/otp/sms/verify', { mobile_number, code, tenant_id }, { skipTenant: true }),
   generateInvitationLink: (email, expires_hours) => api.post('/auth/invitations/generate', { email, expires_hours }),

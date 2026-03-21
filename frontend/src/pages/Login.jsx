@@ -59,7 +59,8 @@ export default function Login() {
 
   // ── Request OTP mutation ──────────────────────────────────────────────────
   const requestOtpMutation = useMutation({
-    mutationFn: () => authAPI.requestEmailOtp(email.trim().toLowerCase(), tenantId),
+    // tenant is resolved server-side from the X-Tenant-Slug / X-Tenant-ID header
+    mutationFn: () => authAPI.requestEmailOtp(email.trim().toLowerCase()),
     onSuccess: () => {
       setStep('otp')
       setOtp('')
@@ -74,7 +75,7 @@ export default function Login() {
 
   // ── Verify OTP mutation ───────────────────────────────────────────────────
   const verifyOtpMutation = useMutation({
-    mutationFn: () => authAPI.verifyEmailOtp(email.trim().toLowerCase(), otp.trim(), tenantId),
+    mutationFn: () => authAPI.verifyEmailOtp(email.trim().toLowerCase(), otp.trim()),
     onSuccess: ({ data }) => {
       const { access_token, user, is_new_user } = data
       setAuth(user, access_token)
