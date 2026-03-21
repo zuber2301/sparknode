@@ -22,6 +22,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    # Give postgres 30 s to flush WAL and checkpoint on graceful shutdown.
+    # Without this Docker kills it with SIGKILL after the default 10 s,
+    # forcing WAL recovery on next start (adds startup latency and risks
+    # losing the most recent committed transactions in crash scenarios).
+    stop_grace_period: 30s
     networks:
       - app-network
 
@@ -106,12 +111,21 @@ services:
       TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER:-}
       CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+      # Celery workers are not responsible for schema migrations.
+      # The backend container (or the bootstrap script one-shot) owns alembic.
+      SKIP_ALEMBIC: "1"
     depends_on:
       - redis
       - postgres
     networks:
       - app-network
     command: celery -A core.celery_app.celery_app worker --loglevel=info
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A core.celery_app.celery_app inspect ping -d celery@$$HOSTNAME --timeout 5 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   frontend:
     image: zuber2301/sparknode-app-frontend:latest

@@ -36,10 +36,13 @@ services:
   # watchdog (already in requirements.txt via celery[watchdog]) monitors
   # .py files under /app and restarts the worker when they change.
   # This means task code changes are reflected without a manual restart.
+  # SKIP_ALEMBIC=1: migrations are the backend's responsibility, not celery's.
   celery:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    environment:
+      SKIP_ALEMBIC: "1"
     command: >
       watchmedo auto-restart
         --directory=/app

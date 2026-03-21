@@ -50,8 +50,19 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      useAuthStore.getState().logout()
-      window.location.href = '/login'
+      // Do NOT force-logout when the 401 comes from the login/OTP endpoints
+      // themselves — a wrong password legitimately returns 401, and redirecting
+      // to /login from the login page creates a confusing reload loop.
+      const requestUrl = error.config?.url || ''
+      const isAuthEndpoint =
+        requestUrl.includes('/auth/login') ||
+        requestUrl.includes('/auth/otp/') ||
+        requestUrl.includes('/auth/signup') ||
+        requestUrl.includes('/auth/token')
+      if (!isAuthEndpoint) {
+        useAuthStore.getState().logout()
+        window.location.href = '/login'
+      }
     }
     // Handle tenant access errors
     if (error.response?.status === 403 && error.response?.data?.detail?.includes('tenant')) {

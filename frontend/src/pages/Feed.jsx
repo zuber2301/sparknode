@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { feedAPI } from '../lib/api'
 import FeedCard from '../components/FeedCard'
 import RecognitionModal from '../components/RecognitionModal'
-import { HiOutlineRefresh, HiOutlineUsers, HiOutlineStar } from 'react-icons/hi'
+import { HiOutlineRefresh, HiOutlineStar } from 'react-icons/hi'
 
 const TABS = [
   { id: 'all',        label: 'All' },
@@ -111,18 +111,24 @@ export default function Feed() {
           ))}
         </div>
       ) : (
-        <div className="card text-center py-8 sm:py-12">
-          <HiOutlineUsers className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-          <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">
-            {activeTab === 'all' ? 'No activity yet' : 'Nothing here yet'}
+        <div className="card text-center py-10 sm:py-16">
+          <div className="text-6xl mb-5">
+            {activeTab === 'all' ? '🤝' : activeTab === 'recognition' ? '🏆' : activeTab === 'ecard' ? '💌' : activeTab === 'birthday' ? '🎂' : activeTab === 'anniversary' ? '🎉' : '🎯'}
+          </div>
+          <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-2">
+            {activeTab === 'all' ? 'The feed is quiet for now' : 'Nothing here yet'}
           </h3>
-          <p className="text-sm text-gray-500 mb-4">
+          <p className="text-sm text-gray-400 max-w-xs mx-auto mb-6">
             {activeTab === 'all'
-              ? 'Be the first to recognize a colleague!'
-              : `No ${TABS.find(t => t.id === activeTab)?.label} posts yet.`}
+              ? 'Be the first to recognize a colleague and get the celebration started!'
+              : `No ${TABS.find(t => t.id === activeTab)?.label} posts yet. Check back soon.`}
           </p>
           {activeTab === 'all' && (
-            <button onClick={() => setShowRecognitionModal(true)} className="btn-primary">
+            <button
+              onClick={() => setShowRecognitionModal(true)}
+              className="btn-primary inline-flex items-center gap-2"
+            >
+              <HiOutlineStar className="w-4 h-4" />
               Send First Recognition
             </button>
           )}
