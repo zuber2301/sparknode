@@ -323,6 +323,7 @@ class User(Base):
     status = Column(String(50), default='ACTIVE')
     is_super_admin = Column(Boolean, default=False)
     invitation_sent_at = Column(DateTime(timezone=True))
+    onboarding_completed = Column(Boolean, default=False)  # True after user finishes onboarding wizard
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -403,6 +404,27 @@ class OtpToken(Base):
     expires_at = Column(DateTime(timezone=True), nullable=False)
     used_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class TenantMembership(Base):
+    """Many-to-many user ↔ tenant membership with role.  Primary tenant_id is
+    still on User for backward compatibility; this table enables multi-tenant
+    membership and explicit role tracking per tenant."""
+    __tablename__ = "tenant_memberships"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    role = Column(String(50), default="EMPLOYEE")  # EMPLOYEE, MANAGER, ADMIN …
+    joined_at = Column(DateTime(timezone=True), server_default=func.now())
+    is_primary = Column(Boolean, default=True)  # Primary tenant for this user
+
+    __table_args__ = (
+        __import__('sqlalchemy').UniqueConstraint('tenant_id', 'user_id', name='uq_tenant_memberships'),
+    )
+
+    tenant = relationship("Tenant")
+    user = relationship("User")
 
 
 class UserUploadStaging(Base):

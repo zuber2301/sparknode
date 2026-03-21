@@ -6,6 +6,31 @@ import { useAuthStore } from '../store/authStore'
 // set `VITE_API_URL` to an absolute URL if needed (e.g. http://localhost:7100).
 const API_URL = import.meta.env.VITE_API_URL || ''
 
+// ── Subdomain detection ───────────────────────────────────────────────────────
+// Reads the subdomain from the current hostname.
+// e.g. 'unimind.sparknode.io' → 'unimind'
+// Falls back to null on the root domain, localhost, or IP.
+export function detectSubdomain() {
+  const host = window.location.hostname.toLowerCase()
+  const roots = ['sparknode.io', 'lvh.me']
+  for (const root of roots) {
+    if (host.endsWith('.' + root)) {
+      const sub = host.slice(0, -(root.length + 1))
+      if (sub && !sub.includes('.') && !['www', 'app', 'api'].includes(sub)) {
+        return sub
+      }
+    }
+  }
+  // Local dev: allow VITE_TENANT_SLUG env to simulate a subdomain
+  return import.meta.env.VITE_TENANT_SLUG || null
+}
+
+export const currentSubdomain = detectSubdomain()
+
+// Resolved tenant info cache (populated by resolveTenantSlug on app start)
+export let resolvedTenant = null
+export function setResolvedTenant(t) { resolvedTenant = t }
+
 const api = axios.create({
   baseURL: `${API_URL}/api`,
   headers: {
@@ -58,7 +83,9 @@ api.interceptors.response.use(
         requestUrl.includes('/auth/login') ||
         requestUrl.includes('/auth/otp/') ||
         requestUrl.includes('/auth/signup') ||
-        requestUrl.includes('/auth/token')
+        requestUrl.includes('/auth/token') ||
+        requestUrl.includes('/auth/tenant-resolve') ||
+        requestUrl.includes('/auth/me/context')
       if (!isAuthEndpoint) {
         useAuthStore.getState().logout()
         window.location.href = '/login'
@@ -86,12 +113,17 @@ export const authAPI = {
       invitation_token 
     }, { skipTenant: true }),
   me: () => api.get('/auth/me'),
+  meContext: () => api.get('/auth/me/context'),
+  completeOnboarding: () => api.post('/auth/me/complete-onboarding'),
   logout: () => api.post('/auth/logout'),
   refreshToken: () => api.post('/auth/refresh'),
-  requestEmailOtp: (email, tenant_id) => api.post('/auth/otp/email/request', { email, tenant_id }),
-  verifyEmailOtp: (email, code, tenant_id) => api.post('/auth/otp/email/verify', { email, code, tenant_id }),
-  requestSmsOtp: (mobile_number, tenant_id) => api.post('/auth/otp/sms/request', { mobile_number, tenant_id }),
-  verifySmsOtp: (mobile_number, code, tenant_id) => api.post('/auth/otp/sms/verify', { mobile_number, code, tenant_id }),
+  // Subdomain → tenant_id public lookup (no auth required)
+  resolveTenantSlug: (slug) => api.get('/auth/tenant-resolve', { params: { slug }, skipTenant: true }),
+  // OTP login/signup (find-or-create flow)
+  requestEmailOtp: (email, tenant_id) => api.post('/auth/otp/email/request', { email, tenant_id }, { skipTenant: true }),
+  verifyEmailOtp: (email, code, tenant_id) => api.post('/auth/otp/email/verify', { email, code, tenant_id }, { skipTenant: true }),
+  requestSmsOtp: (mobile_number, tenant_id) => api.post('/auth/otp/sms/request', { mobile_number, tenant_id }, { skipTenant: true }),
+  verifySmsOtp: (mobile_number, code, tenant_id) => api.post('/auth/otp/sms/verify', { mobile_number, code, tenant_id }, { skipTenant: true }),
   generateInvitationLink: (email, expires_hours) => api.post('/auth/invitations/generate', { email, expires_hours }),
   getRoles: () => api.get('/auth/roles'),
   switchRole: (role) => api.post('/auth/switch-role', { role }),

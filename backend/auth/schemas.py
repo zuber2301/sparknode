@@ -110,6 +110,24 @@ class OtpResponse(BaseModel):
     success: bool
     message: str
 
+
+class OtpLoginResponse(BaseModel):
+    """Returned by /otp/email/verify and /otp/sms/verify when the OTP is valid.
+    Contains a JWT so the client is fully authenticated in one round-trip."""
+    access_token: str
+    token_type: str
+    user: UserResponse
+    is_new_user: bool = False  # True when the account was just created via OTP
+
+
+class TenantResolveResponse(BaseModel):
+    """Public response for subdomain → tenant lookup."""
+    tenant_id: UUID
+    tenant_name: str
+    slug: str
+    subscription_tier: Optional[str] = None
+    logo_url: Optional[str] = None
+
 class SignupRequest(BaseModel):
     """
     User self-registration request with tenant resolution.
@@ -169,4 +187,5 @@ class SwitchRoleResponse(BaseModel):
     expires_at: datetime
     join_url: str  # Full URL for the join link
     tenant_id: UUID
+    tenant_name: Optional[str] = None
     tenant_name: str

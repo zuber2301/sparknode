@@ -296,24 +296,50 @@ def require_same_tenant(resource_tenant_id: UUID):
 
 class TenantMiddleware:
     """
-    Middleware that establishes tenant context from the authenticated user.
-    
-    This middleware:
-    1. Extracts tenant_id from the JWT token
-    2. Creates a TenantContext for the request
-    3. Clears the context after request completion
+    Middleware that:
+    1. Extracts subdomain from the Host header (e.g. 'unimind' from
+       'unimind.sparknode.io') and stores it as X-Tenant-Slug on the request
+       scope so downstream code can read it without re-parsing.
+    2. Ensures tenant context is cleared after each request (authoritative
+       context is set by the get_current_user dependency, not here, so we
+       only handle cleanup and slug injection).
     """
-    
+
+    # Hosts that are NOT tenant subdomains
+    _PLATFORM_HOSTS = {"sparknode.io", "www.sparknode.io", "localhost", "app.sparknode.io"}
+
     def __init__(self, app):
         self.app = app
-    
+
     async def __call__(self, scope, receive, send):
         if scope["type"] == "http":
-            # Context is established via the get_current_user dependency
-            # This middleware just ensures cleanup
+            # ── Subdomain extraction ─────────────────────────────────────────
+            headers = dict(scope.get("headers", []))
+            host_bytes = headers.get(b"host", b"")
+            host = host_bytes.decode("latin-1").split(":")[0].lower()  # strip port
+
+            # Strip known root domains to get the subdomain part
+            slug = None
+            for root in ("sparknode.io", "lvh.me", "localhost"):
+                if host.endswith("." + root):
+                    subdomain = host[: -(len(root) + 1)]
+                    # Ignore multi-level prefixes like 'www' or 'app'
+                    if subdomain and "." not in subdomain and subdomain not in ("www", "app", "api"):
+                        slug = subdomain
+                    break
+
+            if slug:
+                # Inject as a pseudo-header so route handlers can read it via
+                # Request.headers["x-tenant-slug"] without another DB call.
+                scope.setdefault("_tenant_slug", slug)
+                new_headers = list(scope.get("headers", []))
+                new_headers.append((b"x-tenant-slug", slug.encode()))
+                scope["headers"] = new_headers
+
             try:
                 await self.app(scope, receive, send)
             finally:
                 clear_tenant_context()
         else:
             await self.app(scope, receive, send)
+

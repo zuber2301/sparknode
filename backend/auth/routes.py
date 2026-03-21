@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import timedelta, datetime
@@ -18,6 +18,8 @@ from auth.schemas import (
     SmsOtpRequest,
     SmsOtpVerify,
     OtpResponse,
+    OtpLoginResponse,
+    TenantResolveResponse,
     SignupRequest,
     SignupResponse,
     InvitationLinkRequest,
@@ -28,7 +30,7 @@ from auth.schemas import (
 )
 from auth.utils import verify_password, create_access_token, get_current_user, validate_otp_contact, require_tenant_manager_or_platform
 from auth.onboarding import resolve_tenant, validate_tenant_for_onboarding, generate_invitation_token
-from models import User, Tenant, OtpToken, InvitationToken, Department, Wallet
+from models import User, Tenant, OtpToken, InvitationToken, Department, Wallet, TenantMembership
 from core.security import generate_verification_code, hash_token, verify_token_hash
 from core.notifications import send_email_otp, send_sms_otp, NotificationError
 from uuid import UUID
@@ -527,17 +529,142 @@ async def switch_role(
         tenant_id=current_user.tenant_id,
         tenant_name=tenant_name or "",
     )
+
+
+# =====================================================
+# EMAIL OTP — FIND-OR-CREATE SIGNUP/LOGIN
+# =====================================================
+
+def _find_or_create_otp_user(db: Session, email: str, tenant_id) -> tuple:
+    """
+    Look up user by email (+ optional tenant_id).  If not found and a valid
+    tenant_id is supplied, create a minimal stub account so new employees can
+    sign up via OTP without a separate registration step.
+
+    Returns (user, is_new_user).
+    """
+    email = email.lower().strip()
+    query = db.query(User).filter(User.corporate_email == email)
+    if tenant_id:
+        query = query.filter(User.tenant_id == tenant_id)
+    user = query.first()
+    if user:
+        return user, False
+
+    # ── Create new user ──────────────────────────────────────────────────────
+    if not tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No account found for this email. Please specify your organisation or request an invitation."
+        )
+
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    if not tenant or tenant.status != 'active':
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organisation not found or inactive."
+        )
+
+    # Resolve a default department (required FK)
+    default_dept = db.query(Department).filter(Department.tenant_id == tenant_id).first()
+    if not default_dept:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Organisation has no departments configured. Contact your administrator."
+        )
+
+    from auth.utils import get_password_hash
+    import secrets
+    user = User(
+        tenant_id=tenant_id,
+        corporate_email=email,
+        password_hash=get_password_hash(secrets.token_urlsafe(32)),  # random, unusable
+        first_name=email.split('@')[0],
+        last_name='',
+        org_role='tenant_user',
+        department_id=default_dept.id,
+        status='ACTIVE',
+        onboarding_completed=False,
+    )
+    db.add(user)
+    db.flush()
+
+    wallet = Wallet(tenant_id=tenant_id, user_id=user.id, balance=0)
+    db.add(wallet)
+
+    # Record formal membership
+    membership = TenantMembership(
+        tenant_id=tenant_id,
+        user_id=user.id,
+        role='EMPLOYEE',
+        is_primary=True,
+    )
+    db.add(membership)
+    db.commit()
+    db.refresh(user)
+    return user, True
+
+
+def _build_login_response(db: Session, user: User, is_new_user: bool) -> OtpLoginResponse:
+    """Construct an OtpLoginResponse with a fresh JWT for the given user."""
+    tenant = db.query(Tenant).filter(Tenant.id == user.tenant_id).first()
+    user_roles_config = get_user_roles(user.org_role)
+    roles_str = user.roles or user_roles_config['roles']
+    default_role = user.default_role or user_roles_config['default_role']
+
+    access_token = create_access_token(
+        data={
+            "sub": str(user.id),
+            "tenant_id": str(user.tenant_id),
+            "email": user.corporate_email,
+            "org_role": default_role,
+            "roles": roles_str,
+            "default_role": default_role,
+            "type": "tenant",
+        },
+        expires_delta=timedelta(minutes=settings.access_token_expire_minutes),
+    )
+
+    return OtpLoginResponse(
+        access_token=access_token,
+        token_type="bearer",
+        is_new_user=is_new_user,
+        user=UserResponse(
+            id=user.id,
+            tenant_id=user.tenant_id,
+            tenant_name=tenant.name if tenant else None,
+            corporate_email=user.corporate_email,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            org_role=user.org_role,
+            roles=roles_str,
+            default_role=default_role,
+            mobile_number=user.mobile_number,
+            department_id=user.department_id,
+            status=user.status,
+            created_at=user.created_at,
+            is_platform_admin=user.is_platform_admin,
+            tenant_flags=tenant.feature_flags if tenant else {},
+            display_currency=tenant.display_currency if tenant else 'USD',
+            base_currency=tenant.base_currency if tenant else 'USD',
+        ),
+    )
+
+
+@router.post("/otp/email/request", response_model=OtpResponse)
 async def request_email_otp(
     payload: EmailOtpRequest,
     db: Session = Depends(get_db)
 ):
-    user = validate_otp_contact(db, email=payload.email, tenant_id=payload.tenant_id)
+    """Request an email OTP.  Creates a minimal user account if email is new
+    within the given tenant (OTP-as-signup flow)."""
+    user, _ = _find_or_create_otp_user(db, payload.email, payload.tenant_id)
     code = generate_verification_code()
     try:
         await send_email_otp(payload.email, code)
     except NotificationError as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
-    token = OtpToken(
+    otp_token = OtpToken(
         tenant_id=user.tenant_id,
         user_id=user.id,
         channel="email",
@@ -545,18 +672,20 @@ async def request_email_otp(
         token_hash=hash_token(code),
         expires_at=datetime.utcnow() + timedelta(minutes=10)
     )
-    db.add(token)
+    db.add(otp_token)
     db.commit()
     return OtpResponse(success=True, message="OTP sent to email")
 
 
-@router.post("/otp/email/verify", response_model=OtpResponse)
+@router.post("/otp/email/verify", response_model=OtpLoginResponse)
 async def verify_email_otp(
     payload: EmailOtpVerify,
     db: Session = Depends(get_db)
 ):
-    user = validate_otp_contact(db, email=payload.email, tenant_id=payload.tenant_id)
-    token = db.query(OtpToken).filter(
+    """Verify an email OTP.  Returns a full JWT + user — combines sign-in and
+    sign-up into a single verify step so the client needs only one call."""
+    user, is_new_user = _find_or_create_otp_user(db, payload.email, payload.tenant_id)
+    otp_token = db.query(OtpToken).filter(
         OtpToken.user_id == user.id,
         OtpToken.channel == "email",
         OtpToken.destination == payload.email,
@@ -564,15 +693,100 @@ async def verify_email_otp(
         OtpToken.expires_at > datetime.utcnow()
     ).order_by(OtpToken.created_at.desc()).first()
 
-    if not token or not verify_token_hash(payload.code, token.token_hash):
+    if not otp_token or not verify_token_hash(payload.code, otp_token.token_hash):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired OTP")
 
-    token.used_at = datetime.utcnow()
+    otp_token.used_at = datetime.utcnow()
     db.commit()
-    return OtpResponse(success=True, message="OTP verified")
+    return _build_login_response(db, user, is_new_user)
 
 
-@router.post("/otp/sms/request", response_model=OtpResponse)
+# =====================================================
+# PUBLIC: RESOLVE TENANT BY SUBDOMAIN / SLUG
+# =====================================================
+
+@router.get("/tenant-resolve", response_model=TenantResolveResponse)
+async def resolve_tenant_by_slug(
+    slug: str,
+    db: Session = Depends(get_db)
+):
+    """Public endpoint — frontend calls this on page load to resolve the
+    subdomain (e.g. 'unimind') to a tenant_id before the user logs in."""
+    tenant = db.query(Tenant).filter(
+        Tenant.slug == slug.lower().strip(),
+        Tenant.status == 'active',
+    ).first()
+    if not tenant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No active organisation found for slug '{slug}'"
+        )
+    return TenantResolveResponse(
+        tenant_id=tenant.id,
+        tenant_name=tenant.name,
+        slug=tenant.slug,
+        subscription_tier=tenant.subscription_tier,
+        logo_url=getattr(tenant, 'logo_url', None),
+    )
+
+
+# =====================================================
+# /ME/CONTEXT — RICH CONTEXT FOR POST-LOGIN BOOTSTRAP
+# =====================================================
+
+@router.get("/me/context")
+async def get_me_context(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Return full user + tenant context for the frontend bootstrap.
+    Includes onboarding state so the client can redirect appropriately."""
+    tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
+    user_roles_config = get_user_roles(current_user.org_role)
+    roles_str = current_user.roles or user_roles_config['roles']
+    default_role = current_user.default_role or user_roles_config['default_role']
+
+    return {
+        "user": {
+            "id": str(current_user.id),
+            "tenant_id": str(current_user.tenant_id),
+            "email": current_user.corporate_email,
+            "first_name": current_user.first_name,
+            "last_name": current_user.last_name,
+            "org_role": current_user.org_role,
+            "roles": roles_str,
+            "default_role": default_role,
+            "avatar_url": current_user.avatar_url,
+            "status": current_user.status,
+            "onboarding_completed": bool(current_user.onboarding_completed),
+            "is_platform_admin": current_user.is_platform_admin,
+        },
+        "tenant": {
+            "id": str(tenant.id) if tenant else None,
+            "name": tenant.name if tenant else None,
+            "slug": tenant.slug if tenant else None,
+            "subscription_tier": tenant.subscription_tier if tenant else None,
+            "feature_flags": tenant.feature_flags if tenant else {},
+            "display_currency": tenant.display_currency if tenant else "USD",
+            "base_currency": tenant.base_currency if tenant else "USD",
+        } if tenant else None,
+        "onboarding_required": not bool(current_user.onboarding_completed),
+        "redirect": "/onboarding" if not bool(current_user.onboarding_completed) else "/dashboard",
+    }
+
+
+@router.post("/me/complete-onboarding")
+async def complete_onboarding(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Mark the current user's onboarding as complete."""
+    current_user.onboarding_completed = True
+    db.commit()
+    return {"success": True}
+
+
+
 async def request_sms_otp(
     payload: SmsOtpRequest,
     db: Session = Depends(get_db)

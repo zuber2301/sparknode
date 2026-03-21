@@ -51,6 +51,7 @@ import Gateway from './pages/Gateway'
 import Pricing from './pages/Pricing'
 import EngagementDashboard from './pages/EngagementDashboard'
 import GrowthEventRegistrationPage from './pages/GrowthEventRegistrationPage'
+import Onboarding from './pages/Onboarding'
 import { ExperienceProvider } from './context/ExperienceContext'
 import { useParams } from 'react-router-dom'
 
@@ -135,6 +136,7 @@ function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/onboarding" element={<PrivateRoute><Onboarding /></PrivateRoute>} />
       <Route path="/pricing" element={<Pricing />} />
       <Route path="/e/:slug" element={<GrowthEventRegistrationPage />} />
       <Route path="/" element={
