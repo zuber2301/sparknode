@@ -356,9 +356,15 @@ async def get_direct_reports(
 
 @router.get("/bulk/template")
 async def download_bulk_template():
-    headers = "Full Name,Email,org_role,Department,Manager Email,Mobile Number,Personal Email,Date of Birth,Hire Date\n"
+    csv_content = (
+        "First Name,Last Name,Work Email,org_role,Department,Manager Email,Mobile Number,Personal Email,Date of Birth,Hire Date\n"
+        # --- sample rows: one per org_role ---
+        "Sarah,Johnson,sarah.johnson@company.com,tenant_manager,Engineering,,+919876543210,sarah.personal@gmail.com,1985-06-15,2020-01-10\n"
+        "David,Kim,david.kim@company.com,dept_lead,Engineering,sarah.johnson@company.com,+919876543211,david.personal@gmail.com,1990-03-22,2021-04-01\n"
+        "Priya,Sharma,priya.sharma@company.com,tenant_user,Engineering,david.kim@company.com,+919876543212,priya.personal@gmail.com,1995-11-08,2023-07-15\n"
+    )
     return Response(
-        content=headers,
+        content=csv_content,
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=sparknode_user_template.csv"}
     )
@@ -388,17 +394,29 @@ async def upload_bulk_users(
         valid_rows = 0
         
         for _, row in df.iterrows():
-            raw_email = str(row.get('email', '')).strip()
+            raw_email = str(row.get('work_email', row.get('email', ''))).strip()
+            # Support both split first/last columns and legacy "Full Name"
+            raw_first = str(row.get('first_name', '')).strip()
+            raw_last = str(row.get('last_name', '')).strip()
             raw_full_name = str(row.get('full_name', row.get('name', ''))).strip()
+            if not raw_first and raw_full_name:
+                parts = raw_full_name.split(' ', 1)
+                raw_first = parts[0]
+                raw_last = parts[1] if len(parts) > 1 else ''
+            combined_full_name = f"{raw_first} {raw_last}".strip() or raw_full_name
             raw_dept = str(row.get('department', '')).strip()
-            raw_role = str(row.get('org_role', row.get('role', 'corporate_user'))).strip()
+            raw_role = str(row.get('org_role', row.get('role', 'tenant_user'))).strip()
             raw_manager = str(row.get('manager_email', '')).strip()
             raw_mobile = str(row.get('mobile_number', row.get('mobile', row.get('phone', '')))).strip()
             personal_email = str(row.get('personal_email', '')).strip()
+            dob_raw = str(row.get('date_of_birth', row.get('dob', ''))).strip()
+            hire_raw = str(row.get('hire_date', '')).strip()
+            dob = dob_raw if dob_raw and dob_raw.lower() != 'nan' else None
+            hire_date = hire_raw if hire_raw and hire_raw.lower() != 'nan' else None
             
             validation = validate_staging_row(
                 db, current_user.tenant_id, raw_email, raw_dept, raw_role, raw_manager,
-                full_name=raw_full_name, mobile_number=raw_mobile
+                full_name=combined_full_name, mobile_number=raw_mobile
             )
             
             if validation["is_valid"]:
@@ -407,13 +425,17 @@ async def upload_bulk_users(
             staging = UserUploadStaging(
                 tenant_id=current_user.tenant_id,
                 batch_id=batch_id,
-                raw_full_name=raw_full_name,
+                raw_full_name=combined_full_name,
                 raw_email=raw_email,
                 raw_department=raw_dept,
                 raw_role=raw_role,
                 raw_mobile_phone=validation["cleaned_mobile"],
                 manager_email=raw_manager,
                 personal_email=personal_email,
+                first_name=raw_first,
+                last_name=raw_last,
+                date_of_birth=dob,
+                hire_date=hire_date,
                 department_id=validation["department_id"],
                 is_valid=validation["is_valid"],
                 validation_errors=validation["errors"],
@@ -477,21 +499,38 @@ async def confirm_bulk_upload(
     
     for row in rows:
         temp_pwd = generate_random_password()
-        # Parse first/last name from raw_full_name
-        name_parts = row.raw_full_name.split(' ', 1)
-        f_name = name_parts[0]
-        l_name = name_parts[1] if len(name_parts) > 1 else ""
-        
+        # Prefer stored first/last; fall back to splitting raw_full_name
+        f_name = row.first_name or ""
+        l_name = row.last_name or ""
+        if not f_name and row.raw_full_name:
+            name_parts = row.raw_full_name.split(' ', 1)
+            f_name = name_parts[0]
+            l_name = name_parts[1] if len(name_parts) > 1 else ""
+
+        # Parse date fields stored as strings
+        from datetime import date as date_type
+        def _parse_date(s):
+            if not s:
+                return None
+            for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%d-%m-%Y'):
+                try:
+                    return datetime.strptime(s, fmt).date()
+                except ValueError:
+                    pass
+            return None
+
         user = User(
             tenant_id=current_user.tenant_id,
             corporate_email=row.raw_email,
-            personal_email=row.personal_email,
+            personal_email=row.personal_email or None,
             password_hash=get_password_hash(temp_pwd),
             first_name=f_name,
             last_name=l_name,
-            org_role=row.raw_role or "corporate_user",
+            org_role=row.raw_role or "tenant_user",
             department_id=row.department_id,
-            mobile_number=row.raw_mobile_phone,
+            mobile_number=row.raw_mobile_phone or None,
+            date_of_birth=_parse_date(row.date_of_birth),
+            hire_date=_parse_date(row.hire_date),
             status="PENDING_INVITE"
         )
         db.add(user)
