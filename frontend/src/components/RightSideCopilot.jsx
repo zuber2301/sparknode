@@ -45,7 +45,8 @@ export default function RightSideCopilot() {
     queryKey: ['currentTenant'],
     queryFn: () => tenantsAPI.getCurrent(),
     enabled: !isPlatformAdmin,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchOnMount: true,
   })
 
   // Sync fresh feature flags into tenantContext (onSuccess removed in React Query v5)

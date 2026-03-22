@@ -750,10 +750,10 @@ export default function PlatformTenants() {
   })
 
   const toggleFeatureMutation = useMutation({
-    mutationFn: async ({ tenantId, key, value }) => {
+    mutationFn: async ({ tenantId, key, value, additionalKeys = {} }) => {
       const resp = await platformAPI.getFeatureFlags(tenantId)
       const existing = resp.data ? resp.data.feature_flags || {} : resp.feature_flags || {}
-      const updated = { ...(existing || {}), [key]: value }
+      const updated = { ...(existing || {}), [key]: value, ...additionalKeys }
       return platformAPI.updateFeatureFlags(tenantId, { feature_flags: updated })
     },
     onSuccess: () => {
@@ -1750,7 +1750,7 @@ export default function PlatformTenants() {
                         <p className="text-sm font-medium text-gray-800">AI Copilot (Sparky)</p>
                         <p className="text-xs text-gray-400">ai_copilot</p>
                       </div>
-                      <input type="checkbox" checked={!!editForm.feature_flags?.ai_copilot} onChange={(e) => setEditForm({ ...editForm, feature_flags: { ...editForm.feature_flags, ai_copilot: e.target.checked } })} />
+                      <input type="checkbox" checked={!!editForm.feature_flags?.ai_copilot} onChange={(e) => setEditForm({ ...editForm, feature_flags: { ...editForm.feature_flags, ai_copilot: e.target.checked, ai_module_enabled: e.target.checked } })} />
                     </div>
                     <div className="flex items-center justify-between p-3 bg-violet-50 border border-violet-100 rounded-lg">
                       <div>
@@ -1949,7 +1949,7 @@ export default function PlatformTenants() {
                                 const currentFlagsResp = await platformAPI.getFeatureFlags(tenant.id)
                                 const current = currentFlagsResp.data ? currentFlagsResp.data.feature_flags || {} : currentFlagsResp.feature_flags || {}
                                 const newVal = !Boolean(current.ai_copilot || current.ai_module_enabled)
-                                toggleFeatureMutation.mutate({ tenantId: tenant.id, key: 'ai_copilot', value: newVal })
+                                toggleFeatureMutation.mutate({ tenantId: tenant.id, key: 'ai_copilot', value: newVal, additionalKeys: { ai_module_enabled: newVal } })
                               } catch (e) {
                                 toast.error('Failed to toggle SNPilot')
                               }
