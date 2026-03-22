@@ -383,15 +383,22 @@ async def get_available_experiences(
     tier = (tenant.subscription_tier or 'core') if tenant else 'core'
 
     experiences = ['engagement']
-    sales_enabled = (
+    sales_enabled = bool(
         flags.get('sales_marketing')
         or flags.get('sales_marketing_enabled')
         or flags.get('sales_marketting_enabled')  # tolerate historical typo
     )
-    if tier in ('pro', 'enterprise') or sales_enabled:
+    ignite_access = tier in ('pro', 'enterprise') or sales_enabled
+    if ignite_access:
         experiences.append('growth')
 
-    return {"experiences": experiences, "active_tier": tier}
+    return {
+        "experiences": experiences,
+        "active_tier": tier,
+        # Explicit module-access flags consumed by the Launchpad gateway
+        "spark_access": True,          # engagement is always enabled
+        "ignite_access": ignite_access,
+    }
 
 
 @router.post("/impersonate/{tenant_id}")

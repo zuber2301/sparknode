@@ -139,6 +139,16 @@ function App() {
       <Route path="/onboarding" element={<PrivateRoute><Onboarding /></PrivateRoute>} />
       <Route path="/pricing" element={<Pricing />} />
       <Route path="/e/:slug" element={<GrowthEventRegistrationPage />} />
+
+      {/* Standalone Launchpad — full-screen, no Layout chrome */}
+      <Route path="/gateway" element={
+        <PrivateRoute>
+          <ExperienceProvider>
+            <Gateway />
+          </ExperienceProvider>
+        </PrivateRoute>
+      } />
+
       <Route path="/" element={
         <PrivateRoute>
           <ExperienceProvider>
@@ -147,7 +157,6 @@ function App() {
         </PrivateRoute>
       }>
         <Route index element={<Navigate to="/dashboard" />} />
-        <Route path="gateway" element={<PrivateRoute><Gateway /></PrivateRoute>} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="admin-dashboard" element={<AdminDashboard />} />
         <Route path="feed" element={

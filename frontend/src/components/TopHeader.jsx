@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import PersonaSwitcher from './PersonaSwitcher'
+import { useExperience } from '../context/ExperienceContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { notificationsAPI, platformAPI, tenantsAPI, authAPI } from '../lib/api'
 import toast from 'react-hot-toast'
@@ -135,6 +136,20 @@ const tenantLeadNavigation = [
   { name: 'Analytics & Reports', href: '/analytics', icon: HiOutlineChartBar },
 ]
 
+// IgniteNode navigation — shown when the user is in the growth/sales module
+const igniteManagerNavigation = [
+  { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar },
+  { name: 'Campaigns', href: '/campaigns', icon: HiOutlineBriefcase },
+  { name: 'Escrow', href: '/campaigns/escrow', icon: HiOutlineClipboardList },
+  { name: 'Analytics', href: '/analytics', icon: HiOutlineTrendingUp },
+]
+
+const igniteLeadNavigation = [
+  { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar },
+  { name: 'Campaigns', href: '/campaigns', icon: HiOutlineBriefcase },
+  { name: 'Analytics', href: '/analytics', icon: HiOutlineTrendingUp },
+]
+
 // Regular user navigation — limited to core actions only
 const userNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
@@ -172,6 +187,7 @@ export default function TopHeader() {
     getCurrentRole,
   } = useAuthStore()
   const { canGiveRecognition, canManageBudgets, canApproveTeamRecognitions, canViewAnalytics } = useAuthStore()
+  const { isGrowth } = useExperience()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -392,19 +408,53 @@ export default function TopHeader() {
                 <HiOutlineMenu className="w-6 h-6" />
               )}
             </button>
-            <NavLink to="/dashboard" className="flex items-center gap-2 hover:opacity-75 transition-opacity">
-              <div className="w-8 h-8 bg-gradient-to-r from-sparknode-purple to-sparknode-blue rounded-lg flex items-center justify-center flex-shrink-0">
-                <span className="text-white font-bold text-sm">SN</span>
+            <NavLink
+              to={isGrowth ? '/sales-events' : '/dashboard'}
+              className="flex items-center gap-2 hover:opacity-75 transition-opacity"
+            >
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                isGrowth
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-600'
+                  : 'bg-gradient-to-r from-sparknode-purple to-sparknode-blue'
+              }`}>
+                <span className="text-white font-bold text-sm">{isGrowth ? 'IN' : 'SN'}</span>
               </div>
-              <span className="hidden sm:inline text-xl font-bold bg-gradient-to-r from-sparknode-purple to-sparknode-blue bg-clip-text text-transparent">
-                SparkNode
+              <span className={`hidden sm:inline text-xl font-bold bg-gradient-to-r bg-clip-text text-transparent ${
+                isGrowth
+                  ? 'from-orange-500 to-amber-600'
+                  : 'from-sparknode-purple to-sparknode-blue'
+              }`}>
+                {isGrowth ? 'IgniteNode' : 'SparkNode'}
               </span>
             </NavLink>
           </div>
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-1 flex-1 justify-end">
-            {effectiveRole === 'platform_admin' ? (
+            {/* IgniteNode mode — show sales-focused nav for non-platform users */}
+            {isGrowth && !isPlatformUser ? (
+              <>
+                {(effectiveRole === 'tenant_manager'
+                  ? igniteManagerNavigation
+                  : igniteLeadNavigation
+                ).map((item) => (
+                  <NavLink
+                    key={item.name}
+                    to={item.href}
+                    className={({ isActive }) =>
+                      `flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all ${
+                        isActive
+                          ? 'bg-orange-500 text-white font-semibold shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-orange-50 font-medium'
+                      }`
+                    }
+                  >
+                    <item.icon className="w-4 h-4 flex-shrink-0" />
+                    {item.name}
+                  </NavLink>
+                ))}
+              </>
+            ) : effectiveRole === 'platform_admin' ? (
               <>
                 {/* Platform Admin: Custom navigation with Controls dropdown */}
                 {platformAdminNavigation.map((item) => {
@@ -758,7 +808,26 @@ export default function TopHeader() {
       {/* Mobile Navigation Menu */}
       {mobileNavOpen && (
         <div className="lg:hidden border-t border-gray-200 bg-gray-50 px-4 sm:px-6 py-4 space-y-2 max-h-96 overflow-y-auto">
-          {effectiveRole === 'platform_admin' ? (
+          {/* IgniteNode mobile nav */}
+          {isGrowth && !isPlatformUser ? (
+            <>
+              {(effectiveRole === 'tenant_manager' ? igniteManagerNavigation : igniteLeadNavigation).map((item) => (
+                <NavLink
+                  key={item.name}
+                  to={item.href}
+                  onClick={() => setMobileNavOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isActive ? 'bg-orange-500 text-white' : 'text-gray-700 hover:bg-orange-50'
+                    }`
+                  }
+                >
+                  <item.icon className="w-4 h-4" />
+                  {item.name}
+                </NavLink>
+              ))}
+            </>
+          ) : effectiveRole === 'platform_admin' ? (
             <>
               {/* Platform Admin mobile nav */}
               {platformAdminNavigation.map((item) => {

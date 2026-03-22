@@ -54,6 +54,20 @@ export default function Login() {
   const redirectAfterLogin = (user, isNewUser = false) => {
     if (user?.org_role === 'platform_admin') return navigate('/tenants')
     if (isNewUser || user?.onboarding_completed === false) return navigate('/onboarding')
+
+    // Detect IgniteNode (sales) module from the tenant flags embedded in the
+    // login response. Managers and sales roles see the Launchpad; regular
+    // employees always land directly in SparkNode.
+    const flags = user?.tenant_flags || {}
+    const igniteAccess = !!(
+      flags.sales_marketing ||
+      flags.sales_marketing_enabled ||
+      flags.sales_marketting_enabled
+    )
+    const role = user?.org_role || user?.default_role
+    const showLaunchpad = igniteAccess && role !== 'tenant_user'
+
+    if (showLaunchpad) return navigate('/gateway')
     navigate('/dashboard')
   }
 

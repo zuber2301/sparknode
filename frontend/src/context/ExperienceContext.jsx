@@ -34,19 +34,19 @@ const ExperienceContext = createContext(null)
 
 export const EXPERIENCE_META = {
   engagement: {
-    label: 'Employee Engagement',
-    shortLabel: 'Engagement',
+    label: 'SparkNode',
+    shortLabel: 'SparkNode',
     icon: '🎯',
     color: 'purple',
-    description: 'Recognition, rewards & culture tools for your team',
+    description: 'Culture & Rewards — recognition, events, gifting',
     href: '/dashboard',
   },
   growth: {
-    label: 'Growth Events',
-    shortLabel: 'Growth',
-    icon: '🚀',
-    color: 'blue',
-    description: 'Sales campaigns, leads & event ROI tracking',
+    label: 'IgniteNode',
+    shortLabel: 'IgniteNode',
+    icon: '🔥',
+    color: 'orange',
+    description: 'Sales & Growth — campaigns, leads, ROI tracking',
     href: '/sales-events',
   },
 }
@@ -139,6 +139,13 @@ export function ExperienceProvider({ children }) {
     [activeExperience]
   )
 
+  // ── Module access helpers ────────────────────────────────────────────────
+  // spark_access is always true; ignite_access requires tenant-level flag/tier
+  const igniteAccess = availableExperiences.includes('growth')
+  const sparkAccess = true
+  // hasBothModules drives the Launchpad gateway visibility
+  const hasBothModules = igniteAccess
+
   // ── Context value (memoized — only changes when something actually changes) ─
   const value = useMemo(
     () => ({
@@ -151,8 +158,13 @@ export function ExperienceProvider({ children }) {
       isGrowth: activeExperience === 'growth',
       experiencePath,
       experienceMeta: EXPERIENCE_META,
+      // Module access
+      sparkAccess,
+      igniteAccess,
+      hasBothModules,
     }),
-    [activeExperience, setExperience, availableExperiences, isProUser, activeTier, experiencePath]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeExperience, setExperience, availableExperiences, isProUser, activeTier, experiencePath, igniteAccess]
   )
 
   return (
