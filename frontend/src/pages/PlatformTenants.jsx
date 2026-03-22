@@ -1737,42 +1737,67 @@ export default function PlatformTenants() {
 
             {activeTab === 'features' && (
               <div className="space-y-6 max-w-3xl">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                    <div>
-                      <p className="text-sm font-medium">AI Copilot (Sparky)</p>
-                    </div>
-                    <input type="checkbox" checked={!!editForm.feature_flags?.ai_copilot} onChange={(e) => setEditForm({ ...editForm, feature_flags: { ...editForm.feature_flags, ai_copilot: e.target.checked } })} />
+
+                {/* ── SparkNode EEP ──────────────────────────────────────── */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-base">🎯</span>
+                    <p className="text-xs font-bold text-violet-600 uppercase tracking-widest">SparkNode — Employee Engagement Platform (EEP)</p>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                    <div>
-                      <p className="text-sm font-medium">Sales & Marketing (Sales Events)</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="flex items-center justify-between p-3 bg-violet-50 border border-violet-100 rounded-lg">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">AI Copilot (Sparky)</p>
+                        <p className="text-xs text-gray-400">ai_copilot</p>
+                      </div>
+                      <input type="checkbox" checked={!!editForm.feature_flags?.ai_copilot} onChange={(e) => setEditForm({ ...editForm, feature_flags: { ...editForm.feature_flags, ai_copilot: e.target.checked } })} />
                     </div>
-                    <input type="checkbox" checked={!!editForm.feature_flags?.sales_marketing || !!editForm.feature_flags?.sales_marketting_enabled} onChange={(e) => setEditForm({ ...editForm, feature_flags: { ...editForm.feature_flags, sales_marketing: e.target.checked } })} />
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                    <div>
-                      <p className="text-sm font-medium">Tango Card Marketplace</p>
+                    <div className="flex items-center justify-between p-3 bg-violet-50 border border-violet-100 rounded-lg">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">Tango Card Marketplace</p>
+                        <p className="text-xs text-gray-400">tango_card</p>
+                      </div>
+                      <input type="checkbox" checked={!!editForm.feature_flags?.tango_card} onChange={(e) => setEditForm({ ...editForm, feature_flags: { ...editForm.feature_flags, tango_card: e.target.checked } })} />
                     </div>
-                    <input type="checkbox" checked={!!editForm.feature_flags?.tango_card} onChange={(e) => setEditForm({ ...editForm, feature_flags: { ...editForm.feature_flags, tango_card: e.target.checked } })} />
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                    <div>
-                      <p className="text-sm font-medium">Peer-to-Peer Recognition</p>
+                    <div className="flex items-center justify-between p-3 bg-violet-50 border border-violet-100 rounded-lg">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">Peer-to-Peer Recognition</p>
+                        <p className="text-xs text-gray-400">peer_to_peer_recognition</p>
+                      </div>
+                      <input type="checkbox" checked={!!editForm.feature_flags?.peer_to_peer_recognition} onChange={(e) => setEditForm({ ...editForm, feature_flags: { ...editForm.feature_flags, peer_to_peer_recognition: e.target.checked } })} />
                     </div>
-                    <input type="checkbox" checked={!!editForm.feature_flags?.peer_to_peer_recognition} onChange={(e) => setEditForm({ ...editForm, feature_flags: { ...editForm.feature_flags, peer_to_peer_recognition: e.target.checked } })} />
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                    <div>
-                      <p className="text-sm font-medium">Social Activity Feed</p>
+                    <div className="flex items-center justify-between p-3 bg-violet-50 border border-violet-100 rounded-lg">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">Social Activity Feed</p>
+                        <p className="text-xs text-gray-400">social_feed_enabled</p>
+                      </div>
+                      <input type="checkbox" checked={!!editForm.feature_flags?.social_feed_enabled} onChange={(e) => setEditForm({ ...editForm, feature_flags: { ...editForm.feature_flags, social_feed_enabled: e.target.checked } })} />
                     </div>
-                    <input type="checkbox" checked={!!editForm.feature_flags?.social_feed_enabled} onChange={(e) => setEditForm({ ...editForm, feature_flags: { ...editForm.feature_flags, social_feed_enabled: e.target.checked } })} />
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                  <div className="flex items-center justify-between p-3 bg-violet-50 border border-violet-100 rounded-lg">
                     <div>
-                      <p className="text-sm font-medium">Manager Approval Workflow</p>
+                      <p className="text-sm font-medium text-gray-800">Manager Approval Workflow</p>
+                      <p className="text-xs text-gray-400">recognition_approval_required</p>
                     </div>
                     <input type="checkbox" checked={!!editForm.feature_flags?.recognition_approval_required} onChange={(e) => setEditForm({ ...editForm, feature_flags: { ...editForm.feature_flags, recognition_approval_required: e.target.checked } })} />
+                  </div>
+                  </div>
+                </div>
+
+                {/* ── IgniteNode ──────────────────────────────────────── */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-base">🔥</span>
+                    <p className="text-xs font-bold text-orange-500 uppercase tracking-widest">IgniteNode — Sales &amp; Marketing</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="flex items-center justify-between p-3 bg-orange-50 border border-orange-100 rounded-lg">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">IgniteNode</p>
+                        <p className="text-xs text-gray-500">Sales &amp; Marketing</p>
+                        <p className="text-xs text-gray-400">sales_marketing</p>
+                      </div>
+                      <input type="checkbox" checked={!!editForm.feature_flags?.sales_marketing || !!editForm.feature_flags?.sales_marketting_enabled} onChange={(e) => setEditForm({ ...editForm, feature_flags: { ...editForm.feature_flags, sales_marketing: e.target.checked } })} />
+                    </div>
                   </div>
                 </div>
 
@@ -1915,7 +1940,7 @@ export default function PlatformTenants() {
                               } catch (e) { toast.error('Failed to toggle Sales Events') }
                             }} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md">
                               <HiOutlineOfficeBuilding className="w-4 h-4 text-gray-400" />
-                              <span>{(tenant.feature_flags?.sales_marketing || tenant.feature_flags?.sales_marketting_enabled) ? 'Disable' : 'Enable'} Sales Events</span>
+                              <span>{(tenant.feature_flags?.sales_marketing || tenant.feature_flags?.sales_marketting_enabled) ? 'Disable' : 'Enable'} IgniteNode (Sales &amp; Marketing)</span>
                             </button>
 
                             <button onClick={async () => {
@@ -2168,25 +2193,59 @@ export default function PlatformTenants() {
 
                 {/* ── Modules ── */}
                 {createStep === 'modules' && (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <p className="text-sm text-gray-500">Select optional feature modules to enable for this tenant. These can be changed later via Feature Flags.</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {[
-                        { key: 'modules_ai', label: 'AI Module', desc: 'Sparky AI Copilot & predictive analytics' },
-                        { key: 'modules_sales', label: 'Sales & Marketing', desc: 'Events, campaigns & marketing automation' },
-                      ].map(mod => (
-                        <label key={mod.key} className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                          newTenant[mod.key] ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 bg-white hover:border-indigo-200 hover:bg-indigo-50/30'
-                        }`}>
-                          <input type="checkbox" checked={newTenant[mod.key]}
-                            onChange={e => ntSet(mod.key, e.target.checked)}
-                            className="mt-0.5 w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+
+                    {/* SparkNode EEP */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span>🎯</span>
+                        <p className="text-xs font-bold text-violet-600 uppercase tracking-widest">SparkNode — Employee Engagement Platform (EEP)</p>
+                      </div>
+                      <p className="text-xs text-gray-400 mb-3">Recognition, rewards, events, gifting & team engagement. Enabled by default for all tenants.</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="flex items-start gap-3 p-4 rounded-xl border-2 border-violet-200 bg-violet-50">
+                          <input type="checkbox" checked disabled className="mt-0.5 w-4 h-4 rounded border-gray-300 text-violet-600 cursor-not-allowed" />
                           <div>
-                            <p className="text-sm font-semibold text-gray-800">{mod.label}</p>
-                            <p className="text-xs text-gray-500 mt-0.5">{mod.desc}</p>
+                            <p className="text-sm font-semibold text-gray-800">SparkNode EEP</p>
+                            <p className="text-xs text-gray-500 mt-0.5">Always active — core engagement platform</p>
+                          </div>
+                        </div>
+                        <label key="modules_ai" className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                          newTenant.modules_ai ? 'border-violet-400 bg-violet-50' : 'border-gray-200 bg-white hover:border-violet-200 hover:bg-violet-50/30'
+                        }`}>
+                          <input type="checkbox" checked={newTenant.modules_ai}
+                            onChange={e => ntSet('modules_ai', e.target.checked)}
+                            className="mt-0.5 w-4 h-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500 cursor-pointer" />
+                          <div>
+                            <p className="text-sm font-semibold text-gray-800">AI Module</p>
+                            <p className="text-xs text-gray-500 mt-0.5">Sparky AI Copilot &amp; predictive analytics</p>
                           </div>
                         </label>
-                      ))}
+                      </div>
+                    </div>
+
+                    {/* IgniteNode */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span>🔥</span>
+                        <p className="text-xs font-bold text-orange-500 uppercase tracking-widest">IgniteNode — Sales &amp; Marketing</p>
+                      </div>
+                      <p className="text-xs text-gray-400 mb-3">Sales campaigns, lead-gen events, pipeline tracking &amp; ROI analytics. Requires Pro/Enterprise tier or explicit enablement.</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <label key="modules_sales" className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                          newTenant.modules_sales ? 'border-orange-400 bg-orange-50' : 'border-gray-200 bg-white hover:border-orange-200 hover:bg-orange-50/30'
+                        }`}>
+                          <input type="checkbox" checked={newTenant.modules_sales}
+                            onChange={e => ntSet('modules_sales', e.target.checked)}
+                            className="mt-0.5 w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400 cursor-pointer" />
+                          <div>
+                            <p className="text-sm font-semibold text-gray-800">IgniteNode</p>
+                            <p className="text-xs text-gray-500 mt-0.5">Sales &amp; Marketing</p>
+                            <p className="text-xs text-gray-400 mt-0.5">Events, campaigns &amp; marketing automation</p>
+                          </div>
+                        </label>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -2246,8 +2305,9 @@ export default function PlatformTenants() {
                           ['Final / Month', `${currencySymbol(newTenant.display_currency)}${billingFinalAmount.toLocaleString()}`],
                         ]},
                         { section: 'Modules', rows: [
-                          ['AI Module', newTenant.modules_ai ? '✓ Enabled' : 'Disabled'],
-                          ['Sales & Marketing', newTenant.modules_sales ? '✓ Enabled' : 'Disabled'],
+                          ['SparkNode EEP', '✓ Always Active'],
+                          ['AI Copilot (Sparky)', newTenant.modules_ai ? '✓ Enabled' : 'Disabled'],
+                          ['IgniteNode (Sales & Marketing)', newTenant.modules_sales ? '✓ Enabled' : 'Disabled'],
                         ]},
                         { section: 'Admin Setup', rows: [
                           ['Name', `${newTenant.admin_first_name} ${newTenant.admin_last_name}`.trim() || '—'],
