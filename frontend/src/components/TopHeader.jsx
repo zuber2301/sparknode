@@ -108,6 +108,7 @@ const tenantManagerNavigation = [
       { name: 'Event Management', href: '/events', icon: HiOutlineCalendar },
       { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: true },
       { name: 'Campaigns', href: '/campaigns', icon: HiOutlineBriefcase, featureFlag: true },
+      { name: 'Growth Events', href: '/growth-events', icon: HiOutlineLightningBolt, featureFlag: true },
       { name: 'Company Catalog', href: '/catalog', icon: HiOutlineShoppingCart },
     ],
   },
@@ -140,6 +141,7 @@ const tenantLeadNavigation = [
 const igniteManagerNavigation = [
   { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar },
   { name: 'Campaigns', href: '/campaigns', icon: HiOutlineBriefcase },
+  { name: 'Growth Events', href: '/growth-events', icon: HiOutlineLightningBolt },
   { name: 'Escrow', href: '/campaigns/escrow', icon: HiOutlineClipboardList },
   { name: 'Analytics', href: '/analytics', icon: HiOutlineTrendingUp },
 ]
@@ -147,6 +149,7 @@ const igniteManagerNavigation = [
 const igniteLeadNavigation = [
   { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar },
   { name: 'Campaigns', href: '/campaigns', icon: HiOutlineBriefcase },
+  { name: 'Growth Events', href: '/growth-events', icon: HiOutlineLightningBolt },
   { name: 'Analytics', href: '/analytics', icon: HiOutlineTrendingUp },
 ]
 
@@ -187,7 +190,7 @@ export default function TopHeader() {
     getCurrentRole,
   } = useAuthStore()
   const { canGiveRecognition, canManageBudgets, canApproveTeamRecognitions, canViewAnalytics } = useAuthStore()
-  const { isGrowth } = useExperience()
+  const { isGrowth, sparkAccess, igniteAccess } = useExperience()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -241,6 +244,7 @@ export default function TopHeader() {
       const t = currentTenantResponse.data
       const patch = {}
       if (t.feature_flags) patch.feature_flags = t.feature_flags
+      if (t.enabled_modules) patch.enabled_modules = t.enabled_modules
       if (t.name)             patch.tenant_name = t.name
       // Currency — always sync so every component reads fresh values
       if (t.display_currency) patch.display_currency = t.display_currency
@@ -297,7 +301,7 @@ export default function TopHeader() {
       tenant_manager: 'Tenant Manager',
       dept_lead: 'Department Lead',
       tenant_user: 'User',
-      sales_marketing: 'Sales & Marketing',
+      sales_marketing: 'IgniteNode',
       ai_copilot: 'AI Assistant',
     }
     return roles[role] || role

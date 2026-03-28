@@ -148,7 +148,7 @@ app.include_router(notifications_router, prefix="/api/notifications", tags=["Not
 app.include_router(audit_router, prefix="/api/audit", tags=["Audit"])
 app.include_router(events_router, prefix="/api/events", tags=["Events & Logistics"])
 app.include_router(analytics_router, prefix="/api/analytics", tags=["Analytics"])
-app.include_router(sales_router, prefix="/api/sales-events", tags=["Sales & Marketing"])
+app.include_router(sales_router, prefix="/api/sales-events", tags=["IgniteNode"])
 app.include_router(campaign_router, prefix="/api/campaigns", tags=["Sales Campaigns"])
 app.include_router(crm_router, prefix="/api/crm", tags=["CRM Connectors"])
 app.include_router(platform_router, prefix="/api/platform", tags=["Platform Admin"])

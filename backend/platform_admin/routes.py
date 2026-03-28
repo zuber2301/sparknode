@@ -90,6 +90,7 @@ async def list_tenants(
             budget_allocated=Decimal(str(tenant.budget_allocated or 0)),
             display_currency=tenant.display_currency or 'INR',
             feature_flags=tenant.feature_flags or {},
+            enabled_modules=tenant.enabled_modules or {"sparknode": True, "ignitenode": False},
         ))
     
     return result
@@ -151,6 +152,7 @@ async def create_tenant(
                 "events_module_enabled": True
             },
             feature_flags=tenant_data.feature_flags or {},
+            enabled_modules=tenant_data.enabled_modules or {"sparknode": True, "ignitenode": False},
             catalog_settings={},
             branding={}
         )
@@ -312,6 +314,7 @@ async def create_tenant(
         max_users=tenant.max_users or 50,
         master_budget_balance=Decimal(str(tenant.master_budget_balance or 0)),
         feature_flags=tenant.feature_flags or {},
+        enabled_modules=tenant.enabled_modules or {"sparknode": True, "ignitenode": False},
         settings=tenant.settings or {},
         catalog_settings=tenant.catalog_settings or {},
         branding=tenant.branding or {},
@@ -402,6 +405,7 @@ async def get_tenant(
         max_users=tenant.max_users or 50,
         master_budget_balance=Decimal(str(tenant.master_budget_balance or 0)),
         feature_flags=tenant.feature_flags or {},
+        enabled_modules=tenant.enabled_modules or {"sparknode": True, "ignitenode": False},
         settings=tenant.settings or {},
         catalog_settings=tenant.catalog_settings or {},
         branding=tenant.branding or {},
@@ -657,6 +661,7 @@ async def adjust_master_budget(
         max_users=tenant.max_users or 50,
         master_budget_balance=Decimal(str(tenant.master_budget_balance or 0)),
         feature_flags=tenant.feature_flags or {},
+        enabled_modules=tenant.enabled_modules or {"sparknode": True, "ignitenode": False},
         settings=tenant.settings or {},
         catalog_settings=tenant.catalog_settings or {},
         branding=tenant.branding or {},
@@ -754,6 +759,7 @@ async def update_tenant(
         max_users=tenant.max_users or 50,
         master_budget_balance=Decimal(str(tenant.master_budget_balance or 0)),
         feature_flags=tenant.feature_flags or {},
+        enabled_modules=tenant.enabled_modules or {"sparknode": True, "ignitenode": False},
         settings=tenant.settings or {},
         catalog_settings=tenant.catalog_settings or {},
         branding=tenant.branding or {},
@@ -838,6 +844,7 @@ async def patch_tenant(
         max_users=tenant.max_users or 50,
         master_budget_balance=Decimal(str(tenant.master_budget_balance or 0)),
         feature_flags=tenant.feature_flags or {},
+        enabled_modules=tenant.enabled_modules or {"sparknode": True, "ignitenode": False},
         settings=tenant.settings or {},
         catalog_settings=tenant.catalog_settings or {},
         branding=tenant.branding or {},
@@ -1016,6 +1023,7 @@ async def update_subscription(
         max_users=tenant.max_users or 50,
         master_budget_balance=Decimal(str(tenant.master_budget_balance or 0)),
         feature_flags=tenant.feature_flags or {},
+        enabled_modules=tenant.enabled_modules or {"sparknode": True, "ignitenode": False},
         settings=tenant.settings or {},
         catalog_settings=tenant.catalog_settings or {},
         branding=tenant.branding or {},
@@ -1113,6 +1121,9 @@ async def update_tenant_feature_flags(
 
     tenant.feature_flags = payload.feature_flags or {}
 
+    if payload.enabled_modules is not None:
+        tenant.enabled_modules = payload.enabled_modules
+
     audit = AuditLog(
         tenant_id=tenant.id,
         actor_id=current_user.id,
@@ -1120,12 +1131,12 @@ async def update_tenant_feature_flags(
         action="tenant_feature_flags_updated",
         entity_type="tenant",
         entity_id=tenant.id,
-        new_values=append_impersonation_metadata({"feature_flags": tenant.feature_flags})
+        new_values=append_impersonation_metadata({"feature_flags": tenant.feature_flags, "enabled_modules": tenant.enabled_modules})
     )
     db.add(audit)
 
     db.commit()
-    return {"message": "Feature flags updated", "feature_flags": tenant.feature_flags}
+    return {"message": "Feature flags updated", "feature_flags": tenant.feature_flags, "enabled_modules": tenant.enabled_modules}
 
 
 # =====================================================

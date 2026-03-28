@@ -24,7 +24,7 @@ export const ROLE_DISPLAY_NAMES = {
   tenant_manager: 'Tenant Manager',
   dept_lead: 'Department Lead',
   tenant_user: 'User',
-  sales_marketing: 'Sales & Marketing',
+  sales_marketing: 'IgniteNode',
   ai_copilot: 'AI Assistant',
 }
 
@@ -60,6 +60,7 @@ export const useAuthStore = create(
             tenant_id: user?.tenant_id,
             tenant_name: user?.tenant_name,
             feature_flags: user?.tenant_flags || {},
+            enabled_modules: user?.enabled_modules || { sparknode: true, ignitenode: false },
             display_currency: user?.display_currency || 'INR',
             base_currency: user?.base_currency || 'INR',
           },

@@ -145,6 +145,9 @@ class TenantResponse(TenantBase):
     # Feature Flags
     feature_flags: Dict[str, Any]
 
+    # Module enablement
+    enabled_modules: Optional[Dict[str, bool]] = {"sparknode": True, "ignitenode": False}
+
     # Budget fields for tenant managers
     budget_allocated: Decimal
     budget_allocation_balance: Decimal

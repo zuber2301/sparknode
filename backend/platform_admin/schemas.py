@@ -44,6 +44,8 @@ class TenantCreateRequest(BaseModel):
     settings: Optional[Dict[str, Any]] = {}
     # Initial feature flags for tenant provisioning (e.g., enable AI module)
     feature_flags: Optional[Dict[str, Any]] = {}
+    # Module enablement — {"sparknode": true, "ignitenode": false}
+    enabled_modules: Optional[Dict[str, bool]] = {"sparknode": True, "ignitenode": False}
 
     # Billing & Subscription
     billing_cycle: Optional[str] = Field(default="monthly", pattern="^(monthly|quarterly|annually)$")
@@ -112,6 +114,7 @@ class TenantUpdateRequest(BaseModel):
     branding_config: Optional[Dict[str, Any]] = None
     settings: Optional[Dict[str, Any]] = None
     feature_flags: Optional[Dict[str, Any]] = None
+    enabled_modules: Optional[Dict[str, bool]] = None
     catalog_settings: Optional[Dict[str, Any]] = None
     branding: Optional[Dict[str, Any]] = None
 
@@ -134,6 +137,7 @@ class TenantListResponse(BaseModel):
     budget_allocated: Optional[Decimal] = Decimal('0')
     display_currency: Optional[str] = 'INR'
     feature_flags: Optional[Dict[str, Any]] = {}
+    enabled_modules: Optional[Dict[str, bool]] = {"sparknode": True, "ignitenode": False}
 
     class Config:
         from_attributes = True
@@ -205,6 +209,7 @@ class TenantDetailResponse(BaseModel):
     settings: Dict[str, Any]
     catalog_settings: Dict[str, Any]
     branding: Dict[str, Any]
+    enabled_modules: Optional[Dict[str, bool]] = {"sparknode": True, "ignitenode": False}
 
     # Billing / Invoicing
     billing_cycle: Optional[str] = 'monthly'
@@ -341,6 +346,7 @@ class SubscriptionTiersResponse(BaseModel):
 class FeatureFlagsUpdate(BaseModel):
     """Request to update tenant feature flags."""
     feature_flags: Dict[str, Any]
+    enabled_modules: Optional[Dict[str, bool]] = None
 
 
 # =====================================================

@@ -36,6 +36,7 @@ export const EXPERIENCE_META = {
   engagement: {
     label: 'SparkNode',
     shortLabel: 'SparkNode',
+    tagline: 'Employee Engagement Platform (EEP)',
     icon: '🎯',
     color: 'purple',
     description: 'Culture & Rewards — recognition, events, gifting',
@@ -44,9 +45,11 @@ export const EXPERIENCE_META = {
   growth: {
     label: 'IgniteNode',
     shortLabel: 'IgniteNode',
+    tagline: 'Sales & Marketing',
     icon: '🔥',
     color: 'orange',
-    description: 'Sales & Growth — campaigns, leads, ROI tracking',
+    description: 'Sales Events, Campaigns & Growth Events',
+    features: ['Sales Events', 'Campaigns', 'Growth Events'],
     href: '/sales-events',
   },
 }
@@ -54,6 +57,18 @@ export const EXPERIENCE_META = {
 // ─── Local fallback calculation ───────────────────────────────────────────────
 
 function deriveExperiencesLocally(tenantContext, user) {
+  // 1. Check enabled_modules (new provisioning) from user or tenant context
+  const modules = user?.enabled_modules || tenantContext?.enabled_modules
+  if (modules) {
+    const exps = []
+    if (modules.sparknode) exps.push('engagement')
+    if (modules.ignitenode) exps.push('growth')
+    // Safety: at least one module must be active
+    if (exps.length === 0) exps.push('engagement')
+    return exps
+  }
+
+  // 2. Legacy fallback: SparkNode always on, IgniteNode from flags/tier
   const experiences = ['engagement']
   const flags = tenantContext?.feature_flags || user?.tenant_flags || {}
   const tier = tenantContext?.subscription_tier || user?.subscription_tier || 'core'
@@ -108,14 +123,15 @@ export function ExperienceProvider({ children }) {
     // expand the list later (see effect below).
     const initial = deriveExperiencesLocally(tenantContext, user)
     if (stored && initial.includes(stored)) return stored
-    return 'engagement'
+    return initial[0] || 'engagement'
   })
 
   // When available experiences change (e.g. plan upgrade/downgrade, API loaded),
   // ensure activeExperience is still valid.
   useEffect(() => {
     if (!availableExperiences.includes(activeExperience)) {
-      setActiveExperienceState('engagement')
+      const fallback = availableExperiences[0] || 'engagement'
+      setActiveExperienceState(fallback)
       localStorage.removeItem(STORAGE_KEY)
     }
   }, [availableExperiences, activeExperience])
@@ -140,11 +156,13 @@ export function ExperienceProvider({ children }) {
   )
 
   // ── Module access helpers ────────────────────────────────────────────────
-  // spark_access is always true; ignite_access requires tenant-level flag/tier
+  // Both spark_access and ignite_access are now derived from enabled_modules
   const igniteAccess = availableExperiences.includes('growth')
-  const sparkAccess = true
+  const sparkAccess = availableExperiences.includes('engagement')
   // hasBothModules drives the Launchpad gateway visibility
-  const hasBothModules = igniteAccess
+  const hasBothModules = sparkAccess && igniteAccess
+  // True when only one module is active (skip Gateway)
+  const isSingleModule = !hasBothModules
 
   // ── Context value (memoized — only changes when something actually changes) ─
   const value = useMemo(
@@ -162,9 +180,10 @@ export function ExperienceProvider({ children }) {
       sparkAccess,
       igniteAccess,
       hasBothModules,
+      isSingleModule,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeExperience, setExperience, availableExperiences, isProUser, activeTier, experiencePath, igniteAccess]
+    [activeExperience, setExperience, availableExperiences, isProUser, activeTier, experiencePath, igniteAccess, sparkAccess]
   )
 
   return (

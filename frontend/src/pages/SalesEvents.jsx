@@ -65,7 +65,7 @@ export default function SalesEvents() {
   const canManage = current_user?.org_role === 'tenant_manager' || current_user?.org_role === 'platform_admin'
 
   return (
-    <ProGate feature="Sales & Marketing">
+    <ProGate feature="IgniteNode">
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold">Sales Events</h2>

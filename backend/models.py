@@ -187,6 +187,10 @@ class Tenant(Base):
     # Budget allocation balance (remaining available for distribution)
     budget_allocation_balance = Column(Numeric(15, 2), nullable=False, default=0)
     
+    # Module enablement — which product modules this tenant has access to
+    # {"sparknode": true, "ignitenode": false} — at least one must be true
+    enabled_modules = Column(JSONB, default=lambda: {"sparknode": True, "ignitenode": False})
+
     # Feature Flags & Settings
     settings = Column(JSONB, default={})
     feature_flags = Column(JSONB, default={})

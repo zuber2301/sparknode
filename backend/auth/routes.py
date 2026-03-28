@@ -226,7 +226,8 @@ async def login(
                 hire_date=user.hire_date,
                 status=user.status,
                 created_at=user.created_at,
-                is_platform_admin=user.is_platform_admin
+                is_platform_admin=user.is_platform_admin,
+                enabled_modules=tenant.enabled_modules if tenant else {"sparknode": True, "ignitenode": False},
             )
         )
 
@@ -361,6 +362,7 @@ async def get_current_user_info(
         status=current_user.status,
         is_platform_admin=current_user.is_platform_admin,
         tenant_flags=tenant_flags,
+        enabled_modules=tenant.enabled_modules if tenant else {"sparknode": True, "ignitenode": False},
         display_currency=tenant.display_currency if tenant else "USD",
         base_currency=tenant.base_currency if tenant else "USD"
     )
@@ -373,31 +375,50 @@ async def get_available_experiences(
 ):
     """Return the list of experience types available to the current tenant.
 
-    All tenants have access to the 'engagement' experience.  The 'growth'
-    experience (Sales Events, Campaigns, Escrow Approvals) is unlocked when:
-      - The tenant subscription tier is 'pro' or 'enterprise', OR
-      - The tenant feature_flags include a sales_marketing flag set to True.
+    Module access is determined by the tenant's enabled_modules field first,
+    then falls back to feature_flags and subscription tier for backward
+    compatibility with tenants provisioned before enabled_modules existed.
+
+    Possible outcomes:
+      - SparkNode only  → experiences = ['engagement']
+      - IgniteNode only → experiences = ['growth']
+      - Both            → experiences = ['engagement', 'growth']
     """
     tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
     flags = tenant.feature_flags if (tenant and tenant.feature_flags) else {}
     tier = (tenant.subscription_tier or 'core') if tenant else 'core'
+    modules = (tenant.enabled_modules if (tenant and tenant.enabled_modules) else None)
 
-    experiences = ['engagement']
-    sales_enabled = bool(
-        flags.get('sales_marketing')
-        or flags.get('sales_marketing_enabled')
-        or flags.get('sales_marketting_enabled')  # tolerate historical typo
-    )
-    ignite_access = tier in ('pro', 'enterprise') or sales_enabled
+    # Use enabled_modules if available (new provisioning)
+    if modules:
+        spark_access = bool(modules.get('sparknode', True))
+        ignite_access = bool(modules.get('ignitenode', False))
+    else:
+        # Legacy fallback: SparkNode always on, IgniteNode from flags/tier
+        spark_access = True
+        sales_enabled = bool(
+            flags.get('sales_marketing')
+            or flags.get('sales_marketing_enabled')
+            or flags.get('sales_marketting_enabled')  # tolerate historical typo
+        )
+        ignite_access = tier in ('pro', 'enterprise') or sales_enabled
+
+    experiences = []
+    if spark_access:
+        experiences.append('engagement')
     if ignite_access:
         experiences.append('growth')
+    # Safety: ensure at least one module
+    if not experiences:
+        experiences.append('engagement')
+        spark_access = True
 
     return {
         "experiences": experiences,
         "active_tier": tier,
-        # Explicit module-access flags consumed by the Launchpad gateway
-        "spark_access": True,          # engagement is always enabled
+        "spark_access": spark_access,
         "ignite_access": ignite_access,
+        "enabled_modules": modules or {"sparknode": spark_access, "ignitenode": ignite_access},
     }
 
 
@@ -652,6 +673,7 @@ def _build_login_response(db: Session, user: User, is_new_user: bool) -> OtpLogi
             created_at=user.created_at,
             is_platform_admin=user.is_platform_admin,
             tenant_flags=tenant.feature_flags if tenant else {},
+            enabled_modules=tenant.enabled_modules if tenant else {"sparknode": True, "ignitenode": False},
             display_currency=tenant.display_currency if tenant else 'USD',
             base_currency=tenant.base_currency if tenant else 'USD',
         ),

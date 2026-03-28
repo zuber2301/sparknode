@@ -84,14 +84,18 @@ function ModuleCard({ title, subtitle, icon, features, isLastUsed, accentClasses
 export default function Gateway() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const { activeExperience, setExperience, igniteAccess } = useExperience()
+  const { activeExperience, setExperience, igniteAccess, sparkAccess, hasBothModules } = useExperience()
 
   // Single-module tenants skip the launchpad entirely
   useEffect(() => {
-    if (!igniteAccess) {
-      navigate('/dashboard', { replace: true })
+    if (!hasBothModules) {
+      if (igniteAccess && !sparkAccess) {
+        navigate('/ignitenode', { replace: true })
+      } else {
+        navigate('/dashboard', { replace: true })
+      }
     }
-  }, [igniteAccess, navigate])
+  }, [hasBothModules, igniteAccess, sparkAccess, navigate])
 
   const handleEnterSpark = () => {
     setExperience('engagement')
@@ -139,10 +143,10 @@ export default function Gateway() {
       <div className="flex-1 flex items-start justify-center px-6 pb-16">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
 
-          {/* SparkNode — Culture & Rewards */}
+          {/* SparkNode — Employee Engagement Platform */}
           <ModuleCard
             title="SparkNode"
-            subtitle="Culture & Rewards"
+            subtitle="Employee Engagement Platform (EEP)"
             icon="🎯"
             features={SPARK_FEATURES}
             isLastUsed={activeExperience === 'engagement'}
@@ -156,10 +160,10 @@ export default function Gateway() {
             onEnter={handleEnterSpark}
           />
 
-          {/* IgniteNode — Sales & Growth */}
+          {/* IgniteNode — Sales & Marketing */}
           <ModuleCard
             title="IgniteNode"
-            subtitle="Sales & Growth"
+            subtitle="Sales & Marketing"
             icon="🔥"
             features={IGNITE_FEATURES}
             isLastUsed={activeExperience === 'growth'}

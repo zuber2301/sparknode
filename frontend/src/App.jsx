@@ -29,6 +29,7 @@ import AISettings from './pages/AISettings'
 import SalesEvents from './pages/SalesEvents'
 import SalesEventRegistration from './pages/SalesEventRegistration'
 import CampaignBuilder from './pages/CampaignBuilder'
+import GrowthEvents from './pages/GrowthEvents'
 import EscrowApproval from './pages/EscrowApproval'
 import ExhibitionMode from './pages/ExhibitionMode'
 import Templates from './pages/Templates'
@@ -48,6 +49,8 @@ import Settings from './pages/Settings'
 import Challenges from './pages/Challenges'
 import CompanyValues from './pages/CompanyValues'
 import Gateway from './pages/Gateway'
+import SparkNodeLanding from './pages/SparkNodeLanding'
+import IgniteNodeLanding from './pages/IgniteNodeLanding'
 import Pricing from './pages/Pricing'
 import EngagementDashboard from './pages/EngagementDashboard'
 import GrowthEventRegistrationPage from './pages/GrowthEventRegistrationPage'
@@ -158,6 +161,8 @@ function App() {
       }>
         <Route index element={<Navigate to="/dashboard" />} />
         <Route path="dashboard" element={<Dashboard />} />
+        <Route path="sparknode" element={<SparkNodeLanding />} />
+        <Route path="ignitenode" element={<IgniteNodeLanding />} />
         <Route path="admin-dashboard" element={<AdminDashboard />} />
         <Route path="feed" element={
           <PrivateRoute>
@@ -221,9 +226,10 @@ function App() {
             <EventCreateWizardEdit />
           </TenantManagerRoute>
         } />
-        {/* Sales & Marketing */}
+        {/* IgniteNode — Sales Events, Campaigns, Growth Events */}
         <Route path="sales-events" element={<SalesEvents />} />
         <Route path="e/sales/:eventId" element={<SalesEventRegistration />} />
+        <Route path="growth-events" element={<GrowthEvents />} />
 
         {/* Sales Campaigns — Exhibition / Booth */}
         <Route path="campaigns" element={<CampaignBuilder />} />

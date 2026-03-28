@@ -603,7 +603,7 @@ export default function PlatformTenants() {
   const BLANK_TENANT = {
     name: '', slug: '', domain: '', subscription_tier: 'starter', max_users: 50,
     master_budget_balance: 0, base_currency: 'USD', display_currency: 'INR', fx_rate: 1,
-    modules_ai: false, modules_sales: false,
+    modules_ai: false, modules_sales: false, modules_sparknode: true,
     admin_first_name: '', admin_last_name: '', admin_email: '', admin_password: '',
   }
   const [createStep, setCreateStep] = useState('tenant')
@@ -807,9 +807,18 @@ export default function PlatformTenants() {
   }, [tenantsByTierResponse])
 
   const submitCreateTenant = () => {
+    // Ensure at least one module is selected
+    if (!newTenant.modules_sparknode && !newTenant.modules_sales) {
+      toast.error('At least one module (SparkNode or IgniteNode) must be enabled')
+      return
+    }
     const featureFlags = {}
     if (newTenant.modules_ai) { featureFlags.ai_module_enabled = true; featureFlags.ai_copilot = true }
     if (newTenant.modules_sales) { featureFlags.sales_marketing = true }
+    const enabledModules = {
+      sparknode: !!newTenant.modules_sparknode,
+      ignitenode: !!newTenant.modules_sales,
+    }
     createMutation.mutate({
       name: newTenant.name,
       slug: newTenant.slug || undefined,
@@ -825,6 +834,7 @@ export default function PlatformTenants() {
       admin_last_name: newTenant.admin_last_name,
       admin_password: newTenant.admin_password,
       feature_flags: featureFlags,
+      enabled_modules: enabledModules,
       billing_cycle: billingCycle,
       billing_amount: billingAmount,
       billing_discount_pct: discountPct,
@@ -869,6 +879,7 @@ export default function PlatformTenants() {
         expiry_policy: full.expiry_policy || 'never',
         logoPreview: full.logo_url || full.logo || null,
         feature_flags: full.feature_flags || {},
+        enabled_modules: full.enabled_modules || { sparknode: true, ignitenode: false },
         billing_cycle: full.billing_cycle || 'monthly',
         billing_amount: full.billing_amount != null ? Number(full.billing_amount) : '',
         billing_discount_pct: full.billing_discount_pct != null ? Number(full.billing_discount_pct) : 0,
@@ -1738,6 +1749,33 @@ export default function PlatformTenants() {
             {activeTab === 'features' && (
               <div className="space-y-6 max-w-3xl">
 
+                {/* ── Module Access ──────────────────────────────────────── */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-base">📦</span>
+                    <p className="text-xs font-bold text-gray-600 uppercase tracking-widest">Module Access</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="flex items-center justify-between p-3 bg-violet-50 border border-violet-200 rounded-lg">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">SparkNode</p>
+                        <p className="text-xs text-gray-500">Employee Engagement Platform (EEP)</p>
+                      </div>
+                      <input type="checkbox" checked={!!editForm.enabled_modules?.sparknode} onChange={(e) => setEditForm({ ...editForm, enabled_modules: { ...editForm.enabled_modules, sparknode: e.target.checked } })} />
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">IgniteNode</p>
+                        <p className="text-xs text-orange-500 font-medium">(Sales &amp; Marketing)</p>
+                      </div>
+                      <input type="checkbox" checked={!!editForm.enabled_modules?.ignitenode} onChange={(e) => setEditForm({ ...editForm, enabled_modules: { ...editForm.enabled_modules, ignitenode: e.target.checked } })} />
+                    </div>
+                  </div>
+                  {!editForm.enabled_modules?.sparknode && !editForm.enabled_modules?.ignitenode && (
+                    <p className="text-xs text-red-500 mt-2">⚠ At least one module must be enabled</p>
+                  )}
+                </div>
+
                 {/* ── SparkNode EEP ──────────────────────────────────────── */}
                 <div>
                   <div className="flex items-center gap-2 mb-3">
@@ -1787,13 +1825,17 @@ export default function PlatformTenants() {
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-base">🔥</span>
-                    <p className="text-xs font-bold text-orange-500 uppercase tracking-widest">IgniteNode — Sales &amp; Marketing</p>
+                    <div>
+                      <p className="text-xs font-bold text-orange-500 uppercase tracking-widest">IgniteNode</p>
+                      <p className="text-xs font-semibold text-orange-400">(Sales &amp; Marketing)</p>
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="flex items-center justify-between p-3 bg-orange-50 border border-orange-100 rounded-lg">
                       <div>
                         <p className="text-sm font-medium text-gray-800">IgniteNode</p>
-                        <p className="text-xs text-gray-500">Sales &amp; Marketing</p>
+                        <p className="text-xs font-medium text-orange-500">(Sales &amp; Marketing)</p>
+                        <p className="text-xs text-gray-500">Sales Events · Campaigns · Growth Events</p>
                         <p className="text-xs text-gray-400">sales_marketing</p>
                       </div>
                       <input type="checkbox" checked={!!editForm.feature_flags?.sales_marketing || !!editForm.feature_flags?.sales_marketting_enabled} onChange={(e) => setEditForm({ ...editForm, feature_flags: { ...editForm.feature_flags, sales_marketing: e.target.checked } })} />
@@ -1803,7 +1845,7 @@ export default function PlatformTenants() {
 
                 <div className="flex justify-end gap-3 pt-4">
                   <button type="button" onClick={() => setSelectedTenant(null)} className="px-6 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-widest hover:text-gray-700">Discard</button>
-                  <button type="button" onClick={() => updateFlagsMutation.mutate({ tenantId: selectedTenant.id, payload: { feature_flags: editForm.feature_flags || {} } })} disabled={updateFlagsMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs uppercase tracking-widest">{updateFlagsMutation.isPending ? 'Saving...' : 'Save Feature Toggles'}</button>
+                  <button type="button" onClick={() => updateFlagsMutation.mutate({ tenantId: selectedTenant.id, payload: { feature_flags: editForm.feature_flags || {}, enabled_modules: editForm.enabled_modules } })} disabled={updateFlagsMutation.isPending || (!editForm.enabled_modules?.sparknode && !editForm.enabled_modules?.ignitenode)} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs uppercase tracking-widest disabled:opacity-50">{updateFlagsMutation.isPending ? 'Saving...' : 'Save Feature Toggles'}</button>
                 </div>
               </div>
 
@@ -1940,7 +1982,7 @@ export default function PlatformTenants() {
                               } catch (e) { toast.error('Failed to toggle Sales Events') }
                             }} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md">
                               <HiOutlineOfficeBuilding className="w-4 h-4 text-gray-400" />
-                              <span>{(tenant.feature_flags?.sales_marketing || tenant.feature_flags?.sales_marketting_enabled) ? 'Disable' : 'Enable'} IgniteNode (Sales &amp; Marketing)</span>
+                              <span>{(tenant.feature_flags?.sales_marketing || tenant.feature_flags?.sales_marketting_enabled) ? 'Disable' : 'Enable'} IgniteNode</span>
                             </button>
 
                             <button onClick={async () => {
@@ -1955,7 +1997,7 @@ export default function PlatformTenants() {
                               }
                             }} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md">
                               <HiOutlineShieldCheck className="w-4 h-4 text-gray-400" />
-                              <span>{(tenant.feature_flags?.ai_copilot || tenant.feature_flags?.ai_module_enabled) ? 'Disable' : 'Enable'} SNPilot</span>
+                              <span>{(tenant.feature_flags?.ai_copilot || tenant.feature_flags?.ai_module_enabled) ? 'Disable' : 'Enable'} SNPilot (AI Copilot)</span>
                             </button>
 
                             {tenant.status === 'suspended' ? (
@@ -2194,7 +2236,14 @@ export default function PlatformTenants() {
                 {/* ── Modules ── */}
                 {createStep === 'modules' && (
                   <div className="space-y-6">
-                    <p className="text-sm text-gray-500">Select optional feature modules to enable for this tenant. These can be changed later via Feature Flags.</p>
+                    <p className="text-sm text-gray-500">Select which product modules to enable for this tenant. At least one module is required.</p>
+
+                    {/* Validation warning */}
+                    {!newTenant.modules_sparknode && !newTenant.modules_sales && (
+                      <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3">
+                        <p className="text-xs font-semibold text-red-700">At least one module (SparkNode or IgniteNode) must be enabled.</p>
+                      </div>
+                    )}
 
                     {/* SparkNode EEP */}
                     <div>
@@ -2202,15 +2251,19 @@ export default function PlatformTenants() {
                         <span>🎯</span>
                         <p className="text-xs font-bold text-violet-600 uppercase tracking-widest">SparkNode — Employee Engagement Platform (EEP)</p>
                       </div>
-                      <p className="text-xs text-gray-400 mb-3">Recognition, rewards, events, gifting & team engagement. Enabled by default for all tenants.</p>
+                      <p className="text-xs text-gray-400 mb-3">Recognition, rewards, events, gifting & team engagement.</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="flex items-start gap-3 p-4 rounded-xl border-2 border-violet-200 bg-violet-50">
-                          <input type="checkbox" checked disabled className="mt-0.5 w-4 h-4 rounded border-gray-300 text-violet-600 cursor-not-allowed" />
+                        <label key="modules_sparknode" className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                          newTenant.modules_sparknode ? 'border-violet-400 bg-violet-50' : 'border-gray-200 bg-white hover:border-violet-200 hover:bg-violet-50/30'
+                        }`}>
+                          <input type="checkbox" checked={newTenant.modules_sparknode}
+                            onChange={e => ntSet('modules_sparknode', e.target.checked)}
+                            className="mt-0.5 w-4 h-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500 cursor-pointer" />
                           <div>
                             <p className="text-sm font-semibold text-gray-800">SparkNode EEP</p>
-                            <p className="text-xs text-gray-500 mt-0.5">Always active — core engagement platform</p>
+                            <p className="text-xs text-gray-500 mt-0.5">Employee Engagement Platform</p>
                           </div>
-                        </div>
+                        </label>
                         <label key="modules_ai" className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
                           newTenant.modules_ai ? 'border-violet-400 bg-violet-50' : 'border-gray-200 bg-white hover:border-violet-200 hover:bg-violet-50/30'
                         }`}>
@@ -2229,9 +2282,12 @@ export default function PlatformTenants() {
                     <div>
                       <div className="flex items-center gap-2 mb-2">
                         <span>🔥</span>
-                        <p className="text-xs font-bold text-orange-500 uppercase tracking-widest">IgniteNode — Sales &amp; Marketing</p>
+                        <div>
+                          <p className="text-xs font-bold text-orange-500 uppercase tracking-widest">IgniteNode</p>
+                          <p className="text-xs font-semibold text-orange-400">(Sales &amp; Marketing)</p>
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-400 mb-3">Sales campaigns, lead-gen events, pipeline tracking &amp; ROI analytics. Requires Pro/Enterprise tier or explicit enablement.</p>
+                      <p className="text-xs text-gray-400 mb-3">Sales Events, Campaigns &amp; Growth Events.</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <label key="modules_sales" className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
                           newTenant.modules_sales ? 'border-orange-400 bg-orange-50' : 'border-gray-200 bg-white hover:border-orange-200 hover:bg-orange-50/30'
@@ -2241,8 +2297,8 @@ export default function PlatformTenants() {
                             className="mt-0.5 w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400 cursor-pointer" />
                           <div>
                             <p className="text-sm font-semibold text-gray-800">IgniteNode</p>
-                            <p className="text-xs text-gray-500 mt-0.5">Sales &amp; Marketing</p>
-                            <p className="text-xs text-gray-400 mt-0.5">Events, campaigns &amp; marketing automation</p>
+                            <p className="text-xs font-medium text-orange-500 mt-0.5">(Sales &amp; Marketing)</p>
+                            <p className="text-xs text-gray-400 mt-0.5">Sales Events, Campaigns &amp; Growth Events</p>
                           </div>
                         </label>
                       </div>
@@ -2305,7 +2361,7 @@ export default function PlatformTenants() {
                           ['Final / Month', `${currencySymbol(newTenant.display_currency)}${billingFinalAmount.toLocaleString()}`],
                         ]},
                         { section: 'Modules', rows: [
-                          ['SparkNode EEP', '✓ Always Active'],
+                          ['SparkNode EEP', newTenant.modules_sparknode ? '✓ Enabled' : 'Disabled'],
                           ['AI Copilot (Sparky)', newTenant.modules_ai ? '✓ Enabled' : 'Disabled'],
                           ['IgniteNode (Sales & Marketing)', newTenant.modules_sales ? '✓ Enabled' : 'Disabled'],
                         ]},
