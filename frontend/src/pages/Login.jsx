@@ -74,8 +74,12 @@ export default function Login() {
 
     const hasBoth = sparkAccess && igniteAccess
 
+    // If user has a preferred module set, skip the Gateway chooser
+    if (hasBoth && user?.primary_module === 'ignitenode') return navigate('/sales-events')
+    if (hasBoth && user?.primary_module === 'sparknode')  return navigate('/dashboard')
+
     // Three scenarios:
-    // 1. Both modules → show module selector (Gateway) for ALL users
+    // 1. Both modules, no preference → show module selector (Gateway)
     if (hasBoth) return navigate('/gateway')
     // 2. IgniteNode only → go directly to IgniteNode landing
     if (igniteAccess && !sparkAccess) return navigate('/ignitenode')

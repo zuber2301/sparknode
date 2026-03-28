@@ -1766,7 +1766,7 @@ export default function PlatformTenants() {
                     <div className="flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-lg">
                       <div>
                         <p className="text-sm font-medium text-gray-800">IgniteNode</p>
-                        <p className="text-xs text-orange-500 font-medium">(Sales &amp; Marketing)</p>
+                        <p className="text-xs text-gray-500">Sales Events · Campaigns · Growth Events</p>
                       </div>
                       <input type="checkbox" checked={!!editForm.enabled_modules?.ignitenode} onChange={(e) => setEditForm({ ...editForm, enabled_modules: { ...editForm.enabled_modules, ignitenode: e.target.checked } })} />
                     </div>
@@ -1825,16 +1825,12 @@ export default function PlatformTenants() {
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-base">🔥</span>
-                    <div>
-                      <p className="text-xs font-bold text-orange-500 uppercase tracking-widest">IgniteNode</p>
-                      <p className="text-xs font-semibold text-orange-400">(Sales &amp; Marketing)</p>
-                    </div>
+                    <p className="text-xs font-bold text-orange-500 uppercase tracking-widest">IgniteNode</p>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="flex items-center justify-between p-3 bg-orange-50 border border-orange-100 rounded-lg">
                       <div>
                         <p className="text-sm font-medium text-gray-800">IgniteNode</p>
-                        <p className="text-xs font-medium text-orange-500">(Sales &amp; Marketing)</p>
                         <p className="text-xs text-gray-500">Sales Events · Campaigns · Growth Events</p>
                         <p className="text-xs text-gray-400">sales_marketing</p>
                       </div>
@@ -2282,12 +2278,9 @@ export default function PlatformTenants() {
                     <div>
                       <div className="flex items-center gap-2 mb-2">
                         <span>🔥</span>
-                        <div>
-                          <p className="text-xs font-bold text-orange-500 uppercase tracking-widest">IgniteNode</p>
-                          <p className="text-xs font-semibold text-orange-400">(Sales &amp; Marketing)</p>
-                        </div>
+                        <p className="text-xs font-bold text-orange-500 uppercase tracking-widest">IgniteNode</p>
                       </div>
-                      <p className="text-xs text-gray-400 mb-3">Sales Events, Campaigns &amp; Growth Events.</p>
+                      <p className="text-xs text-gray-400 mb-3">Sales Events, Campaigns &amp; Growth Events. Requires Pro/Enterprise tier or explicit enablement.</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <label key="modules_sales" className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
                           newTenant.modules_sales ? 'border-orange-400 bg-orange-50' : 'border-gray-200 bg-white hover:border-orange-200 hover:bg-orange-50/30'
@@ -2297,8 +2290,7 @@ export default function PlatformTenants() {
                             className="mt-0.5 w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400 cursor-pointer" />
                           <div>
                             <p className="text-sm font-semibold text-gray-800">IgniteNode</p>
-                            <p className="text-xs font-medium text-orange-500 mt-0.5">(Sales &amp; Marketing)</p>
-                            <p className="text-xs text-gray-400 mt-0.5">Sales Events, Campaigns &amp; Growth Events</p>
+                            <p className="text-xs text-gray-400 mt-0.5">Sales Events · Campaigns · Growth Events</p>
                           </div>
                         </label>
                       </div>

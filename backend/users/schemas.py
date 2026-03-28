@@ -126,6 +126,7 @@ class UserListResponse(BaseModel):
     first_name: str
     last_name: str
     org_role: str
+    primary_module: Optional[str] = None
     phone_number: Optional[str] = None
     mobile_number: Optional[str] = None
     dept_id: Optional[UUID] = None
@@ -197,6 +198,7 @@ class UserPatch(BaseModel):
     manager_id: Optional[UUID] = None
     org_role: Optional[Literal['platform_admin', 'tenant_manager', 'dept_lead', 'tenant_user']] = None
     status: Optional[str] = None
+    primary_module: Optional[Literal['sparknode', 'ignitenode']] = None
 
     @field_validator("phone_number")
     @classmethod

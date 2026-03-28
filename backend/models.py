@@ -329,6 +329,8 @@ class User(Base):
     is_super_admin = Column(Boolean, default=False)
     invitation_sent_at = Column(DateTime(timezone=True))
     onboarding_completed = Column(Boolean, default=False)  # True after user finishes onboarding wizard
+    # 'sparknode' | 'ignitenode' | None — the user's home module when the tenant has both enabled
+    primary_module = Column(String(20), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

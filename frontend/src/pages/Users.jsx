@@ -46,6 +46,7 @@ export default function Users() {
   const [formFirstName, setFormFirstName] = useState('')
   const [formLastName, setFormLastName]   = useState('')
   const [formOrgRole, setFormOrgRole]     = useState('tenant_user')
+  const [formPrimaryModule, setFormPrimaryModule] = useState('')
 
   const queryClient = useQueryClient()
   const { isHRAdmin, tenantContext } = useAuthStore()
@@ -119,10 +120,12 @@ export default function Users() {
       setFormFirstName(selectedUser.first_name || '')
       setFormLastName(selectedUser.last_name || '')
       setFormOrgRole(selectedUser.org_role || 'tenant_user')
+      setFormPrimaryModule(selectedUser.primary_module || '')
     } else {
       setFormFirstName('')
       setFormLastName('')
       setFormOrgRole('tenant_user')
+      setFormPrimaryModule('')
     }
   }, [selectedUser])
 
@@ -246,6 +249,7 @@ export default function Users() {
       mobile_number: formData.get('mobile_number') || null,
       date_of_birth: formData.get('date_of_birth') || null,
       hire_date: formData.get('hire_date') || null,
+      ...(tenantContext?.enabled_modules?.ignitenode && { primary_module: formPrimaryModule || null }),
     }
 
     if (selectedUser) {
@@ -510,6 +514,13 @@ export default function Users() {
                     <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${getRoleColor(user.org_role)}`}>
                       {getRoleLabel(user.org_role)}
                     </span>
+                    {tenantContext?.enabled_modules?.ignitenode && user.primary_module && (
+                      <span className={`ml-1 px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
+                        user.primary_module === 'ignitenode' ? 'bg-orange-100 text-orange-700' : 'bg-violet-100 text-violet-700'
+                      }`}>
+                        {user.primary_module === 'ignitenode' ? '🔥 IgniteNode' : '🎯 SparkNode'}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-4 text-sm text-gray-600">
                     {deptList.find((d) => d.id === user.department_id)?.name || '-'}
@@ -996,6 +1007,22 @@ export default function Users() {
                   </select>
                 </div>
               </div>
+
+              {tenantContext?.enabled_modules?.ignitenode && (
+                <div>
+                  <label className="label">Module Assignment</label>
+                  <select
+                    className="input"
+                    value={formPrimaryModule}
+                    onChange={e => setFormPrimaryModule(e.target.value)}
+                  >
+                    <option value="">— Not assigned (both / default)</option>
+                    <option value="sparknode">🎯 SparkNode — Employee Engagement</option>
+                    <option value="ignitenode">🔥 IgniteNode — Sales &amp; Growth</option>
+                  </select>
+                  <p className="text-[10px] text-gray-400 mt-1">Determines where the user lands after login when multiple modules are enabled.</p>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

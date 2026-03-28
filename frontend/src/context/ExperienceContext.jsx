@@ -117,8 +117,10 @@ export function ExperienceProvider({ children }) {
   )
 
   // ── Active experience (persisted across sessions) ──────────────────────────
-  const [activeExperience, setActiveExperienceState] = useState(() => {
-    const stored = localStorage.getItem(STORAGE_KEY)
+  const [activeExperience, setActiveExperienceState] = useState(() => {    // 1. Prefer user's assigned primary_module (set by admin)
+    if (user?.primary_module === 'ignitenode') return 'growth'
+    if (user?.primary_module === 'sparknode')  return 'engagement'
+    // 2. Fall back to last session choice stored in localStorage    const stored = localStorage.getItem(STORAGE_KEY)
     // Validate stored value against the initial local calculation; API may
     // expand the list later (see effect below).
     const initial = deriveExperiencesLocally(tenantContext, user)

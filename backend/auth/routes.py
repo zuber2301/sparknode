@@ -228,6 +228,7 @@ async def login(
                 created_at=user.created_at,
                 is_platform_admin=user.is_platform_admin,
                 enabled_modules=tenant.enabled_modules if tenant else {"sparknode": True, "ignitenode": False},
+                primary_module=user.primary_module,
             )
         )
 
@@ -363,6 +364,7 @@ async def get_current_user_info(
         is_platform_admin=current_user.is_platform_admin,
         tenant_flags=tenant_flags,
         enabled_modules=tenant.enabled_modules if tenant else {"sparknode": True, "ignitenode": False},
+        primary_module=current_user.primary_module,
         display_currency=tenant.display_currency if tenant else "USD",
         base_currency=tenant.base_currency if tenant else "USD"
     )
@@ -674,6 +676,7 @@ def _build_login_response(db: Session, user: User, is_new_user: bool) -> OtpLogi
             is_platform_admin=user.is_platform_admin,
             tenant_flags=tenant.feature_flags if tenant else {},
             enabled_modules=tenant.enabled_modules if tenant else {"sparknode": True, "ignitenode": False},
+            primary_module=user.primary_module,
             display_currency=tenant.display_currency if tenant else 'USD',
             base_currency=tenant.base_currency if tenant else 'USD',
         ),

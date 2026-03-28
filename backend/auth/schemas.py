@@ -50,6 +50,7 @@ class UserResponse(BaseModel):
     is_platform_admin: bool = False
     tenant_flags: Optional[dict] = None  # Inject tenant feature flags for frontend
     enabled_modules: Optional[dict] = None  # {sparknode: true, ignitenode: false}
+    primary_module: Optional[str] = None  # 'sparknode' | 'ignitenode' | None
     display_currency: Optional[str] = "USD"
     base_currency: Optional[str] = "USD"
     created_at: Optional[datetime] = None

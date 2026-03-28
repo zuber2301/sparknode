@@ -37,12 +37,18 @@ services:
   # .py files under /app and restarts the worker when they change.
   # This means task code changes are reflected without a manual restart.
   # SKIP_ALEMBIC=1: migrations are the backend's responsibility, not celery's.
+  # volumes: mount local backend so the latest migration files and the updated
+  # entrypoint.sh (with SKIP_ALEMBIC support) are used instead of the
+  # stale baked-in image.
   celery:
     build:
       context: ./backend
       dockerfile: Dockerfile
     environment:
       SKIP_ALEMBIC: "1"
+    volumes:
+      - ./backend:/app
+      - ./database:/app/database:ro
     command: >
       watchmedo auto-restart
         --directory=/app
