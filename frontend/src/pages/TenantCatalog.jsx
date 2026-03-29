@@ -44,16 +44,14 @@ function Toggle({ checked, onChange, loading }) {
       type="button"
       onClick={onChange}
       disabled={loading}
-      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all focus:outline-none select-none ${
-        checked
-          ? 'bg-green-100 text-green-700 hover:bg-green-200 ring-1 ring-green-200'
-          : 'bg-gray-100 text-gray-400 hover:bg-gray-200 ring-1 ring-gray-200'
+      aria-pressed={checked}
+      className={`relative inline-flex items-center w-11 h-6 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 select-none shrink-0 ${
+        checked ? 'bg-gradient-to-r from-emerald-400 to-green-500 focus:ring-emerald-400 shadow-emerald-200 shadow-md' : 'bg-gray-200 focus:ring-gray-300'
       } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
     >
-      <span className={`inline-block w-2 h-2 rounded-full transition-colors ${
-        checked ? 'bg-green-500' : 'bg-gray-400'
+      <span className={`inline-block w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${
+        checked ? 'translate-x-6' : 'translate-x-1'
       }`} />
-      {checked ? 'ON' : 'OFF'}
     </button>
   )
 }
@@ -355,14 +353,16 @@ function GlobalCatalogTab() {
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4 mb-5">
         {[
-          { label: 'Total Rewards',          value: items.length,  color: 'text-blue-700',  border: 'border-blue-200'  },
-          { label: 'Enabled for Employees',  value: enabledCount,  color: 'text-green-600', border: 'border-green-200' },
-          { label: 'Hidden',                 value: items.length - enabledCount, color: 'text-gray-400', border: 'border-gray-200' },
-          { label: 'Custom Points Set',      value: customCount,   color: 'text-amber-600', border: 'border-amber-200' },
+          { label: 'Total Rewards',         value: items.length,               icon: '🎁', grad: 'from-blue-500 to-indigo-600'   },
+          { label: 'Enabled for Employees', value: enabledCount,               icon: '✅', grad: 'from-emerald-400 to-green-600' },
+          { label: 'Hidden',                value: items.length - enabledCount, icon: '🙈', grad: 'from-slate-400 to-gray-500'   },
+          { label: 'Custom Points Set',     value: customCount,                icon: '⚙️', grad: 'from-amber-400 to-orange-500'  },
         ].map(s => (
-          <div key={s.label} className={`bg-white rounded-xl border ${s.border} px-4 py-3 shadow-sm`}>
-            <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
-            <div className="text-xs text-gray-400 mt-0.5">{s.label}</div>
+          <div key={s.label} className="relative overflow-hidden bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4">
+            <div className={`absolute -right-3 -top-3 w-16 h-16 rounded-full bg-gradient-to-br ${s.grad} opacity-10`} />
+            <div className="text-2xl mb-1">{s.icon}</div>
+            <div className="text-2xl font-extrabold text-gray-900">{s.value}</div>
+            <div className="text-xs font-medium text-gray-400 mt-0.5">{s.label}</div>
           </div>
         ))}
       </div>
@@ -454,101 +454,89 @@ function GlobalCatalogTab() {
             const hasCustom = item.custom_min_points != null
             const savedPts  = hasCustom ? item.custom_min_points : item.effective_min_points
             const inputVal  = drafts[item.master_item_id]?.points ?? String(savedPts)
+            const grad = catGradient(item.category)
 
             return (
               <div
                 key={item.master_item_id}
-                className={`relative flex flex-col bg-white rounded-2xl border shadow-sm overflow-hidden transition-all duration-200 ${
+                className={`relative flex flex-col bg-white rounded-2xl shadow-sm overflow-hidden transition-all duration-200 group ${
                   dirty
-                    ? 'border-amber-300 ring-2 ring-amber-100 shadow-amber-100'
-                    : 'border-slate-200 hover:border-indigo-300 hover:shadow-xl hover:-translate-y-0.5'
-                } ${!item.is_enabled ? 'opacity-70' : ''}`}
+                    ? 'ring-2 ring-amber-400 shadow-amber-100 shadow-lg'
+                    : 'border border-gray-100 hover:shadow-xl hover:-translate-y-1'
+                } ${!item.is_enabled ? 'opacity-60 grayscale-[30%]' : ''}`}
               >
-                {/* Unsaved badge */}
-                {dirty && (
-                  <span className="absolute top-3 left-3 z-10 px-1.5 py-0.5 bg-amber-500 text-white text-[10px] font-bold rounded-md">
-                    Unsaved
+                {/* Gradient banner */}
+                <div className={`relative h-20 bg-gradient-to-br ${grad} flex items-center justify-between px-4`}>
+                  {/* Brand initial */}
+                  <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-black text-lg shadow-inner">
+                    {item.brand?.[0]?.toUpperCase() || '?'}
+                  </div>
+                  {/* Toggle top-right */}
+                  <div className="shrink-0">
+                    <Toggle
+                      checked={item.is_enabled}
+                      onChange={() => toggleMutation.mutate(item.master_item_id)}
+                      loading={toggleMutation.isPending}
+                    />
+                  </div>
+                  {/* Unsaved badge */}
+                  {dirty && (
+                    <span className="absolute top-2 left-14 px-1.5 py-0.5 bg-amber-400 text-white text-[9px] font-bold rounded-md shadow">
+                      Unsaved
+                    </span>
+                  )}
+                  {/* Category pill overlay bottom-right */}
+                  <span className={`absolute bottom-2 right-3 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/25 text-white backdrop-blur-sm`}>
+                    {toTitle(item.category)}
                   </span>
-                )}
+                </div>
 
                 {/* Card body */}
-                <div className="flex flex-col flex-1 p-4 gap-3">
+                <div className="flex flex-col flex-1 px-4 pt-3 pb-4 gap-3">
 
-                  {/* Row 1: Reward name + Toggle top-right */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0 pr-1">
-                      <h3 className="font-bold text-base text-gray-900 leading-tight line-clamp-1">{item.brand}</h3>
-                      <p className="text-sm text-gray-500 font-medium mt-0.5 leading-snug line-clamp-2">{item.name}</p>
-                    </div>
-                    <div className="shrink-0 mt-0.5">
-                      <Toggle
-                        checked={item.is_enabled}
-                        onChange={() => toggleMutation.mutate(item.master_item_id)}
-                        loading={toggleMutation.isPending}
-                      />
-                    </div>
-                  </div>
-
-                  <hr className="border-gray-100" />
-
-                  {/* Row 2: Category colored tag */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-gray-400 shrink-0">Category</span>
-                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${catClass(item.category)}`}>
-                      {toTitle(item.category)}
-                    </span>
-                  </div>
-
-                  {/* Row 3: Points Required */}
+                  {/* Name */}
                   <div>
-                    {/* Label (2-line) + pill side by side */}
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex flex-col leading-tight">
-                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Points</span>
-                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Required</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        {hasCustom && !dirty && (
-                          <button
-                            onClick={() => resetMutation.mutate(item)}
-                            disabled={resetMutation.isPending}
-                            className="p-0.5 text-gray-300 hover:text-red-400 disabled:opacity-40 transition-colors"
-                            title="Reset to global default"
-                          >
-                            <HiOutlineArrowPath className="w-3 h-3" />
-                          </button>
-                        )}
-                        <div className={`inline-flex items-center gap-1 px-4 py-1.5 rounded-full font-bold text-base ${
-                          dirty || hasCustom ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
-                        }`}>
-                          {dirty
-                            ? (inputVal !== '' ? Math.round(Number(inputVal)).toLocaleString() : Number(savedPts).toLocaleString())
-                            : Number(savedPts).toLocaleString()}
-                          <span className="text-sm font-medium ml-0.5">pts</span>
-                        </div>
-                      </div>
-                    </div>
+                    <h3 className="font-bold text-sm text-gray-900 leading-tight line-clamp-1">{item.brand}</h3>
+                    <p className="text-xs text-gray-400 mt-0.5 leading-snug line-clamp-2">{item.name}</p>
+                  </div>
 
-                    {/* Pill-styled integer input */}
+                  {/* Points section */}
+                  <div className={`rounded-xl px-3 py-2.5 ${
+                    dirty || hasCustom
+                      ? 'bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200'
+                      : 'bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-100'
+                  }`}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className={`text-[10px] font-bold uppercase tracking-widest ${
+                        dirty || hasCustom ? 'text-amber-500' : 'text-indigo-400'
+                      }`}>Points Required</span>
+                      {hasCustom && !dirty && (
+                        <button
+                          onClick={() => resetMutation.mutate(item)}
+                          disabled={resetMutation.isPending}
+                          className="p-0.5 text-gray-300 hover:text-red-400 disabled:opacity-40 transition-colors"
+                          title="Reset to global default"
+                        >
+                          <HiOutlineArrowPath className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
                         min="0"
                         step="1"
-                        className={`w-full rounded-full px-4 py-1.5 text-base font-bold text-center focus:outline-none focus:ring-2 transition-colors ${
+                        className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-bold text-center focus:outline-none focus:ring-2 transition-colors border-0 bg-white/70 ${
                           dirty || hasCustom
-                            ? 'bg-amber-100 text-amber-700 focus:ring-amber-300'
-                            : 'bg-blue-100 text-blue-700 focus:ring-blue-300'
+                            ? 'text-amber-700 focus:ring-amber-300'
+                            : 'text-indigo-700 focus:ring-indigo-300'
                         }`}
                         value={inputVal}
                         onChange={e => setDraftPoints(item.master_item_id, String(Math.round(Number(e.target.value)) || e.target.value))}
                         onKeyDown={e => {
                           if (e.key === 'Enter' && dirty) {
                             publishItem(item)
-                              .then(() => {
-                                toast.success('Published!')
-                                qc.invalidateQueries({ queryKey: ['catalog-tenant'] })
-                              })
+                              .then(() => { toast.success('Published!'); qc.invalidateQueries({ queryKey: ['catalog-tenant'] }) })
                               .catch(() => toast.error('Publish failed'))
                           }
                         }}
@@ -557,14 +545,10 @@ function GlobalCatalogTab() {
                         <button
                           onClick={() =>
                             publishItem(item)
-                              .then(() => {
-                                toast.success('Published!')
-                                qc.invalidateQueries({ queryKey: ['catalog-tenant'] })
-                              })
+                              .then(() => { toast.success('Published!'); qc.invalidateQueries({ queryKey: ['catalog-tenant'] }) })
                               .catch(() => toast.error('Publish failed'))
                           }
-                          className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-full shadow-sm transition-colors"
-                          title="Save"
+                          className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white text-xs font-bold rounded-lg shadow-sm transition-all"
                         >
                           <HiOutlineCheck className="w-3.5 h-3.5" />
                           Save
@@ -573,10 +557,8 @@ function GlobalCatalogTab() {
                     </div>
                   </div>
 
-                  <hr className="border-gray-100" />
-
-                  {/* Footer: source + employee visibility status */}
-                  <div className="flex items-center justify-between text-xs">
+                  {/* Footer */}
+                  <div className="flex items-center justify-between text-xs mt-auto">
                     <span className="flex items-center gap-1">
                       {hasCustom && !dirty ? (
                         <>
@@ -585,18 +567,18 @@ function GlobalCatalogTab() {
                         </>
                       ) : (
                         <>
-                          <HiOutlineGlobeAlt className="w-3.5 h-3.5 text-gray-400" />
+                          <HiOutlineGlobeAlt className="w-3.5 h-3.5 text-gray-300" />
                           <span className="text-gray-400">Global Default</span>
                         </>
                       )}
                     </span>
-                    <span className={`flex items-center gap-1 font-medium ${
-                      item.is_enabled ? 'text-green-600' : 'text-gray-400'
+                    <span className={`flex items-center gap-1 font-semibold ${
+                      item.is_enabled ? 'text-emerald-600' : 'text-gray-300'
                     }`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${
-                        item.is_enabled ? 'bg-green-500' : 'bg-gray-300'
+                        item.is_enabled ? 'bg-emerald-400 shadow-sm shadow-emerald-300' : 'bg-gray-300'
                       }`} />
-                      Employee Visible
+                      {item.is_enabled ? 'Visible' : 'Hidden'}
                     </span>
                   </div>
 
@@ -666,37 +648,38 @@ function CustomItemsTab() {
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           {items.map(item => (
-            <div key={item.id} className={`bg-white rounded-2xl border border-blue-100 shadow-sm overflow-hidden transition-opacity hover:shadow-md hover:border-blue-300 ${!item.is_active ? 'opacity-50' : ''}`}>
-              {/* Image / placeholder */}
-              <div className="h-28 bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center relative">
+            <div key={item.id} className={`group relative bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100 transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 ${!item.is_active ? 'opacity-50' : ''}`}>
+              {/* Gradient banner / image */}
+              <div className="h-32 bg-gradient-to-br from-violet-500 to-purple-700 flex items-center justify-center relative overflow-hidden">
                 {item.image_url ? (
                   <img src={item.image_url} alt={item.name} className="h-full w-full object-cover" />
                 ) : (
-                  <HiOutlineSparkles className="w-10 h-10 text-blue-200" />
+                  <HiOutlineSparkles className="w-12 h-12 text-white/40" />
                 )}
-                <span className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-xs font-medium capitalize ${catClass(item.category)}`}>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                <span className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/20 text-white backdrop-blur-sm capitalize`}>
                   {item.category}
                 </span>
               </div>
               {/* Info */}
               <div className="px-4 py-3">
-                <div className="font-semibold text-gray-800 text-sm">{item.name}</div>
+                <div className="font-bold text-gray-900 text-sm">{item.name}</div>
                 {item.description && (
-                  <div className="text-xs text-gray-400 mt-0.5 line-clamp-1">{item.description}</div>
+                  <div className="text-xs text-gray-400 mt-0.5 line-clamp-2">{item.description}</div>
                 )}
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="font-mono text-sm font-bold text-blue-600">
-                    {Number(item.points_cost).toLocaleString()} pts
+                <div className="mt-3 flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-100 text-violet-700 font-bold text-sm">
+                    {Number(item.points_cost).toLocaleString()} <span className="font-normal text-xs">pts</span>
                   </span>
                   {item.inventory_count !== null ? (
-                    <span className="text-xs text-gray-400">{item.inventory_count} left</span>
+                    <span className="text-xs font-medium text-gray-400">{item.inventory_count} left</span>
                   ) : (
                     <span className="text-xs text-gray-300">Unlimited</span>
                   )}
                 </div>
               </div>
               {/* Actions */}
-              <div className="px-4 py-2 border-t border-blue-50 flex items-center justify-between">
+              <div className="px-4 py-2.5 border-t border-gray-50 flex items-center justify-between bg-gray-50/50">
                 <Toggle
                   checked={item.is_active}
                   onChange={() => toggleActiveMutation.mutate(item)}
@@ -705,7 +688,7 @@ function CustomItemsTab() {
                 <div className="flex gap-1">
                   <button
                     onClick={() => { setEditItem(item); setShowModal(true) }}
-                    className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
                   >
                     <HiOutlinePencil className="w-4 h-4" />
                   </button>
@@ -741,32 +724,32 @@ export default function TenantCatalog() {
   ]
 
   return (
-    <div className="min-h-screen bg-blue-50/40 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40 p-6">
       {/* Page Header */}
       <div className="mb-6">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
-            <HiOutlineShoppingBag className="w-4 h-4 text-white" />
+        <div className="flex items-center gap-3 mb-1">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-lg shadow-indigo-200">
+            <HiOutlineShoppingBag className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Company Rewards Catalog</h1>
+          <div>
+            <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Company Rewards Catalog</h1>
+            <p className="text-sm text-gray-400">Control which rewards are visible to your employees and add your own custom perks.</p>
+          </div>
         </div>
-        <p className="text-sm text-gray-500">
-          Control which rewards are visible to your employees and add your own custom perks.
-        </p>
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-3 mb-6">
+      <div className="flex gap-2 mb-6">
         {tabs.map(t => {
           const Icon = t.icon
           return (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
                 tab === t.id
-                  ? 'bg-white border border-blue-200 text-blue-700 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-white hover:shadow-sm border border-transparent'
+                  ? 'bg-gradient-to-r from-indigo-600 to-blue-500 text-white shadow-md shadow-indigo-200'
+                  : 'bg-white text-gray-500 hover:text-gray-800 hover:shadow-sm border border-gray-100'
               }`}
             >
               <Icon className="w-4 h-4" />

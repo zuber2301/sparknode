@@ -101,17 +101,8 @@ const tenantManagerNavigation = [
       { name: 'Escrow Approval', href: '/campaigns/escrow', icon: HiOutlineClipboardList, featureFlag: true },
     ],
   },
-  {
-    name: 'Growth',
-    icon: HiOutlineCalendar,
-    submenu: [
-      { name: 'Event Management', href: '/events', icon: HiOutlineCalendar },
-      { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: true },
-      { name: 'Campaigns', href: '/campaigns', icon: HiOutlineBriefcase, featureFlag: true },
-      { name: 'Growth Events', href: '/growth-events', icon: HiOutlineLightningBolt, featureFlag: true },
-      { name: 'Company Catalog', href: '/catalog', icon: HiOutlineShoppingCart },
-    ],
-  },
+  { name: 'Events', href: '/events', icon: HiOutlineCalendar },
+  { name: 'Catalog', href: '/catalog', icon: HiOutlineShoppingCart },
   { name: 'Analytics', href: '/analytics', icon: HiOutlineTrendingUp },
   {
     name: 'Settings',

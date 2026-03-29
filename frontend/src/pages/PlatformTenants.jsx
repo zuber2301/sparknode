@@ -2096,12 +2096,25 @@ export default function PlatformTenants() {
                       </div>
                       <div>
                         <label className="label">Slug</label>
-                        <input className="input" value={newTenant.slug} onChange={e => ntSet('slug', e.target.value)} placeholder="triton-energy" />
+                        <input className="input" value={newTenant.slug} onChange={e => {
+                          const slug = e.target.value
+                          const prevDomainAuto = `${newTenant.slug}.sparknode.io`
+                          const prevEmailAuto = `admin@${newTenant.slug}.sparknode.io`
+                          setNewTenant(prev => ({
+                            ...prev,
+                            slug,
+                            domain: (!prev.domain || prev.domain === prevDomainAuto)
+                              ? (slug ? `${slug}.sparknode.io` : '') : prev.domain,
+                            admin_email: (!prev.admin_email || prev.admin_email === prevEmailAuto)
+                              ? (slug ? `admin@${slug}.sparknode.io` : '') : prev.admin_email,
+                          }))
+                        }} placeholder="triton-energy" />
                         <p className="text-xs text-gray-400 mt-1">Auto-generated from name if left blank</p>
                       </div>
                       <div>
                         <label className="label">Domain</label>
                         <input className="input" value={newTenant.domain} onChange={e => ntSet('domain', e.target.value)} placeholder="triton-energy.sparknode.io" />
+                        <p className="text-xs text-gray-400 mt-1">Auto-filled from slug</p>
                       </div>
                       <div>
                         <label className="label">Subscription Tier</label>

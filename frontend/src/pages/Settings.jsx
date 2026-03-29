@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { tenantsAPI } from '../lib/api'
 import TenantSettingsTab from '../components/TenantSettingsTab'
@@ -6,6 +7,7 @@ import { HiOutlineCog } from 'react-icons/hi'
 
 export default function Settings() {
   const [message, setMessage] = useState(null)
+  const navigate = useNavigate()
 
   const { data: tenant, isLoading } = useQuery({
     queryKey: ['currentTenant'],
@@ -44,10 +46,7 @@ export default function Settings() {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <TenantSettingsTab
           tenant={tenant}
-          onUpdate={() => {
-            // Refresh tenant data after update
-            window.location.reload()
-          }}
+          onUpdate={() => navigate('/dashboard')}
           setMessage={setMessage}
         />
       </div>
