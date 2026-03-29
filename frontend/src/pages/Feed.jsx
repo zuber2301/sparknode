@@ -35,10 +35,10 @@ export default function Feed() {
       })
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-0 space-y-4 sm:space-y-6">
+    <div className="w-full space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Activity Feed</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Rewards &amp; Recognition</h1>
         <div className="flex gap-2">
           <button
             onClick={() => setShowRecognitionModal(true)}

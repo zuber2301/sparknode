@@ -40,7 +40,7 @@ const navigation = [
   { name: 'Events', href: '/events/browse', icon: HiOutlineNewspaper },
   { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: true },
   { name: 'Campaigns', href: '/campaigns', icon: HiOutlineBriefcase, featureFlag: true },
-  { name: 'Feed', href: '/feed', icon: HiOutlineNewspaper },
+  { name: 'Rewards & Recognition', href: '/feed', icon: HiOutlineSparkles },
   { name: 'Recognize', href: '/recognize', icon: HiOutlineSparkles },
   { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
   { name: 'Wallet', href: '/wallet', icon: HiOutlineCash },
@@ -83,7 +83,7 @@ const platformAdminNavigation = [
 // Desktop layout: Dashboard | Feed | People ▾ | Finance ▾ | Growth ▾ | Analytics | Settings ▾
 const tenantManagerNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
-  { name: 'Feed', href: '/feed', icon: HiOutlineNewspaper },
+  { name: 'Rewards & Recognition', href: '/feed', icon: HiOutlineSparkles },
   {
     name: 'People',
     icon: HiOutlineUsers,
@@ -117,7 +117,7 @@ const tenantManagerNavigation = [
 // Tenant Lead specific navigation
 const tenantLeadNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
-  { name: 'Feed', href: '/feed', icon: HiOutlineNewspaper },
+  { name: 'Rewards & Recognition', href: '/feed', icon: HiOutlineSparkles },
   { name: 'Challenges', href: '/challenges', icon: HiOutlineChartBar },
   { name: 'Events', href: '/events/browse', icon: HiOutlineCalendar },
   { name: 'Sales Events', href: '/sales-events', icon: HiOutlineCalendar, featureFlag: true },
@@ -147,7 +147,7 @@ const igniteLeadNavigation = [
 // Regular user navigation — limited to core actions only
 const userNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
-  { name: 'Feed', href: '/feed', icon: HiOutlineNewspaper },
+  { name: 'Rewards & Recognition', href: '/feed', icon: HiOutlineSparkles },
   { name: 'Challenges', href: '/challenges', icon: HiOutlineChartBar },
   { name: 'Recognize', href: '/recognize', icon: HiOutlineSparkles },
   { name: 'Redeem', href: '/redeem', icon: HiOutlineGift },
@@ -387,10 +387,12 @@ export default function TopHeader() {
 
   return (
     <>
-    <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
+    <header className="sticky top-0 z-40 bg-white border-b-2 border-gray-200 shadow-md">
+      {/* Gradient accent line */}
+      <div className="h-0.5 bg-gradient-to-r from-sparknode-purple via-sparknode-blue to-sparknode-purple/40" />
       {/* Main header */}
       <div className="px-2 lg:px-3">
-        <div className="flex items-center justify-between h-16 gap-4">
+        <div className="flex items-center justify-between h-[68px] gap-4">
           {/* Logo + Mobile Menu Button */}
           <div className="flex items-center gap-3 flex-shrink-0">
             <button
@@ -414,7 +416,7 @@ export default function TopHeader() {
               }`}>
                 <span className="text-white font-bold text-sm">{isGrowth ? 'IN' : 'SN'}</span>
               </div>
-              <span className={`hidden sm:inline text-xl font-bold bg-gradient-to-r bg-clip-text text-transparent ${
+              <span className={`hidden sm:inline text-2xl font-extrabold bg-gradient-to-r bg-clip-text text-transparent tracking-tight ${
                 isGrowth
                   ? 'from-orange-500 to-amber-600'
                   : 'from-sparknode-purple to-sparknode-blue'

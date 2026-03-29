@@ -23,18 +23,18 @@ const CAT_COLOR = {
 }
 const catClass = (c) => CAT_COLOR[c?.toLowerCase()] || 'bg-gray-100 text-gray-700'
 
-// Category gradient backgrounds for card banners
-const CAT_GRADIENT = {
-  shopping:      'from-indigo-500 to-sky-400',
-  food:          'from-orange-500 to-amber-400',
-  experiences:   'from-purple-600 to-fuchsia-500',
-  merchandise:   'from-emerald-500 to-teal-400',
-  travel:        'from-sky-500 to-blue-400',
-  entertainment: 'from-pink-500 to-rose-400',
-  wellness:      'from-teal-500 to-green-400',
-  custom:        'from-violet-500 to-purple-400',
+// Solid background colors for card banners
+const CAT_BG = {
+  shopping:      'bg-indigo-500',
+  food:          'bg-orange-400',
+  experiences:   'bg-purple-500',
+  merchandise:   'bg-emerald-500',
+  travel:        'bg-sky-500',
+  entertainment: 'bg-pink-500',
+  wellness:      'bg-teal-500',
+  custom:        'bg-violet-500',
 }
-const catGradient = (c) => CAT_GRADIENT[c?.toLowerCase()] || 'from-slate-500 to-gray-400'
+const catBg = (c) => CAT_BG[c?.toLowerCase()] || 'bg-slate-500'
 const toTitle = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : ''
 
 // ── Toggle Switch ─────────────────────────────────────────────────────────────
@@ -310,7 +310,7 @@ function GlobalCatalogTab() {
     const d = drafts[item.master_item_id]
     if (!d || d.points === '') return false
     const saved = item.custom_min_points != null ? item.custom_min_points : item.effective_min_points
-    return Number(d.points) !== Number(saved)
+    return Math.round(Number(d.points)) !== Math.floor(Number(saved))
   }
 
   // Persist one card's draft to the backend
@@ -318,14 +318,23 @@ function GlobalCatalogTab() {
     const d = drafts[item.master_item_id]
     if (!d || d.points === '') return
     const pts = Math.round(Number(d.points))
+    // Client-side guard: reject values outside the master band
+    if (pts < Number(item.effective_min_points)) {
+      toast.error(`Value must be at least ${Math.floor(Number(item.effective_min_points))} pts`)
+      return
+    }
+    if (pts > Number(item.effective_max_points)) {
+      toast.error(`Value cannot exceed ${Math.floor(Number(item.effective_max_points))} pts`)
+      return
+    }
     await catalogAPI.upsertTenantItem(item.master_item_id, {
       master_item_id: item.master_item_id,
       is_enabled: item.is_enabled,
       custom_min_points: pts,
       custom_max_points: pts,
       custom_step_points: null,
-      visibility_scope: 'all',
-      sort_order: 0,
+      visibility_scope: item.visibility_scope || 'all',
+      sort_order: item.sort_order ?? 0,
     })
     setDrafts(prev => { const n = { ...prev }; delete n[item.master_item_id]; return n })
   }
@@ -334,15 +343,25 @@ function GlobalCatalogTab() {
 
   const publishAll = async () => {
     setPublishing(true)
-    try {
-      await Promise.all(dirtyItems.map(publishItem))
-      toast.success(`Published ${dirtyItems.length} change${dirtyItems.length !== 1 ? 's' : ''}`)
+    let successCount = 0
+    const errors = []
+    await Promise.allSettled(dirtyItems.map(async (item) => {
+      try {
+        await publishItem(item)
+        successCount++
+      } catch (e) {
+        const msg = e?.response?.data?.detail || e?.message || 'Unknown error'
+        errors.push(`${item.brand}: ${msg}`)
+      }
+    }))
+    if (successCount > 0) {
+      toast.success(`Published ${successCount} change${successCount !== 1 ? 's' : ''}`)
       qc.invalidateQueries({ queryKey: ['catalog-tenant'] })
-    } catch {
-      toast.error('Some updates failed — please retry')
-    } finally {
-      setPublishing(false)
     }
+    if (errors.length > 0) {
+      errors.forEach(msg => toast.error(msg))
+    }
+    setPublishing(false)
   }
 
   const enabledCount = items.filter(i => i.is_enabled).length
@@ -350,19 +369,61 @@ function GlobalCatalogTab() {
 
   return (
     <div>
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-5">
+      {/* Stats — vibrant gradient cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         {[
-          { label: 'Total Rewards',         value: items.length,               icon: '🎁', grad: 'from-blue-500 to-indigo-600'   },
-          { label: 'Enabled for Employees', value: enabledCount,               icon: '✅', grad: 'from-emerald-400 to-green-600' },
-          { label: 'Hidden',                value: items.length - enabledCount, icon: '🙈', grad: 'from-slate-400 to-gray-500'   },
-          { label: 'Custom Points Set',     value: customCount,                icon: '⚙️', grad: 'from-amber-400 to-orange-500'  },
+          {
+            label: 'Total Rewards',
+            value: items.length,
+            icon: '🎁',
+            grad: 'from-indigo-500 via-purple-500 to-blue-600',
+            sub: 'In your catalog',
+          },
+          {
+            label: 'Enabled for Employees',
+            value: enabledCount,
+            icon: '✅',
+            grad: 'from-emerald-400 via-teal-500 to-green-600',
+            sub: 'Visible to staff',
+          },
+          {
+            label: 'Hidden',
+            value: items.length - enabledCount,
+            icon: '🙈',
+            grad: 'from-slate-500 via-gray-500 to-zinc-600',
+            sub: 'Not visible to staff',
+          },
+          {
+            label: 'Custom Points Set',
+            value: customCount,
+            icon: '⚙️',
+            grad: 'from-amber-400 via-orange-500 to-rose-500',
+            sub: 'Tenant overrides',
+          },
         ].map(s => (
-          <div key={s.label} className="relative overflow-hidden bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4">
-            <div className={`absolute -right-3 -top-3 w-16 h-16 rounded-full bg-gradient-to-br ${s.grad} opacity-10`} />
-            <div className="text-2xl mb-1">{s.icon}</div>
-            <div className="text-2xl font-extrabold text-gray-900">{s.value}</div>
-            <div className="text-xs font-medium text-gray-400 mt-0.5">{s.label}</div>
+          <div
+            key={s.label}
+            className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${s.grad} p-5 shadow-lg`}
+          >
+            {/* Background decoration */}
+            <div className="absolute -right-4 -top-4 w-24 h-24 rounded-full bg-white/10" />
+            <div className="absolute -right-1 -bottom-6 w-16 h-16 rounded-full bg-white/10" />
+
+            {/* Icon */}
+            <div className="relative flex items-start justify-between mb-4">
+              <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-2xl shadow-inner">
+                {s.icon}
+              </div>
+            </div>
+
+            {/* Value */}
+            <div className="relative">
+              <p className="text-4xl font-black text-white leading-none tracking-tight">
+                {Math.floor(s.value).toLocaleString()}
+              </p>
+              <p className="text-sm font-bold text-white/90 mt-1.5">{s.label}</p>
+              <p className="text-xs text-white/60 mt-0.5">{s.sub}</p>
+            </div>
           </div>
         ))}
       </div>
@@ -453,8 +514,9 @@ function GlobalCatalogTab() {
             const dirty   = isDirty(item)
             const hasCustom = item.custom_min_points != null
             const savedPts  = hasCustom ? item.custom_min_points : item.effective_min_points
-            const inputVal  = drafts[item.master_item_id]?.points ?? String(savedPts)
-            const grad = catGradient(item.category)
+            const savedInt  = Math.floor(Number(savedPts))
+            const inputVal  = drafts[item.master_item_id]?.points ?? String(savedInt)
+            const bg = catBg(item.category)
 
             return (
               <div
@@ -465,8 +527,8 @@ function GlobalCatalogTab() {
                     : 'border border-gray-100 hover:shadow-xl hover:-translate-y-1'
                 } ${!item.is_enabled ? 'opacity-60 grayscale-[30%]' : ''}`}
               >
-                {/* Gradient banner */}
-                <div className={`relative h-20 bg-gradient-to-br ${grad} flex items-center justify-between px-4`}>
+                {/* Solid colour banner */}
+                <div className={`relative h-20 ${bg} flex items-center justify-between px-4`}>
                   {/* Brand initial */}
                   <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-black text-lg shadow-inner">
                     {item.brand?.[0]?.toUpperCase() || '?'}
@@ -537,7 +599,7 @@ function GlobalCatalogTab() {
                           if (e.key === 'Enter' && dirty) {
                             publishItem(item)
                               .then(() => { toast.success('Published!'); qc.invalidateQueries({ queryKey: ['catalog-tenant'] }) })
-                              .catch(() => toast.error('Publish failed'))
+                              .catch(err => toast.error(err?.response?.data?.detail || err?.message || 'Publish failed'))
                           }
                         }}
                       />
@@ -546,7 +608,7 @@ function GlobalCatalogTab() {
                           onClick={() =>
                             publishItem(item)
                               .then(() => { toast.success('Published!'); qc.invalidateQueries({ queryKey: ['catalog-tenant'] }) })
-                              .catch(() => toast.error('Publish failed'))
+                              .catch(err => toast.error(err?.response?.data?.detail || err?.message || 'Publish failed'))
                           }
                           className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white text-xs font-bold rounded-lg shadow-sm transition-all"
                         >
