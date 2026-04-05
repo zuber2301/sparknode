@@ -132,21 +132,23 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      # Enable build cache mounts for faster rebuilds
+      cache_from:
+        - zuber2301/sparknode-app-frontend:latest
     container_name: ${PROJECT_NAME:-sparknode}-frontend
     restart: unless-stopped
     ports:
       - "${FRONTEND_EXTERNAL_PORT:-6173}:80"
-    volumes:
-      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - backend
     networks:
       - app-network
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 volumes:
   postgres_data:

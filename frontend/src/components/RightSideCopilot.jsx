@@ -245,7 +245,8 @@ export default function RightSideCopilot() {
                       setExpandedIntentKey(null)
                     } else {
                       const defaults = {}
-                      intent.params.forEach(p => { defaults[p.key] = p.default })
+                      const params = Array.isArray(intent.params) ? intent.params : []
+                      params.forEach(p => { defaults[p.key] = p.default })
                       setIntentParams(defaults)
                       setExpandedIntentKey(key)
                     }
@@ -269,7 +270,7 @@ export default function RightSideCopilot() {
                       {/* Inline param form */}
                       {isExpanded && intent.params && (
                         <div className="px-3 py-2 space-y-2 bg-gray-50">
-                          {intent.params.map(param => (
+                          {(Array.isArray(intent.params) ? intent.params : []).map(param => (
                             <div key={param.key} className="flex items-center gap-2">
                               <label className="text-[10px] text-gray-500 w-24 shrink-0">{param.label}</label>
                               {param.type === 'select' ? (
@@ -278,7 +279,7 @@ export default function RightSideCopilot() {
                                   onChange={e => setIntentParams(prev => ({ ...prev, [param.key]: e.target.value }))}
                                   className="flex-1 text-xs border border-gray-300 rounded px-1.5 py-1 bg-white focus:ring-1 focus:ring-sparknode-purple outline-none"
                                 >
-                                  {param.options.map(opt => (
+                                  {(Array.isArray(param.options) ? param.options : []).map(opt => (
                                     <option key={opt} value={opt}>{opt}</option>
                                   ))}
                                 </select>

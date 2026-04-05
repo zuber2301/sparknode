@@ -1,0 +1,28 @@
+# Development Dockerfile for hot reloading
+FROM node:20-alpine AS development
+
+# Install git for potential dependencies
+RUN apk add --no-cache git
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (including dev dependencies)
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --no-fund
+
+# Copy source code
+COPY . .
+
+# Expose development port
+EXPOSE 5173
+
+# Set environment
+ENV NODE_ENV=development
+ENV VITE_API_URL=http://localhost:7100
+
+# Start development server
+CMD ["npm", "run", "dev"]

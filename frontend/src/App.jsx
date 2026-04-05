@@ -48,6 +48,7 @@ import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 import Challenges from './pages/Challenges'
 import CompanyValues from './pages/CompanyValues'
+import LandingPage from './pages/LandingPage'
 import Gateway from './pages/Gateway'
 import SparkNodeLanding from './pages/SparkNodeLanding'
 import IgniteNodeLanding from './pages/IgniteNodeLanding'
@@ -159,7 +160,7 @@ function App() {
           </ExperienceProvider>
         </PrivateRoute>
       }>
-        <Route index element={<Navigate to="/dashboard" />} />
+        <Route index element={<LandingPage />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="sparknode" element={<SparkNodeLanding />} />
         <Route path="ignitenode" element={<IgniteNodeLanding />} />

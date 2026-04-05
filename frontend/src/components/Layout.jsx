@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { CopilotProvider, useCopilot } from '../context/copilotContext'
 import TopHeader from './TopHeader'
 import RightSideCopilot from './RightSideCopilot'
@@ -13,27 +13,30 @@ export default function Layout() {
 }
 
 function LayoutContent() {
+  const location = useLocation()
+  const isLandingPage = location.pathname === '/'
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Top Header with horizontal navigation */}
-      <TopHeader />
+      {/* Top Header with horizontal navigation - hide on landing page */}
+      {!isLandingPage && <TopHeader />}
 
       {/* Main content area - two column split layout */}
-      <div className="flex flex-1 overflow-hidden px-1 sm:px-2 lg:px-3 py-2 gap-2 sm:gap-3 h-full">
+      <div className={`flex flex-1 overflow-hidden px-1 sm:px-2 lg:px-3 py-2 gap-2 sm:gap-3 h-full ${isLandingPage ? 'px-0 py-0' : ''}`}>
         {/* Left Column Placeholder - reserve space for fixed Copilot on large screens */}
-        <div className="hidden lg:block w-[520px] flex-shrink-0" />
+        {!isLandingPage && <div className="hidden lg:block w-[520px] flex-shrink-0" />}
         {/* Visual Divider */}
-        <div className="hidden lg:block w-px bg-gray-200 flex-shrink-0" />
+        {!isLandingPage && <div className="hidden lg:block w-px bg-gray-200 flex-shrink-0" />}
 
         {/* Right Column - Main Content (independent scroll) */}
         <div className="flex flex-col flex-1 overflow-hidden">
-          <main className="flex-1 w-full bg-white rounded-xl shadow-sm p-2 sm:p-4 lg:p-5 overflow-auto">
+          <main className={`flex-1 w-full bg-white rounded-xl shadow-sm overflow-auto ${isLandingPage ? 'rounded-none shadow-none' : 'p-2 sm:p-4 lg:p-5'}`}>
             <Outlet />
           </main>
         </div>
       </div>
-      {/* Render Copilot fixed so it doesn't move with page scroll */}
-      <RightSideCopilot />
+      {/* Render Copilot fixed so it doesn't move with page scroll - hide on landing page */}
+      {!isLandingPage && <RightSideCopilot />}
     </div>
   )
 }

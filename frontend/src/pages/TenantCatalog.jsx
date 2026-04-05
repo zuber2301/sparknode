@@ -26,11 +26,11 @@ const catClass = (c) => CAT_COLOR[c?.toLowerCase()] || 'bg-gray-100 text-gray-70
 // Solid background colors for card banners
 const CAT_BG = {
   shopping:      'bg-indigo-500',
-  food:          'bg-orange-400',
-  experiences:   'bg-purple-500',
+  food:          'bg-rose-500',
+  experiences:   'bg-violet-900',
   merchandise:   'bg-emerald-500',
   travel:        'bg-sky-500',
-  entertainment: 'bg-pink-500',
+  entertainment: 'bg-pink-800',
   wellness:      'bg-teal-500',
   custom:        'bg-violet-500',
 }

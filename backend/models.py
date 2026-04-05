@@ -1958,6 +1958,74 @@ class GrowthEventRegistration(Base):
     event = relationship("GrowthEvent", back_populates="registrations")
 
 
+# =====================================================
+# BUDGET ALERT RULES & FIRED ALERTS
+# =====================================================
+
+class BudgetAlertRule(Base):
+    """
+    Configurable alert rule for budget threshold notifications.
+
+    Each rule defines a threshold percentage at which an alert fires.
+    Rules can be global (tenant_id=NULL → all tenants) or tenant-specific.
+    """
+    __tablename__ = "budget_alert_rules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
+
+    name = Column(String(200), nullable=False)
+    alert_level = Column(String(20), nullable=False, default="warning")  # warning | critical | emergency
+    threshold_percent = Column(Numeric(5, 2), nullable=False)  # fire when remaining % <= this value
+    email_recipients = Column(JSONB, default=lambda: [])  # list of email addresses
+    notify_in_app = Column(Boolean, default=True)  # create Notification rows
+    notify_email = Column(Boolean, default=True)  # send email
+    hard_limit = Column(Boolean, default=False)  # if True, block further distribution (future use)
+    cooldown_minutes = Column(Integer, default=1440)  # min interval between repeated alerts (default 24h)
+    is_active = Column(Boolean, default=True)
+    description = Column(Text, nullable=True)
+
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    tenant = relationship("Tenant", foreign_keys=[tenant_id])
+
+
+class BudgetAlert(Base):
+    """
+    A fired alert instance — one row per rule×tenant each time the threshold is breached.
+    Tracks status (active → acknowledged → resolved) and prevents duplicate spam.
+    """
+    __tablename__ = "budget_alerts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    rule_id = Column(UUID(as_uuid=True), ForeignKey("budget_alert_rules.id", ondelete="CASCADE"), nullable=True, index=True)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    alert_level = Column(String(20), nullable=False)
+    threshold_percent = Column(Numeric(5, 2), nullable=False)
+    remaining_percent = Column(Numeric(5, 2), nullable=False)  # actual % remaining when fired
+    remaining_budget = Column(Numeric(15, 2), nullable=False)
+    total_budget = Column(Numeric(15, 2), nullable=False)
+    message = Column(Text, nullable=False)
+
+    status = Column(String(20), default="active")  # active | acknowledged | resolved
+    email_sent = Column(Boolean, default=False)
+    notification_created = Column(Boolean, default=False)
+    acknowledged_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    acknowledged_at = Column(DateTime(timezone=True), nullable=True)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+    triggered_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    rule = relationship("BudgetAlertRule")
+    tenant = relationship("Tenant")
+
+
 # -------------------- Compatibility aliases / legacy models --------------------
 # Provide simple aliases so existing imports in tests keep working.
 # Reward used to be a distinct model; map it to Voucher.

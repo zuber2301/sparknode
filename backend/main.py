@@ -46,6 +46,7 @@ from experience.routes import router as experience_router
 # ── APScheduler (monthly billing) ────────────────────────────────────────────
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 from database import SessionLocal
 
 _billing_scheduler = BackgroundScheduler(timezone="UTC")
@@ -72,6 +73,37 @@ _billing_scheduler.add_job(
     _run_monthly_invoicing,
     CronTrigger(day=1, hour=0, minute=5),
     id="monthly_billing",
+    replace_existing=True,
+)
+
+
+# ── Budget Alert Scheduler (every 6 hours) ───────────────────────────────────
+
+def _run_budget_alert_check():
+    """Scheduler job — checks all tenants for budget threshold breaches."""
+    import asyncio
+    from core.budget_alert_service import BudgetAlertService
+    db = SessionLocal()
+    try:
+        acquired = db.execute(text("SELECT pg_try_advisory_lock(202502)")).scalar()
+        if not acquired:
+            return
+        # Auto-resolve cleared alerts first, then check for new ones
+        BudgetAlertService.auto_resolve_cleared_alerts(db)
+        events = BudgetAlertService.check_budget_health(db)
+        if events:
+            asyncio.run(BudgetAlertService.fire_alerts(db, events))
+        logging.info("Budget alert check completed: %d alerts found", len(events))
+    except Exception as exc:
+        logging.error("Budget alert scheduler error: %s", exc)
+    finally:
+        db.close()
+
+
+_billing_scheduler.add_job(
+    _run_budget_alert_check,
+    IntervalTrigger(hours=6),
+    id="budget_alert_check",
     replace_existing=True,
 )
 

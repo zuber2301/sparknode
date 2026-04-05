@@ -8,23 +8,38 @@ Routes for Platform Admins to:
 4. View tenant allocation statistics
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 from uuid import UUID
 from decimal import Decimal
 from typing import Optional, List
 from pydantic import BaseModel
 from datetime import datetime
+import asyncio
+import logging
 
 from models import Tenant, User, BudgetAllocationLog, PlatformBudgetBillingLog, BudgetDistributionLog
-from database import get_db
+from database import get_db, SessionLocal
 from auth import get_current_user
 from core.budget_service import BudgetService, BudgetAllocationError
 from core.audit_service import AuditService
 from core import append_impersonation_metadata
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/platform/budgets", tags=["platform-admin-budget-allocation"])
+
+
+def _run_alert_check_for_tenant(tenant_id: UUID):
+    """Run alert check in background after budget change."""
+    from core.budget_alert_service import BudgetAlertService
+    db = SessionLocal()
+    try:
+        asyncio.run(BudgetAlertService.check_and_fire_for_tenant(db, tenant_id))
+    except Exception as e:
+        logger.error(f"Background alert check failed for tenant {tenant_id}: {e}")
+    finally:
+        db.close()
 
 
 # =====================================================
@@ -133,6 +148,7 @@ async def get_platform_admin(
 @router.post("/allocate", response_model=AllocationResponse)
 async def allocate_budget_to_tenant(
     request: AllocateBudgetRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_platform_admin),
     db: Session = Depends(get_db)
 ):
@@ -166,6 +182,9 @@ async def allocate_budget_to_tenant(
         
         db.commit()
         
+        # Check alerts after allocation (budget increased — may resolve active alerts)
+        background_tasks.add_task(_run_alert_check_for_tenant, request.tenant_id)
+        
         return AllocationResponse(
             tenant_id=updated_tenant.id,
             tenant_name=updated_tenant.name,
@@ -187,6 +206,7 @@ async def allocate_budget_to_tenant(
 @router.post("/clawback", response_model=AllocationResponse)
 async def clawback_budget_from_tenant(
     request: ClawbackBudgetRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_platform_admin),
     db: Session = Depends(get_db)
 ):
@@ -213,6 +233,9 @@ async def clawback_budget_from_tenant(
         )
         
         db.commit()
+
+        # Check alerts after clawback (budget decreased — may trigger new alerts)
+        background_tasks.add_task(_run_alert_check_for_tenant, request.tenant_id)
         
         return AllocationResponse(
             tenant_id=tenant.id,

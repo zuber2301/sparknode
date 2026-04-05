@@ -60,7 +60,7 @@ export default function RecognitionModal({ isOpen, onClose, initialSelectedUser 
 
   const { data: badges } = useQuery({
     queryKey: ['badges'],
-    queryFn: () => recognitionAPI.getBadges(),
+    queryFn: () => recognitionAPI.getBadges().then(r => r.data),
     enabled: isOpen && step === 3
   })
 
@@ -304,9 +304,15 @@ export default function RecognitionModal({ isOpen, onClose, initialSelectedUser 
                     <div className='flex items-center space-x-2'>
                        <input
                         type='number'
+                        min='250'
+                        step='50'
                         className='input w-24 text-center font-bold'
                         value={points}
-                        onChange={(e) => setPoints(Math.max(0, parseInt(e.target.value) || 0))}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value) || 250;
+                          const rounded = Math.max(250, Math.round(val / 50) * 50);
+                          setPoints(rounded);
+                        }}
                         disabled={!isManager}
                       />
                     </div>
@@ -383,7 +389,7 @@ export default function RecognitionModal({ isOpen, onClose, initialSelectedUser 
                         badgeId === badge.id ? 'bg-sparknode-purple/10 border-sparknode-purple' : 'bg-white border-gray-100 hover:border-sparknode-purple'
                       }`}
                     >
-                      <img src={badge.icon_url || badge.icon} alt='' className='w-5 h-5 object-contain' onError={(e) => e.target.src = '/badge-placeholder.png'} />
+                      <span className="text-2xl">{badge.icon_url || badge.icon}</span>
                       <span className='text-sm'>{badge.name}</span>
                     </button>
                   ))}

@@ -7,13 +7,15 @@ Three-level budget allocation:
 3. Department Lead: distributes to Employees (as points)
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
 from decimal import Decimal
+import asyncio
+import logging
 
-from database import get_db
+from database import get_db, SessionLocal
 from core import append_impersonation_metadata
 from models import (
     Tenant, Department, User, AuditLog, 
@@ -33,6 +35,20 @@ from budgets.schemas import (
 )
 
 router = APIRouter(prefix="/budget-workflow", tags=["budget-workflow"])
+
+logger = logging.getLogger(__name__)
+
+
+def _run_alert_check(tenant_id: UUID):
+    """Run budget alert check for a tenant in background after distribution."""
+    from core.budget_alert_service import BudgetAlertService
+    db = SessionLocal()
+    try:
+        asyncio.run(BudgetAlertService.check_and_fire_for_tenant(db, tenant_id))
+    except Exception as e:
+        logger.error(f"Background alert check failed for tenant {tenant_id}: {e}")
+    finally:
+        db.close()
 
 
 def is_platform_admin(current_user: User) -> bool:
@@ -269,6 +285,7 @@ async def get_all_department_allocations(
 @router.post("/department-allocation", response_model=DepartmentBudgetAllocationResponse)
 async def allocate_budget_to_department(
     allocation_data: DepartmentBudgetAllocationCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -409,6 +426,9 @@ async def allocate_budget_to_department(
     
     db.commit()
     db.refresh(allocation)
+
+    # Trigger budget alert check in background after distribution
+    background_tasks.add_task(_run_alert_check, current_user.tenant_id)
     
     return {
         "id": allocation.id,
@@ -501,6 +521,7 @@ async def get_department_allocations(
 @router.post("/employee-allocation", response_model=EmployeePointsAllocationResponse)
 async def allocate_points_to_employee(
     allocation_data: EmployeePointsAllocationCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -682,6 +703,9 @@ async def allocate_points_to_employee(
     
     db.commit()
     db.refresh(allocation)
+
+    # Trigger budget alert check in background after employee allocation
+    background_tasks.add_task(_run_alert_check, current_user.tenant_id)
     
     return {
         "id": allocation.id,
